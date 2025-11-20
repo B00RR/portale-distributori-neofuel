@@ -134,4 +134,4 @@ Questo progetto è proprietario. Tutti i diritti riservati.
 
 ## 📞 Supporto
 
-Per supporto, contattare: support@neofuel.com
+Per supporto, contattare: lorenzo.barra@neogas.com
