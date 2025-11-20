@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Portale Distributori Neofuel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.6.0/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
+  <script src="template_chiusura_base64.js"></script>
+</head>
+<body style="background: #fff;">
+  <!-- Header rimosso per interfaccia full-width -->
+
+  <div class="login-container" id="login-container">
+    <form id="login-form">
+      <h1 style="color: #003350">Accedi</h1>
+      <label for="email" style="color: #003350; font-weight: 500;">Email</label>
+      <input required id="email" name="email" type="email" autocomplete="email" placeholder="es. operatore@neofuel.it" />
+      <label for="password" style="color: #003350; font-weight: 500;">Password</label>
+      <div class="password-wrapper">
+        <input required id="password" name="password" autocomplete="current-password" type="password" />
+        <button type="button" id="toggle-password" title="Mostra password">
+          <i class="fas fa-eye" id="password-icon"></i>
+        </button>
+      </div>
+      <button type="submit">Accedi</button>
+      <div id="login-error" class="error-msg"></div>
+    </form>
+  </div>
+
+  <div class="app-container" id="app-container" style="display: none;">
+    <main id="main-content" style="padding: 16px;"></main>
+    <!-- Contenuto dinamico inserito da app.js -->
+  </div>
+
+  <!-- aggiungi sempre dropdown-content e dropdown styles nel CSS o inline JS classi -->
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
