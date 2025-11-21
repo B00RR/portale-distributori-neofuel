@@ -17,6 +17,7 @@ import {
   readExportSummaryValues
 } from "./export.js";
 import { loggedUser, clearSession } from "./auth.js";
+import { showIslandsModal } from "./admin-islands.js";
 
 // Stato locale admin
 let currentAdminTab = 'dashboard';
@@ -203,7 +204,7 @@ async function showStationsTab(container, actionsContainer) {
           <td>
             <button class="icon-btn edit-station" data-id="${st.station_id}" title="Modifica"><i class="fas fa-edit"></i></button>
             <button class="icon-btn prices-station" data-id="${st.station_id}" title="Prezzi"><i class="fas fa-tag"></i></button>
-            <button class="icon-btn tanks-station" data-id="${st.station_id}" title="Cisterne"><i class="fas fa-database"></i></button>
+            <button class="icon-btn islands-station" data-id="${st.station_id}" title="Isole e Pistole"><i class="fas fa-gas-pump"></i></button>
             <button class="icon-btn delete-station" data-id="${st.station_id}" title="Elimina"><i class="fas fa-trash"></i></button>
           </td>
         </tr>
@@ -220,8 +221,8 @@ async function showStationsTab(container, actionsContainer) {
     container.querySelectorAll('.prices-station').forEach(btn => {
       btn.addEventListener('click', () => showPrezziAdminModal(btn.dataset.id));
     });
-    container.querySelectorAll('.tanks-station').forEach(btn => {
-      btn.addEventListener('click', () => showTanksAdminModal(btn.dataset.id));
+    container.querySelectorAll('.islands-station').forEach(btn => {
+      btn.addEventListener('click', () => showIslandsModal(btn.dataset.id));
     });
     container.querySelectorAll('.delete-station').forEach(btn => {
       btn.addEventListener('click', () => deleteStation(btn.dataset.id));
