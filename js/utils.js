@@ -30,6 +30,29 @@ export function formatLitri(value) {
     return formatNumberIt(value, 2);
 }
 
+// Formatta numeratore pistola con 3 decimali (es. 1.234,567)
+export function formatGunCounter(value) {
+    const num = Number(value);
+    const safeNum = Number.isFinite(num) ? num : 0;
+    return new Intl.NumberFormat('it-IT', {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3
+    }).format(safeNum);
+}
+
+// Parse numeratore pistola da formato italiano (es. "1.234,567" -> 1234.567)
+export function parseGunCounter(value) {
+    if (value == null || value === '') return 0;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+
+    const cleaned = value.toString()
+        .replace(/\./g, '')      // Rimuove separatori migliaia
+        .replace(',', '.');       // Sostituisce virgola con punto
+
+    const num = parseFloat(cleaned);
+    return Number.isFinite(num) ? num : 0;
+}
+
 export function parseNumberFlexible(value) {
     if (value == null || value === '') return 0;
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;

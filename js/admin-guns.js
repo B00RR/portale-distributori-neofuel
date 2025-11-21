@@ -15,12 +15,12 @@ import { escapeHtml, formatNumberIt, parseNumberFlexible, formatGunCounter, pars
  * @param {number} stationId - ID distributore
  */
 export async function showGunsModal(islandId, islandName, stationId) {
-    openModal(`Pistole - ${escapeHtml(islandName)}`);
-    const target = document.getElementById('modal-body');
+  openModal(`Pistole - ${escapeHtml(islandName)}`);
+  const target = document.getElementById('modal-body');
 
-    showLoadingMessage(target, 'Caricamento pistole...');
+  showLoadingMessage(target, 'Caricamento pistole...');
 
-    await renderGuns(target, islandId, islandName, stationId);
+  await renderGuns(target, islandId, islandName, stationId);
 }
 
 /**
@@ -31,37 +31,46 @@ export async function showGunsModal(islandId, islandName, stationId) {
  * @param {number} stationId - ID distributore
  */
 async function renderGuns(target, islandId, islandName, stationId) {
-    try {
-        // Carica pistole
-        const { data: guns } = await supabase
-            .from('pistole')
-            .select('*')
-            .eq('island_id', islandId)
-            .order('nome');
+  try {
+    // Carica pistole
+    const { data: guns } = await supabase
+      .from('pistole')
+      .select('*')
+      .eq('island_id', islandId)
+      .order('nome');
 
-        // Carica ultimi numeratori da chiusura_turno_pistole
-        const latestCounters = {};
-        const { data: allCounters } = await supabase
-            .from('chiusura_turno_pistole')
-            .select('pistola_id, numeratore_chiusura, turno_id')
-            .order('turno_id', { ascending: false })
-            .limit(200);
+    // Carica ultimi numeratori da chiusura_turno_pistole
+    const latestCounters = {};
+    const { data: allCounters } = await supabase
+      .from('chiusura_turno_pistole')
+      .select('pistola_id, numeratore_chiusura, turno_id')
+      .order('turno_id', { ascending: false })
+      .limit(200);
 
-        if (allCounters && allCounters.length > 0) {
-            // Trova il turno_id più alto (ultima chiusura)
-            const maxTurnoId = Math.max(...allCounters.map(c => c.turno_id));
+    if (allCounters && allCounters.length > 0) {
+      // Trova il turno_id più alto (ultima chiusura)
+      const maxTurnoId = Math.max(...allCounters.map(c => c.turno_id));
 
-            // Filtra solo i contatori con il turno_id più alto
-            const latest = allCounters.filter(c => c.turno_id === maxTurnoId);
+      console.log('DEBUG: turno_id più alto:', maxTurnoId);
+      console.log('DEBUG: record trovati:', allCounters.length);
 
-            // Popola la mappa dei contatori
-            latest.forEach(c => {
-                latestCounters[c.pistola_id] = parseFloat(c.numeratore_chiusura);
-            });
-        }
+      // Filtra solo i contatori con il turno_id più alto
+      const latest = allCounters.filter(c => c.turno_id === maxTurnoId);
 
-        if (!guns || guns.length === 0) {
-            target.innerHTML = `
+      console.log('DEBUG: contatori per ultimo turno:', latest);
+
+      // Popola la mappa dei contatori
+      latest.forEach(c => {
+        latestCounters[c.pistola_id] = parseFloat(c.numeratore_chiusura);
+      });
+
+      console.log('DEBUG: mappa latestCounters:', latestCounters);
+    } else {
+      console.log('DEBUG: Nessun contatore trovato in chiusura_turno_pistole');
+    }
+
+    if (!guns || guns.length === 0) {
+      target.innerHTML = `
         <div style="text-align: center; padding: 40px; color: #6b7280;">
           <i class="fas fa-gas-pump" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
           <p style="font-size: 1.125rem; margin-bottom: 20px;">Nessuna pistola configurata per questa isola</p>
@@ -70,32 +79,28 @@ async function renderGuns(target, islandId, islandName, stationId) {
           </button>
         </div>
       `;
+      return;
+    }
 
-            document.getElementById('add-gun-btn').addEventListener('click', () => {
-                openGunForm(islandId, islandName, stationId);
-            });
-            return;
-        }
+    const fuelColors = {
+      benzina: '#22c55e',
+      gasolio: '#eab308',
+      gpl: '#3b82f6',
+      metano: '#10b981'
+    };
 
-        // Renderizza card pistole
-        const gunsHtml = guns.map(gun => {
-            // Usa l'ultimo numeratore da chiusura_turno_pistole se disponibile,
-            // altrimenti usa il valore da pistole.numero_litri
-            const currentCounter = latestCounters[gun.id] !== undefined
-                ? latestCounters[gun.id]
-                : (gun.numero_litri || 0);
+    const gunsHtml = guns.map(gun => {
+      const latestVal = latestCounters[gun.id];
+      const fallbackVal = gun.numero_litri;
+      // Usa il valore da chiusura_turno_pistole se presente, altrimenti fallback su pistole.numero_litri
+      const currentCounter = latestVal !== undefined ? latestVal : fallbackVal;
 
-            const counter = formatGunCounter(currentCounter);
+      console.log(`DEBUG: Gun ${gun.nome} (ID: ${gun.id}) - Latest: ${latestVal}, Fallback: ${fallbackVal}, Used: ${currentCounter}`);
 
-            const fuelColors = {
-                benzina: '#ef4444',
-                gasolio: '#3b82f6',
-                gpl: '#8b5cf6',
-                metano: '#10b981'
-            };
-            const color = fuelColors[gun.tipo_carburante] || '#6b7280';
+      const counter = formatGunCounter(currentCounter);
+      const color = fuelColors[gun.tipo_carburante] || '#6b7280';
 
-            return `
+      return `
         <div class="gun-card" style="
           background: white;
           border-radius: 12px;
@@ -162,9 +167,9 @@ async function renderGuns(target, islandId, islandName, stationId) {
           </button>
         </div>
       `;
-        }).join('');
+    }).join('');
 
-        target.innerHTML = `
+    target.innerHTML = `
       <div style="margin-bottom: 20px;">
         <button class="menu-button primary" id="add-gun-btn">
           <i class="fas fa-plus"></i> Aggiungi Pistola
@@ -173,43 +178,43 @@ async function renderGuns(target, islandId, islandName, stationId) {
       ${gunsHtml}
     `;
 
-        // Event listeners
-        document.getElementById('add-gun-btn').addEventListener('click', () => {
-            openGunForm(islandId, islandName, stationId);
-        });
+    // Event listeners
+    document.getElementById('add-gun-btn').addEventListener('click', () => {
+      openGunForm(islandId, islandName, stationId);
+    });
 
-        document.querySelectorAll('.edit-gun').forEach(btn => {
-            btn.addEventListener('click', () => {
-                openGunForm(islandId, islandName, stationId, btn.dataset.id);
-            });
-        });
+    document.querySelectorAll('.edit-gun').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openGunForm(islandId, islandName, stationId, btn.dataset.id);
+      });
+    });
 
-        document.querySelectorAll('.delete-gun').forEach(btn => {
-            btn.addEventListener('click', () => {
-                deleteGun(btn.dataset.id, islandId, islandName, stationId);
-            });
-        });
+    document.querySelectorAll('.delete-gun').forEach(btn => {
+      btn.addEventListener('click', () => {
+        deleteGun(btn.dataset.id, islandId, islandName, stationId);
+      });
+    });
 
-        document.querySelectorAll('.edit-counter').forEach(btn => {
-            btn.addEventListener('click', () => {
-                showCounterEditModal(
-                    btn.dataset.id,
-                    btn.dataset.name,
-                    btn.dataset.counter,
-                    islandId,
-                    islandName,
-                    stationId
-                );
-            });
-        });
+    document.querySelectorAll('.edit-counter').forEach(btn => {
+      btn.addEventListener('click', () => {
+        showCounterEditModal(
+          btn.dataset.id,
+          btn.dataset.name,
+          btn.dataset.counter,
+          islandId,
+          islandName,
+          stationId
+        );
+      });
+    });
 
-    } catch (err) {
-        target.innerHTML = `
+  } catch (err) {
+    target.innerHTML = `
       <div style="color: #dc2626; padding: 20px; text-align: center;">
         <i class="fas fa-exclamation-triangle"></i> Errore: ${escapeHtml(err.message)}
       </div>
     `;
-    }
+  }
 }
 
 /**
@@ -220,23 +225,23 @@ async function renderGuns(target, islandId, islandName, stationId) {
  * @param {number|null} gunId - ID pistola (null per nuova)
  */
 async function openGunForm(islandId, islandName, stationId, gunId = null) {
-    const isEdit = !!gunId;
-    openModal(isEdit ? 'Modifica Pistola' : 'Nuova Pistola');
-    const target = document.getElementById('modal-body');
+  const isEdit = !!gunId;
+  openModal(isEdit ? 'Modifica Pistola' : 'Nuova Pistola');
+  const target = document.getElementById('modal-body');
 
-    let gun = { nome: '', tipo_carburante: 'benzina', numero_litri: 0 };
-    if (isEdit) {
-        const { data } = await supabase
-            .from('pistole')
-            .select('*')
-            .eq('id', gunId)
-            .single();
-        gun = data || gun;
-    }
+  let gun = { nome: '', tipo_carburante: 'benzina', numero_litri: 0 };
+  if (isEdit) {
+    const { data } = await supabase
+      .from('pistole')
+      .select('*')
+      .eq('id', gunId)
+      .single();
+    gun = data || gun;
+  }
 
-    const counterFormatted = formatGunCounter(gun.numero_litri);
+  const counterFormatted = formatGunCounter(gun.numero_litri);
 
-    target.innerHTML = `
+  target.innerHTML = `
     <form id="gun-form">
       <div class="form-group">
         <label>Nome Pistola</label>
@@ -273,43 +278,43 @@ async function openGunForm(islandId, islandName, stationId, gunId = null) {
     </form>
   `;
 
-    document.getElementById('cancel-btn').addEventListener('click', () => {
-        closeModal();
-        showGunsModal(islandId, islandName, stationId);
-    });
+  document.getElementById('cancel-btn').addEventListener('click', () => {
+    closeModal();
+    showGunsModal(islandId, islandName, stationId);
+  });
 
-    document.getElementById('gun-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
+  document.getElementById('gun-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
 
-        const numeroLitriStr = fd.get('numero_litri');
-        const numeroLitri = parseGunCounter(numeroLitriStr);
+    const numeroLitriStr = fd.get('numero_litri');
+    const numeroLitri = parseGunCounter(numeroLitriStr);
 
-        const payload = {
-            nome: fd.get('nome'),
-            tipo_carburante: fd.get('tipo_carburante'),
-            numero_litri: numeroLitri,
-            island_id: islandId
-        };
+    const payload = {
+      nome: fd.get('nome'),
+      tipo_carburante: fd.get('tipo_carburante'),
+      numero_litri: numeroLitri,
+      island_id: islandId
+    };
 
-        try {
-            if (isEdit) {
-                await safeSupabaseQuery(() =>
-                    supabase.from('pistole').update(payload).eq('id', gunId)
-                );
-                showInfoModal('Pistola aggiornata con successo!');
-            } else {
-                await safeSupabaseQuery(() =>
-                    supabase.from('pistole').insert([payload])
-                );
-                showInfoModal('Pistola creata con successo!');
-            }
-            closeModal();
-            showGunsModal(islandId, islandName, stationId);
-        } catch (err) {
-            alert('Errore: ' + err.message);
-        }
-    });
+    try {
+      if (isEdit) {
+        await safeSupabaseQuery(() =>
+          supabase.from('pistole').update(payload).eq('id', gunId)
+        );
+        showInfoModal('Pistola aggiornata con successo!');
+      } else {
+        await safeSupabaseQuery(() =>
+          supabase.from('pistole').insert([payload])
+        );
+        showInfoModal('Pistola creata con successo!');
+      }
+      closeModal();
+      showGunsModal(islandId, islandName, stationId);
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    }
+  });
 }
 
 /**
@@ -322,12 +327,12 @@ async function openGunForm(islandId, islandName, stationId, gunId = null) {
  * @param {number} stationId - ID distributore
  */
 async function showCounterEditModal(gunId, gunName, currentCounter, islandId, islandName, stationId) {
-    openModal(`Modifica Numeratore - ${escapeHtml(gunName)}`);
-    const target = document.getElementById('modal-body');
+  openModal(`Modifica Numeratore - ${escapeHtml(gunName)}`);
+  const target = document.getElementById('modal-body');
 
-    const counterFormatted = formatGunCounter(parseFloat(currentCounter));
+  const counterFormatted = formatGunCounter(parseFloat(currentCounter));
 
-    target.innerHTML = `
+  target.innerHTML = `
     <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0284c7;">
       <div style="font-size: 0.875rem; color: #0369a1; margin-bottom: 5px;">Numeratore Attuale</div>
       <div style="font-size: 1.5rem; font-weight: 700; color: #0c4a6e;">${counterFormatted} L</div>
@@ -367,63 +372,91 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
     </form>
   `;
 
-    document.getElementById('cancel-btn').addEventListener('click', () => {
-        closeModal();
-        showGunsModal(islandId, islandName, stationId);
-    });
+  document.getElementById('cancel-btn').addEventListener('click', () => {
+    closeModal();
+    showGunsModal(islandId, islandName, stationId);
+  });
 
-    document.getElementById('counter-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
+  document.getElementById('counter-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
 
-        const numeroLitriStr = fd.get('numero_litri');
-        const numeroLitri = parseGunCounter(numeroLitriStr);
+    const numeroLitriStr = fd.get('numero_litri');
+    const numeroLitri = parseGunCounter(numeroLitriStr);
 
-        if (numeroLitri < 0) {
-            alert('Il numeratore non può essere negativo!');
-            return;
+    if (numeroLitri < 0) {
+      alert('Il numeratore non può essere negativo!');
+      return;
+    }
+
+    try {
+      // 1. Aggiorna la tabella pistole (valore di fallback)
+      await safeSupabaseQuery(() =>
+        supabase.from('pistole').update({ numero_litri: numeroLitri }).eq('id', gunId)
+      );
+
+      // 2. Trova l'ultimo turno_id da chiusura_turno_pistole
+      let currentTurnoId = null;
+      try {
+        const { data: lastCounters } = await supabase
+          .from('chiusura_turno_pistole')
+          .select('turno_id')
+          .order('turno_id', { ascending: false })
+          .limit(1);
+
+        if (lastCounters && lastCounters.length > 0) {
+          currentTurnoId = lastCounters[0].turno_id;
         }
+      } catch (err) {
+        console.warn('Errore recupero ultimo turno_id:', err);
+      }
 
-        try {
-            // 1. Aggiorna la tabella pistole (valore di fallback)
-            await safeSupabaseQuery(() =>
-                supabase.from('pistole').update({ numero_litri: numeroLitri }).eq('id', gunId)
-            );
+      // 3. Aggiorna o inserisci record in chiusura_turno_pistole
+      if (currentTurnoId !== null) {
+        // Verifica se esiste già un record per questa pistola con il turno_id corrente
+        const { data: existing } = await supabase
+          .from('chiusura_turno_pistole')
+          .select('id')
+          .eq('pistola_id', gunId)
+          .eq('turno_id', currentTurnoId)
+          .single();
 
-            // 2. Trova l'ultimo turno_id da chiusura_turno_pistole
-            let nextTurnoId = 1; // Default se non ci sono chiusure
-            try {
-                const { data: lastCounters } = await supabase
-                    .from('chiusura_turno_pistole')
-                    .select('turno_id')
-                    .order('turno_id', { ascending: false })
-                    .limit(1);
-
-                if (lastCounters && lastCounters.length > 0) {
-                    nextTurnoId = lastCounters[0].turno_id + 1;
-                }
-            } catch (err) {
-                console.warn('Errore recupero ultimo turno_id:', err);
-            }
-
-            // 3. Inserisci nuovo record in chiusura_turno_pistole
-            // Questo assicura che il numeratore modificato dall'admin sia visibile
-            await safeSupabaseQuery(() =>
-                supabase.from('chiusura_turno_pistole').insert([{
-                    pistola_id: gunId,
-                    numeratore_chiusura: numeroLitri,
-                    turno_id: nextTurnoId,
-                    chiusura_id: null // NULL perché è una modifica admin, non una chiusura turno
-                }])
-            );
-
-            showInfoModal(`Numeratore aggiornato a ${formatGunCounter(numeroLitri)} L`);
-            closeModal();
-            showGunsModal(islandId, islandName, stationId);
-        } catch (err) {
-            alert('Errore: ' + err.message);
+        if (existing) {
+          // Aggiorna il record esistente
+          await safeSupabaseQuery(() =>
+            supabase.from('chiusura_turno_pistole')
+              .update({ numeratore_chiusura: numeroLitri })
+              .eq('pistola_id', gunId)
+              .eq('turno_id', currentTurnoId)
+          );
+        } else {
+          // Inserisci nuovo record con lo stesso turno_id
+          await safeSupabaseQuery(() =>
+            supabase.from('chiusura_turno_pistole').insert([{
+              pistola_id: gunId,
+              numeratore_chiusura: numeroLitri,
+              turno_id: currentTurnoId
+            }])
+          );
         }
-    });
+      } else {
+        // Nessun turno esistente, crea il primo con turno_id = 1
+        await safeSupabaseQuery(() =>
+          supabase.from('chiusura_turno_pistole').insert([{
+            pistola_id: gunId,
+            numeratore_chiusura: numeroLitri,
+            turno_id: 1
+          }])
+        );
+      }
+
+      showInfoModal(`Numeratore aggiornato a ${formatGunCounter(numeroLitri)} L`);
+      closeModal();
+      showGunsModal(islandId, islandName, stationId);
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    }
+  });
 }
 
 /**
@@ -434,16 +467,16 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
  * @param {number} stationId - ID distributore
  */
 async function deleteGun(gunId, islandId, islandName, stationId) {
-    try {
-        if (!await openConfirmModal('Sei sicuro di voler eliminare questa pistola?')) return;
+  try {
+    if (!await openConfirmModal('Sei sicuro di voler eliminare questa pistola?')) return;
 
-        await safeSupabaseQuery(() =>
-            supabase.from('pistole').delete().eq('id', gunId)
-        );
+    await safeSupabaseQuery(() =>
+      supabase.from('pistole').delete().eq('id', gunId)
+    );
 
-        showInfoModal('Pistola eliminata con successo!');
-        showGunsModal(islandId, islandName, stationId);
-    } catch (err) {
-        alert('Errore eliminazione: ' + err.message);
-    }
+    showInfoModal('Pistola eliminata con successo!');
+    showGunsModal(islandId, islandName, stationId);
+  } catch (err) {
+    alert('Errore eliminazione: ' + err.message);
+  }
 }
