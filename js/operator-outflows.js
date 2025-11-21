@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js";
+import { supabase } from "./api.js";
 import { createWarningMessage, createSuccessMessage, createErrorMessage, createBackButton, createFormActions } from "./operator-ui-components.js";
 import { checkOpeningStatus } from "./operator-opening.js";
 

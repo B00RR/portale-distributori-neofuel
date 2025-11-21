@@ -2,7 +2,7 @@
 // OPERATOR CLOSURE WIZARD
 // Gestione chiusura turno con wizard a 3 step
 // ==========================================
-import { supabase } from "./supabaseClient.js";
+import { supabase } from "./api.js";
 import { showLoadingMessage, showErrorMessage } from "./ui.js";
 import { checkOpeningStatus, updateOpeningStatus } from "./operator-opening.js";
 import {
