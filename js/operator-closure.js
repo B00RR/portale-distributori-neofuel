@@ -2,7 +2,7 @@
 // OPERATOR CLOSURE WIZARD
 // Gestione chiusura turno con wizard a 3 step
 // ==========================================
-import { supabase } from "./api.js";
+import { supabase } from "./supabaseClient.js";
 import { showLoadingMessage, showErrorMessage } from "./ui.js";
 import { checkOpeningStatus, updateOpeningStatus } from "./operator-opening.js";
 import {
@@ -117,6 +117,7 @@ export async function startClosureWizard(stationId, userId) {
         stationId,
         userId,
         turnoId: activeOpening.id,
+        openingDate: activeOpening.date_time,
         pistole: allPistole,
         openingCounters: openingMap,
         prezzoBenzina,
@@ -139,14 +140,16 @@ export async function startClosureWizard(stationId, userId) {
  * Step 1: Selezione Tipo e Inserimento contatori
  */
 function showClosureStep1(container) {
-  const { pistole, openingCounters, closureType, includeCounters } = closureState.data;
+  const { pistole, openingCounters, closureType, includeCounters, openingDate } = closureState.data;
 
   const isFinal = closureType === 'final';
   const showCounters = isFinal || includeCounters;
+  const formattedDate = new Date(openingDate).toLocaleString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   container.innerHTML = `
     <div class="content-box">
       <h3><i class="fas fa-door-closed"></i> Chiusura Turno - Step 1/3</h3>
+      <p class="section-subtitle">Turno aperto il: <strong>${formattedDate}</strong></p>
       <p class="section-subtitle">Configurazione Chiusura</p>
       
       <form id="closure-step1-form">
@@ -319,9 +322,28 @@ function showClosureStep2(container) {
   closureState.data.totalLitriBenzina = totalLitriBenzina;
   closureState.data.totalLitriGasolio = totalLitriGasolio;
 
-  // Calcolo Extra
+  // Calcolo Extra (Crediti, Voucher, Rimborsi, Incassi da movimenti)
   const movimenti = closureState.data.movimenti || [];
-  const extraIncassi = movimenti
+
+  // 1. Crediti (Nuovi Debiti) -> Sottrarre dal contante atteso (Carburante venduto ma non incassato)
+  const creditsSum = movimenti
+    .filter(m => m.tipo === 'credito' || (m.descrizione && m.descrizione.toLowerCase().includes('credito') && m.tipo !== 'incasso'))
+    .reduce((sum, m) => sum + Number(m.importo), 0);
+
+  // 2. Voucher -> Sottrarre dal contante atteso (Prepagato)
+  const vouchersSum = movimenti
+    .filter(m => m.tipo === 'voucher' || (m.descrizione && m.descrizione.toLowerCase().includes('voucher')))
+    .reduce((sum, m) => sum + Number(m.importo), 0);
+
+  // 3. Rimborsi -> Sottrarre dal contante atteso (Soldi usciti dalla cassa)
+  // Include 'pagamento', 'uscita' (nuovo) e descrizioni con 'rimborso'
+  const refundsSum = movimenti
+    .filter(m => m.tipo === 'pagamento' || m.tipo === 'uscita' || (m.descrizione && m.descrizione.toLowerCase().includes('rimborso')))
+    .reduce((sum, m) => sum + Number(m.importo), 0);
+
+  // 4. Incassi Extra (Olio, Recupero Crediti, ecc.) -> Aggiungere al contante atteso
+  // Escludiamo i crediti (nuovi debiti) e i voucher. Includiamo tutto ciò che è 'incasso'.
+  const extraCashSum = movimenti
     .filter(m => m.tipo === 'incasso')
     .reduce((sum, m) => sum + Number(m.importo), 0);
 
@@ -332,21 +354,25 @@ function showClosureStep2(container) {
   const selfPos = d.selfPos || 0;
   const selfFleet = d.selfFleet || 0;
   const selfManager = d.selfManager || 0;
+  const selfReceiptTotal = d.selfReceiptTotal || 0;
 
-  // Calcolo iniziale totale scontrino
-  const selfTotal = selfCashIn - selfCashOut + selfPos + selfFleet + selfManager;
+  // Calcolo iniziale totale scontrino (Calcolato)
+  const selfTotalCalc = selfCashIn - selfCashOut + selfPos + selfFleet + selfManager;
 
-  // Logica Totale Atteso
+  // Logica Totale Atteso (SOLO CARBURANTE come richiesto)
   let totaleAtteso;
   if (closureState.data.includeCounters) {
-    totaleAtteso = ricavoTotaleTeor + extraIncassi;
+    totaleAtteso = ricavoTotaleTeor; // Solo carburante
   } else {
-    // Fallback: Se non leggiamo le pompe, l'atteso è ciò che dichiara il self + extra
-    totaleAtteso = selfTotal + extraIncassi;
+    // Fallback: Se non leggiamo le pompe, l'atteso è ciò che dichiara il self (senza extra)
+    totaleAtteso = selfTotalCalc;
   }
 
   closureState.data.ricavoTotaleTeor = ricavoTotaleTeor;
-  closureState.data.extraIncassi = extraIncassi;
+  closureState.data.creditsSum = creditsSum;
+  closureState.data.vouchersSum = vouchersSum;
+  closureState.data.refundsSum = refundsSum;
+  closureState.data.extraCashSum = extraCashSum;
   closureState.data.totaleAtteso = totaleAtteso;
 
   container.innerHTML = `
@@ -355,7 +381,7 @@ function showClosureStep2(container) {
       <p class="section-subtitle">Dati Scontrino Self e Incassi Operatore</p>
       
       <div class="summary-box">
-        <h4>Riepilogo Erogato ${!closureState.data.includeCounters ? '(Stimato da Self)' : ''}</h4>
+        <h4>Riepilogo Vendite Carburante ${!closureState.data.includeCounters ? '(Stimato da Self)' : ''}</h4>
         ${closureState.data.includeCounters ? `
         <div class="summary-row">
           <span>Totale Litri:</span>
@@ -363,7 +389,7 @@ function showClosureStep2(container) {
         </div>
         ` : ''}
         <div class="summary-row total">
-          <span>Totale Atteso (Teorico + Extra):</span>
+          <span>Totale Atteso (Solo Carburante):</span>
           <strong id="total-expected-display">${formatEuro(totaleAtteso)}</strong>
         </div>
       </div>
@@ -406,8 +432,14 @@ function showClosureStep2(container) {
           </div>
 
           <div class="summary-row total" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1;">
-            <span>Totale Scontrino:</span>
-            <strong id="self-total-display">${formatEuro(selfTotal)}</strong>
+            <span>Totale Calcolato:</span>
+            <strong id="self-total-display">${formatEuro(selfTotalCalc)}</strong>
+          </div>
+
+          <div class="form-group" style="margin-top: 15px;">
+            <label>Totale Scontrino (Da Ricevuta) (€)</label>
+            <input type="number" name="self_receipt_total" step="0.01" min="0" value="${selfReceiptTotal}" class="big-input" placeholder="Inserisci totale scontrino...">
+            <small style="color: #6b7280;">Inserire il totale riportato sullo scontrino cartaceo per confronto.</small>
           </div>
         </div>
 
@@ -421,23 +453,68 @@ function showClosureStep2(container) {
             <div class="form-group">
               <label>Contanti Cassa (€)</label>
               <input type="number" name="cash_real" step="0.01" min="0" value="${d.cashReal || 0}" class="big-input" required>
+              <small style="color: #6b7280;">Inserire il contante effettivamente presente in cassa.</small>
             </div>
             <div class="form-group">
               <label>POS Manuale (€)</label>
               <input type="number" name="pos_real" step="0.01" min="0" value="${d.posReal || 0}" class="big-input" required>
             </div>
           </div>
+
+          <div class="form-group">
+             <label>Transazioni UTA/DKV/Fine Mese (€)</label>
+             <input type="number" name="uta_dkv_real" step="0.01" min="0" value="${d.utaDkvReal || 0}" class="big-input" required>
+          </div>
           
-          <div class="form-row">
-            <div class="form-group">
-              <label>Crediti Clienti (€)</label>
-              <input type="number" name="credits_real" step="0.01" min="0" value="${d.creditsReal || 0}" class="big-input">
-            </div>
-            <div class="form-group">
-              <label>Voucher (€)</label>
-              <input type="number" name="vouchers_real" step="0.01" min="0" value="${d.vouchersReal || 0}" class="big-input">
+          ${creditsSum > 0 ? `
+          <div class="form-group">
+            <label>Crediti (Nuovi Debiti)</label>
+            <input type="text" value="${formatEuro(creditsSum)}" class="big-input" disabled style="background: #e2e8f0; color: #475569;">
+            <input type="hidden" name="credits_real" value="${creditsSum}">
+          </div>
+          ` : '<input type="hidden" name="credits_real" value="0">'}
+
+          ${vouchersSum > 0 ? `
+          <div class="form-group">
+            <label>Voucher (Prepagati)</label>
+            <input type="text" value="${formatEuro(vouchersSum)}" class="big-input" disabled style="background: #e2e8f0; color: #475569;">
+            <input type="hidden" name="vouchers_real" value="${vouchersSum}">
+          </div>
+          ` : '<input type="hidden" name="vouchers_real" value="0">'}
+          
+          ${refundsSum > 0 ? `
+          <div class="form-group">
+            <label>Rimborsi / Uscite Cassa</label>
+            <input type="text" value="${formatEuro(refundsSum)}" class="big-input" disabled style="background: #e2e8f0; color: #475569;">
+            <input type="hidden" name="refunds_real" value="${refundsSum}">
+            <div style="margin-top: 5px; font-size: 0.85em; color: #64748b; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                <strong>Dettaglio Uscite:</strong>
+                <ul style="margin: 5px 0 0 0; padding-left: 20px;">
+                    ${movimenti
+        .filter(m => m.tipo === 'pagamento' || m.tipo === 'uscita' || (m.descrizione && m.descrizione.toLowerCase().includes('rimborso')))
+        .map(m => `<li>${new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}: ${escapeHtml(m.descrizione || 'Uscita')} (${formatEuro(m.importo)})</li>`)
+        .join('')}
+                </ul>
             </div>
           </div>
+          ` : '<input type="hidden" name="refunds_real" value="0">'}
+
+          ${extraCashSum > 0 ? `
+           <div class="form-group">
+            <label>Incassi Extra (Olio, Rec. Crediti)</label>
+            <input type="text" value="${formatEuro(extraCashSum)}" class="big-input" disabled style="background: #e2e8f0; color: #475569;">
+            <div style="margin-top: 5px; font-size: 0.85em; color: #64748b; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                <strong>Dettaglio Incassi:</strong>
+                <ul style="margin: 5px 0 0 0; padding-left: 20px;">
+                    ${movimenti
+        .filter(m => m.tipo === 'incasso')
+        .map(m => `<li>${new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}: ${escapeHtml(m.descrizione || 'Incasso')} (${formatEuro(m.importo)})</li>`)
+        .join('')}
+                </ul>
+            </div>
+          </div>
+          ` : ''}
+
         </div>
 
         <div class="form-group">
@@ -475,9 +552,9 @@ function showClosureStep2(container) {
 
     // If counters are NOT included, Expected Total depends on Self Total
     if (!closureState.data.includeCounters) {
-      const newExpected = total + closureState.data.extraIncassi;
-      expectedDisplay.textContent = formatEuro(newExpected);
-      closureState.data.totaleAtteso = newExpected; // Update state for next step
+      // Fallback: Totale Atteso = Totale Scontrino Self (Calculated)
+      expectedDisplay.textContent = formatEuro(total);
+      closureState.data.totaleAtteso = total;
     }
   }
 
@@ -500,12 +577,13 @@ function showClosureStep2(container) {
     closureState.data.selfPos = parseFloat(formData.get('self_pos')) || 0;
     closureState.data.selfFleet = parseFloat(formData.get('self_fleet')) || 0;
     closureState.data.selfManager = parseFloat(formData.get('self_manager')) || 0;
+    closureState.data.selfReceiptTotal = parseFloat(formData.get('self_receipt_total')) || 0;
 
     // Save Operator Data
     closureState.data.cashReal = parseFloat(formData.get('cash_real')) || 0;
     closureState.data.posReal = parseFloat(formData.get('pos_real')) || 0;
-    closureState.data.creditsReal = parseFloat(formData.get('credits_real')) || 0;
-    closureState.data.vouchersReal = parseFloat(formData.get('vouchers_real')) || 0;
+    closureState.data.utaDkvReal = parseFloat(formData.get('uta_dkv_real')) || 0;
+
     closureState.data.notes = formData.get('notes') || '';
 
     closureState.step = 3;
@@ -520,19 +598,40 @@ function showClosureStep3(container) {
   const {
     ricavoTotaleTeor,
     // Self Data
-    selfCashIn, selfCashOut, selfPos, selfFleet, selfManager,
+    selfCashIn, selfCashOut, selfPos, selfFleet, selfManager, selfReceiptTotal,
     // Operator Data
-    cashReal, posReal, creditsReal, vouchersReal,
+    cashReal, posReal, utaDkvReal, creditsSum, vouchersSum, refundsSum, extraCashSum,
     // Totals
     totalLitriBenzina, totalLitriGasolio, prezzoBenzina, prezzoGasolio, notes
   } = closureState.data;
 
   // Calcoli Totali
-  const selfTotal = selfCashIn - selfCashOut + selfPos + selfFleet + selfManager;
-  const operatorTotal = cashReal + posReal + creditsReal + vouchersReal;
-  const totaleReale = selfTotal + operatorTotal;
+  const selfTotalCalc = selfCashIn - selfCashOut + selfPos + selfFleet + selfManager;
 
-  const discrepanza = totaleReale - closureState.data.totaleAtteso;
+  // Totale Dichiarato (Contanti + POS + UTA + Crediti + Voucher)
+  // Nota: Questo è solo per visualizzazione, non per il controllo contanti
+  const operatorTotalDeclared = cashReal + posReal + utaDkvReal;
+
+  // Totale Atteso Globale = Carburante + Extra Cash
+  const totaleAttesoGlobale = closureState.data.totaleAtteso + (extraCashSum || 0);
+
+  // VALIDAZIONE CONTANTI (FORMULA UTENTE)
+  // Contanti Attesi = (Totale Carburante) - POS - UTA - Crediti - Voucher + (SelfIn - SelfOut) - Rimborsi + Incassi Extra
+
+  const selfDelta = selfCashIn - selfCashOut; // Differenza banconote self
+
+  const expectedCash = ricavoTotaleTeor
+    - posReal
+    - utaDkvReal
+    - creditsSum
+    - vouchersSum
+    + selfDelta
+    - refundsSum
+    + extraCashSum;
+
+  const cashDiff = cashReal - expectedCash;
+  const isCashValid = Math.abs(cashDiff) <= 5;
+  const discrepanza = cashDiff; // La discrepanza principale è sui contanti
   const discrepanzaClass = discrepanza >= 0 ? 'positive' : 'negative';
 
   container.innerHTML = `
@@ -540,12 +639,24 @@ function showClosureStep3(container) {
       <h3><i class="fas fa-check-circle"></i> Chiusura Turno - Step 3/3</h3>
       <p class="section-subtitle">Conferma i dati prima di salvare</p>
       
+      ${!isCashValid ? `
+      <div class="warning-message" style="margin-bottom: 20px; border-left: 4px solid #f59e0b; background: #fffbeb; padding: 15px;">
+        <div style="display: flex; align-items: center; gap: 10px; color: #b45309; font-weight: bold; margin-bottom: 5px;">
+            <i class="fas fa-exclamation-triangle"></i> Attenzione: Discrepanza Contanti
+        </div>
+        <p style="margin: 0; color: #92400e;">
+            I contanti inseriti (${formatEuro(cashReal)}) differiscono da quelli attesi (${formatEuro(expectedCash)}) di <strong>${formatEuro(cashDiff)}</strong>.
+            <br>Il limite consentito è +/- 5,00 €. Verifica di aver contato bene.
+        </p>
+      </div>
+      ` : ''}
+
       <div class="summary-box">
         <h4>Riepilogo Finale</h4>
         
         <!-- Totale Atteso -->
         <div class="summary-row">
-          <span>Totale Atteso (Teorico):</span>
+          <span>Totale Atteso (Carburante):</span>
           <strong>${formatEuro(closureState.data.totaleAtteso)}</strong>
         </div>
         
@@ -553,9 +664,15 @@ function showClosureStep3(container) {
         
         <!-- Dettaglio Self -->
         <div class="summary-row">
-          <span>Totale Scontrino Self:</span>
-          <strong>${formatEuro(selfTotal)}</strong>
+          <span>Totale Scontrino Self (Calc):</span>
+          <strong>${formatEuro(selfTotalCalc)}</strong>
         </div>
+        ${selfReceiptTotal > 0 ? `
+        <div class="summary-row" style="font-size: 0.9em; color: #64748b;">
+          <span>Totale Scontrino (Manuale):</span>
+          <span>${formatEuro(selfReceiptTotal)}</span>
+        </div>
+        ` : ''}
         <div style="font-size: 0.85rem; color: #6b7280; padding-left: 10px; margin-bottom: 5px;">
           Incassato: ${formatEuro(selfCashIn)} | Erogato: -${formatEuro(selfCashOut)}<br>
           POS: ${formatEuro(selfPos)} | Fleet: ${formatEuro(selfFleet)} | ID: ${formatEuro(selfManager)}
@@ -564,19 +681,32 @@ function showClosureStep3(container) {
         <!-- Dettaglio Operatore -->
         <div class="summary-row">
           <span>Totale Operatore:</span>
-          <strong>${formatEuro(operatorTotal)}</strong>
+          <strong>${formatEuro(operatorTotalDeclared)}</strong>
         </div>
         <div style="font-size: 0.85rem; color: #6b7280; padding-left: 10px; margin-bottom: 5px;">
-          Cassa: ${formatEuro(cashReal)} | POS: ${formatEuro(posReal)}<br>
-          Crediti: ${formatEuro(creditsReal)} | Voucher: ${formatEuro(vouchersReal)}
+          Cassa: ${formatEuro(cashReal)} | POS: ${formatEuro(posReal)} | UTA: ${formatEuro(utaDkvReal)}<br>
+          Crediti: ${formatEuro(creditsSum)} | Voucher: ${formatEuro(vouchersSum)}
         </div>
+
+        <!-- Extra e Rimborsi -->
+        ${extraCashSum > 0 ? `
+        <div class="summary-row">
+            <span>Incassi Extra:</span>
+            <strong style="color: #10b981;">+ ${formatEuro(extraCashSum)}</strong>
+        </div>` : ''}
+        
+        ${refundsSum > 0 ? `
+        <div class="summary-row">
+            <span>Rimborsi / Uscite:</span>
+            <strong style="color: #ef4444;">- ${formatEuro(refundsSum)}</strong>
+        </div>` : ''}
 
         <div class="section-divider"></div>
 
         <!-- Totale Finale -->
         <div class="summary-row total">
-          <span>Totale Dichiarato:</span>
-          <strong>${formatEuro(totaleReale)}</strong>
+          <span>Contanti Attesi:</span>
+          <strong>${formatEuro(expectedCash)}</strong>
         </div>
 
         <div class="summary-row ${discrepanzaClass}">
@@ -612,6 +742,10 @@ function showClosureStep3(container) {
   document.getElementById('btn-confirm-closure').addEventListener('click', async () => {
     const isFinal = closureState.data.closureType === 'final';
 
+    if (!isCashValid) {
+      if (!confirm('ATTENZIONE: C\'è una discrepanza significativa nei contanti (> 5€). Sei sicuro di voler procedere?')) return;
+    }
+
     if (!confirm(`Confermi la chiusura ${isFinal ? 'FINALE' : 'PARZIALE'} del turno?`)) return;
 
     showLoadingMessage(container);
@@ -626,8 +760,11 @@ function showClosureStep3(container) {
       // Incasso POS = Self POS + Operator POS
       const incassoPos = selfPos + posReal;
 
-      // Incasso UTA/DKV = Self Fleet + Operator Credits + Operator Vouchers
-      const incassoUtaDkv = selfFleet + creditsReal + vouchersReal;
+      // Incasso UTA/DKV = Self Fleet + Operator UTA + Operator Credits + Operator Vouchers
+      const incassoUtaDkv = selfFleet + utaDkvReal + creditsSum + vouchersSum;
+
+      // Totale Lordo (Dichiarato)
+      const totaleReale = incassoContanti + incassoPos + incassoUtaDkv;
 
       // Prepara data_json con dettaglio completo
       const dataJson = {
@@ -636,8 +773,8 @@ function showClosureStep3(container) {
         prezzo_benzina: prezzoBenzina,
         prezzo_gasolio: prezzoGasolio,
         ricavo_teorico: ricavoTotaleTeor,
-        extra_incassi: closureState.data.extraIncassi,
-        totale_atteso: closureState.data.totaleAtteso,
+        extra_incassi: extraCashSum,
+        totale_atteso: totaleAttesoGlobale,
         incasso_reale: totaleReale,
 
         // Nuovo oggetto Scontrino Self
@@ -647,15 +784,18 @@ function showClosureStep3(container) {
           bancomat_erogati: selfPos,
           transazioni_uta: selfFleet,
           id_gestore: selfManager,
-          totale_scontrino: selfTotal
+          totale_scontrino_calcolato: selfTotalCalc,
+          totale_scontrino_manuale: selfReceiptTotal
         },
 
         // Dettaglio Operatore
         dettaglio_incasso: {
           contanti_operatore: cashReal,
           pos_operatore: posReal,
-          crediti: creditsReal,
-          voucher: vouchersReal
+          uta_dkv_operatore: utaDkvReal,
+          crediti: creditsSum,
+          voucher: vouchersSum,
+          rimborsi_uscite: refundsSum
         },
 
         discrepanza: discrepanza,
