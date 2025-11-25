@@ -25,8 +25,10 @@ export async function updateOpeningStatus(stationId) {
     const activeOpening = await checkOpeningStatus(stationId);
 
     if (activeOpening) {
-        badge.textContent = 'Aperto';
-        badge.className = 'status-badge status-open';
+        const hasPartial = activeOpening.closing_data?.closure_stage === 'partial';
+        const statusLabel = hasPartial ? 'Parziale' : 'Aperto';
+        badge.textContent = statusLabel;
+        badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
         badge.title = `Aperto da ${activeOpening.users?.full_name || 'Operatore'} il ${new Date(activeOpening.date_time).toLocaleString('it-IT')}`;
     } else {
         badge.textContent = 'Chiuso';
@@ -45,9 +47,9 @@ export async function checkOpeningStatus(stationId) {
         // Usa la nuova tabella shifts unificata
         const { data } = await supabase
             .from('shifts')
-            .select('id, opened_at, operator_id, users!operator_id(full_name)')
+            .select('id, opened_at, operator_id, status, closing_data, users!operator_id(full_name)')
             .eq('station_id', stationId)
-            .eq('status', 'open')
+            .is('closed_at', null)
             .order('opened_at', { ascending: false })
             .limit(1)
             .maybeSingle();

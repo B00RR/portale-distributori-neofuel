@@ -102,6 +102,16 @@ export async function startClosureWizard(stationId, userId) {
       .eq('station_id', stationId)
       .gte('created_at', activeOpening.opened_at || activeOpening.date_time);
 
+    const partialCompleted = activeOpening.closing_data?.closure_stage === 'partial';
+    const previousClosing = activeOpening.closing_data || {};
+    // NOTA: I dati self (banconote, bancomat, UTA/DKV) NON si sommano - sono sempre gli stessi per tutto il turno
+    // Solo l'ID gestore si somma tra turni. I dati operatore (POS, UTA/DKV) si sommano.
+    const partialAggregates = partialCompleted ? {
+      selfManager: Number(previousClosing?.scontrino_self?.id_gestore) || 0, // Solo ID gestore si somma
+      operatorPos: Number(previousClosing?.dettaglio_incasso?.pos_operatore) || 0,
+      operatorUta: Number(previousClosing?.dettaglio_incasso?.uta_dkv_operatore) || 0
+    } : null;
+
     // Reset state
     closureState = {
       step: 1,
@@ -115,9 +125,12 @@ export async function startClosureWizard(stationId, userId) {
         prezzoBenzina,
         prezzoGasolio,
         movimenti: movimenti || [],
+        existingClosingData: previousClosing,
+        partialAggregates,
+        partialCompleted,
         // Default State
-        closureType: 'partial', // 'partial' | 'final'
-        includeCounters: false
+        closureType: partialCompleted ? 'final' : 'partial', // 'partial' | 'final'
+        includeCounters: partialCompleted ? true : false
       }
     };
 
@@ -132,31 +145,41 @@ export async function startClosureWizard(stationId, userId) {
  * Step 1: Selezione Tipo e Inserimento contatori
  */
 function showClosureStep1(container) {
-  const { pistole, openingCounters, closureType, includeCounters, openingDate } = closureState.data;
+  const { pistole, openingCounters, closureType, includeCounters, openingDate, partialCompleted } = closureState.data;
 
-  const isFinal = closureType === 'final';
+  const isFinal = partialCompleted ? true : closureType === 'final';
   const showCounters = isFinal || includeCounters;
   const formattedDate = new Date(openingDate).toLocaleString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+  const infoBanner = partialCompleted ? `
+    <div class="warning-message" style="margin-bottom: 15px;">
+      <h3>Chiusura Parziale già registrata</h3>
+      <p>Completa ora la chiusura finale per terminare il turno.</p>
+    </div>
+  ` : '';
 
   container.innerHTML = `
     <div class="content-box">
       <h3><i class="fas fa-door-closed"></i> Chiusura Turno - Step 1/3</h3>
       <p class="section-subtitle">Turno aperto il: <strong>${formattedDate}</strong></p>
       <p class="section-subtitle">Configurazione Chiusura</p>
+      ${infoBanner}
       
       <form id="closure-step1-form">
         
         <!-- TIPO CHIUSURA -->
         <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
             <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 15px;">
-                <label class="radio-card ${!isFinal ? 'selected' : ''}" style="flex: 1; text-align: center; padding: 15px; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                ${!partialCompleted ? `
+                <label class="radio-card ${!isFinal ? 'selected' : ''}" data-type="partial" style="flex: 1; text-align: center; padding: 15px; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                     <input type="radio" name="closure_type" value="partial" ${!isFinal ? 'checked' : ''} style="display: none;">
                     <i class="fas fa-clock" style="font-size: 1.5rem; color: #3b82f6; margin-bottom: 8px; display: block;"></i>
                     <div style="font-weight: 600; color: #1e293b;">Parziale</div>
                     <div style="font-size: 0.8rem; color: #64748b;">Cambio Turno</div>
                 </label>
+                ` : ''}
                 
-                <label class="radio-card ${isFinal ? 'selected' : ''}" style="flex: 1; text-align: center; padding: 15px; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                <label class="radio-card ${isFinal ? 'selected' : ''}" data-type="final" style="flex: 1; text-align: center; padding: 15px; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                     <input type="radio" name="closure_type" value="final" ${isFinal ? 'checked' : ''} style="display: none;">
                     <i class="fas fa-flag-checkered" style="font-size: 1.5rem; color: #ef4444; margin-bottom: 8px; display: block;"></i>
                     <div style="font-weight: 600; color: #1e293b;">Finale</div>
@@ -198,6 +221,7 @@ function showClosureStep1(container) {
                         min="${opening}"
                         class="big-input gun-counter-input"
                         ${showCounters ? 'required' : ''}
+                        ${showCounters ? '' : 'disabled'}
                     >
                     </div>
                 </div>
@@ -233,28 +257,37 @@ function showClosureStep1(container) {
   const pistoleSection = document.getElementById('pistole-section');
   const countersToggleContainer = document.getElementById('counters-toggle-container');
   const gunInputs = form.querySelectorAll('.gun-counter-input');
+  const partialAlreadyDone = closureState.data.partialCompleted;
+  const partialCard = document.querySelector('.radio-card[data-type="partial"]');
+  const finalCard = document.querySelector('.radio-card[data-type="final"]');
 
   function updateUI() {
-    const type = document.querySelector('input[name="closure_type"]:checked').value;
-    const include = countersCheck.checked;
+    let type = 'final';
+    if (!partialAlreadyDone) {
+      const selected = document.querySelector('input[name="closure_type"]:checked');
+      type = selected ? selected.value : 'partial';
+    }
+    const include = countersCheck ? countersCheck.checked : true;
+    const shouldShowCounters = type === 'final' || include;
 
     // Update selection styles
-    document.querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
-    document.querySelector(`input[value="${type}"]`).closest('.radio-card').classList.add('selected');
-
+    [partialCard, finalCard].forEach(c => c?.classList.remove('selected'));
     if (type === 'final') {
-      countersToggleContainer.style.display = 'none';
-      pistoleSection.style.display = 'block';
-      gunInputs.forEach(i => i.required = true);
+      finalCard?.classList.add('selected');
     } else {
-      countersToggleContainer.style.display = 'block';
-      pistoleSection.style.display = include ? 'block' : 'none';
-      gunInputs.forEach(i => i.required = include);
+      partialCard?.classList.add('selected');
     }
+
+    countersToggleContainer.style.display = (type === 'final' || partialAlreadyDone) ? 'none' : 'block';
+    pistoleSection.style.display = shouldShowCounters ? 'block' : 'none';
+    gunInputs.forEach(i => {
+      i.required = shouldShowCounters;
+      i.disabled = !shouldShowCounters;
+    });
   }
 
   radioInputs.forEach(r => r.addEventListener('change', updateUI));
-  countersCheck.addEventListener('change', updateUI);
+  countersCheck?.addEventListener('change', updateUI);
 
   document.getElementById('btn-cancel-closure').addEventListener('click', () => {
     container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
@@ -264,8 +297,8 @@ function showClosureStep1(container) {
     e.preventDefault();
     const formData = new FormData(e.target);
 
-    const type = formData.get('closure_type');
-    const include = type === 'final' ? true : countersCheck.checked;
+    const type = partialCompleted ? 'final' : formData.get('closure_type');
+    const include = type === 'final' ? true : (countersCheck ? countersCheck.checked : false);
 
     closureState.data.closureType = type;
     closureState.data.includeCounters = include;
@@ -347,17 +380,24 @@ function showClosureStep2(container) {
   const selfFleet = d.selfFleet || 0;
   const selfManager = d.selfManager || 0;
   const selfReceiptTotal = d.selfReceiptTotal || 0;
+  const partialAgg = d.partialAggregates || {};
+  const prevSelfManager = partialAgg?.selfManager || 0; // Solo ID gestore si somma tra turni
+  const prevOperatorPos = partialAgg?.operatorPos || 0;
+  const prevOperatorUta = partialAgg?.operatorUta || 0;
 
-  // Calcolo iniziale totale scontrino (Calcolato)
-  const selfTotalCalc = selfCashIn - selfCashOut + selfPos + selfFleet + selfManager;
+  // Totale venduto da self (solo erogazioni) - NOTA: bancomat e UTA/DKV self NON si sommano, sono sempre gli stessi
+  // Solo l'ID gestore si somma tra turni
+  const totalSelfManager = selfManager + prevSelfManager;
+  const selfTotalVenduto = selfCashOut + selfPos + selfFleet + totalSelfManager;
+  const selfDeltaContante = selfCashIn - selfCashOut;
 
   // Logica Totale Atteso (SOLO CARBURANTE come richiesto)
   let totaleAtteso;
   if (closureState.data.includeCounters) {
     totaleAtteso = ricavoTotaleTeor; // Solo carburante
   } else {
-    // Fallback: Se non leggiamo le pompe, l'atteso è ciò che dichiara il self (senza extra)
-    totaleAtteso = selfTotalCalc;
+    // Fallback: Se non leggiamo le pompe, l'atteso è il venduto riportato dallo scontrino self
+    totaleAtteso = selfTotalVenduto;
   }
 
   closureState.data.ricavoTotaleTeor = ricavoTotaleTeor;
@@ -402,7 +442,7 @@ function showClosureStep2(container) {
             <div class="form-group">
               <label>2. Banconote Erogate (€)</label>
               <input type="number" name="self_cash_out" step="0.01" min="0" value="${selfCashOut}" class="big-input self-input" required>
-              <small style="color: #6b7280;">(Resto/Rimborsi - Viene sottratto)</small>
+              <small style="color: #6b7280;">(Resto erogato - usato per totale venduto e delta contante)</small>
             </div>
           </div>
 
@@ -410,22 +450,29 @@ function showClosureStep2(container) {
             <div class="form-group">
               <label>3. Bancomat Erogati (€)</label>
               <input type="number" name="self_pos" step="0.01" min="0" value="${selfPos}" class="big-input self-input" required>
+              <small style="color: #6b7280;">(Valore unico per tutto il turno - non si somma)</small>
             </div>
             <div class="form-group">
               <label>4. Transazioni UTA/DKV (€)</label>
               <input type="number" name="self_fleet" step="0.01" min="0" value="${selfFleet}" class="big-input self-input" required>
+              <small style="color: #6b7280;">(Valore unico per tutto il turno - non si somma)</small>
             </div>
           </div>
 
           <div class="form-group">
             <label>5. ID Gestore (€)</label>
             <input type="number" name="self_manager" step="0.01" min="0" value="${selfManager}" class="big-input self-input" required>
+            ${prevSelfManager ? `<small style="color: #6b7280;">Turno precedente: ${formatEuro(prevSelfManager)}</small>` : ''}
             <small style="color: #6b7280;">(Fondi cambio turno/test)</small>
           </div>
 
           <div class="summary-row total" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1;">
-            <span>Totale Calcolato:</span>
-            <strong id="self-total-display">${formatEuro(selfTotalCalc)}</strong>
+            <span>Totale Self (Venduto):</span>
+            <strong id="self-total-display">${formatEuro(selfTotalVenduto)}</strong>
+          </div>
+          <div class="summary-row" style="font-size: 0.9rem; color: #475569;">
+            <span>Delta Contante (Incassato - Erogato):</span>
+            <strong id="self-delta-display">${formatEuro(selfDeltaContante)}</strong>
           </div>
 
           <div class="form-group" style="margin-top: 15px;">
@@ -450,12 +497,14 @@ function showClosureStep2(container) {
             <div class="form-group">
               <label>POS Manuale (€)</label>
               <input type="number" name="pos_real" step="0.01" min="0" value="${d.posReal || 0}" class="big-input" required>
+              ${prevOperatorPos ? `<small style="color: #6b7280;">Turno precedente: ${formatEuro(prevOperatorPos)}</small>` : ''}
             </div>
           </div>
 
           <div class="form-group">
              <label>Transazioni UTA/DKV/Fine Mese (€)</label>
              <input type="number" name="uta_dkv_real" step="0.01" min="0" value="${d.utaDkvReal || 0}" class="big-input" required>
+             ${prevOperatorUta ? `<small style="color: #6b7280;">Turno precedente: ${formatEuro(prevOperatorUta)}</small>` : ''}
           </div>
           
           ${creditsSum > 0 ? `
@@ -530,6 +579,7 @@ function showClosureStep2(container) {
   const form = document.getElementById('closure-step2-form');
   const selfInputs = form.querySelectorAll('.self-input');
   const totalDisplay = document.getElementById('self-total-display');
+  const deltaDisplay = document.getElementById('self-delta-display');
   const expectedDisplay = document.getElementById('total-expected-display');
 
   function updateTotals() {
@@ -538,21 +588,28 @@ function showClosureStep2(container) {
     const pos = parseFloat(form.self_pos.value) || 0;
     const fleet = parseFloat(form.self_fleet.value) || 0;
     const manager = parseFloat(form.self_manager.value) || 0;
+    const prevManager = closureState.data.partialAggregates?.selfManager || 0;
 
-    const total = cashIn - cashOut + pos + fleet + manager;
-    totalDisplay.textContent = formatEuro(total);
+    // NOTA: bancomat e UTA/DKV self NON si sommano - solo ID gestore si somma
+    const totalVenduto = cashOut + pos + fleet + (manager + prevManager);
+    const deltaContante = cashIn - cashOut;
+    totalDisplay.textContent = formatEuro(totalVenduto);
+    deltaDisplay.textContent = formatEuro(deltaContante);
 
     // If counters are NOT included, Expected Total depends on Self Total
     if (!closureState.data.includeCounters) {
       // Fallback: Totale Atteso = Totale Scontrino Self (Calculated)
-      expectedDisplay.textContent = formatEuro(total);
-      closureState.data.totaleAtteso = total;
+      expectedDisplay.textContent = formatEuro(totalVenduto);
+      closureState.data.totaleAtteso = totalVenduto;
     }
+
+    closureState.data.selfDeltaContante = deltaContante;
   }
 
   selfInputs.forEach(input => {
     input.addEventListener('input', updateTotals);
   });
+  updateTotals();
 
   document.getElementById('btn-back-step2').addEventListener('click', () => {
     closureState.step = 1;
@@ -597,24 +654,37 @@ function showClosureStep3(container) {
     totalLitriBenzina, totalLitriGasolio, prezzoBenzina, prezzoGasolio, notes
   } = closureState.data;
 
+  const partialAgg = closureState.data.partialAggregates || {};
+  const prevSelfManager = partialAgg?.selfManager || 0; // Solo ID gestore si somma tra turni
+  const prevOperatorPos = partialAgg?.operatorPos || 0;
+  const prevOperatorUta = partialAgg?.operatorUta || 0;
+
   // Calcoli Totali
-  const selfTotalCalc = selfCashIn - selfCashOut + selfPos + selfFleet + selfManager;
+  // NOTA: bancomat e UTA/DKV self NON si sommano - sono sempre gli stessi per tutto il turno
+  const totalSelfManager = selfManager + prevSelfManager; // Solo ID gestore si somma
+  const selfTotalVenduto = selfCashOut + selfPos + selfFleet + totalSelfManager;
+  const totalPosOperatore = posReal + prevOperatorPos;
+  const totalUtaOperatore = utaDkvReal + prevOperatorUta;
 
   // Totale Dichiarato (Contanti + POS + UTA + Crediti + Voucher)
   // Nota: Questo è solo per visualizzazione, non per il controllo contanti
-  const operatorTotalDeclared = cashReal + posReal + utaDkvReal;
+  const operatorTotalDeclared = cashReal + totalPosOperatore + totalUtaOperatore;
 
   // Totale Atteso Globale = Carburante + Extra Cash
   const totaleAttesoGlobale = closureState.data.totaleAtteso + (extraCashSum || 0);
 
   // VALIDAZIONE CONTANTI (FORMULA UTENTE)
-  // Contanti Attesi = (Totale Carburante) - POS - UTA - Crediti - Voucher + (SelfIn - SelfOut) - Rimborsi + Incassi Extra
+  // Contanti Attesi = (Totale Carburante) - POS Operatore - UTA/DKV Operatore - Bancomat Self - Crediti - Voucher + (SelfIn - SelfOut) - Rimborsi + Incassi Extra
+  // NOTA: Bancomat Self e UTA/DKV Self NON si sommano tra turni - sono sempre gli stessi
 
   const selfDelta = selfCashIn - selfCashOut; // Differenza banconote self
 
-  const expectedCash = ricavoTotaleTeor
-    - posReal
-    - utaDkvReal
+  const carburanteAtteso = closureState.data.totaleAtteso;
+
+  const expectedCash = carburanteAtteso
+    - totalPosOperatore
+    - totalUtaOperatore
+    - selfPos  // Bancomat Self (non si somma, è sempre lo stesso)
     - creditsSum
     - vouchersSum
     + selfDelta
@@ -656,8 +726,8 @@ function showClosureStep3(container) {
         
         <!-- Dettaglio Self -->
         <div class="summary-row">
-          <span>Totale Scontrino Self (Calc):</span>
-          <strong>${formatEuro(selfTotalCalc)}</strong>
+          <span>Totale Scontrino Self (Venduto):</span>
+          <strong>${formatEuro(selfTotalVenduto)}</strong>
         </div>
         ${selfReceiptTotal > 0 ? `
         <div class="summary-row" style="font-size: 0.9em; color: #64748b;">
@@ -666,8 +736,8 @@ function showClosureStep3(container) {
         </div>
         ` : ''}
         <div style="font-size: 0.85rem; color: #6b7280; padding-left: 10px; margin-bottom: 5px;">
-          Incassato: ${formatEuro(selfCashIn)} | Erogato: -${formatEuro(selfCashOut)}<br>
-          POS: ${formatEuro(selfPos)} | Fleet: ${formatEuro(selfFleet)} | ID: ${formatEuro(selfManager)}
+          Incassato: ${formatEuro(selfCashIn)} | Erogato: ${formatEuro(selfCashOut)}<br>
+          POS: ${formatEuro(selfPos)} | Fleet: ${formatEuro(selfFleet)} | ID: ${formatEuro(totalSelfManager)}${prevSelfManager ? ` (prev. ${formatEuro(prevSelfManager)})` : ''}
         </div>
 
         <!-- Dettaglio Operatore -->
@@ -676,7 +746,7 @@ function showClosureStep3(container) {
           <strong>${formatEuro(operatorTotalDeclared)}</strong>
         </div>
         <div style="font-size: 0.85rem; color: #6b7280; padding-left: 10px; margin-bottom: 5px;">
-          Cassa: ${formatEuro(cashReal)} | POS: ${formatEuro(posReal)} | UTA: ${formatEuro(utaDkvReal)}<br>
+          Cassa: ${formatEuro(cashReal)} | POS: ${formatEuro(totalPosOperatore)}${prevOperatorPos ? ` (prev. ${formatEuro(prevOperatorPos)})` : ''} | UTA: ${formatEuro(totalUtaOperatore)}${prevOperatorUta ? ` (prev. ${formatEuro(prevOperatorUta)})` : ''}<br>
           Crediti: ${formatEuro(creditsSum)} | Voucher: ${formatEuro(vouchersSum)}
         </div>
 
@@ -695,10 +765,42 @@ function showClosureStep3(container) {
 
         <div class="section-divider"></div>
 
+        <!-- Dettaglio Calcolo Contanti Attesi -->
+        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #64748b;">
+          <h5 style="margin-top: 0; color: #475569; font-size: 0.95rem;">Dettaglio Calcolo Contanti Attesi:</h5>
+          <div style="font-size: 0.85rem; color: #64748b; line-height: 1.8;">
+            <div>Totale Carburante: <strong>${formatEuro(carburanteAtteso)}</strong></div>
+            <div style="margin-left: 20px; color: #ef4444;">
+              - POS Operatore: <strong>${formatEuro(totalPosOperatore)}</strong>${prevOperatorPos ? ` (di cui ${formatEuro(prevOperatorPos)} da turno precedente)` : ''}
+            </div>
+            <div style="margin-left: 20px; color: #ef4444;">
+              - UTA/DKV Operatore: <strong>${formatEuro(totalUtaOperatore)}</strong>${prevOperatorUta ? ` (di cui ${formatEuro(prevOperatorUta)} da turno precedente)` : ''}
+            </div>
+            ${selfPos > 0 ? `<div style="margin-left: 20px; color: #ef4444;">
+              - Bancomat Self: <strong>${formatEuro(selfPos)}</strong>
+            </div>` : ''}
+            ${creditsSum > 0 ? `<div style="margin-left: 20px; color: #ef4444;">- Crediti: <strong>${formatEuro(creditsSum)}</strong></div>` : ''}
+            ${vouchersSum > 0 ? `<div style="margin-left: 20px; color: #ef4444;">- Voucher: <strong>${formatEuro(vouchersSum)}</strong></div>` : ''}
+            ${selfDelta !== 0 ? `<div style="margin-left: 20px; color: ${selfDelta > 0 ? '#10b981' : '#ef4444'};">
+              ${selfDelta > 0 ? '+' : ''} Delta Self: <strong>${formatEuro(selfDelta)}</strong> (Incassato ${formatEuro(selfCashIn)} - Erogato ${formatEuro(selfCashOut)})
+            </div>` : ''}
+            ${refundsSum > 0 ? `<div style="margin-left: 20px; color: #ef4444;">- Rimborsi/Uscite: <strong>${formatEuro(refundsSum)}</strong></div>` : ''}
+            ${extraCashSum > 0 ? `<div style="margin-left: 20px; color: #10b981;">+ Incassi Extra: <strong>${formatEuro(extraCashSum)}</strong></div>` : ''}
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #cbd5e1; font-weight: 600; color: #1e293b;">
+              = Contanti Attesi: <strong>${formatEuro(expectedCash)}</strong>
+            </div>
+          </div>
+        </div>
+
         <!-- Totale Finale -->
         <div class="summary-row total">
           <span>Contanti Attesi:</span>
           <strong>${formatEuro(expectedCash)}</strong>
+        </div>
+
+        <div class="summary-row">
+          <span>Contanti Inseriti (Cassa):</span>
+          <strong>${formatEuro(cashReal)}</strong>
         </div>
 
         <div class="summary-row ${discrepanzaClass}">
@@ -749,11 +851,11 @@ function showClosureStep3(container) {
       // Incasso Contanti = (Self Cash In - Self Cash Out) + Operator Cash
       const incassoContanti = (selfCashIn - selfCashOut) + cashReal;
 
-      // Incasso POS = Self POS + Operator POS
-      const incassoPos = selfPos + posReal;
+      // Incasso POS = Self POS + Operator POS (NOTA: selfPos non si somma tra turni)
+      const incassoPos = selfPos + totalPosOperatore;
 
-      // Incasso UTA/DKV = Self Fleet + Operator UTA + Operator Credits + Operator Vouchers
-      const incassoUtaDkv = selfFleet + utaDkvReal + creditsSum + vouchersSum;
+      // Incasso UTA/DKV = Self Fleet + Operator UTA + Crediti + Voucher (NOTA: selfFleet non si somma tra turni)
+      const incassoUtaDkv = selfFleet + totalUtaOperatore + creditsSum + vouchersSum;
 
       // Totale Lordo (Dichiarato)
       const totaleReale = incassoContanti + incassoPos + incassoUtaDkv;
@@ -768,23 +870,26 @@ function showClosureStep3(container) {
         extra_incassi: extraCashSum,
         totale_atteso: totaleAttesoGlobale,
         incasso_reale: totaleReale,
+        closure_stage: closureState.data.closureType,
 
         // Nuovo oggetto Scontrino Self
+        // NOTA: bancomat_erogati e transazioni_uta NON si sommano - sono sempre gli stessi per tutto il turno
+        // Solo id_gestore si somma tra turni
         scontrino_self: {
           banconote_incassate: selfCashIn,
           banconote_erogate: selfCashOut,
           bancomat_erogati: selfPos,
           transazioni_uta: selfFleet,
-          id_gestore: selfManager,
-          totale_scontrino_calcolato: selfTotalCalc,
+          id_gestore: totalSelfManager,
+          totale_scontrino_calcolato: selfTotalVenduto,
           totale_scontrino_manuale: selfReceiptTotal
         },
 
         // Dettaglio Operatore
         dettaglio_incasso: {
           contanti_operatore: cashReal,
-          pos_operatore: posReal,
-          uta_dkv_operatore: utaDkvReal,
+          pos_operatore: totalPosOperatore,
+          uta_dkv_operatore: totalUtaOperatore,
           crediti: creditsSum,
           voucher: vouchersSum,
           rimborsi_uscite: refundsSum
@@ -797,13 +902,18 @@ function showClosureStep3(container) {
       };
 
       // Salva chiusura: aggiorna il record esistente in shifts
+      const updatePayload = {
+        closing_data: dataJson,
+        status: isFinal ? 'closed' : 'open'
+      };
+
+      if (isFinal) {
+        updatePayload.closed_at = new Date().toISOString();
+      }
+
       const { data: closure, error: closureError } = await supabase
         .from('shifts')
-        .update({
-          closed_at: new Date().toISOString(),
-          status: 'closed',
-          closing_data: dataJson
-        })
+        .update(updatePayload)
         .eq('id', turnoId)
         .select()
         .single();
