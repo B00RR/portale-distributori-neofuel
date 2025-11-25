@@ -12,6 +12,7 @@ import { startClosureWizard } from "./operator-closure.js";
 import { showPrezziEditForm } from "./operator-prices.js";
 import { showCreditsMenu } from "./operator-credits.js";
 import { showOutflowMenu } from "./operator-outflows.js";
+import { showExtraIncomeMenu } from "./operator-extra-income.js";
 
 /**
  * Mostra il menu principale dell'operatore
@@ -84,6 +85,10 @@ export async function showInvoiceMenu(userId, stationId) {
           <i class="fas fa-hand-holding-usd"></i>
           <span>Uscite</span>
         </button>
+        <button class="op-card" id="btn-incassi">
+          <i class="fas fa-cash-register"></i>
+          <span>Incassi</span>
+        </button>
       </div>
       
       <div id="operator-content" class="operator-content">
@@ -114,6 +119,7 @@ export async function showInvoiceMenu(userId, stationId) {
   document.getElementById('btn-crediti').addEventListener('click', () => showCreditsMenu(stationId, userId));
   document.getElementById('btn-voucher').addEventListener('click', () => showVoucherMenu(stationId, userId));
   document.getElementById('btn-uscite').addEventListener('click', () => showOutflowMenu(stationId, userId));
+  document.getElementById('btn-incassi').addEventListener('click', () => showExtraIncomeMenu(stationId, userId));
 
   // Controlla e mostra stato apertura
   updateOpeningStatus(stationId);

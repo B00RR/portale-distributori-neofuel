@@ -180,12 +180,9 @@ export async function showAperturaForm(stationId, userId) {
                     .limit(1)
                     .maybeSingle();
 
-                console.log(`[DEBUG] Pistola ${p.id} (${p.nome}) - shift_pistols:`, newCounter);
-
                 if (newCounter && newCounter.closed_at_counter !== null) {
                     counterValue = parseFloat(newCounter.closed_at_counter);
                     countersSourceDescription = 'Caricati da shift_pistols (nuova tabella)';
-                    console.log(`[DEBUG] Pistola ${p.id} - Usando shift_pistols: ${counterValue}`);
                 } else {
                     // STEP 2: Fallback a chiusura_turno_pistole (vecchia tabella)
                     const { data: oldCounter } = await supabase
@@ -196,24 +193,19 @@ export async function showAperturaForm(stationId, userId) {
                         .limit(1)
                         .maybeSingle();
 
-                    console.log(`[DEBUG] Pistola ${p.id} (${p.nome}) - chiusura_turno_pistole:`, oldCounter);
-
                     if (oldCounter && oldCounter.numeratore_chiusura !== null) {
                         counterValue = parseFloat(oldCounter.numeratore_chiusura);
                         countersSourceDescription = 'Caricati da chiusura_turno_pistole (dati storici)';
-                        console.log(`[DEBUG] Pistola ${p.id} - Usando chiusura_turno_pistole: ${counterValue}`);
                     } else {
                         // STEP 3: Fallback finale a pistole.numero_litri
                         counterValue = parseFloat(p.numero_litri);
                         countersSourceDescription = 'Caricati da pistole.numero_litri (fallback)';
-                        console.log(`[DEBUG] Pistola ${p.id} - Usando pistole.numero_litri: ${counterValue}`);
                     }
                 }
 
                 // Salva il valore trovato
                 if (Number.isFinite(counterValue)) {
                     lastClosureCounters[p.id] = counterValue;
-                    console.log(`[DEBUG] Pistola ${p.id} - Valore finale salvato: ${counterValue}`);
                 }
             }
 
