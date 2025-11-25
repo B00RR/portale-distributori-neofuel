@@ -46,18 +46,17 @@ function renderExtraIncomeForm(container, stationId, userId, turnoId) {
 
         <div class="form-group">
           <label>Tipo di Prodotto</label>
-          <select name="type" class="big-input" required>
+          <select name="type" id="product-type" class="big-input" required>
             <option value="olio">Olio Motore</option>
             <option value="adblue">AdBlue</option>
             <option value="accessori">Accessori Auto</option>
-            <option value="lavaggio">Lavaggio</option>
             <option value="altro_incasso">Altro</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label>Descrizione / Note</label>
-          <textarea name="description" rows="3" class="big-input" placeholder="Dettagli vendita..." required></textarea>
+          <label>Descrizione / Note <span id="required-indicator" style="display: none; color: #ef4444;">*</span></label>
+          <textarea name="description" id="description-field" rows="3" class="big-input" placeholder="Dettagli vendita..."></textarea>
         </div>
 
         ${createFormActions({ confirmText: 'Registra Incasso', confirmClass: 'primary' })}
@@ -77,6 +76,26 @@ function renderExtraIncomeForm(container, stationId, userId, turnoId) {
     document.getElementById('btn-cancel').addEventListener('click', () => {
         container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
     });
+
+    // Dynamic required field based on product type
+    const productTypeSelect = document.getElementById('product-type');
+    const descriptionField = document.getElementById('description-field');
+    const requiredIndicator = document.getElementById('required-indicator');
+
+    function updateDescriptionRequired() {
+        const selectedType = productTypeSelect.value;
+        const requiresDescription = selectedType === 'accessori' || selectedType === 'altro_incasso';
+
+        descriptionField.required = requiresDescription;
+        requiredIndicator.style.display = requiresDescription ? 'inline' : 'none';
+
+        if (!requiresDescription) {
+            descriptionField.value = ''; // Clear if not required
+        }
+    }
+
+    productTypeSelect.addEventListener('change', updateDescriptionRequired);
+    updateDescriptionRequired(); // Initialize on load
 
     document.getElementById('extra-income-form').addEventListener('submit', async (e) => {
         e.preventDefault();
