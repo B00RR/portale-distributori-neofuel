@@ -42,25 +42,23 @@ export async function updateOpeningStatus(stationId) {
  */
 export async function checkOpeningStatus(stationId) {
     try {
+        // Usa la nuova tabella shifts unificata
         const { data } = await supabase
-            .from('opening_shift')
-            .select('id, date_time, operator_id, users!operator_id(full_name)')
+            .from('shifts')
+            .select('id, opened_at, operator_id, users!operator_id(full_name)')
             .eq('station_id', stationId)
-            .order('date_time', { ascending: false })
+            .eq('status', 'open')
+            .order('opened_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
         if (!data) return null;
 
-        // Controlla se questa apertura ha già una chiusura associata
-        const { data: closure } = await supabase
-            .from('closing_shift')
-            .select('id')
-            .eq('turno_id', data.id)
-            .maybeSingle();
-
-        // Se ha una chiusura, non è più attiva
-        return closure ? null : data;
+        // Ritorna i dati con formato compatibile (date_time -> opened_at)
+        return {
+            ...data,
+            date_time: data.opened_at
+        };
     } catch (err) {
         console.error('Errore controllo apertura:', err);
         return null;
@@ -152,9 +150,9 @@ export async function showAperturaForm(stationId, userId) {
             return;
         }
 
-        // 4. Recupera ultima chiusura finale per precompilare i numeratori
-        let lastFinalClosure = null;
+        // 4. Recupera ultimi contatori con fallback a cascata
         let lastClosureCounters = {};
+        let countersSourceDescription = 'Caricamento contatori...';
 
         // 4b. Carica Cisterne
         const { data: tanks } = await supabase
@@ -164,38 +162,72 @@ export async function showAperturaForm(stationId, userId) {
             .order('name');
 
         try {
-            // Recupera l'ultima chiusura FINALE effettiva dal DB
-            const { data: lastClosureData, error: lastClosureError } = await supabase
-                .from('closing_shift')
-                .select('id, date_time, data_json')
-                .eq('station_id', stationId)
-                .eq('is_final', true)
-                .order('date_time', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+            // STRATEGIA FALLBACK A CASCATA:
+            // 1. Cerca in shift_pistols (nuove chiusure)
+            // 2. Se non trova, cerca in chiusura_turno_pistole (vecchie chiusure, turno_id più alto)
+            // 3. Se ancora non trova, usa pistole.numero_litri (fallback finale)
 
-            if (lastClosureError) throw lastClosureError;
+            for (const p of allPistole) {
+                let counterValue = null;
 
-            lastFinalClosure = lastClosureData;
+                // STEP 1: Cerca in shift_pistols (nuova tabella)
+                const { data: newCounter } = await supabase
+                    .from('shift_pistols')
+                    .select('closed_at_counter')
+                    .eq('pistola_id', p.id)
+                    .not('closed_at_counter', 'is', null)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
 
-            if (lastFinalClosure?.id) {
-                const { data: closureCounters } = await supabase
-                    .from('chiusura_turno_pistole')
-                    .select('pistola_id, numeratore_chiusura')
-                    .eq('chiusura_id', lastFinalClosure.id);
+                console.log(`[DEBUG] Pistola ${p.id} (${p.nome}) - shift_pistols:`, newCounter);
 
-                (closureCounters || []).forEach(row => {
-                    const parsed = Number.parseInt(row.numeratore_chiusura, 10);
-                    lastClosureCounters[row.pistola_id] = Number.isFinite(parsed) ? parsed : 0;
-                });
+                if (newCounter && newCounter.closed_at_counter !== null) {
+                    counterValue = parseFloat(newCounter.closed_at_counter);
+                    countersSourceDescription = 'Caricati da shift_pistols (nuova tabella)';
+                    console.log(`[DEBUG] Pistola ${p.id} - Usando shift_pistols: ${counterValue}`);
+                } else {
+                    // STEP 2: Fallback a chiusura_turno_pistole (vecchia tabella)
+                    const { data: oldCounter } = await supabase
+                        .from('chiusura_turno_pistole')
+                        .select('numeratore_chiusura, turno_id, created_at')
+                        .eq('pistola_id', p.id)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+
+                    console.log(`[DEBUG] Pistola ${p.id} (${p.nome}) - chiusura_turno_pistole:`, oldCounter);
+
+                    if (oldCounter && oldCounter.numeratore_chiusura !== null) {
+                        counterValue = parseFloat(oldCounter.numeratore_chiusura);
+                        countersSourceDescription = 'Caricati da chiusura_turno_pistole (dati storici)';
+                        console.log(`[DEBUG] Pistola ${p.id} - Usando chiusura_turno_pistole: ${counterValue}`);
+                    } else {
+                        // STEP 3: Fallback finale a pistole.numero_litri
+                        counterValue = parseFloat(p.numero_litri);
+                        countersSourceDescription = 'Caricati da pistole.numero_litri (fallback)';
+                        console.log(`[DEBUG] Pistola ${p.id} - Usando pistole.numero_litri: ${counterValue}`);
+                    }
+                }
+
+                // Salva il valore trovato
+                if (Number.isFinite(counterValue)) {
+                    lastClosureCounters[p.id] = counterValue;
+                    console.log(`[DEBUG] Pistola ${p.id} - Valore finale salvato: ${counterValue}`);
+                }
             }
-        } catch (closureErr) {
-            console.warn('Errore recupero ultima chiusura finale:', closureErr);
-        }
 
-        const countersSourceDescription = lastFinalClosure
-            ? `Ultima chiusura finale del ${new Date(lastFinalClosure.date_time).toLocaleString('it-IT')}`
-            : 'Nessuna chiusura finale trovata: uso i contatori attuali';
+        } catch (closureErr) {
+            console.warn('Errore recupero ultimi contatori:', closureErr);
+            countersSourceDescription = 'Errore caricamento: uso contatori attuali';
+            // Fallback finale: usa pistole.numero_litri
+            allPistole.forEach(p => {
+                const val = parseFloat(p.numero_litri);
+                if (Number.isFinite(val)) {
+                    lastClosureCounters[p.id] = val;
+                }
+            });
+        }
 
         // 5. Mostra form apertura
         container.innerHTML = `
@@ -217,9 +249,9 @@ export async function showAperturaForm(stationId, userId) {
                 <div class="form-group readonly-field">
                   <label>Contatore Iniziale (litri)</label>
                   <div class="readonly-value">${formatLitri(
-            lastClosureCounters[p.id] ??
-            p.numero_litri ??
-            0
+            lastClosureCounters.hasOwnProperty(p.id)
+                ? lastClosureCounters[p.id]
+                : 0
         )}</div>
                 </div>
               </div>
@@ -283,41 +315,43 @@ export async function showAperturaForm(stationId, userId) {
                 const cashOut = parseFloat(formData.get('cash_out')) || 0;
                 const posAmount = parseFloat(formData.get('pos_amount')) || 0;
                 const totalAmount = parseFloat(formData.get('total_amount')) || 0;
-                const notes = formData.get('notes') || '';
 
-                // Salva apertura
+                // Salva apertura nella nuova tabella shifts
                 const { data: opening, error: openingError } = await supabase
-                    .from('opening_shift')
+                    .from('shifts')
                     .insert([{
                         operator_id: userId,
                         station_id: stationId,
-                        date_time: new Date().toISOString(),
-                        cash_in: cashIn,
-                        cash_out: cashOut,
-                        pos_amount: posAmount,
-                        total_amount: totalAmount,
-                        cash_in_minus_out: cashIn - cashOut,
-                        notes: notes
+                        opened_at: new Date().toISOString(),
+                        status: 'open',
+                        opening_data: {
+                            cash_in: cashIn,
+                            cash_out: cashOut,
+                            pos_amount: posAmount,
+                            total_amount: totalAmount,
+                            cash_in_minus_out: cashIn - cashOut
+                        }
                     }])
                     .select()
                     .single();
 
                 if (openingError) throw openingError;
 
-                // Salva contatori per ogni pistola
+                // Salva contatori nella nuova tabella shift_pistols
                 const counterInserts = allPistole.map(p => {
-                    const finalClosureCounter = Number.parseInt(lastClosureCounters[p.id], 10);
-                    const fallbackCounter = Number.parseInt(p.numero_litri, 10);
+                    const finalClosureCounter = parseFloat(lastClosureCounters[p.id]);
+                    const fallbackCounter = parseFloat(p.numero_litri);
                     const latestCounter = Number.isFinite(finalClosureCounter) ? finalClosureCounter : fallbackCounter;
                     return {
+                        shift_id: opening.id,
                         pistola_id: p.id,
-                        turno_id: opening.id,
-                        numeratore_apertura: Number.isFinite(latestCounter) ? latestCounter : 0
+                        opened_at_counter: Number.isFinite(latestCounter) ? latestCounter : 0,
+                        closed_at_counter: null  // Sarà popolato alla chiusura
                     };
                 });
 
                 const { error: countersError } = await supabase
-                    .from('apertura_turno_pistole')
+                    .from('shift_pistols')
                     .insert(counterInserts);
 
                 if (countersError) throw countersError;

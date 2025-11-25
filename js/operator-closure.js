@@ -44,32 +44,24 @@ export async function startClosureWizard(stationId, userId) {
       return;
     }
 
-    // 2. Carica contatori di apertura dalla CHIUSURA PRECEDENTE
+    // 2. Carica contatori di apertura dal turno corrente in shift_pistols
     const openingMap = {};
 
     try {
-      // Trova il turno_id più alto in chiusura_turno_pistole (ultima chiusura)
-      const { data: lastCounters } = await supabase
-        .from('chiusura_turno_pistole')
-        .select('pistola_id, numeratore_chiusura, turno_id')
-        .order('turno_id', { ascending: false })
-        .limit(100);
+      // Carica i contatori di apertura del turno corrente dalla nuova tabella shift_pistols
+      const { data: openingCounters } = await supabase
+        .from('shift_pistols')
+        .select('pistola_id, opened_at_counter')
+        .eq('shift_id', activeOpening.id);
 
-      if (lastCounters && lastCounters.length > 0) {
-        // Trova il turno_id più alto
-        const maxTurnoId = Math.max(...lastCounters.map(c => c.turno_id));
-
-        // Filtra solo i contatori con il turno_id più alto
-        const latestCounters = lastCounters.filter(c => c.turno_id === maxTurnoId);
-
-        // Popola openingMap
-        latestCounters.forEach(c => {
-          const parsed = Number.parseInt(c.numeratore_chiusura, 10);
+      if (openingCounters && openingCounters.length > 0) {
+        openingCounters.forEach(c => {
+          const parsed = parseFloat(c.opened_at_counter);
           openingMap[c.pistola_id] = Number.isFinite(parsed) ? parsed : 0;
         });
       }
     } catch (err) {
-      console.warn('Errore caricamento contatori apertura da chiusura precedente:', err);
+      console.warn('Errore caricamento contatori apertura:', err);
     }
 
     // 3. Carica pistole
@@ -804,43 +796,36 @@ function showClosureStep3(container) {
         notes: notes
       };
 
-      // Salva chiusura
+      // Salva chiusura: aggiorna il record esistente in shifts
       const { data: closure, error: closureError } = await supabase
-        .from('closing_shift')
-        .insert([{
-          operator_id: userId,
-          station_id: stationId,
-          turno_id: turnoId,
-          date_time: new Date().toISOString(),
-          incasso_contanti: incassoContanti,
-          incasso_pos: incassoPos,
-          incasso_uta_dkv: incassoUtaDkv,
-          incasso_lordo: totaleReale,
-          cash_in_finale: 0,
-          cash_out_finale: incassoContanti,
-          notes: notes,
-          is_final: isFinal,
-          data_json: dataJson
-        }])
+        .from('shifts')
+        .update({
+          closed_at: new Date().toISOString(),
+          status: 'closed',
+          closing_data: dataJson
+        })
+        .eq('id', turnoId)
         .select()
         .single();
 
       if (closureError) throw closureError;
 
-      // Salva contatori finali pistole SOLO se sono stati inseriti
+      // Aggiorna contatori finali pistole SOLO se sono stati inseriti
       if (closureState.data.includeCounters) {
-        const closureCounters = pistole.map(p => ({
-          chiusura_id: closure.id,
-          pistola_id: p.id,
-          numeratore_chiusura: finalCounters[p.id],
-          turno_id: turnoId
-        }));
+        // Aggiorna i record esistenti in shift_pistols con i contatori finali
+        for (const p of pistole) {
+          const { error: counterError } = await supabase
+            .from('shift_pistols')
+            .update({
+              closed_at_counter: finalCounters[p.id]
+            })
+            .eq('shift_id', turnoId)
+            .eq('pistola_id', p.id);
 
-        const { error: countersError } = await supabase
-          .from('chiusura_turno_pistole')
-          .insert(closureCounters);
-
-        if (countersError) throw countersError;
+          if (counterError) {
+            console.error(`Errore aggiornamento contatore pistola ${p.id}:`, counterError);
+          }
+        }
       }
 
       // Aggiorna contatori pistole nella tabella 'pistole' se è chiusura finale
@@ -851,12 +836,6 @@ function showClosureStep3(container) {
             .update({ numero_litri: finalCounters[p.id] })
             .eq('id', p.id);
         }
-
-        // Chiudi il turno in opening_shift
-        await supabase
-          .from('opening_shift')
-          .update({ closed_at: new Date().toISOString() })
-          .eq('id', turnoId);
       }
 
       // Mostra successo
