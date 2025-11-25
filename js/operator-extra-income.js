@@ -115,8 +115,7 @@ function renderExtraIncomeForm(container, stationId, userId, turnoId) {
                 .from('movimenti_cassa')
                 .insert([{
                     station_id: stationId,
-                    user_id: userId,
-                    turno_id: turnoId,
+                    operator_id: userId,
                     tipo: 'incasso', // Tipo per identificare gli incassi extra
                     importo: amount,
                     descrizione: `[${type.toUpperCase()}] ${description}`,

@@ -100,7 +100,7 @@ export async function startClosureWizard(stationId, userId) {
       .from('movimenti_cassa')
       .select('*')
       .eq('station_id', stationId)
-      .gte('created_at', activeOpening.date_time);
+      .gte('created_at', activeOpening.opened_at || activeOpening.date_time);
 
     // Reset state
     closureState = {
@@ -109,7 +109,7 @@ export async function startClosureWizard(stationId, userId) {
         stationId,
         userId,
         turnoId: activeOpening.id,
-        openingDate: activeOpening.date_time,
+        openingDate: activeOpening.opened_at || activeOpening.date_time,
         pistole: allPistole,
         openingCounters: openingMap,
         prezzoBenzina,
