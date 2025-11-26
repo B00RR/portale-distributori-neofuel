@@ -662,14 +662,15 @@ async function showChiusureTab(container, actionsContainer) {
   if (actionsContainer) actionsContainer.innerHTML = ''; // Filtri potrebbero andare qui
 
   try {
+    // MODIFICA: Query sulla tabella 'shifts' invece di 'closing_shift'
     const { data: closures, error } = await supabase
-      .from('closing_shift')
+      .from('shifts')
       .select(`
         *,
         fuel_stations (station_name),
         users!operator_id (full_name)
       `)
-      .order('date_time', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(500);
 
     if (error) throw error;
@@ -696,17 +697,23 @@ async function showChiusureTab(container, actionsContainer) {
     `;
 
     closures.forEach(c => {
-      const dateStr = new Date(c.date_time).toLocaleString('it-IT');
+      // MAPPING DATI DA SHIFTS
+      const dateStr = new Date(c.closed_at || c.created_at).toLocaleString('it-IT');
       const stationName = c.fuel_stations?.station_name || `#${c.station_id}`;
       const operatorName = c.users?.full_name || `#${c.operator_id}`;
 
+      // Estrai dati dal JSON closing_data
+      const closingData = c.closing_data || {};
+
       // Determina il tipo di chiusura
-      const isFinal = c.is_final === true || c.is_final === 1;
+      // Se status è 'closed' è finale, altrimenti controlla closing_data
+      const isFinal = c.status === 'closed' || closingData.is_final === true;
       const closureType = isFinal ? 'Finale' : 'Parziale';
       const closureClass = isFinal ? 'badge-success' : 'badge-warning';
 
-      // Calcolo robusto del totale
-      const totalValue = c.gran_totale || c.total || c.totale || c.total_amount || c.grand_total || ((c.incasso_contanti || 0) + (c.incasso_pos || 0)) || 0;
+      // Calcolo del totale - SOLO CARBURANTE (esclude movimenti di cassa)
+      // Usa ricavo_teorico che rappresenta il totale del carburante venduto
+      const totalValue = closingData.ricavo_teorico || closingData.totale_atteso || 0;
       const total = formatEuro(totalValue);
 
       html += `
@@ -746,16 +753,32 @@ async function showClosureDetails(closureId) {
   showLoadingMessage(target);
 
   try {
-    const { data: closure } = await supabase.from('closing_shift').select('*').eq('id', closureId).single();
+    // MODIFICA: Query su 'shifts' invece di 'closing_shift'
+    const { data: closure } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('id', closureId)
+      .single();
+
     if (!closure) throw new Error('Chiusura non trovata');
+
+    // Estrai dati dal JSON closing_data
+    const closingData = closure.closing_data || {};
+    const dettaglio = closingData.dettaglio_incasso || {};
+
+    // Mappa i campi
+    const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString();
+    const contanti = formatEuro(dettaglio.contanti_operatore || closingData.incasso_contanti || 0);
+    const pos = formatEuro(dettaglio.pos_operatore || closingData.incasso_pos || 0);
+    const totale = formatEuro(closingData.incasso_reale || closingData.gran_totale || 0);
 
     target.innerHTML = `
       <div class="closure-details">
         <p><b>ID:</b> ${closure.id}</p>
-        <p><b>Data:</b> ${new Date(closure.date_time).toLocaleString()}</p>
-        <p><b>Contanti:</b> ${formatEuro(closure.incasso_contanti)}</p>
-        <p><b>POS:</b> ${formatEuro(closure.incasso_pos)}</p>
-        <p><b>Totale:</b> ${formatEuro(closure.gran_totale)}</p>
+        <p><b>Data:</b> ${dateStr}</p>
+        <p><b>Contanti (Op):</b> ${contanti}</p>
+        <p><b>POS (Op):</b> ${pos}</p>
+        <p><b>Totale Reale:</b> ${totale}</p>
         <hr>
         <p><i>Dettagli completi disponibili in export</i></p>
       </div>
@@ -775,90 +798,31 @@ async function openExportModal(closureId) {
     const defaultSchema = getDefaultSchemaFromLayout(ctx.layout);
 
     target.innerHTML = `
-      <div class="export-modal-content">
-        <p>Esporta i dati della chiusura del <b>${ctx.meta.dateDisplay}</b></p>
+      <div class="export-modal-content" style="text-align: center; padding: 20px;">
+        <p style="margin-bottom: 30px;">Esporta i dati della chiusura del <b>${ctx.meta.dateDisplay}</b></p>
         
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="summary">Riepilogo</button>
-          <button class="tab-btn" data-tab="schema">Schema JSON</button>
-        </div>
-        
-        <div id="tab-summary" class="tab-content active">
-          <form id="closure-export-summary-form" class="summary-grid">
-            <div class="form-group">
-              <label>Self Service</label>
-              <input type="number" step="0.01" name="summary_self" value="${ctx.summaryDefaults.self}">
-            </div>
-            <div class="form-group">
-              <label>Carte Self</label>
-              <input type="number" step="0.01" name="summary_carte_self" value="${ctx.summaryDefaults.carteSelf}">
-            </div>
-            <div class="form-group">
-              <label>Contanti Servito</label>
-              <input type="number" step="0.01" name="summary_contanti" value="${ctx.summaryDefaults.contanti}">
-            </div>
-            <div class="form-group">
-              <label>Carte POS</label>
-              <input type="number" step="0.01" name="summary_carte_pos" value="${ctx.summaryDefaults.cartePos}">
-            </div>
-            <div class="form-group">
-              <label>Non Erogato</label>
-              <input type="number" step="0.01" name="summary_non_erogato" value="${ctx.summaryDefaults.nonErogato}">
-            </div>
-            <div class="form-group">
-              <label>Lubr/AdBlue/Acc</label>
-              <input type="number" step="0.01" name="summary_lubr_adblue" value="${ctx.summaryDefaults.lubrAdblue}">
-            </div>
-            <div class="form-group">
-              <label>Crediti</label>
-              <input type="number" step="0.01" name="summary_crediti" value="${ctx.summaryDefaults.crediti}">
-            </div>
-            <div class="form-group">
-              <label>UTA/DKV</label>
-              <input type="number" step="0.01" name="summary_uta_dkv" value="${ctx.summaryDefaults.utaDkv}">
-            </div>
-          </form>
-        </div>
-        
-        <div id="tab-schema" class="tab-content" style="display:none;">
-          <p class="small-text">Modifica il layout delle isole per il PDF/Excel:</p>
-          <textarea id="export-schema-json" rows="10" style="width:100%; font-family:monospace;">${defaultSchema}</textarea>
-          <button type="button" id="reset-schema-btn" class="btn-small">Ripristina Default</button>
-        </div>
-        
-        <div class="modal-actions" style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
-          <button id="btn-export-pdf" class="menu-button primary"><i class="fas fa-file-pdf"></i> PDF</button>
-          <button id="btn-export-excel" class="menu-button success"><i class="fas fa-file-excel"></i> Excel</button>
+        <div class="modal-actions" style="display:flex; gap:15px; justify-content:center;">
+          <button id="btn-export-pdf" class="menu-button primary" style="min-width: 150px;">
+            <i class="fas fa-file-pdf"></i> PDF
+          </button>
+          <button id="btn-export-excel" class="menu-button success" style="min-width: 150px;">
+            <i class="fas fa-file-excel"></i> Excel
+          </button>
         </div>
       </div>
     `;
 
-    // Tab switching logic
-    const tabs = target.querySelectorAll('.tab-btn');
-    tabs.forEach(t => {
-      t.addEventListener('click', () => {
-        tabs.forEach(x => x.classList.remove('active'));
-        target.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-        t.classList.add('active');
-        document.getElementById(`tab-${t.dataset.tab}`).style.display = 'block';
-      });
-    });
-
-    document.getElementById('reset-schema-btn').addEventListener('click', () => {
-      document.getElementById('export-schema-json').value = defaultSchema;
-    });
-
     const handleExport = async (type) => {
       try {
-        const schemaText = document.getElementById('export-schema-json').value;
-        const customLayout = applyCustomExportSchema(ctx.layout, ctx.lookups, schemaText);
-        const summaryValues = readExportSummaryValues(ctx.summaryDefaults);
+        // Usa i valori di default senza chiedere all'utente
+        const customLayout = applyCustomExportSchema(ctx.layout, ctx.lookups, defaultSchema);
+        const summaryValues = ctx.summaryDefaults;
         const template = buildClosureTemplate(ctx, customLayout, summaryValues);
 
         if (type === 'pdf') generateClosurePdf(template);
         else generateClosureExcel(template);
 
-        // closeModal(); // Opzionale: chiudere o lasciare aperto per fare altro export
+        closeModal();
       } catch (err) {
         alert('Errore export: ' + err.message);
       }

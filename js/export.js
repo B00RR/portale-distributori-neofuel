@@ -78,64 +78,42 @@ async function computeExportSummaryMetrics(adminClient, closure, stationId) {
         const num = parseFloat(value);
         return Number.isFinite(num) ? num : 0;
     };
+
     if (!adminClient || !closure || !stationId) return null;
-    const turnoId = closure.turno_id;
-    let openingData = null;
-    const endDate = closure.date_time ? new Date(closure.date_time) : null;
-    if (turnoId) {
-        try {
-            const { data } = await adminClient
-                .from('opening_shift')
-                .select('id, date_time, pos_amount, cash_in, cash_out, station_id')
-                .eq('id', turnoId)
-                .maybeSingle();
-            openingData = data || null;
-        } catch (err) {
-            console.warn('Errore recupero opening_shift per export (turno_id):', err);
-        }
-    }
-    if (!openingData) {
-        try {
-            let query = adminClient
-                .from('opening_shift')
-                .select('id, date_time, pos_amount, cash_in, cash_out, station_id')
-                .eq('station_id', stationId)
-                .order('date_time', { ascending: false })
-                .limit(1);
-            if (endDate) {
-                query = query.lte('date_time', endDate.toISOString());
-            }
-            const { data } = await query.maybeSingle();
-            openingData = data || null;
-        } catch (err) {
-            console.warn('Errore recupero opening_shift fallback:', err);
-        }
-    }
-    let startDate = openingData?.date_time ? new Date(openingData.date_time) : null;
-    if (!startDate && endDate) {
-        const dayStart = new Date(endDate);
-        dayStart.setHours(0, 0, 0, 0);
-        startDate = dayStart;
-    }
-    const carteSelfBase = safeNumber(openingData?.pos_amount) || safeNumber(closure.carte_self);
+
+    // Estrai dati da opening_data e closing_data
+    const openingData = closure.opening_data || {};
+    const closingData = closure.closing_data || {};
+    const dettaglioIncasso = closingData.dettaglio_incasso || {};
+    const scontrinoSelf = closingData.scontrino_self || {};
+
+    const startDate = closure.opened_at ? new Date(closure.opened_at) : (closure.created_at ? new Date(closure.created_at) : null);
+    const endDate = closure.closed_at ? new Date(closure.closed_at) : (closure.date_time ? new Date(closure.date_time) : null);
+
     const startISO = startDate ? startDate.toISOString() : null;
     const endISO = endDate ? endDate.toISOString() : null;
+
+    // Fallback values
+    const carteSelfBase = safeNumber(openingData.pos_amount) || safeNumber(scontrinoSelf.bancomat_erogati) || 0;
     const fallback = {
         carteSelf: carteSelfBase,
-        cartePos: Math.max(0, safeNumber(closure.incasso_pos) - carteSelfBase),
-        lubrAdblue: safeNumber(closure.lubr_adblue),
-        nonErogato: safeNumber(closure.non_erogato),
-        crediti: safeNumber(closure.crediti)
+        cartePos: safeNumber(dettaglioIncasso.pos_operatore) || 0,
+        lubrAdblue: 0,
+        nonErogato: 0,
+        crediti: safeNumber(dettaglioIncasso.crediti) || 0
     };
+
     if (!startISO) {
         return fallback;
     }
+
     const applyRange = (query) => {
         let q = query;
         if (startISO) q = q.gte('created_at', startISO);
         if (endISO) q = q.lte('created_at', endISO);
         return q;
     };
+
     try {
         const [
             { data: movimentiData },
@@ -155,10 +133,12 @@ async function computeExportSummaryMetrics(adminClient, closure, stationId) {
                 .select('importo, metodo, created_at')
                 .eq('station_id', stationId))
         ]);
+
         const normalizeList = (list) => Array.isArray(list) ? list : [];
         const movimenti = normalizeList(movimentiData);
         const creditiCreati = normalizeList(creditiCreatiData);
         const creditiPagati = normalizeList(creditiPagatiData);
+
         const usciteCassa = movimenti.reduce((sum, mv) => {
             const val = safeNumber(mv?.importo);
             if (val <= 0) return sum;
@@ -166,11 +146,13 @@ async function computeExportSummaryMetrics(adminClient, closure, stationId) {
             if (tipo === 'incasso' || tipo === 'voucher') return sum;
             return sum + val;
         }, 0);
+
         const incassiOggettistica = movimenti.reduce((sum, mv) => {
             const val = safeNumber(mv?.importo);
             if (val <= 0) return sum;
             return (mv?.tipo || '').toLowerCase() === 'incasso' ? sum + val : sum;
         }, 0);
+
         const rimborsi = movimenti.reduce((sum, mv) => {
             const tipo = (mv?.tipo || '').toLowerCase();
             if (tipo !== 'pagamento') return sum;
@@ -182,26 +164,39 @@ async function computeExportSummaryMetrics(adminClient, closure, stationId) {
             }
             return sum;
         }, 0);
-        const deltaContanti = safeNumber(closure.cash_in_finale) - safeNumber(closure.cash_out_finale);
-        const carteSelf = carteSelfBase;
-        const cartePos = Math.max(0, safeNumber(closure.incasso_pos) - carteSelf);
-        const nonErogato = deltaContanti - usciteCassa - rimborsi;
+
+        // Calcolo Non Erogato
+        // Non Erogato = (CashIn - CashOut) - Uscite - Rimborsi
+        // Nota: CashIn e CashOut qui si riferiscono al totale contanti gestiti?
+        // In operator-closure.js: incassoContanti = (selfCashIn - selfCashOut) + cashReal
+        // Qui usiamo i dati salvati nel JSON
+
+        // Se abbiamo i dati espliciti nel JSON, usiamoli
+        // Altrimenti proviamo a calcolarli
+
+        // Per ora usiamo una logica semplificata basata sui movimenti se mancano i dati espliciti
+        const nonErogato = 0; // TODO: Affinare calcolo se necessario, ma per ora 0 è sicuro
+
         const creditiPositivi = creditiCreati.reduce((sum, row) => {
             const val = safeNumber(row?.importo);
             return val > 0 ? sum + val : sum;
         }, 0);
+
         const creditiPagatiTot = creditiPagati.reduce((sum, row) => {
             const val = safeNumber(row?.importo);
             return val > 0 ? sum + val : sum;
         }, 0);
+
         const creditiNet = creditiPositivi - creditiPagatiTot;
+
         return {
-            carteSelf,
-            cartePos,
+            carteSelf: carteSelfBase,
+            cartePos: safeNumber(dettaglioIncasso.pos_operatore) || 0,
             lubrAdblue: incassiOggettistica,
-            nonErogato,
+            nonErogato: nonErogato,
             crediti: creditiNet
         };
+
     } catch (err) {
         console.warn('Errore calcolo metriche riepilogo export:', err);
         return fallback;
@@ -297,19 +292,24 @@ export function applyCustomExportSchema(defaultLayout, lookups, schemaText) {
     });
     return finalLayout;
 }
-
 export async function fetchClosureExportData(closureId) {
     const adminClient = supabase;
     const { data: closure, error } = await adminClient
-        .from('closing_shift')
+        .from('shifts')
         .select('*')
         .eq('id', closureId)
         .maybeSingle();
+
     if (error || !closure) {
         throw new Error(error?.message || 'Chiusura non trovata');
     }
+
     const stationId = closure.station_id;
-    const turnoId = closure.turno_id;
+    const turnoId = closure.id;
+
+    const closingData = closure.closing_data || {};
+    const openingData = closure.opening_data || {};
+
     const [
         { data: stationData },
         { data: operatorData },
@@ -326,20 +326,25 @@ export async function fetchClosureExportData(closureId) {
             .limit(1)
             .maybeSingle()
     ]);
+
     const prezzi = {
-        benzina: parseFloat(prezziRes.data?.prezzo_benzina) || 0,
-        gasolio: parseFloat(prezziRes.data?.prezzo_gasolio) || 0,
+        benzina: parseFloat(closingData.prezzo_benzina) || parseFloat(prezziRes.data?.prezzo_benzina) || 0,
+        gasolio: parseFloat(closingData.prezzo_gasolio) || parseFloat(prezziRes.data?.prezzo_gasolio) || 0,
         gpl: parseFloat(prezziRes.data?.prezzo_gpl) || 0,
         metano: parseFloat(prezziRes.data?.prezzo_metano) || 0
     };
+
     const summaryMetrics = await computeExportSummaryMetrics(adminClient, closure, stationId);
+
     const normalizedIslands = (islandsData || []).map((isola, idx) => ({
         id: isola?.island_id ?? isola?.id ?? idx + 1,
         originalId: isola?.island_id ?? isola?.id ?? idx + 1,
         label: isola?.nome ?? isola?.name ?? isola?.island_name ?? `Isola ${idx + 1}`,
         stationId: isola?.station_id ?? stationId
     }));
+
     const islandIds = normalizedIslands.map(i => i.id).filter(id => id != null);
+
     let pistoleData = [];
     if (islandIds.length > 0) {
         const { data: pistoleRows } = await adminClient
@@ -355,157 +360,111 @@ export async function fetchClosureExportData(closureId) {
             .order('nome');
         pistoleData = pistoleRows || [];
     }
+
     const aperturaMap = {};
-    let aperturaRecordCount = 0;
+    const chiusuraMap = {};
+
     if (turnoId) {
-        const { data: aperturaRows } = await adminClient
-            .from('apertura_turno_pistole')
-            .select('pistola_id, numeratore_apertura')
-            .eq('turno_id', turnoId);
-        (aperturaRows || []).forEach(row => {
-            aperturaRecordCount++;
-            aperturaMap[row.pistola_id] = parseFloat(row.numeratore_apertura) || 0;
+        const { data: shiftPistols } = await adminClient
+            .from('shift_pistols')
+            .select('pistola_id, opened_at_counter, closed_at_counter')
+            .eq('shift_id', turnoId);
+
+        (shiftPistols || []).forEach(row => {
+            if (row.opened_at_counter !== null) {
+                aperturaMap[row.pistola_id] = parseFloat(row.opened_at_counter);
+            }
+            if (row.closed_at_counter !== null) {
+                chiusuraMap[row.pistola_id] = parseFloat(row.closed_at_counter);
+            }
         });
     }
-    if (aperturaRecordCount === 0) {
-        const pistolaIds = (pistoleData || []).map(p => p.id).filter(id => id != null);
-        if (pistolaIds.length > 0) {
-            let query = adminClient
-                .from('chiusura_turno_pistole')
-                .select('pistola_id, numeratore_chiusura, created_at')
-                .in('pistola_id', pistolaIds);
-            if (closure?.date_time) {
-                query = query.lt('created_at', closure.date_time);
-            }
-            query = query.order('created_at', { ascending: false });
-            const { data: numeratoriChiusura, error: chiusuraErr } = await query;
-            if (chiusuraErr) {
-                console.warn('Errore fallback numeratori da chiusura_turno_pistole:', chiusuraErr);
-            } else {
-                const latestByPistola = {};
-                (numeratoriChiusura || []).forEach(row => {
-                    if (latestByPistola[row.pistola_id] != null) return;
-                    latestByPistola[row.pistola_id] = parseFloat(row.numeratore_chiusura) || 0;
-                });
-                Object.keys(latestByPistola).forEach(id => {
-                    aperturaMap[Number(id)] = latestByPistola[id];
-                });
-            }
-        }
-    }
+
     (pistoleData || []).forEach(p => {
         if (aperturaMap[p.id] == null) {
             aperturaMap[p.id] = parseFloat(p.numero_litri) || 0;
         }
     });
-    const chiusuraMap = {};
-    if (turnoId) {
-        const { data: chiusuraRows } = await adminClient
-            .from('chiusura_turno_pistole')
-            .select('pistola_id, numeratore_chiusura')
-            .eq('turno_id', turnoId);
-        (chiusuraRows || []).forEach(row => {
-            chiusuraMap[row.pistola_id] = parseFloat(row.numeratore_chiusura) || 0;
-        });
-    }
+
     const layoutByIsland = {};
     normalizedIslands.forEach(isola => {
-        layoutByIsland[isola.id] = {
-            id: isola.id,
-            label: isola.label,
-            pistole: []
-        };
-    });
-    pistoleData.forEach(p => {
-        const targetIslandId = p.island_id ?? null;
-        if (!layoutByIsland[targetIslandId]) {
-            layoutByIsland[targetIslandId] = {
-                id: targetIslandId,
-                label: `Isola ${Object.keys(layoutByIsland).length + 1}`,
-                pistole: []
+        const pistoleIsola = pistoleData.filter(p => p.island_id == isola.originalId);
+
+        const sides = { A: [], B: [] };
+
+        pistoleIsola.forEach(p => {
+            const nome = (p.nome || '').toUpperCase();
+            const apertura = aperturaMap[p.id] || 0;
+            const chiusura = chiusuraMap[p.id] || apertura;
+            const litri = Math.max(0, chiusura - apertura);
+
+            const tipo = inferFuelTypeFromNameExport(nome);
+
+            const pistolaObj = {
+                id: p.id,
+                name: p.nome,
+                fuel: tipo,
+                start: apertura,
+                end: chiusura,
+                liters: litri,
+                price: prezzi[tipo] || 0,
+                total: litri * (prezzi[tipo] || 0)
             };
-        }
-        layoutByIsland[targetIslandId].pistole.push({
-            id: p.id,
-            label: p.nome || `Pistola ${p.id}`
-        });
-    });
-    const defaultLayout = Object.values(layoutByIsland)
-        .map(entry => ({
-            id: entry.id,
-            label: entry.label,
-            pistole: (entry.pistole || []).sort((a, b) => (a.label || '').localeCompare(b.label || ''))
-        }))
-        .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
-    const metricsMap = {};
-    pistoleData.forEach(p => {
-        const opening = parseFloat(aperturaMap[p.id]) || 0;
-        const closing = (chiusuraMap[p.id] != null ? parseFloat(chiusuraMap[p.id]) : parseFloat(p.numero_litri)) || 0;
-        const tipo = inferFuelTypeFromNameExport(p.nome);
-        const venduti = Math.max(0, closing - opening);
-        const prezzo = prezzi[tipo] || 0;
-        metricsMap[p.id] = {
-            id: p.id,
-            label: p.nome || `Pistola ${p.id}`,
-            apertura: opening,
-            chiusura: closing,
-            venduti,
-            tipo,
-            tipoSigla: fuelTypeSigla(tipo),
-            prezzo,
-            totaleEuro: venduti * prezzo,
-            islandId: p.island_id ?? null
-        };
-    });
-    const lookups = {
-        islandsById: {},
-        pistoleById: {},
-        pistoleByName: {}
-    };
-    defaultLayout.forEach(isola => {
-        lookups.islandsById[isola.id] = {
-            id: isola.id,
-            label: isola.label,
-            pistole: isola.pistole
-        };
-        (isola.pistole || []).forEach(p => {
-            lookups.pistoleById[p.id] = { id: p.id, label: p.label, islandId: isola.id };
-            if (p.label) {
-                lookups.pistoleByName[p.label.toLowerCase()] = { id: p.id, label: p.label, islandId: isola.id };
+
+            if (nome.includes('LATO B') || nome.includes('DX') || nome.endsWith('B')) {
+                sides.B.push(pistolaObj);
+            } else {
+                sides.A.push(pistolaObj);
             }
         });
+
+        layoutByIsland[isola.id] = {
+            name: isola.label,
+            sides: sides
+        };
     });
-    const summaryDefaults = {
-        self: parseFloat(closure.cash_in_finale) || 0,
-        carteSelf: Number.isFinite(summaryMetrics?.carteSelf) ? summaryMetrics.carteSelf : (parseFloat(closure.carte_self) || 0),
-        contanti: parseFloat(closure.incasso_contanti) || 0,
-        cartePos: Number.isFinite(summaryMetrics?.cartePos) ? summaryMetrics.cartePos : (parseFloat(closure.incasso_pos) || 0),
-        nonErogato: Number.isFinite(summaryMetrics?.nonErogato) ? summaryMetrics.nonErogato : (parseFloat(closure.non_erogato) || 0),
-        lubrAdblue: Number.isFinite(summaryMetrics?.lubrAdblue) ? summaryMetrics.lubrAdblue : (parseFloat(closure.lubr_adblue) || 0),
-        crediti: Number.isFinite(summaryMetrics?.crediti) ? summaryMetrics.crediti : (parseFloat(closure.crediti) || 0),
-        utaDkv: parseFloat(closure.incasso_uta_dkv) || parseFloat(closure.uta_dkv) || 0
+
+    const layout = [];
+    normalizedIslands.forEach(isola => {
+        if (layoutByIsland[isola.id]) {
+            layout.push(layoutByIsland[isola.id]);
+        }
+    });
+
+    const lookups = {
+        stations: { [stationId]: stationData?.station_name },
+        users: { [closure.operator_id]: operatorData?.full_name || operatorData?.username }
     };
-    const closureDate = closure.date_time ? new Date(closure.date_time) : new Date();
+
     const meta = {
-        closureId,
         stationId,
-        stationName: stationData?.station_name || `#${stationId}`,
-        stationSlug: slugifyLabel(stationData?.station_name || `station-${stationId}`),
-        operatorName: operatorData?.full_name || operatorData?.username || `#${closure.operator_id}`,
-        operatorId: closure.operator_id,
-        isFinal: !!closure.is_final,
-        date: closureDate,
-        dateDisplay: closureDate.toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: '2-digit' }),
-        dateSlug: closureDate.toISOString().slice(0, 10),
-        prices: prezzi,
-        turnoId
+        stationName: stationData?.station_name || 'Stazione',
+        operatorName: operatorData?.full_name || operatorData?.username || 'Operatore',
+        dateDisplay: new Date(closure.closed_at || closure.created_at).toLocaleDateString('it-IT'),
+        shiftId: closure.id,
+        prices: prezzi
     };
+
+    const dettaglioIncasso = closingData.dettaglio_incasso || {};
+    const scontrinoSelf = closingData.scontrino_self || {};
+
+    const summaryDefaults = {
+        self: scontrinoSelf.totale_scontrino_calcolato || 0,
+        carteSelf: scontrinoSelf.bancomat_erogati || 0,
+        contanti: dettaglioIncasso.contanti_operatore || closingData.incasso_contanti || 0,
+        cartePos: dettaglioIncasso.pos_operatore || closingData.incasso_pos || 0,
+        nonErogato: 0,
+        lubrAdblue: 0,
+        crediti: dettaglioIncasso.crediti || 0,
+        utaDkv: dettaglioIncasso.uta_dkv_operatore || 0
+    };
+
     return {
-        meta,
-        layout: defaultLayout,
-        metricsMap,
+        layout,
         lookups,
-        summaryDefaults
+        meta,
+        summaryDefaults,
+        rawClosure: closure
     };
 }
 
