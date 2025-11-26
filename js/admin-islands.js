@@ -29,7 +29,7 @@ export async function showIslandsModal(stationId) {
           pistole (id)
         `)
         .eq('station_id', stationId)
-        .order('nome');
+        .order('island_id', { ascending: true });
 
       if (error) throw error;
 

@@ -12,8 +12,8 @@ import {
 } from "./utils.js";
 import {
   fetchClosureExportData, buildClosureTemplate,
-  generateClosurePdf, generateClosureExcel,
-  getDefaultSchemaFromLayout, applyCustomExportSchema,
+  generateClosureExcel,
+  applyCustomExportSchema,
   readExportSummaryValues
 } from "./export.js";
 import { loggedUser, clearSession } from "./auth.js";
@@ -789,50 +789,21 @@ async function showClosureDetails(closureId) {
 }
 
 async function openExportModal(closureId) {
-  openModal('Esporta Chiusura');
-  const target = document.getElementById('modal-body');
-  showLoadingMessage(target);
-
   try {
     const ctx = await fetchClosureExportData(closureId);
-    const defaultSchema = getDefaultSchemaFromLayout(ctx.layout);
+    const template = buildClosureTemplate(ctx, ctx.layout, ctx.summaryDefaults);
 
-    target.innerHTML = `
-      <div class="export-modal-content" style="text-align: center; padding: 20px;">
-        <p style="margin-bottom: 30px;">Esporta i dati della chiusura del <b>${ctx.meta.dateDisplay}</b></p>
-        
-        <div class="modal-actions" style="display:flex; gap:15px; justify-content:center;">
-          <button id="btn-export-pdf" class="menu-button primary" style="min-width: 150px;">
-            <i class="fas fa-file-pdf"></i> PDF
-          </button>
-          <button id="btn-export-excel" class="menu-button success" style="min-width: 150px;">
-            <i class="fas fa-file-excel"></i> Excel
-          </button>
-        </div>
-      </div>
-    `;
+    console.log('=== DEBUG EXPORT ===');
+    console.log('ctx.layout:', ctx.layout);
+    console.log('ctx.metricsMap:', ctx.metricsMap);
+    console.log('template:', template);
+    console.log('template.sections:', template.sections);
+    console.log('===================');
 
-    const handleExport = async (type) => {
-      try {
-        // Usa i valori di default senza chiedere all'utente
-        const customLayout = applyCustomExportSchema(ctx.layout, ctx.lookups, defaultSchema);
-        const summaryValues = ctx.summaryDefaults;
-        const template = buildClosureTemplate(ctx, customLayout, summaryValues);
-
-        if (type === 'pdf') generateClosurePdf(template);
-        else generateClosureExcel(template);
-
-        closeModal();
-      } catch (err) {
-        alert('Errore export: ' + err.message);
-      }
-    };
-
-    document.getElementById('btn-export-pdf').addEventListener('click', () => handleExport('pdf'));
-    document.getElementById('btn-export-excel').addEventListener('click', () => handleExport('excel'));
-
+    await generateClosureExcel(template);
   } catch (err) {
-    showErrorMessage(target, err);
+    alert('Errore export: ' + (err?.message || err));
+    console.error('Errore export:', err);
   }
 }
 

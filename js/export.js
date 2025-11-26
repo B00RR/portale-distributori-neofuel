@@ -2,7 +2,7 @@
 // EXPORT FUNCTIONS (PDF / EXCEL)
 // ==========================================
 import { supabase, safeSupabaseQuery } from "./api.js";
-import { formatNumberIt, formatEuro, slugifyLabel, base64ToArrayBuffer, parseNumberFlexible } from "./utils.js";
+import { formatNumberIt, formatEuro, slugifyLabel, base64ToArrayBuffer, parseNumberFlexible, escapeHtml } from "./utils.js";
 
 // Costanti per export
 const SUMMARY_TEMPLATE_START_ROW = 42;
@@ -34,6 +34,34 @@ const ISLAND_TEMPLATE_BLOCKS = [
         ]
     }
 ];
+
+let html2CanvasLoaderPromise = null;
+
+function ensureHtml2CanvasLoaded() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+        return Promise.reject(new Error('html2canvas non disponibile in questo contesto'));
+    }
+    if (window.html2canvas) return Promise.resolve(window.html2canvas);
+    if (html2CanvasLoaderPromise) return html2CanvasLoaderPromise;
+    html2CanvasLoaderPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.async = true;
+        script.onload = () => {
+            if (window.html2canvas) resolve(window.html2canvas);
+            else {
+                html2CanvasLoaderPromise = null;
+                reject(new Error('html2canvas non caricato'));
+            }
+        };
+        script.onerror = () => {
+            html2CanvasLoaderPromise = null;
+            reject(new Error('Impossibile caricare html2canvas'));
+        };
+        document.head.appendChild(script);
+    });
+    return html2CanvasLoaderPromise;
+}
 
 function inferFuelTypeFromNameExport(nomePistola = '') {
     const nome = (nomePistola || '').toString().toUpperCase();
@@ -318,7 +346,10 @@ export async function fetchClosureExportData(closureId) {
     ] = await Promise.all([
         adminClient.from('fuel_stations').select('station_name').eq('station_id', stationId).maybeSingle(),
         adminClient.from('users').select('full_name, username').eq('user_id', closure.operator_id).maybeSingle(),
-        adminClient.from('islands').select('id, island_id, nome, name, island_name, station_id').eq('station_id', stationId).order('nome'),
+        adminClient.from('islands')
+            .select('island_id, nome, island_name, station_id')
+            .eq('station_id', stationId)
+            .order('island_id', { ascending: true }),
         adminClient.from('prezzi_distributore')
             .select('prezzo_benzina, prezzo_gasolio, prezzo_gpl, prezzo_metano, data_validita')
             .eq('station_id', stationId)
@@ -336,10 +367,10 @@ export async function fetchClosureExportData(closureId) {
 
     const summaryMetrics = await computeExportSummaryMetrics(adminClient, closure, stationId);
 
-    const normalizedIslands = (islandsData || []).map((isola, idx) => ({
+    let normalizedIslands = (islandsData || []).map((isola, idx) => ({
         id: isola?.island_id ?? isola?.id ?? idx + 1,
         originalId: isola?.island_id ?? isola?.id ?? idx + 1,
-        label: isola?.nome ?? isola?.name ?? isola?.island_name ?? `Isola ${idx + 1}`,
+        label: isola?.nome ?? isola?.island_name ?? `Isola ${idx + 1}`,
         stationId: isola?.station_id ?? stationId
     }));
 
@@ -386,54 +417,104 @@ export async function fetchClosureExportData(closureId) {
         }
     });
 
-    const layoutByIsland = {};
-    normalizedIslands.forEach(isola => {
-        const pistoleIsola = pistoleData.filter(p => p.island_id == isola.originalId);
+    // Se non esistono isole configurate, crea un layout di fallback raggruppando le pistole disponibili
+    if ((!normalizedIslands || normalizedIslands.length === 0) && (pistoleData || []).length > 0) {
+        const uniqueIslandIds = Array.from(new Set(pistoleData.map(p => p.island_id).filter(id => id != null)));
+        if (uniqueIslandIds.length > 0) {
+            normalizedIslands = uniqueIslandIds.map((id, idx) => ({
+                id,
+                originalId: id,
+                label: `Isola ${idx + 1}`,
+                stationId
+            }));
+        } else {
+            normalizedIslands = [{
+                id: 'fallback-all',
+                originalId: null,
+                label: 'Isola Unica',
+                stationId
+            }];
+        }
+    }
 
-        const sides = { A: [], B: [] };
+    const layoutByIsland = {};
+    normalizedIslands.forEach((isola, idx) => {
+        const layoutId = isola?.id ?? isola?.originalId ?? `isola-${idx + 1}`;
+        const pistoleIsola = pistoleData.filter(p => {
+            if (isola.originalId == null) return true;
+            return String(p.island_id) === String(isola.originalId);
+        });
+
+        const pistoleArray = [];
 
         pistoleIsola.forEach(p => {
             const nome = (p.nome || '').toUpperCase();
             const apertura = aperturaMap[p.id] || 0;
             const chiusura = chiusuraMap[p.id] || apertura;
-            const litri = Math.max(0, chiusura - apertura);
+            const venduti = Math.max(0, chiusura - apertura);
 
             const tipo = inferFuelTypeFromNameExport(nome);
+            const tipoSigla = fuelTypeSigla(tipo);
+            const prezzo = prezzi[tipo] || 0;
+            const totaleEuro = venduti * prezzo;
 
-            const pistolaObj = {
+            pistoleArray.push({
                 id: p.id,
-                name: p.nome,
-                fuel: tipo,
-                start: apertura,
-                end: chiusura,
-                liters: litri,
-                price: prezzi[tipo] || 0,
-                total: litri * (prezzi[tipo] || 0)
-            };
-
-            if (nome.includes('LATO B') || nome.includes('DX') || nome.endsWith('B')) {
-                sides.B.push(pistolaObj);
-            } else {
-                sides.A.push(pistolaObj);
-            }
+                label: p.nome,
+                apertura: apertura,
+                chiusura: chiusura,
+                venduti: venduti,
+                tipo: tipo,
+                tipoSigla: tipoSigla,
+                prezzo: prezzo,
+                totaleEuro: totaleEuro
+            });
         });
 
-        layoutByIsland[isola.id] = {
-            name: isola.label,
-            sides: sides
+        layoutByIsland[layoutId] = {
+            id: layoutId,
+            label: isola.label,
+            pistole: pistoleArray
         };
     });
 
     const layout = [];
-    normalizedIslands.forEach(isola => {
-        if (layoutByIsland[isola.id]) {
-            layout.push(layoutByIsland[isola.id]);
+    normalizedIslands.forEach((isola, idx) => {
+        const layoutId = isola?.id ?? isola?.originalId ?? `isola-${idx + 1}`;
+        if (layoutByIsland[layoutId]) {
+            layout.push(layoutByIsland[layoutId]);
         }
+    });
+
+    // Costruisci lookups per pistole e isole
+    const pistoleById = {};
+    const pistoleByName = {};
+    (pistoleData || []).forEach(p => {
+        pistoleById[p.id] = {
+            id: p.id,
+            label: p.nome
+        };
+        pistoleByName[p.nome.toLowerCase()] = {
+            id: p.id,
+            label: p.nome
+        };
+    });
+
+    const islandsById = {};
+    normalizedIslands.forEach((isola, idx) => {
+        const lookupId = isola?.id ?? isola?.originalId ?? `isola-${idx + 1}`;
+        islandsById[lookupId] = {
+            id: lookupId,
+            label: isola.label
+        };
     });
 
     const lookups = {
         stations: { [stationId]: stationData?.station_name },
-        users: { [closure.operator_id]: operatorData?.full_name || operatorData?.username }
+        users: { [closure.operator_id]: operatorData?.full_name || operatorData?.username },
+        pistoleById: pistoleById,
+        pistoleByName: pistoleByName,
+        islandsById: islandsById
     };
 
     const meta = {
@@ -459,11 +540,30 @@ export async function fetchClosureExportData(closureId) {
         utaDkv: dettaglioIncasso.uta_dkv_operatore || 0
     };
 
+    // Crea metricsMap per buildClosureTemplate
+    const metricsMap = {};
+    layout.forEach(isola => {
+        (isola.pistole || []).forEach(p => {
+            metricsMap[p.id] = {
+                id: p.id,
+                label: p.label,
+                apertura: p.apertura,
+                chiusura: p.chiusura,
+                venduti: p.venduti,
+                tipo: p.tipo,
+                tipoSigla: p.tipoSigla,
+                prezzo: p.prezzo,
+                totaleEuro: p.totaleEuro
+            };
+        });
+    });
+
     return {
         layout,
         lookups,
         meta,
         summaryDefaults,
+        metricsMap,
         rawClosure: closure
     };
 }
@@ -531,13 +631,27 @@ export function buildClosureTemplate(ctx, layout, summaryValues) {
         euroOther: totalEuroAltri,
         totalEuro: totalEuroGasolio + totalEuroBenzina + totalEuroAltri
     };
+    const stationSlug = ctx?.meta?.stationSlug || slugifyLabel(ctx?.meta?.stationName || 'stazione');
+    const dateSlug = ctx?.meta?.dateSlug || (ctx?.meta?.dateDisplay ? ctx.meta.dateDisplay.replace(/\//g, '-').replace(/\s+/g, '_') : 'data');
+
     return {
         meta: {
             ...ctx.meta,
-            totals
+            totals,
+            stationSlug,
+            dateSlug
         },
         sections,
-        summary: summaryValues
+        summary: {
+            self: summaryValues?.self || 0,
+            carteSelf: summaryValues?.carteSelf || 0,
+            contanti: summaryValues?.contanti || 0,
+            cartePos: summaryValues?.cartePos || 0,
+            nonErogato: summaryValues?.nonErogato || 0,
+            lubrAdblue: summaryValues?.lubrAdblue || 0,
+            crediti: summaryValues?.crediti || 0,
+            utaDkv: summaryValues?.utaDkv || 0
+        }
     };
 }
 
@@ -562,7 +676,153 @@ export function readExportSummaryValues(defaults = {}) {
     };
 }
 
-export function generateClosurePdf(template) {
+function createClosurePdfElement(template) {
+    const totals = template.meta?.totals || {};
+    const prices = template.meta?.prices || {};
+    const summary = template.summary || {};
+    const sections = Array.isArray(template.sections) ? template.sections : [];
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'closure-pdf-wrapper';
+    wrapper.style.position = 'absolute';
+    wrapper.style.left = '0';
+    wrapper.style.top = '0';
+    wrapper.style.opacity = '0.01'; // deve restare visibile per html2canvas
+    wrapper.style.visibility = 'visible';
+    wrapper.style.pointerEvents = 'none';
+    wrapper.style.zIndex = '-1';
+    wrapper.style.width = '1200px';
+    wrapper.style.padding = '32px 40px 40px';
+    wrapper.style.background = '#fff';
+    wrapper.style.color = '#111';
+    wrapper.style.fontFamily = '"Helvetica Neue", Arial, sans-serif';
+
+    const sectionsHtml = sections.length
+        ? sections.map((section, sectionIdx) => {
+            const rows = (section.pistole || []).map(p => `
+                <tr>
+                    <td>${escapeHtml(p.label || '')}</td>
+                    <td>${formatNumberIt(p.chiusura || 0, 2)}</td>
+                    <td class="dash">-</td>
+                    <td>${formatNumberIt(p.apertura || 0, 2)}</td>
+                    <td class="equals">=</td>
+                    <td>${formatNumberIt(p.venduti || 0, 2)}</td>
+                    <td>${escapeHtml(p.tipoSigla || '')}</td>
+                    <td class="money">${formatEuro(p.totaleEuro || 0)}</td>
+                </tr>
+            `).join('');
+            return `
+                <div class="section-block">
+                    <div class="section-title">${escapeHtml(section.label || `Isola ${sectionIdx + 1}`)}</div>
+                    <table class="section-table">
+                        <thead>
+                            <tr>
+                                <th>PISTOLA</th>
+                                <th>CHIUSURA</th>
+                                <th></th>
+                                <th>APERTURA</th>
+                                <th></th>
+                                <th>LT VENDUTI</th>
+                                <th>TIPO</th>
+                                <th>TOTALE €</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                    <div class="section-footer">
+                        <span>LT G: <strong>${formatNumberIt(section.totals?.ltGasolio || 0, 2)}</strong></span>
+                        <span>LT B: <strong>${formatNumberIt(section.totals?.ltBenzina || 0, 2)}</strong></span>
+                        <span>LT altri: <strong>${formatNumberIt(section.totals?.ltOther || 0, 2)}</strong></span>
+                        <span>Totale €: <strong>${formatEuro(section.totals?.totalEuro || 0)}</strong></span>
+                    </div>
+                </div>
+            `;
+        }).join('')
+        : `<p class="empty-state">Nessun dato pistole disponibile per questa chiusura.</p>`;
+
+    const summaryFields = [
+        { label: 'SELF', value: summary.self },
+        { label: 'CARTE SELF', value: summary.carteSelf },
+        { label: 'CONTANTI', value: summary.contanti },
+        { label: 'CARTE POS', value: summary.cartePos },
+        { label: 'NON EROGATO', value: summary.nonErogato },
+        { label: 'LUBR/ADBLUE', value: summary.lubrAdblue },
+        { label: 'CREDITI', value: summary.crediti },
+        { label: 'UTA/DKV', value: summary.utaDkv }
+    ].map(field => `
+        <div class="summary-tile">
+            <div class="summary-label">${field.label}</div>
+            <div class="summary-value">${formatEuro(field.value || 0)}</div>
+        </div>
+    `).join('');
+
+    wrapper.innerHTML = `
+        <style>
+            .closure-pdf-wrapper * { box-sizing: border-box; }
+            .closure-pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+            .header-block { min-width: 200px; }
+            .header-block .label { font-size: 13px; font-weight: 600; letter-spacing: 1px; color: #555; }
+            .header-block .value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+            .price-row, .liters-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+            .price-row span, .liters-row span { min-width: 200px; }
+            .price-row strong, .liters-row strong { font-size: 15px; }
+            .separator { border-top: 1px solid #ccc; margin: 18px 0; }
+            .section-block { margin-bottom: 28px; }
+            .section-title { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+            .section-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            .section-table thead th { text-transform: uppercase; font-size: 11px; color: #555; border-bottom: 1px solid #000; padding: 6px 4px; text-align: left; }
+            .section-table tbody td { padding: 6px 4px; border-bottom: 1px solid #e5e7eb; }
+            .section-table tbody td.money { font-weight: 600; }
+            .section-table tbody td.dash,
+            .section-table tbody td.equals { text-align: center; width: 10px; color: #555; }
+            .section-footer { display: flex; gap: 20px; font-size: 12px; margin-top: 8px; font-weight: 600; }
+            .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+            .summary-tile { border: 1px solid #d1d5db; border-radius: 6px; padding: 10px 12px; }
+            .summary-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 4px; }
+            .summary-value { font-size: 15px; font-weight: 600; }
+            .empty-state { font-size: 14px; color: #6b7280; font-style: italic; }
+        </style>
+        <div class="closure-pdf">
+            <div class="closure-pdf-header">
+                <div class="header-block">
+                    <div class="label">DATA</div>
+                    <div class="value">${escapeHtml(template.meta?.dateDisplay || '')}</div>
+                </div>
+                <div class="header-block" style="text-align:center;">
+                    <div class="label">GASOLIO €</div>
+                    <div class="value">${formatNumberIt(prices.gasolio || 0, 3)}</div>
+                </div>
+                <div class="header-block" style="text-align:right;">
+                    <div class="label">BENZINA €</div>
+                    <div class="value">${formatNumberIt(prices.benzina || 0, 3)}</div>
+                </div>
+            </div>
+            <div class="price-row">
+                <span>TOTALE GASOLIO € <strong>${formatEuro(totals.euroGasolio || 0)}</strong></span>
+                <span>TOTALE BENZINA € <strong>${formatEuro(totals.euroBenzina || 0)}</strong></span>
+                <span>VENDUTO € <strong>${formatEuro(totals.totalEuro || 0)}</strong></span>
+            </div>
+            <div class="liters-row">
+                <span>TOTALE GASOLIO LT <strong>${formatNumberIt(totals.ltGasolio || 0, 2)}</strong></span>
+                <span>TOTALE BENZINA LT <strong>${formatNumberIt(totals.ltBenzina || 0, 2)}</strong></span>
+                <span>LT TOTALI <strong>${formatNumberIt((totals.ltGasolio || 0) + (totals.ltBenzina || 0) + (totals.ltOther || 0), 2)}</strong></span>
+            </div>
+            <div class="separator"></div>
+            ${sectionsHtml}
+            <div class="separator"></div>
+            <div class="summary-grid">
+                ${summaryFields}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(wrapper);
+    return wrapper;
+}
+
+function generateClosurePdfLegacy(template) {
     const jsPDFLib = window.jspdf;
     if (!jsPDFLib || !jsPDFLib.jsPDF) {
         alert('Impossibile generare il PDF: libreria jsPDF non disponibile');
@@ -684,6 +944,51 @@ export function generateClosurePdf(template) {
 
     const filename = `chiusura_${template.meta.stationSlug}_${template.meta.dateSlug}.pdf`;
     doc.save(filename);
+}
+
+export async function generateClosurePdf(template) {
+    const jsPDFLib = window.jspdf;
+    if (!jsPDFLib || !jsPDFLib.jsPDF) {
+        alert('Impossibile generare il PDF: libreria jsPDF non disponibile');
+        return;
+    }
+    if (typeof window === 'undefined') {
+        alert('Generazione PDF non disponibile in questo contesto');
+        return;
+    }
+
+    let tempEl = null;
+    try {
+        await ensureHtml2CanvasLoaded();
+        const doc = new jsPDFLib.jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+        if (typeof doc.html !== 'function') {
+            generateClosurePdfLegacy(template);
+            return;
+        }
+        tempEl = createClosurePdfElement(template);
+        await new Promise((resolve, reject) => {
+            try {
+                doc.html(tempEl, {
+                    x: 24,
+                    y: 24,
+                    width: doc.internal.pageSize.getWidth() - 48,
+                    windowWidth: 1200,
+                    html2canvas: { scale: 0.9, useCORS: true },
+                    callback: () => resolve()
+                });
+            } catch (err) {
+                reject(err);
+            }
+        });
+        const filename = `chiusura_${template.meta.stationSlug}_${template.meta.dateSlug}.pdf`;
+        doc.save(filename);
+    } catch (err) {
+        console.error('Errore generazione PDF con template Excel-like:', err);
+        alert('Impossibile generare il PDF con il template grafico. Verrà usato il layout semplificato.');
+        generateClosurePdfLegacy(template);
+    } finally {
+        tempEl?.remove();
+    }
 }
 
 export async function generateClosureExcel(template) {
