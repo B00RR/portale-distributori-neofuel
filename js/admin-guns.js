@@ -16,6 +16,11 @@ import { escapeHtml, formatNumberIt, parseNumberFlexible, formatGunCounter, pars
  */
 export async function showGunsModal(islandId, islandName, stationId) {
   openModal(`Pistole - ${escapeHtml(islandName)}`);
+  // Per pistole usiamo la versione larga: rimuovi eventuale classe compatta
+  const modalContent = document.querySelector('#app-modal .modal-content');
+  if (modalContent) {
+    modalContent.classList.remove('modal-narrow');
+  }
   const target = document.getElementById('modal-body');
 
   showLoadingMessage(target, 'Caricamento pistole...');
@@ -79,14 +84,20 @@ async function renderGuns(target, islandId, islandName, stationId) {
           </button>
         </div>
       `;
+
+      const addFirstBtn = document.getElementById('add-gun-btn');
+      if (addFirstBtn) {
+        addFirstBtn.addEventListener('click', () => {
+          openGunForm(islandId, islandName, stationId);
+        });
+      }
+
       return;
     }
 
     const fuelColors = {
       benzina: '#22c55e',
-      gasolio: '#eab308',
-      gpl: '#3b82f6',
-      metano: '#10b981'
+      gasolio: '#eab308'
     };
 
     const gunsHtml = guns.map(gun => {
@@ -252,24 +263,18 @@ async function openGunForm(islandId, islandName, stationId, gunId = null) {
         <select name="tipo_carburante" required>
           <option value="benzina" ${gun.tipo_carburante === 'benzina' ? 'selected' : ''}>Benzina</option>
           <option value="gasolio" ${gun.tipo_carburante === 'gasolio' ? 'selected' : ''}>Gasolio</option>
-          <option value="gpl" ${gun.tipo_carburante === 'gpl' ? 'selected' : ''}>GPL</option>
-          <option value="metano" ${gun.tipo_carburante === 'metano' ? 'selected' : ''}>Metano</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Numeratore Iniziale (formato italiano)</label>
+        <label>Numeratore Iniziale</label>
         <input 
           type="text" 
           name="numero_litri" 
           value="${counterFormatted}" 
           required 
-          placeholder="es. 1.234,567"
+          placeholder="es. 1.234,56"
           pattern="[0-9.,]+"
-          title="Usa formato italiano: 1.234,567"
         >
-        <small style="color: #6b7280; display: block; margin-top: 5px;">
-          Formato: punto per migliaia, virgola per decimali (es. 1.234,567)
-        </small>
       </div>
       <div style="display: flex; gap: 10px;">
         <button type="button" class="menu-button secondary" id="cancel-btn">Annulla</button>
@@ -288,7 +293,7 @@ async function openGunForm(islandId, islandName, stationId, gunId = null) {
     const fd = new FormData(e.target);
 
     const numeroLitriStr = fd.get('numero_litri');
-    const numeroLitri = parseGunCounter(numeroLitriStr);
+    const numeroLitri = Math.round(parseGunCounter(numeroLitriStr) * 100) / 100; // Arrotonda a 2 decimali
 
     const payload = {
       nome: fd.get('nome'),
@@ -340,23 +345,16 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
 
     <form id="counter-form">
       <div class="form-group">
-        <label>Nuovo Numeratore (formato italiano)</label>
+        <label>Nuovo Numeratore</label>
         <input 
           type="text" 
           name="numero_litri" 
           value="${counterFormatted}" 
           required 
-          placeholder="es. 12.345,678"
+          placeholder="es. 12.345,67"
           pattern="[0-9.,]+"
-          title="Usa formato italiano: 12.345,678"
           style="font-size: 1.125rem; font-weight: 600;"
         >
-        <small style="color: #6b7280; display: block; margin-top: 5px;">
-          <i class="fas fa-info-circle"></i> Formato: punto per migliaia, virgola per decimali
-        </small>
-        <small style="color: #6b7280; display: block; margin-top: 3px;">
-          Esempi: <code>1.234,567</code> oppure <code>12345,678</code>
-        </small>
       </div>
 
       <div style="background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 3px solid #f59e0b;">
@@ -382,7 +380,7 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
     const fd = new FormData(e.target);
 
     const numeroLitriStr = fd.get('numero_litri');
-    const numeroLitri = parseGunCounter(numeroLitriStr);
+    const numeroLitri = Math.round(parseGunCounter(numeroLitriStr) * 100) / 100; // Arrotonda a 2 decimali
 
     if (numeroLitri < 0) {
       alert('Il numeratore non può essere negativo!');

@@ -30,8 +30,10 @@ export function showAdminArea() {
     <div class="admin-container">
       <aside class="admin-sidebar">
         <div class="sidebar-header">
-          <h2>Pannello Admin</h2>
-          <p class="user-info">Loggato come: <b>${escapeHtml(loggedUser?.full_name)}</b></p>
+          <div class="sidebar-logo">
+            <span class="logo-neo">neo</span><span class="logo-fuel">fuel</span>
+          </div>
+          <p class="sidebar-subtitle">Control Center</p>
         </div>
         <nav class="sidebar-nav">
           <button class="nav-btn active" data-tab="dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
@@ -43,11 +45,31 @@ export function showAdminArea() {
           <button class="nav-btn" data-tab="notifiche"><i class="fas fa-bell"></i> Notifiche</button>
           <button class="nav-btn logout-btn" id="admin-logout"><i class="fas fa-sign-out-alt"></i> Esci</button>
         </nav>
+        <div class="sidebar-footer">
+          <div class="sidebar-footer-avatar">
+            <i class="fas fa-user-shield"></i>
+          </div>
+          <div class="sidebar-footer-meta">
+            <span class="sidebar-footer-role">Admin User</span>
+            <span class="sidebar-footer-name">${escapeHtml(loggedUser?.full_name || 'Amministratore')}</span>
+          </div>
+        </div>
       </aside>
       <main class="admin-main">
         <header class="admin-header">
-          <h1 id="page-title">Dashboard</h1>
-          <div id="header-actions"></div>
+          <div class="admin-header-left-logo">
+            <span>NEO</span><span>FUEL</span>
+          </div>
+          <div class="admin-header-center">
+            <p class="welcome-title">Benvenuto, Amministratore</p>
+            <p class="welcome-subtitle" id="page-subtitle">Dashboard</p>
+          </div>
+          <div class="admin-header-right">
+            <div id="header-actions" class="header-actions"></div>
+            <button class="header-icon-btn" type="button" title="Notifiche">
+              <i class="fas fa-bell"></i>
+            </button>
+          </div>
         </header>
         <div id="admin-content" class="admin-content-area">
           <!-- Contenuto dinamico -->
@@ -70,7 +92,9 @@ export function showAdminArea() {
   document.getElementById('admin-logout').addEventListener('click', async () => {
     if (confirm('Sei sicuro di voler uscire?')) {
       await clearSession();
-      window.location.reload();
+      // Attendi un momento per assicurarsi che la sessione sia stata pulita
+      await new Promise(resolve => setTimeout(resolve, 100));
+      window.location.href = window.location.pathname;
     }
   });
 
@@ -80,7 +104,7 @@ export function showAdminArea() {
 
 function loadAdminTab(tab) {
   currentAdminTab = tab;
-  const pageTitle = document.getElementById('page-title');
+  const pageSubtitle = document.getElementById('page-subtitle');
   const headerActions = document.getElementById('header-actions');
   const content = document.getElementById('admin-content');
 
@@ -89,31 +113,31 @@ function loadAdminTab(tab) {
 
   switch (tab) {
     case 'dashboard':
-      if (pageTitle) pageTitle.textContent = 'Dashboard';
+      if (pageSubtitle) pageSubtitle.textContent = 'Dashboard';
       showDashboard(content);
       break;
     case 'stations':
-      if (pageTitle) pageTitle.textContent = 'Gestione Distributori';
+      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Distributori';
       showStationsTab(content, headerActions);
       break;
     case 'operators':
-      if (pageTitle) pageTitle.textContent = 'Gestione Operatori';
+      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Operatori';
       showOperatorsTab(content, headerActions);
       break;
     case 'chiusure':
-      if (pageTitle) pageTitle.textContent = 'Storico Chiusure';
+      if (pageSubtitle) pageSubtitle.textContent = 'Storico Chiusure';
       showChiusureTab(content, headerActions);
       break;
     case 'crediti':
-      if (pageTitle) pageTitle.textContent = 'Gestione Crediti';
+      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Crediti';
       showCreditiOverview(content, headerActions);
       break;
     case 'vouchers':
-      if (pageTitle) pageTitle.textContent = 'Gestione Voucher';
+      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Voucher';
       showVoucherAdminTab(content, headerActions);
       break;
     case 'notifiche':
-      if (pageTitle) pageTitle.textContent = 'Notifiche';
+      if (pageSubtitle) pageSubtitle.textContent = 'Notifiche';
       showNotificheAdmin(content);
       break;
     default:
@@ -127,31 +151,197 @@ function loadAdminTab(tab) {
 async function showDashboard(container) {
   showLoadingMessage(container);
   try {
-    // Esempio di dashboard semplice
+    // KPI base
     const { count: stationsCount } = await supabase.from('fuel_stations').select('*', { count: 'exact', head: true });
     const { count: operatorsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'operator');
-    const { count: closuresCount } = await supabase.from('closing_shift').select('*', { count: 'exact', head: true });
+    const { count: closuresCount } = await supabase.from('shifts').select('*', { count: 'exact', head: true });
 
+    // Stato cisterne: ultimo livello registrato per ciascuna cisterna
+    const { data: tanks } = await supabase
+      .from('tanks')
+      .select('id, name, fuel_type, capacity, station_id, fuel_stations(station_name)')
+      .order('name');
+
+    let tanksHtmlRows = '';
+
+    if (tanks && tanks.length > 0) {
+      const tankIds = tanks.map(t => t.id);
+      const { data: tankReadings } = await supabase
+        .from('tank_readings')
+        .select('*')
+        .in('tank_id', tankIds)
+        .order('created_at', { ascending: false });
+
+      const latestByTank = {};
+      if (tankReadings) {
+        for (const r of tankReadings) {
+          if (!latestByTank[r.tank_id]) {
+            latestByTank[r.tank_id] = r;
+          }
+        }
+      }
+
+      tanks.forEach(t => {
+        const latest = latestByTank[t.id];
+        const liters = latest?.liters ?? 0;
+        const capacity = t.capacity || 0;
+        const levelPerc = capacity > 0 ? Math.max(0, Math.min(100, (liters / capacity) * 100)) : 0;
+
+        let levelClass = 'tank-level-ok';
+        let statusLabel = '(OK)';
+        if (levelPerc < 10) {
+          levelClass = 'tank-level-crit';
+          statusLabel = '(CRIT)';
+        } else if (levelPerc < 30) {
+          levelClass = 'tank-level-low';
+          statusLabel = '(LOW)';
+        }
+
+        const stationName = t.fuel_stations?.station_name || `Stazione #${t.station_id}`;
+
+        tanksHtmlRows += `
+          <tr>
+            <td>${escapeHtml(stationName)}</td>
+            <td>${escapeHtml(t.fuel_type || '')}</td>
+            <td>
+              <div class="tank-level-bar">
+                <div class="tank-level-bar-inner ${levelClass}" style="width:${levelPerc.toFixed(0)}%;"></div>
+              </div>
+              <div class="tank-level-meta">${levelPerc.toFixed(0)}% ${statusLabel}</div>
+            </td>
+            <td>${latest ? escapeHtml(new Date(latest.created_at).toLocaleString('it-IT')) : '-'}</td>
+          </tr>
+        `;
+      });
+    } else {
+      tanksHtmlRows = `<tr><td colspan="4">Nessuna cisterna configurata.</td></tr>`;
+    }
+
+    // Andamento prezzi medi - verrà popolato via Chart.js
     container.innerHTML = `
-      <div class="dashboard-grid">
-        <div class="dash-card">
-          <h3>Distributori</h3>
-          <div class="dash-value">${stationsCount || 0}</div>
-        </div>
-        <div class="dash-card">
-          <h3>Operatori</h3>
-          <div class="dash-value">${operatorsCount || 0}</div>
-        </div>
-        <div class="dash-card">
-          <h3>Chiusure Totali</h3>
-          <div class="dash-value">${closuresCount || 0}</div>
-        </div>
-      </div>
-      <div class="dashboard-recent">
-        <h3>Ultime Attività</h3>
-        <p>Funzionalità in arrivo...</p>
-      </div>
+      <section class="dashboard-grid">
+        <article class="kpi-card">
+          <div class="kpi-row">
+            <div class="kpi-icon"><i class="fas fa-euro-sign"></i></div>
+          </div>
+          <p class="kpi-title">Venduto Oggi</p>
+          <p class="kpi-value">€ 0</p>
+          <p class="kpi-sub">+0% vs ieri</p>
+        </article>
+        <article class="kpi-card">
+          <div class="kpi-row">
+            <div class="kpi-icon"><i class="fas fa-gas-pump"></i></div>
+          </div>
+          <p class="kpi-title">Erogato Oggi</p>
+          <p class="kpi-value">0 L</p>
+          <p class="kpi-sub">Benzina / Gasolio</p>
+        </article>
+        <article class="kpi-card">
+          <div class="kpi-row">
+            <div class="kpi-icon"><i class="fas fa-map-marker-alt"></i></div>
+          </div>
+          <p class="kpi-title">Stazioni Attive</p>
+          <p class="kpi-value">${stationsCount || 0}</p>
+          <p class="kpi-sub">${operatorsCount || 0} operatori attivi</p>
+        </article>
+        <article class="kpi-card">
+          <div class="kpi-row">
+            <div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          </div>
+          <p class="kpi-title">Alert Cisterne</p>
+          <p class="kpi-value">${closuresCount || 0}</p>
+          <p class="kpi-sub">Chiusure registrate</p>
+        </article>
+      </section>
+
+      <section class="dashboard-panels">
+        <article class="panel-card">
+          <h3 class="panel-title">Stato Cisterne Rete in Tempo Reale</h3>
+          <p class="panel-subtitle">Panoramica livelli percentuali su tutte le stazioni.</p>
+          <div class="table-responsive" style="box-shadow:none; border:none; background:transparent;">
+            <table class="tanks-table">
+              <thead>
+                <tr>
+                  <th>Stazione</th>
+                  <th>Carburante</th>
+                  <th>Livello %</th>
+                  <th>Ultimo Agg.</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tanksHtmlRows}
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel-card">
+          <h3 class="panel-title">Andamento Prezzi Medi</h3>
+          <p class="panel-subtitle">Trend ultimi aggiornamenti listini benzina (valore medio rete).</p>
+          <div class="prices-chart-wrapper">
+            <canvas id="avg-prices-chart"></canvas>
+          </div>
+        </article>
+      </section>
     `;
+
+    // Popola grafico prezzi medi se Chart.js è disponibile
+    if (window.Chart) {
+      const { data: pricesData } = await supabase
+        .from('prezzi_distributore')
+        .select('data_validita, prezzo_benzina')
+        .order('data_validita', { ascending: true })
+        .limit(50);
+
+      const grouped = {};
+      if (pricesData) {
+        pricesData.forEach(p => {
+          const day = new Date(p.data_validita).toISOString().substring(0, 10);
+          if (!grouped[day]) grouped[day] = { sum: 0, count: 0 };
+          grouped[day].sum += p.prezzo_benzina || 0;
+          grouped[day].count += 1;
+        });
+      }
+
+      const labels = Object.keys(grouped).sort();
+      const values = labels.map(d => grouped[d].count ? grouped[d].sum / grouped[d].count : 0);
+
+      const ctx = document.getElementById('avg-prices-chart');
+      if (ctx) {
+        new window.Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels.map(d => new Date(d).toLocaleDateString('it-IT')),
+            datasets: [{
+              label: 'Prezzo medio Benzina',
+              data: values,
+              borderColor: '#8DC63F',
+              backgroundColor: 'rgba(141, 198, 63, 0.08)',
+              borderWidth: 2,
+              tension: 0.3,
+              pointRadius: 2.5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 10 } }
+              },
+              y: {
+                grid: { color: 'rgba(148, 163, 184, 0.2)' },
+                ticks: { font: { size: 10 } }
+              }
+            }
+          }
+        });
+      }
+    }
   } catch (err) {
     showErrorMessage(container, err);
   }
@@ -187,8 +377,7 @@ async function showStationsTab(container, actionsContainer) {
           <thead>
             <tr>
               <th>Nome</th>
-              <th>Indirizzo</th>
-              <th>Città</th>
+              <th>Località</th>
               <th>Azioni</th>
             </tr>
           </thead>
@@ -199,8 +388,7 @@ async function showStationsTab(container, actionsContainer) {
       html += `
         <tr>
           <td>${escapeHtml(st.station_name)}</td>
-          <td>${escapeHtml(st.address)}</td>
-          <td>${escapeHtml(st.city)}</td>
+          <td>${escapeHtml(st.location)}</td>
           <td>
             <button class="icon-btn edit-station" data-id="${st.station_id}" title="Modifica"><i class="fas fa-edit"></i></button>
             <button class="icon-btn prices-station" data-id="${st.station_id}" title="Prezzi"><i class="fas fa-tag"></i></button>
@@ -244,6 +432,9 @@ async function openStationModal(stationId = null) {
     station = data || {};
   }
 
+  // Valore di default per allow_partial_closure: true se non specificato
+  const allowPartialClosure = station.allow_partial_closure !== false;
+
   target.innerHTML = `
     <form id="station-form">
       <div class="form-group">
@@ -251,12 +442,17 @@ async function openStationModal(stationId = null) {
         <input type="text" name="station_name" value="${escapeHtml(station.station_name)}" required>
       </div>
       <div class="form-group">
-        <label>Indirizzo</label>
-        <input type="text" name="address" value="${escapeHtml(station.address)}">
+        <label>Località (indirizzo / città)</label>
+        <input type="text" name="location" value="${escapeHtml(station.location)}">
       </div>
       <div class="form-group">
-        <label>Città</label>
-        <input type="text" name="city" value="${escapeHtml(station.city)}">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" name="allow_partial_closure" ${allowPartialClosure ? 'checked' : ''} style="width: 18px; height: 18px;">
+          <span>Consenti chiusura parziale per gli operatori</span>
+        </label>
+        <small style="color: #666; margin-top: 5px; display: block;">
+          Se disabilitato, gli operatori di questo distributore potranno effettuare solo chiusure finali.
+        </small>
       </div>
       <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Distributore'}</button>
     </form>
@@ -267,8 +463,8 @@ async function openStationModal(stationId = null) {
     const formData = new FormData(e.target);
     const payload = {
       station_name: formData.get('station_name'),
-      address: formData.get('address'),
-      city: formData.get('city')
+      location: formData.get('location'),
+      allow_partial_closure: formData.get('allow_partial_closure') === 'on'
     };
 
     try {
@@ -300,30 +496,34 @@ async function showPrezziAdminModal(stationId) {
   openModal(`Modifica Prezzi - ${escapeHtml(stationName)}`);
   const target = document.getElementById('modal-body');
 
-  const { data: current } = await supabase
-    .from('prezzi_distributore')
-    .select('*')
-    .eq('station_id', stationId)
-    .order('data_validita', { ascending: false })
-    .maybeSingle();
+    const { data: current } = await supabase
+      .from('prezzi_distributore')
+      .select('*')
+      .eq('station_id', stationId)
+      .order('data_validita', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
   const benzinaValue = escapeNumber(current?.prezzo_benzina);
   const gasolioValue = escapeNumber(current?.prezzo_gasolio);
-  const gplValue = escapeNumber(current?.prezzo_gpl);
-  const metanoValue = escapeNumber(current?.prezzo_metano);
 
   target.innerHTML = `
     <form id="admin-prezzi-form">
-      <div class="form-group"><label>Benzina</label><input type="number" step="0.001" min="0" name="benzina" value="${benzinaValue}" /></div>
-      <div class="form-group"><label>Gasolio</label><input type="number" step="0.001" min="0" name="gasolio" value="${gasolioValue}" /></div>
-      <div class="form-group"><label>GPL</label><input type="number" step="0.001" min="0" name="gpl" value="${gplValue}" /></div>
-      <div class="form-group"><label>Metano</label><input type="number" step="0.001" min="0" name="metano" value="${metanoValue}" /></div>
-      <div class="form-group"><label>Validità</label>
+      <div class="form-group"><label>Benzina</label><input class="price-input" type="number" step="0.001" min="0" name="benzina" value="${benzinaValue}" /></div>
+      <div class="form-group"><label>Gasolio</label><input class="price-input" type="number" step="0.001" min="0" name="gasolio" value="${gasolioValue}" /></div>
+      <fieldset class="form-group prezzi-validita-group">
+        <legend>Validità</legend>
         <div class="validita-grid">
-          <label><input type="radio" name="validita" value="ora" checked> Da ora</label>
-          <label><input type="radio" name="validita" value="prossima"> Dalla prossima chiusura</label>
+          <label class="validita-option">
+            <input type="radio" name="validita" value="ora" checked>
+            <span>Da ora</span>
+          </label>
+          <label class="validita-option">
+            <input type="radio" name="validita" value="prossima">
+            <span>Dalla prossima chiusura</span>
+          </label>
         </div>
-      </div>
+      </fieldset>
       <button type="submit" class="menu-button primary">Salva Prezzi</button>
     </form>
   `;
@@ -348,8 +548,8 @@ async function showPrezziAdminModal(stationId) {
       station_id: stationId,
       prezzo_benzina: parseFloat(fd.get('benzina')) || 0,
       prezzo_gasolio: parseFloat(fd.get('gasolio')) || 0,
-      prezzo_gpl: parseFloat(fd.get('gpl')) || 0,
-      prezzo_metano: parseFloat(fd.get('metano')) || 0,
+      prezzo_gpl: null,
+      prezzo_metano: null,
       data_validita: dataValidita.toISOString()
     };
 
@@ -421,8 +621,6 @@ async function showTanksAdminModal(stationId) {
               <select name="fuel_type" required>
                 <option value="Benzina">Benzina</option>
                 <option value="Gasolio">Gasolio</option>
-                <option value="GPL">GPL</option>
-                <option value="Metano">Metano</option>
                 <option value="AdBlue">AdBlue</option>
               </select>
             </div>
@@ -483,7 +681,13 @@ async function showOperatorsTab(container, actionsContainer) {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('*')
+      .select(`
+        *,
+        user_stations (
+          station_id,
+          fuel_stations ( station_name )
+        )
+      `)
       .eq('role', 'operator')
       .order('created_at', { ascending: false });
 
@@ -501,7 +705,7 @@ async function showOperatorsTab(container, actionsContainer) {
             <tr>
               <th>Nome</th>
               <th>Email</th>
-              <th>Username</th>
+              <th>Distributore</th>
               <th>Azioni</th>
             </tr>
           </thead>
@@ -509,11 +713,13 @@ async function showOperatorsTab(container, actionsContainer) {
     `;
 
     users.forEach(u => {
+      const firstLink = Array.isArray(u.user_stations) ? u.user_stations[0] : u.user_stations;
+      const stationName = firstLink?.fuel_stations?.station_name || '-';
       html += `
         <tr>
           <td>${escapeHtml(u.full_name)}</td>
           <td>${escapeHtml(u.email)}</td>
-          <td>${escapeHtml(u.username)}</td>
+          <td>${escapeHtml(stationName)}</td>
           <td>
             <button class="icon-btn edit-operator" data-id="${u.user_id}" title="Modifica"><i class="fas fa-edit"></i></button>
             <button class="icon-btn assign-station" data-id="${u.user_id}" title="Assegna Stazione"><i class="fas fa-map-marker-alt"></i></button>
@@ -563,10 +769,6 @@ async function openOperatorModal(userId = null) {
         <label>Password</label>
         <input type="password" name="password" required minlength="6">
       </div>` : ''}
-      <div class="form-group">
-        <label>Username (opzionale)</label>
-        <input type="text" name="username" value="${escapeHtml(user.username)}">
-      </div>
       <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Operatore'}</button>
     </form>
   `;
@@ -577,11 +779,10 @@ async function openOperatorModal(userId = null) {
     const email = fd.get('email');
     const password = fd.get('password');
     const fullName = fd.get('full_name');
-    const username = fd.get('username');
 
     try {
       if (isEdit) {
-        await safeSupabaseQuery(() => supabase.from('users').update({ full_name: fullName, username }).eq('user_id', userId));
+        await safeSupabaseQuery(() => supabase.from('users').update({ full_name: fullName }).eq('user_id', userId));
       } else {
         // Crea user in Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -597,7 +798,6 @@ async function openOperatorModal(userId = null) {
           user_id: authData.user.id,
           email,
           full_name: fullName,
-          username,
           role: 'operator'
         }]));
       }
@@ -897,7 +1097,7 @@ async function openCustomerModal(customerId = null) {
       ${!isEdit ? `
       <div class="form-group">
         <label>Saldo Iniziale (€)</label>
-        <input type="number" name="saldo" step="0.01" value="0">
+        <input type="number" name="saldo" step="0.01">
       </div>` : ''}
       <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Cliente'}</button>
     </form>

@@ -54,7 +54,6 @@ export async function showInvoiceMenu(userId, stationId) {
           <span class="station-badge" id="station-badge">Caricamento...</span>
         </div>
         <div class="header-right">
-          <span class="user-name">${escapeHtml(loggedUser?.full_name)}</span>
           <button id="op-logout-btn" class="icon-btn"><i class="fas fa-sign-out-alt"></i></button>
         </div>
       </header>
@@ -109,7 +108,9 @@ export async function showInvoiceMenu(userId, stationId) {
   document.getElementById('op-logout-btn').addEventListener('click', async () => {
     if (confirm('Vuoi uscire?')) {
       await clearSession();
-      window.location.reload();
+      // Attendi un momento per assicurarsi che la sessione sia stata pulita
+      await new Promise(resolve => setTimeout(resolve, 100));
+      window.location.href = window.location.pathname;
     }
   });
 

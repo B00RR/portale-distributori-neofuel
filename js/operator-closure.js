@@ -3,7 +3,7 @@
 // Gestione chiusura turno con wizard a 3 step
 // ==========================================
 import { supabase } from "./api.js";
-import { showLoadingMessage, showErrorMessage } from "./ui.js";
+import { showLoadingMessage, showErrorMessage, openModal, closeModal } from "./ui.js";
 import { checkOpeningStatus, updateOpeningStatus } from "./operator-opening.js";
 import {
   createWarningMessage,
@@ -25,35 +25,70 @@ let closureState = {
  * @param {number} userId - ID dell'operatore
  */
 export async function startClosureWizard(stationId, userId) {
-  const container = document.getElementById('operator-content');
-  showLoadingMessage(container);
-
   try {
+    // Apri il modal subito per mostrare il caricamento
+    openModal('Chiusura Turno');
+    const modalBody = document.getElementById('modal-body');
+    modalBody.innerHTML = '<p style="text-align: center; padding: 20px;">Caricamento...</p>';
+
     // 1. Controlla se esiste un'apertura attiva
     const activeOpening = await checkOpeningStatus(stationId);
 
     if (!activeOpening) {
-      container.innerHTML = createContentBox(
-        createWarningMessage(
-          'Nessuna Apertura Attiva',
-          'Devi prima aprire il turno prima di poterlo chiudere.',
-          'Clicca su <strong>Apertura</strong> per iniziare un nuovo turno.'
-        ) + createBackButton()
-      );
-      attachBackButtonListener('btn-back-menu', container);
+      modalBody.innerHTML = createWarningMessage(
+        'Nessuna Apertura Attiva',
+        'Devi prima aprire il turno prima di poterlo chiudere.',
+        'Clicca su <strong>Apertura</strong> per iniziare un nuovo turno.'
+      ) + `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>`;
+      document.getElementById('btn-close-warning').addEventListener('click', () => closeModal());
       return;
     }
 
-    // 2. Carica contatori di apertura dal turno corrente in shift_pistols
-    const openingMap = {};
-
-    try {
-      // Carica i contatori di apertura del turno corrente dalla nuova tabella shift_pistols
-      const { data: openingCounters } = await supabase
+    // Carica tutti i dati in parallelo
+    const [
+      openingCountersResult,
+      pistoleResult,
+      prezziResult,
+      movimentiResult,
+      stationDataResult
+    ] = await Promise.all([
+      // 2. Carica contatori di apertura dal turno corrente in shift_pistols
+      supabase
         .from('shift_pistols')
         .select('pistola_id, opened_at_counter')
-        .eq('shift_id', activeOpening.id);
+        .eq('shift_id', activeOpening.id),
+      // 3. Carica pistole
+      supabase
+        .from('pistole')
+        .select('*, islands!inner(nome, station_id)')
+        .eq('islands.station_id', stationId)
+        .order('id'),
+      // 4. Carica prezzi correnti
+      supabase
+        .from('prezzi_distributore')
+        .select('*')
+        .eq('station_id', stationId)
+        .order('data_validita', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      // 5. Carica movimenti cassa (extra) del turno corrente
+      supabase
+        .from('movimenti_cassa')
+        .select('*')
+        .eq('station_id', stationId)
+        .gte('created_at', activeOpening.opened_at || activeOpening.date_time),
+      // 6. Carica impostazione chiusura parziale dalla stazione
+      supabase
+        .from('fuel_stations')
+        .select('allow_partial_closure')
+        .eq('station_id', stationId)
+        .single()
+    ]);
 
+    // Processa contatori di apertura
+    const openingMap = {};
+    try {
+      const { data: openingCounters } = openingCountersResult;
       if (openingCounters && openingCounters.length > 0) {
         openingCounters.forEach(c => {
           const parsed = parseFloat(c.opened_at_counter);
@@ -64,43 +99,30 @@ export async function startClosureWizard(stationId, userId) {
       console.warn('Errore caricamento contatori apertura:', err);
     }
 
-    // 3. Carica pistole
-    const { data: allPistole } = await supabase
-      .from('pistole')
-      .select('*, islands!inner(nome, station_id)')
-      .eq('islands.station_id', stationId)
-      .order('id');
-
+    // Processa pistole
+    const { data: allPistole } = pistoleResult;
     if (!allPistole || allPistole.length === 0) {
-      container.innerHTML = createContentBox(
-        createWarningMessage(
-          'Nessuna Pistola Configurata',
-          'Non ci sono pistole configurate per questa stazione.',
-          ''
-        ) + createBackButton()
-      );
-      attachBackButtonListener('btn-back-menu', container);
+      modalBody.innerHTML = createWarningMessage(
+        'Nessuna Pistola Configurata',
+        'Non ci sono pistole configurate per questa stazione.',
+        ''
+      ) + `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning2" class="menu-button primary">Chiudi</button></div>`;
+      document.getElementById('btn-close-warning2').addEventListener('click', () => closeModal());
       return;
     }
 
-    // 4. Carica prezzi correnti
-    const { data: prezzi } = await supabase
-      .from('prezzi_distributore')
-      .select('*')
-      .eq('station_id', stationId)
-      .order('data_validita', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
+    // Processa prezzi
+    const { data: prezzi } = prezziResult;
     const prezzoBenzina = prezzi?.prezzo_benzina || 0;
     const prezzoGasolio = prezzi?.prezzo_gasolio || 0;
 
-    // 5. Carica movimenti cassa (extra) del turno corrente
-    const { data: movimenti } = await supabase
-      .from('movimenti_cassa')
-      .select('*')
-      .eq('station_id', stationId)
-      .gte('created_at', activeOpening.opened_at || activeOpening.date_time);
+    // Processa movimenti
+    const { data: movimenti } = movimentiResult;
+
+    // Processa impostazione stazione
+    const { data: stationData } = stationDataResult;
+
+    const allowPartialClosure = stationData?.allow_partial_closure !== false; // Default true se non specificato
 
     const partialCompleted = activeOpening.closing_data?.closure_stage === 'partial';
     const previousClosing = activeOpening.closing_data || {};
@@ -111,6 +133,9 @@ export async function startClosureWizard(stationId, userId) {
       operatorPos: Number(previousClosing?.dettaglio_incasso?.pos_operatore) || 0,
       operatorUta: Number(previousClosing?.dettaglio_incasso?.uta_dkv_operatore) || 0
     } : null;
+
+    // Recupera UTA/DKV/Iscard da opening_data (se presente)
+    const openingUtaDkvIscard = activeOpening.opening_data?.uta_dkv_iscard || 0;
 
     // Reset state
     closureState = {
@@ -128,26 +153,33 @@ export async function startClosureWizard(stationId, userId) {
         existingClosingData: previousClosing,
         partialAggregates,
         partialCompleted,
+        allowPartialClosure, // Flag per abilitare/disabilitare chiusura parziale
+        openingUtaDkvIscard, // UTA/DKV/Iscard inserito in apertura
         // Default State
-        closureType: partialCompleted ? 'final' : 'partial', // 'partial' | 'final'
+        closureType: partialCompleted ? 'final' : (allowPartialClosure ? 'partial' : 'final'), // Se disabilitata, forza 'final'
         includeCounters: partialCompleted ? true : false
       }
     };
 
-    showClosureStep1(container);
+    showClosureStep1();
 
   } catch (err) {
-    showErrorMessage(container, err);
+    const modalBody = document.getElementById('modal-body');
+    modalBody.innerHTML = `<p style="color: red; padding: 20px; text-align: center;">Errore: ${escapeHtml(err.message)}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-error" class="menu-button primary">Chiudi</button></div>`;
+    document.getElementById('btn-close-error').addEventListener('click', () => closeModal());
   }
 }
 
 /**
  * Step 1: Selezione Tipo e Inserimento contatori
  */
-function showClosureStep1(container) {
-  const { pistole, openingCounters, closureType, includeCounters, openingDate, partialCompleted } = closureState.data;
+function showClosureStep1() {
+  openModal('Chiusura Turno - Step 1/3');
+  const container = document.getElementById('modal-body');
+  const { pistole, openingCounters, closureType, includeCounters, openingDate, partialCompleted, allowPartialClosure } = closureState.data;
 
-  const isFinal = partialCompleted ? true : closureType === 'final';
+  // Se la chiusura parziale è disabilitata, forza sempre 'final'
+  const isFinal = partialCompleted ? true : (!allowPartialClosure ? true : closureType === 'final');
   const showCounters = isFinal || includeCounters;
   const formattedDate = new Date(openingDate).toLocaleString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -157,6 +189,9 @@ function showClosureStep1(container) {
       <p>Completa ora la chiusura finale per terminare il turno.</p>
     </div>
   ` : '';
+
+  // Mostra l'opzione parziale solo se abilitata e non c'è già una chiusura parziale
+  const showPartialOption = allowPartialClosure && !partialCompleted;
 
   container.innerHTML = `
     <div class="content-box">
@@ -170,7 +205,7 @@ function showClosureStep1(container) {
         <!-- TIPO CHIUSURA -->
         <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
             <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 15px;">
-                ${!partialCompleted ? `
+                ${showPartialOption ? `
                 <label class="radio-card ${!isFinal ? 'selected' : ''}" data-type="partial" style="flex: 1; text-align: center; padding: 15px; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                     <input type="radio" name="closure_type" value="partial" ${!isFinal ? 'checked' : ''} style="display: none;">
                     <i class="fas fa-clock" style="font-size: 1.5rem; color: #3b82f6; margin-bottom: 8px; display: block;"></i>
@@ -179,7 +214,7 @@ function showClosureStep1(container) {
                 </label>
                 ` : ''}
                 
-                <label class="radio-card ${isFinal ? 'selected' : ''}" data-type="final" style="flex: 1; text-align: center; padding: 15px; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                <label class="radio-card ${isFinal ? 'selected' : ''}" data-type="final" style="flex: ${showPartialOption ? '1' : '1'}; text-align: center; padding: 15px; border: 2px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
                     <input type="radio" name="closure_type" value="final" ${isFinal ? 'checked' : ''} style="display: none;">
                     <i class="fas fa-flag-checkered" style="font-size: 1.5rem; color: #ef4444; margin-bottom: 8px; display: block;"></i>
                     <div style="font-weight: 600; color: #1e293b;">Finale</div>
@@ -216,12 +251,11 @@ function showClosureStep1(container) {
                     <input 
                         type="number" 
                         name="counter_${p.id}" 
-                        value="${p.numero_litri || opening}"
-                        step="1"
+                        step="0.01"
                         min="${opening}"
                         class="big-input gun-counter-input"
-                        ${showCounters ? 'required' : ''}
                         ${showCounters ? '' : 'disabled'}
+                        placeholder="Lascia vuoto se invariato"
                     >
                     </div>
                 </div>
@@ -258,12 +292,13 @@ function showClosureStep1(container) {
   const countersToggleContainer = document.getElementById('counters-toggle-container');
   const gunInputs = form.querySelectorAll('.gun-counter-input');
   const partialAlreadyDone = closureState.data.partialCompleted;
+  const allowPartial = closureState.data.allowPartialClosure;
   const partialCard = document.querySelector('.radio-card[data-type="partial"]');
   const finalCard = document.querySelector('.radio-card[data-type="final"]');
 
   function updateUI() {
     let type = 'final';
-    if (!partialAlreadyDone) {
+    if (!partialAlreadyDone && allowPartial) {
       const selected = document.querySelector('input[name="closure_type"]:checked');
       type = selected ? selected.value : 'partial';
     }
@@ -274,11 +309,12 @@ function showClosureStep1(container) {
     [partialCard, finalCard].forEach(c => c?.classList.remove('selected'));
     if (type === 'final') {
       finalCard?.classList.add('selected');
-    } else {
+    } else if (partialCard) {
       partialCard?.classList.add('selected');
     }
 
-    countersToggleContainer.style.display = (type === 'final' || partialAlreadyDone) ? 'none' : 'block';
+    // Nascondi il toggle contatori se la chiusura parziale è disabilitata o se è già stata fatta una parziale
+    countersToggleContainer.style.display = (type === 'final' || partialAlreadyDone || !allowPartial) ? 'none' : 'block';
     pistoleSection.style.display = shouldShowCounters ? 'block' : 'none';
     gunInputs.forEach(i => {
       i.required = shouldShowCounters;
@@ -290,14 +326,15 @@ function showClosureStep1(container) {
   countersCheck?.addEventListener('change', updateUI);
 
   document.getElementById('btn-cancel-closure').addEventListener('click', () => {
-    container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+    closeModal();
   });
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
 
-    const type = partialCompleted ? 'final' : formData.get('closure_type');
+    // Se la chiusura parziale è disabilitata o già completata, forza 'final'
+    const type = partialCompleted || !allowPartial ? 'final' : formData.get('closure_type');
     const include = type === 'final' ? true : (countersCheck ? countersCheck.checked : false);
 
     closureState.data.closureType = type;
@@ -306,19 +343,27 @@ function showClosureStep1(container) {
 
     if (include) {
       pistole.forEach(p => {
-        closureState.data.finalCounters[p.id] = parseInt(formData.get(`counter_${p.id}`)) || 0;
+        const counterValue = formData.get(`counter_${p.id}`);
+        // Se il campo è vuoto, il numeratore non è variato (chiusura = apertura)
+        if (counterValue === '' || counterValue === null) {
+          closureState.data.finalCounters[p.id] = openingCounters[p.id] || 0;
+        } else {
+          closureState.data.finalCounters[p.id] = parseFloat(counterValue) || 0;
+        }
       });
     }
 
     closureState.step = 2;
-    showClosureStep2(container);
+    showClosureStep2();
   });
 }
 
 /**
  * Step 2: Riepilogo litri e inserimento incassi (Self + Operatore)
  */
-function showClosureStep2(container) {
+function showClosureStep2() {
+  openModal('Chiusura Turno - Step 2/3');
+  const container = document.getElementById('modal-body');
   const { pistole, openingCounters, finalCounters, prezzoBenzina, prezzoGasolio } = closureState.data;
 
   // Calcola litri erogati per ogni pistola (SE presenti)
@@ -374,12 +419,12 @@ function showClosureStep2(container) {
 
   // Recupera valori precedenti o default
   const d = closureState.data;
-  const selfCashIn = d.selfCashIn || 0;
-  const selfCashOut = d.selfCashOut || 0;
-  const selfPos = d.selfPos || 0;
-  const selfFleet = d.selfFleet || 0;
-  const selfManager = d.selfManager || 0;
-  const selfReceiptTotal = d.selfReceiptTotal || 0;
+  const selfCashIn = d.selfCashIn !== undefined && d.selfCashIn !== null ? d.selfCashIn : '';
+  const selfCashOut = d.selfCashOut !== undefined && d.selfCashOut !== null ? d.selfCashOut : '';
+  const selfPos = d.selfPos !== undefined && d.selfPos !== null ? d.selfPos : '';
+  const selfFleet = d.selfFleet !== undefined && d.selfFleet !== null ? d.selfFleet : '';
+  const selfManager = d.selfManager !== undefined && d.selfManager !== null ? d.selfManager : '';
+  const selfReceiptTotal = d.selfReceiptTotal !== undefined && d.selfReceiptTotal !== null ? d.selfReceiptTotal : '';
   const partialAgg = d.partialAggregates || {};
   const prevSelfManager = partialAgg?.selfManager || 0; // Solo ID gestore si somma tra turni
   const prevOperatorPos = partialAgg?.operatorPos || 0;
@@ -491,20 +536,21 @@ function showClosureStep2(container) {
           <div class="form-row">
             <div class="form-group">
               <label>Contanti Cassa (€)</label>
-              <input type="number" name="cash_real" step="0.01" min="0" value="${d.cashReal || 0}" class="big-input" required>
+              <input type="number" name="cash_real" step="0.01" min="0" value="${d.cashReal || ''}" class="big-input" required>
               <small style="color: #6b7280;">Inserire il contante effettivamente presente in cassa.</small>
             </div>
             <div class="form-group">
               <label>POS Manuale (€)</label>
-              <input type="number" name="pos_real" step="0.01" min="0" value="${d.posReal || 0}" class="big-input" required>
+              <input type="number" name="pos_real" step="0.01" min="0" value="${d.posReal || ''}" class="big-input" required>
               ${prevOperatorPos ? `<small style="color: #6b7280;">Turno precedente: ${formatEuro(prevOperatorPos)}</small>` : ''}
             </div>
           </div>
 
           <div class="form-group">
              <label>Transazioni UTA/DKV/Fine Mese (€)</label>
-             <input type="number" name="uta_dkv_real" step="0.01" min="0" value="${d.utaDkvReal || 0}" class="big-input" required>
-             ${prevOperatorUta ? `<small style="color: #6b7280;">Turno precedente: ${formatEuro(prevOperatorUta)}</small>` : ''}
+             <input type="number" name="uta_dkv_real" step="0.01" min="0" value="${d.utaDkvReal || ''}" class="big-input" required>
+             ${closureState.data.openingUtaDkvIscard > 0 ? `<small style="color: #6b7280; display: block; margin-top: 5px;">Da apertura: ${formatEuro(closureState.data.openingUtaDkvIscard)}</small>` : ''}
+             ${prevOperatorUta ? `<small style="color: #6b7280; display: block; margin-top: 5px;">Turno precedente: ${formatEuro(prevOperatorUta)}</small>` : ''}
           </div>
           
           ${creditsSum > 0 ? `
@@ -636,14 +682,16 @@ function showClosureStep2(container) {
     closureState.data.notes = formData.get('notes') || '';
 
     closureState.step = 3;
-    showClosureStep3(container);
+    showClosureStep3();
   });
 }
 
 /**
  * Step 3: Conferma finale e salvataggio
  */
-function showClosureStep3(container) {
+function showClosureStep3() {
+  openModal('Chiusura Turno - Step 3/3');
+  const container = document.getElementById('modal-body');
   const {
     ricavoTotaleTeor,
     // Self Data
@@ -664,7 +712,9 @@ function showClosureStep3(container) {
   const totalSelfManager = selfManager + prevSelfManager; // Solo ID gestore si somma
   const selfTotalVenduto = selfCashOut + selfPos + selfFleet + totalSelfManager;
   const totalPosOperatore = posReal + prevOperatorPos;
-  const totalUtaOperatore = utaDkvReal + prevOperatorUta;
+  // Somma UTA/DKV inserito dall'operatore + quello da apertura + eventuali chiusure parziali precedenti
+  const openingUtaDkv = closureState.data.openingUtaDkvIscard || 0;
+  const totalUtaOperatore = utaDkvReal + openingUtaDkv + prevOperatorUta;
 
   // Totale Dichiarato (Contanti + POS + UTA + Crediti + Voucher)
   // Nota: Questo è solo per visualizzazione, non per il controllo contanti
@@ -830,7 +880,7 @@ function showClosureStep3(container) {
 
   document.getElementById('btn-back-step3').addEventListener('click', () => {
     closureState.step = 2;
-    showClosureStep2(container);
+    showClosureStep2();
   });
 
   document.getElementById('btn-confirm-closure').addEventListener('click', async () => {
@@ -961,13 +1011,17 @@ function showClosureStep3(container) {
         </div>
       `;
 
+      const operatorContent = document.getElementById('operator-content');
       document.getElementById('btn-home').addEventListener('click', () => {
-        container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+        closeModal();
+        if (operatorContent) {
+          operatorContent.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+        }
         updateOpeningStatus(stationId);
       });
 
     } catch (err) {
-      showErrorMessage(container, err);
+      container.innerHTML = `<p style="color: red; padding: 20px; text-align: center;">Errore: ${escapeHtml(err.message)}</p>`;
     }
   });
 }

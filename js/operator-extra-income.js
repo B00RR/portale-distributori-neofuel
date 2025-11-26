@@ -1,4 +1,5 @@
 import { supabase } from "./api.js";
+import { openModal, closeModal } from "./ui.js";
 import { createWarningMessage, createSuccessMessage, createErrorMessage, createBackButton, createFormActions } from "./operator-ui-components.js";
 import { checkOpeningStatus } from "./operator-opening.js";
 
@@ -33,10 +34,9 @@ export async function showExtraIncomeMenu(stationId, userId) {
  * Renderizza il form per l'inserimento dell'incasso extra
  */
 function renderExtraIncomeForm(container, stationId, userId, turnoId) {
-    container.innerHTML = `
-    <div class="content-box">
-      <h3><i class="fas fa-cash-register"></i> Registra Incasso Extra</h3>
-      <p class="section-subtitle">Registra vendite di olio, AdBlue e altri prodotti non carburante.</p>
+    openModal('Registra Incasso Extra');
+    const modalBody = document.getElementById('modal-body');
+    modalBody.innerHTML = `
 
       <form id="extra-income-form">
         <div class="form-group">
@@ -61,20 +61,11 @@ function renderExtraIncomeForm(container, stationId, userId, turnoId) {
 
         ${createFormActions({ confirmText: 'Registra Incasso', confirmClass: 'primary' })}
       </form>
-      
-      <div style="margin-top: 20px;">
-        ${createBackButton()}
-      </div>
-    </div>
-  `;
+    `;
 
     // Event Listeners
-    document.getElementById('btn-back-menu').addEventListener('click', () => {
-        container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
-    });
-
-    document.getElementById('btn-cancel').addEventListener('click', () => {
-        container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+    modalBody.querySelector('#btn-cancel').addEventListener('click', () => {
+        closeModal();
     });
 
     // Dynamic required field based on product type
@@ -124,29 +115,30 @@ function renderExtraIncomeForm(container, stationId, userId, turnoId) {
 
             if (error) throw error;
 
-            container.innerHTML = `
-        ${createSuccessMessage("Incasso Registrato", `L'incasso di € ${amount.toFixed(2)} è stato salvato correttamente.`)}
-        <button class="menu-button primary full-width" id="btn-new-income">Registra Altro Incasso</button>
-        <div style="margin-top: 10px;">
-             ${createBackButton()}
-        </div>
-      `;
+            closeModal();
+            const operatorContent = document.getElementById('operator-content');
+            if (operatorContent) {
+                operatorContent.innerHTML = `
+            ${createSuccessMessage("Incasso Registrato", `L'incasso di € ${amount.toFixed(2)} è stato salvato correttamente.`)}
+            <button class="menu-button primary full-width" id="btn-new-income">Registra Altro Incasso</button>
+            <div style="margin-top: 10px;">
+                 ${createBackButton()}
+            </div>
+          `;
 
-            document.getElementById('btn-new-income').addEventListener('click', () => {
-                renderExtraIncomeForm(container, stationId, userId, turnoId);
-            });
+                document.getElementById('btn-new-income').addEventListener('click', () => {
+                    renderExtraIncomeForm(container, stationId, userId, turnoId);
+                });
 
-            document.getElementById('btn-back-menu').addEventListener('click', () => {
-                container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
-            });
+                document.getElementById('btn-back-menu').addEventListener('click', () => {
+                    operatorContent.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+                });
+            }
 
         } catch (err) {
-            container.innerHTML = createErrorMessage("Errore Salvataggio", err);
-            // Re-attach back button logic if error screen is shown
-            const backBtn = document.getElementById('btn-back-menu');
-            if (backBtn) backBtn.addEventListener('click', () => {
-                container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
-            });
+            modalBody.innerHTML = createErrorMessage("Errore Salvataggio", err) + 
+                `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`;
+            document.getElementById('btn-close-err').addEventListener('click', () => closeModal());
         }
     });
 }

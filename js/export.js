@@ -65,15 +65,6 @@ function ensureHtml2CanvasLoaded() {
 
 function inferFuelTypeFromNameExport(nomePistola = '') {
     const nome = (nomePistola || '').toString().toUpperCase();
-    if (nome.includes('GPL')) return 'gpl';
-    if (
-        nome.includes('METANO') ||
-        nome.includes('MET.') ||
-        nome.includes(' MET ') ||
-        nome.includes('-M') ||
-        nome.includes('M-') ||
-        nome.startsWith('M')
-    ) return 'metano';
     if (
         nome.includes('GASOLIO') ||
         nome.includes('DIESEL') ||
@@ -90,8 +81,6 @@ function fuelTypeSigla(tipo) {
     switch ((tipo || '').toLowerCase()) {
         case 'gasolio': return 'G';
         case 'benzina': return 'B';
-        case 'gpl': return 'GPL';
-        case 'metano': return 'M';
         default: return (tipo || '?').substring(0, 1).toUpperCase();
     }
 }
@@ -351,7 +340,7 @@ export async function fetchClosureExportData(closureId) {
             .eq('station_id', stationId)
             .order('island_id', { ascending: true }),
         adminClient.from('prezzi_distributore')
-            .select('prezzo_benzina, prezzo_gasolio, prezzo_gpl, prezzo_metano, data_validita')
+            .select('prezzo_benzina, prezzo_gasolio, data_validita')
             .eq('station_id', stationId)
             .order('data_validita', { ascending: false })
             .limit(1)
@@ -361,8 +350,8 @@ export async function fetchClosureExportData(closureId) {
     const prezzi = {
         benzina: parseFloat(closingData.prezzo_benzina) || parseFloat(prezziRes.data?.prezzo_benzina) || 0,
         gasolio: parseFloat(closingData.prezzo_gasolio) || parseFloat(prezziRes.data?.prezzo_gasolio) || 0,
-        gpl: parseFloat(prezziRes.data?.prezzo_gpl) || 0,
-        metano: parseFloat(prezziRes.data?.prezzo_metano) || 0
+        gpl: 0,
+        metano: 0
     };
 
     const summaryMetrics = await computeExportSummaryMetrics(adminClient, closure, stationId);

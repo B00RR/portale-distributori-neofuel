@@ -209,7 +209,27 @@ export async function loadSession() {
 
 export async function clearSession() {
     try {
-        await supabase.auth.signOut();
+        // Pulisci la sessione di Supabase
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            console.error('Errore nel logout:', error);
+        }
+        
+        // Pulisci anche il localStorage di Supabase per sicurezza
+        // Supabase salva la sessione in localStorage con chiavi specifiche
+        const supabaseKeys = Object.keys(localStorage).filter(key => 
+            key.startsWith('sb-') || key.includes('supabase')
+        );
+        supabaseKeys.forEach(key => localStorage.removeItem(key));
+        
+        // Pulisci anche sessionStorage
+        const supabaseSessionKeys = Object.keys(sessionStorage).filter(key => 
+            key.startsWith('sb-') || key.includes('supabase')
+        );
+        supabaseSessionKeys.forEach(key => sessionStorage.removeItem(key));
+        
+        // Reset loggedUser
+        loggedUser = null;
     } catch (err) {
         console.error('Errore nel logout:', err);
     }

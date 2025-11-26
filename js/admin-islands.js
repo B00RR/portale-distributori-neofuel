@@ -13,6 +13,11 @@ import { showGunsModal } from "./admin-guns.js";
 export async function showIslandsModal(stationId) {
   const stationName = await getStationName(stationId);
   openModal(`Gestione Isole - ${escapeHtml(stationName)}`);
+  // Modale isole: usa layout più compatto
+  const modalContent = document.querySelector('#app-modal .modal-content');
+  if (modalContent) {
+    modalContent.classList.add('modal-narrow');
+  }
   const target = document.getElementById('modal-body');
 
   const renderIslands = async () => {
@@ -134,10 +139,6 @@ async function openIslandForm(stationId, islandId = null) {
         <label>Nome Isola</label>
         <input type="text" name="nome" value="${escapeHtml(island.nome)}" required placeholder="es. Isola 1">
       </div>
-      <div class="form-group">
-        <label>Nome Alternativo (opzionale)</label>
-        <input type="text" name="island_name" value="${escapeHtml(island.island_name)}" placeholder="es. A">
-      </div>
       <div style="display: flex; gap: 10px;">
         <button type="button" class="menu-button secondary" id="cancel-btn">Annulla</button>
         <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Isola'}</button>
@@ -155,7 +156,7 @@ async function openIslandForm(stationId, islandId = null) {
     const fd = new FormData(e.target);
     const payload = {
       nome: fd.get('nome'),
-      island_name: fd.get('island_name') || fd.get('nome'),
+      island_name: fd.get('nome'),
       station_id: stationId
     };
 

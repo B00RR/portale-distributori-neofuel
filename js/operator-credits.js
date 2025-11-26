@@ -3,7 +3,7 @@
 // Gestione crediti clienti (ricerca, pagamento, ricarica)
 // ==========================================
 import { supabase } from "./api.js";
-import { showLoadingMessage, showErrorMessage, showInfoModal } from "./ui.js";
+import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from "./ui.js";
 import { escapeHtml, formatEuro } from "./utils.js";
 
 /**
@@ -12,25 +12,15 @@ import { escapeHtml, formatEuro } from "./utils.js";
  * @param {number} userId - ID dell'operatore
  */
 export async function showCreditsMenu(stationId, userId) {
-    const container = document.getElementById('operator-content');
-
-    container.innerHTML = `
-    <div class="content-box">
-      <h3><i class="fas fa-credit-card"></i> Gestione Crediti</h3>
+    openModal('Gestione Crediti');
+    const modalBody = document.getElementById('modal-body');
+    
+    modalBody.innerHTML = `
       <div class="form-group">
         <input type="text" id="credit-search" class="big-input" placeholder="Cerca cliente (nome)...">
       </div>
-      <div id="credits-results" class="results-list"></div>
-      
-      <button class="menu-button secondary full-width" id="btn-back-menu-cred" style="margin-top: 20px;">
-        <i class="fas fa-arrow-left"></i> Torna al Menu
-      </button>
-    </div>
-  `;
-
-    document.getElementById('btn-back-menu-cred').addEventListener('click', () => {
-        container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
-    });
+      <div id="credits-results" class="results-list" style="max-height: 400px; overflow-y: auto; margin-top: 15px;"></div>
+    `;
 
     const searchInput = document.getElementById('credit-search');
     const resultsDiv = document.getElementById('credits-results');
@@ -38,7 +28,7 @@ export async function showCreditsMenu(stationId, userId) {
     let debounceTimer;
     searchInput.addEventListener('input', (e) => {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => searchCustomers(e.target.value, stationId, userId, container), 300);
+        debounceTimer = setTimeout(() => searchCustomers(e.target.value, stationId, userId), 300);
     });
 }
 
@@ -49,7 +39,7 @@ export async function showCreditsMenu(stationId, userId) {
  * @param {number} userId - ID dell'operatore
  * @param {HTMLElement} container - Container principale
  */
-async function searchCustomers(query, stationId, userId, container) {
+async function searchCustomers(query, stationId, userId) {
     const resultsDiv = document.getElementById('credits-results');
     if (!query || query.length < 2) {
         resultsDiv.innerHTML = '';
@@ -73,10 +63,10 @@ async function searchCustomers(query, stationId, userId, container) {
         }
 
         resultsDiv.innerHTML = customers.map(c => `
-      <div class="result-item" onclick="window.selectCustomer('${c.id}')">
+      <div class="result-item" onclick="window.selectCustomer('${c.id}')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
         <div class="result-info">
           <strong>${escapeHtml(c.cliente)}</strong>
-          <span>Saldo: ${formatEuro(c.saldo || 0)}</span>
+          <span style="display: block; color: #64748b; font-size: 0.9rem; margin-top: 4px;">Saldo: ${formatEuro(c.saldo || 0)}</span>
         </div>
         <button class="btn-small primary">Seleziona</button>
       </div>
@@ -85,7 +75,7 @@ async function searchCustomers(query, stationId, userId, container) {
         // Hack per passare l'oggetto cliente al click
         window.selectCustomer = (customerId) => {
             const customer = customers.find(c => c.id == customerId);
-            if (customer) showCustomerActions(customer, stationId, userId, container);
+            if (customer) showCustomerActions(customer, stationId, userId);
         };
 
     } catch (err) {
@@ -100,19 +90,19 @@ async function searchCustomers(query, stationId, userId, container) {
  * @param {number} userId - ID dell'operatore
  * @param {HTMLElement} container - Container principale
  */
-function showCustomerActions(customer, stationId, userId, container) {
-    container.innerHTML = `
-    <div class="content-box">
-      <div class="customer-header">
-        <h3>${escapeHtml(customer.cliente)}</h3>
-        <div class="balance-display">
-          Saldo Attuale: <strong>${formatEuro(customer.saldo || 0)}</strong>
-        </div>
+function showCustomerActions(customer, stationId, userId) {
+    openModal(`Crediti - ${escapeHtml(customer.cliente)}`);
+    const modalBody = document.getElementById('modal-body');
+    
+    modalBody.innerHTML = `
+      <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+        <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 5px;">Saldo Attuale</div>
+        <div style="font-size: 1.5rem; font-weight: 600; color: #0ea5e9;">${formatEuro(customer.saldo || 0)}</div>
       </div>
 
-      <div class="action-tabs">
-        <button class="tab-btn active" data-action="payment">Pagamento (Usa Credito)</button>
-        <button class="tab-btn" data-action="recharge">Ricarica (Aggiungi)</button>
+      <div class="action-tabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button class="tab-btn active" data-action="payment" style="flex: 1; padding: 12px; border: 2px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">Pagamento (Usa Credito)</button>
+        <button class="tab-btn" data-action="recharge" style="flex: 1; padding: 12px; border: 2px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">Ricarica (Aggiungi)</button>
       </div>
 
       <form id="credit-action-form">
@@ -125,20 +115,27 @@ function showCustomerActions(customer, stationId, userId, container) {
 
         <div class="form-group">
           <label>Note</label>
-          <textarea name="notes" rows="2"></textarea>
+          <textarea name="notes" rows="2" class="big-input"></textarea>
         </div>
 
-        <div class="form-actions">
-          <button type="button" class="menu-button secondary" id="btn-cancel-customer">
+        <div class="form-actions" style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="button" class="menu-button secondary" id="btn-cancel-customer" style="flex: 1;">
             <i class="fas fa-arrow-left"></i> Indietro
           </button>
-          <button type="submit" class="menu-button primary" id="btn-confirm-credit">
+          <button type="submit" class="menu-button primary" id="btn-confirm-credit" style="flex: 1;">
             Conferma Operazione
           </button>
         </div>
       </form>
-    </div>
-  `;
+      
+      <style>
+        .tab-btn.active {
+          border-color: #3b82f6 !important;
+          background-color: #eff6ff !important;
+          color: #1e40af;
+        }
+      </style>
+    `;
 
     // Tab logic
     const tabs = container.querySelectorAll('.tab-btn');
@@ -185,7 +182,10 @@ function showCustomerActions(customer, stationId, userId, container) {
 
         if (!confirm(`Confermi ${action === 'payment' ? 'il pagamento' : 'la ricarica'} di ${formatEuro(amount)}?`)) return;
 
-        showLoadingMessage(container);
+        const submitBtn = document.getElementById('btn-confirm-credit');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Caricamento...';
 
         try {
             // 1. Registra movimento
@@ -214,11 +214,14 @@ function showCustomerActions(customer, stationId, userId, container) {
 
             if (updateError) throw updateError;
 
+            closeModal();
             showInfoModal('Operazione completata con successo!');
             showCreditsMenu(stationId, userId);
 
         } catch (err) {
-            showErrorMessage(container, err);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+            showInfoModal('Errore: ' + err.message);
         }
     });
 }

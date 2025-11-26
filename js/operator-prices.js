@@ -3,18 +3,16 @@
 // Gestione modifica prezzi carburante
 // ==========================================
 import { supabase, safeSupabaseQuery } from "./api.js";
-import { showLoadingMessage, showErrorMessage, showInfoModal } from "./ui.js";
+import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from "./ui.js";
 import { createContentBox } from "./operator-ui-components.js";
 import { loggedUser } from "./auth.js";
+import { escapeHtml } from "./utils.js";
 
 /**
  * Mostra il form per modificare i prezzi del carburante
  * @param {number} stationId - ID della stazione
  */
 export async function showPrezziEditForm(stationId) {
-    const container = document.getElementById('operator-content');
-    showLoadingMessage(container);
-
     try {
         // Carica prezzi correnti
         const { data: current } = await supabase
@@ -27,8 +25,9 @@ export async function showPrezziEditForm(stationId) {
         const benzina = current?.prezzo_benzina || 0;
         const gasolio = current?.prezzo_gasolio || 0;
 
-        container.innerHTML = createContentBox(`
-      <h3><i class="fas fa-tags"></i> Modifica Prezzi</h3>
+        openModal('Modifica Prezzi');
+        const modalBody = document.getElementById('modal-body');
+        modalBody.innerHTML = `
       <form id="op-prezzi-form">
         <div class="form-row">
           <div class="form-group">
@@ -75,11 +74,11 @@ export async function showPrezziEditForm(stationId) {
           color: #3b82f6;
         }
       </style>
-    `);
+    `;
 
         // Event listener per aggiornare stile radio cards
-        const radioCards = document.querySelectorAll('.radio-card');
-        const radioInputs = document.querySelectorAll('input[name="validita"]');
+        const radioCards = modalBody.querySelectorAll('.radio-card');
+        const radioInputs = modalBody.querySelectorAll('input[name="validita"]');
         
         radioInputs.forEach(input => {
             input.addEventListener('change', () => {
@@ -90,13 +89,13 @@ export async function showPrezziEditForm(stationId) {
         });
         
         // Inizializza selezione
-        const checkedInput = document.querySelector('input[name="validita"]:checked');
+        const checkedInput = modalBody.querySelector('input[name="validita"]:checked');
         if (checkedInput) {
             checkedInput.closest('.radio-card')?.classList.add('selected');
         }
 
         // Event listener per submit form
-        document.getElementById('op-prezzi-form').addEventListener('submit', async (e) => {
+        modalBody.querySelector('#op-prezzi-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const fd = new FormData(e.target);
             const validita = fd.get('validita');
@@ -127,22 +126,16 @@ export async function showPrezziEditForm(stationId) {
                 const validitaMsg = validita === 'next_day' 
                     ? 'I prezzi saranno validi a partire da domani alle 00:00.'
                     : 'I prezzi sono validi da subito.';
+                closeModal();
                 showInfoModal(`Prezzi aggiornati con successo! ${validitaMsg}`);
-                container.innerHTML = `
-                    <div class="success-message">
-                        <i class="fas fa-check-circle" style="font-size: 48px; color: #10b981; margin-bottom: 20px;"></i>
-                        <h3>Prezzi Aggiornati!</h3>
-                        <p>${validitaMsg}</p>
-                        <button onclick="location.reload()" class="menu-button primary" style="margin-top: 15px;">
-                            <i class="fas fa-redo"></i> Ricarica
-                        </button>
-                    </div>
-                `;
             } catch (err) {
                 showInfoModal('Errore: ' + err.message);
             }
         });
     } catch (err) {
-        showErrorMessage(container, err);
+        openModal('Errore');
+        const modalBody = document.getElementById('modal-body');
+        modalBody.innerHTML = `<p style="color: red; padding: 20px;">${escapeHtml(err.message)}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`;
+        document.getElementById('btn-close-err').addEventListener('click', () => closeModal());
     }
 }

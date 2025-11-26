@@ -30,13 +30,13 @@ export function formatLitri(value) {
     return formatNumberIt(value, 2);
 }
 
-// Formatta numeratore pistola con 3 decimali (es. 1.234,567)
+// Formatta numeratore pistola con 2 decimali (es. 1.234,56)
 export function formatGunCounter(value) {
     const num = Number(value);
     const safeNum = Number.isFinite(num) ? num : 0;
     return new Intl.NumberFormat('it-IT', {
-        minimumFractionDigits: 3,
-        maximumFractionDigits: 3
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
     }).format(safeNum);
 }
 

@@ -3,8 +3,8 @@
 // Gestione voucher (verifica e riscatto)
 // ==========================================
 import { supabase } from "./api.js";
-import { showErrorMessage, showInfoModal } from "./ui.js";
-import { formatEuro } from "./utils.js";
+import { showErrorMessage, showInfoModal, openModal, closeModal } from "./ui.js";
+import { formatEuro, escapeHtml } from "./utils.js";
 
 /**
  * Mostra il menu per la gestione voucher
@@ -12,30 +12,20 @@ import { formatEuro } from "./utils.js";
  * @param {number} userId - ID dell'operatore
  */
 export async function showVoucherMenu(stationId, userId) {
-    const container = document.getElementById('operator-content');
-
-    container.innerHTML = `
-    <div class="content-box">
-      <h3><i class="fas fa-ticket-alt"></i> Gestione Voucher</h3>
+    openModal('Gestione Voucher');
+    const modalBody = document.getElementById('modal-body');
+    
+    modalBody.innerHTML = `
       <div class="form-group">
         <label>Codice Voucher</label>
         <input type="text" id="voucher-code" class="big-input" placeholder="Inserisci codice..." style="text-transform: uppercase;">
       </div>
-      <button class="menu-button primary full-width" id="btn-verify-voucher">
+      <button class="menu-button primary full-width" id="btn-verify-voucher" style="margin-top: 15px;">
         Verifica Voucher
       </button>
       
-      <div id="voucher-result" class="voucher-result-area"></div>
-
-      <button class="menu-button secondary full-width" id="btn-back-menu-vouch" style="margin-top: 20px;">
-        <i class="fas fa-arrow-left"></i> Torna al Menu
-      </button>
-    </div>
-  `;
-
-    document.getElementById('btn-back-menu-vouch').addEventListener('click', () => {
-        container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
-    });
+      <div id="voucher-result" class="voucher-result-area" style="margin-top: 20px; min-height: 100px;"></div>
+    `;
 
     document.getElementById('btn-verify-voucher').addEventListener('click', async () => {
         const code = document.getElementById('voucher-code').value.trim();
@@ -54,16 +44,16 @@ export async function showVoucherMenu(stationId, userId) {
             if (error) throw error;
 
             if (!voucher) {
-                resultDiv.innerHTML = '<div class="error-msg">Voucher non trovato o codice errato.</div>';
+                resultDiv.innerHTML = '<div style="padding: 15px; background: #fee2e2; border: 1px solid #fecaca; border-radius: 8px; color: #991b1b;">Voucher non trovato o codice errato.</div>';
                 return;
             }
 
             if (voucher.is_used) {
                 resultDiv.innerHTML = `
-          <div class="warning-message">
-            <h4>Voucher Già Utilizzato</h4>
-            <p>Valore: ${formatEuro(voucher.amount)}</p>
-            <p>Utilizzato il: ${new Date(voucher.used_at).toLocaleString()}</p>
+          <div style="padding: 15px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px;">
+            <h4 style="margin-top: 0; color: #92400e;">Voucher Già Utilizzato</h4>
+            <p style="margin: 8px 0; color: #78350f;">Valore: <strong>${formatEuro(voucher.amount)}</strong></p>
+            <p style="margin: 8px 0; color: #78350f;">Utilizzato il: ${new Date(voucher.used_at).toLocaleString('it-IT')}</p>
           </div>
         `;
                 return;
@@ -71,9 +61,9 @@ export async function showVoucherMenu(stationId, userId) {
 
             // Voucher valido
             resultDiv.innerHTML = `
-        <div class="success-message" style="margin: 20px 0;">
-          <h4>Voucher Valido!</h4>
-          <div class="voucher-amount">${formatEuro(voucher.amount)}</div>
+        <div style="padding: 20px; background: #d1fae5; border: 1px solid #a7f3d0; border-radius: 8px; text-align: center;">
+          <h4 style="margin-top: 0; color: #065f46;">Voucher Valido!</h4>
+          <div style="font-size: 2rem; font-weight: 600; color: #047857; margin: 15px 0;">${formatEuro(voucher.amount)}</div>
           <button class="menu-button success full-width" id="btn-redeem-voucher">
             RISCATTA ORA
           </button>
@@ -94,16 +84,17 @@ export async function showVoucherMenu(stationId, userId) {
 
                     if (redeemError) throw redeemError;
 
+                    closeModal();
                     showInfoModal('Voucher riscattato con successo!');
                     showVoucherMenu(stationId, userId);
 
                 } catch (err) {
-                    showErrorMessage(container, err);
+                    showInfoModal('Errore: ' + err.message);
                 }
             });
 
         } catch (err) {
-            resultDiv.innerHTML = `<div class="error-msg">Errore: ${err.message}</div>`;
+            resultDiv.innerHTML = `<div style="padding: 15px; background: #fee2e2; border: 1px solid #fecaca; border-radius: 8px; color: #991b1b;">Errore: ${escapeHtml(err.message)}</div>`;
         }
     });
 }
