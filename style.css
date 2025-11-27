@@ -167,7 +167,8 @@ a:hover {
 
 body {
   font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
-  background: #ffffff;
+  background: var(--bg-body);
+  color: var(--text-main);
   margin: 0;
   min-height: 100vh;
   padding: 0 12px;
@@ -176,13 +177,97 @@ body {
 
 .login-container {
   width: 100%;
-  max-width: 480px;
-  margin: 24px auto 48px;
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 36px 32px;
-  border: 1px solid #e2e8f0;
+  max-width: 520px;
+  margin: clamp(32px, 8vh, 96px) auto;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  padding: clamp(32px, 6vw, 56px);
+  border: 1px solid rgba(10, 35, 66, 0.08);
+  box-shadow: var(--shadow-lg);
   box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at top right, rgba(141, 198, 63, 0.18), transparent 55%);
+}
+
+#login-form {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-tagline {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.35em;
+  margin: 0 0 8px;
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.login-header h1 {
+  margin: 0;
+  color: var(--primary-color);
+  font-size: clamp(1.8rem, 4vw, 2.3rem);
+}
+
+.login-subtitle {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.login-container label {
+  margin-top: 20px;
+  display: block;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.login-container input {
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  font-size: 1rem;
+  background: var(--bg-body);
+  color: var(--text-main);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.login-container input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.login-container input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  transform: translateY(-1px);
 }
 
 .app-container {
@@ -231,13 +316,32 @@ input {
   box-sizing: border-box;
 }
 
+@media (max-width: 768px) {
+  .login-container {
+    padding: 32px 28px 40px;
+  }
+}
+
+@media (max-width: 600px) {
+  .login-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .login-logo {
+    width: 56px;
+    height: 56px;
+  }
+}
+
 @media (max-width: 480px) {
 
   .login-container,
   .app-container {
     padding: 24px 20px 30px;
     border-radius: 18px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid rgba(226, 232, 240, 0.9);
   }
 
   #main-content {
@@ -249,12 +353,12 @@ input {
     max-width: 520px;
   }
 
-  button {
-    padding: 14px 16px;
+  #login-form button {
+    padding: 14px 18px;
   }
 
-  label {
-    font-size: 1em;
+  .login-container label {
+    font-size: 0.9rem;
   }
 }
 
@@ -290,16 +394,43 @@ button:active {
   transform: translateY(0);
 }
 
+#login-form button[type="submit"] {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+  color: var(--text-light);
+  border: none;
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  font-size: 1.05rem;
+  margin-top: 24px;
+  box-shadow: var(--shadow-md);
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  cursor: pointer;
+}
+
+#login-form button[type="submit"]:hover {
+  background: linear-gradient(135deg, var(--primary-hover) 0%, #123561 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+#login-form button[type="submit"]:focus-visible {
+  outline: 3px solid rgba(141, 198, 63, 0.35);
+  outline-offset: 4px;
+}
+
 .error-msg {
-  color: #e53e3e;
+  color: var(--danger-color);
   margin-top: 12px;
   font-size: 0.95em;
   min-height: 24px;
   font-weight: 500;
-  background: rgba(229, 62, 62, 0.1);
+  background: rgba(255, 65, 54, 0.1);
   padding: 8px 12px;
   border-radius: 8px;
-  border-left: 3px solid #e53e3e;
+  border-left: 3px solid var(--danger-color);
 }
 
 /* Nasconde l'area dell'errore quando non contiene testo */
@@ -318,136 +449,17 @@ button:active {
   margin-bottom: 0;
 }
 
-#toggle-password {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #ffffff;
-  border: none;
-  color: #667eea;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1002;
-  transition: all 0.2s ease;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  pointer-events: auto;
-  margin: 0;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2), 0 0 0 1px rgba(102, 126, 234, 0.1);
-}
-
-#toggle-password i {
-  font-size: 1.1em;
-  line-height: 1;
-  pointer-events: none;
-  color: #667eea;
-  transition: color 0.2s ease;
-}
-
-#toggle-password:hover {
-  background: #f7fafc;
-  color: #764ba2;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 0 0 1px rgba(102, 126, 234, 0.15);
-  transform: translateY(-50%) scale(1.05);
-}
-
-#toggle-password:hover i {
-  color: #764ba2;
-}
-
-#toggle-password:active {
-  transform: translateY(-50%) scale(0.95);
-  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
-}
-
-#toggle-password:focus {
-  outline: none;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3), 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-/* Toggle password per form reset password - stesso stile del login */
+#toggle-password,
 #toggle-new-password,
-#toggle-confirm-password {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #ffffff;
-  border: none;
-  color: #667eea;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1002;
-  transition: all 0.2s ease;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  pointer-events: auto;
-  margin: 0;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2), 0 0 0 1px rgba(102, 126, 234, 0.1);
-}
-
-#toggle-new-password i,
-#toggle-confirm-password i {
-  font-size: 1.1em;
-  line-height: 1;
-  pointer-events: none;
-  color: #667eea;
-  transition: color 0.2s ease;
-}
-
-#toggle-new-password:hover,
-#toggle-confirm-password:hover {
-  background: #f7fafc;
-  color: #764ba2;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3), 0 0 0 1px rgba(102, 126, 234, 0.15);
-  transform: translateY(-50%) scale(1.05);
-}
-
-#toggle-new-password:hover i,
-#toggle-confirm-password:hover i {
-  color: #764ba2;
-}
-
-#toggle-new-password:active,
-#toggle-confirm-password:active {
-  transform: translateY(-50%) scale(0.95);
-  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
-}
-
-#toggle-new-password:focus,
-#toggle-confirm-password:focus {
-  outline: none;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3), 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-/* Toggle password per form operatore - stesso stile del login */
-#operator-edit-form .password-wrapper {
-  position: relative;
-  margin-bottom: 0;
-}
-
-#operator-edit-form .password-wrapper input {
-  padding-right: 56px;
-  margin-bottom: 0;
-}
-
+#toggle-confirm-password,
 #operator-toggle-password {
   position: absolute;
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  background: #ffffff;
-  border: none;
-  color: #667eea;
+  background: var(--bg-surface);
+  border: 1px solid rgba(10, 35, 66, 0.08);
+  color: var(--primary-color);
   cursor: pointer;
   padding: 0;
   display: flex;
@@ -460,15 +472,51 @@ button:active {
   border-radius: 50%;
   pointer-events: auto;
   margin: 0;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2), 0 0 0 1px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 4px 12px rgba(10, 35, 66, 0.18);
 }
 
+#toggle-password i,
+#toggle-new-password i,
+#toggle-confirm-password i,
 #operator-toggle-password i {
   font-size: 1.1em;
   line-height: 1;
   pointer-events: none;
-  color: #667eea;
+  color: var(--primary-color);
   transition: color 0.2s ease;
+}
+
+#toggle-password:hover,
+#toggle-new-password:hover,
+#toggle-confirm-password:hover,
+#operator-toggle-password:hover {
+  background: var(--bg-body);
+  color: var(--primary-hover);
+  box-shadow: 0 6px 16px rgba(10, 35, 66, 0.25);
+  transform: translateY(-50%) scale(1.05);
+}
+
+#toggle-password:hover i,
+#toggle-new-password:hover i,
+#toggle-confirm-password:hover i,
+#operator-toggle-password:hover i {
+  color: var(--primary-hover);
+}
+
+#toggle-password:active,
+#toggle-new-password:active,
+#toggle-confirm-password:active,
+#operator-toggle-password:active {
+  transform: translateY(-50%) scale(0.95);
+  box-shadow: 0 1px 4px rgba(10, 35, 66, 0.2);
+}
+
+#toggle-password:focus,
+#toggle-new-password:focus,
+#toggle-confirm-password:focus,
+#operator-toggle-password:focus {
+  outline: none;
+  box-shadow: 0 2px 8px rgba(10, 35, 66, 0.25), 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 #operator-toggle-password:hover {
