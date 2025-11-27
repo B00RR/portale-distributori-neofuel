@@ -38,6 +38,7 @@ export function showAdminArea() {
           <button class="nav-btn" data-tab="operators"><i class="fas fa-users"></i> Operatori</button>
           <button class="nav-btn" data-tab="chiusure"><i class="fas fa-file-invoice-dollar"></i> Chiusure</button>
           <button class="nav-btn" data-tab="crediti"><i class="fas fa-credit-card"></i> Crediti</button>
+          <button class="nav-btn" data-tab="fatture"><i class="fas fa-file-invoice"></i> Fatture</button>
           <button class="nav-btn" data-tab="vouchers"><i class="fas fa-ticket-alt"></i> Voucher</button>
           <button class="nav-btn" data-tab="notifiche"><i class="fas fa-bell"></i> Notifiche</button>
           <button class="nav-btn logout-btn" id="admin-logout"><i class="fas fa-sign-out-alt"></i> Esci</button>
@@ -125,6 +126,10 @@ function loadAdminTab(tab) {
     case 'crediti':
       if (pageSubtitle) pageSubtitle.textContent = 'Gestione Crediti';
       showCreditiOverview(content, headerActions);
+      break;
+    case 'fatture':
+      if (pageSubtitle) pageSubtitle.textContent = 'Richieste Fatture';
+      showFattureTab(content, headerActions);
       break;
     case 'vouchers':
       if (pageSubtitle) pageSubtitle.textContent = 'Gestione Voucher';
@@ -1004,6 +1009,183 @@ async function openExportModal(closureId) {
 // ------------------------------------------------------------------
 // CREDITI & VOUCHER & NOTIFICHE (Placeholder/Minimal)
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// FATTURE (Invoice Requests)
+// ------------------------------------------------------------------
+async function showFattureTab(container, actionsContainer) {
+  showLoadingMessage(container);
+
+  if (actionsContainer) {
+    actionsContainer.innerHTML = '';
+  }
+
+  try {
+    // Prima recupera le fatture
+    const { data: invoices, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        fuel_stations(station_name),
+        users!operator_id(full_name, username)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Se ci sono fatture con cliente_id, recupera i dati dei clienti separatamente
+    if (invoices && invoices.length > 0) {
+      const clienteIds = invoices
+        .filter(inv => inv.cliente_id)
+        .map(inv => inv.cliente_id)
+        .filter((id, index, self) => self.indexOf(id) === index); // rimuovi duplicati
+
+      if (clienteIds.length > 0) {
+        const { data: clienti } = await supabase
+          .from('clienti_fatturazione')
+          .select('id, nome, partita_iva, telefono')
+          .in('id', clienteIds);
+
+        // Aggiungi i dati dei clienti alle fatture
+        if (clienti) {
+          const clientiMap = {};
+          clienti.forEach(c => {
+            clientiMap[c.id] = c;
+          });
+
+          invoices.forEach(inv => {
+            if (inv.cliente_id && clientiMap[inv.cliente_id]) {
+              inv.clienti_fatturazione = clientiMap[inv.cliente_id];
+            }
+          });
+        }
+      }
+    }
+
+    if (error) throw error;
+
+    if (!invoices || invoices.length === 0) {
+      container.innerHTML = '<p>Nessuna richiesta fattura trovata.</p>';
+      return;
+    }
+
+    let html = `
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Data Richiesta</th>
+              <th>Cliente</th>
+              <th>Importo</th>
+              <th>Metodo Pagamento</th>
+              <th>Categoria Prodotto</th>
+              <th>Distributore</th>
+              <th>Operatore</th>
+              <th>Stato</th>
+              <th>Note</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    invoices.forEach(inv => {
+      const stationName = inv.fuel_stations?.station_name || '-';
+      const operatorName = inv.users?.full_name || inv.users?.username || '-';
+      const customerName = inv.clienti_fatturazione?.nome || inv.customer_name || '-';
+      const statusBadge = inv.status === 'pending' 
+        ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">In Attesa</span>'
+        : inv.status === 'completed' || inv.status === 'emessa'
+        ? '<span style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Emessa</span>'
+        : '<span style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Annullata</span>';
+      
+      const paymentMethod = inv.payment_method === 'contanti' 
+        ? '<span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">Contanti</span>'
+        : inv.payment_method === 'pos'
+        ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">POS</span>'
+        : inv.payment_method === 'bonifico'
+        ? '<span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">Bonifico</span>'
+        : '-';
+      
+      const productCategory = inv.product_category 
+        ? inv.product_category.charAt(0).toUpperCase() + inv.product_category.slice(1)
+        : '-';
+      
+      const isEmitted = inv.status === 'completed' || inv.status === 'emessa';
+      const toggleStatusBtn = isEmitted
+        ? `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="pending" title="Segna come non emessa"><i class="fas fa-undo"></i></button>`
+        : `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="completed" title="Segna come emessa"><i class="fas fa-check"></i></button>`;
+      
+      html += `
+        <tr>
+          <td>${inv.created_at ? new Date(inv.created_at).toLocaleDateString('it-IT') : '-'}</td>
+          <td><strong>${escapeHtml(customerName)}</strong></td>
+          <td><strong>${formatEuro(inv.amount || 0)}</strong></td>
+          <td>${paymentMethod}</td>
+          <td>${escapeHtml(productCategory)}</td>
+          <td>${escapeHtml(stationName)}</td>
+          <td>${escapeHtml(operatorName)}</td>
+          <td>${statusBadge}</td>
+          <td>${escapeHtml(inv.description || inv.notes || '-')}</td>
+          <td>${toggleStatusBtn}</td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
+
+    // Event listeners per toggle stato
+    container.querySelectorAll('.toggle-status').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const invoiceId = btn.dataset.id;
+        const newStatus = btn.dataset.status;
+        const statusText = newStatus === 'completed' ? 'emessa' : 'non emessa';
+        
+        if (!confirm(`Sei sicuro di voler segnare questa fattura come ${statusText}?`)) {
+          return;
+        }
+
+        try {
+          const updateData = {};
+          
+          // Prova ad aggiungere updated_at solo se la colonna esiste
+          try {
+            updateData.updated_at = new Date().toISOString();
+          } catch (e) {
+            // Ignora se updated_at non può essere aggiunto
+          }
+          
+          // Aggiungi status
+          updateData.status = newStatus;
+          
+          const { error } = await supabase
+            .from('invoices')
+            .update(updateData)
+            .eq('id', invoiceId);
+
+          if (error) {
+            // Se l'errore è relativo a colonne mancanti, informa l'utente
+            if (error.message && (error.message.includes('status') || error.message.includes('updated_at'))) {
+              alert('Le colonne "status" e/o "updated_at" non esistono ancora nel database.\n\nEsegui lo script SQL "aggiungi_campi_invoices.sql" per aggiungere tutte le colonne necessarie.');
+              return;
+            }
+            throw error;
+          }
+
+          // Ricarica la tabella
+          showFattureTab(container, actionsContainer);
+
+        } catch (err) {
+          alert('Errore aggiornamento stato: ' + err.message);
+        }
+      });
+    });
+
+  } catch (err) {
+    showErrorMessage(container, err);
+  }
+}
+
 // ------------------------------------------------------------------
 // CREDITI (Credits)
 // ------------------------------------------------------------------
