@@ -3065,6 +3065,7 @@ button:active {
     margin-bottom: 6px;
   }
 }
+
 /* ======================================
    OPERATOR MENU - ACCORDION STYLES
    Added for accordion menu refactoring
@@ -3083,45 +3084,29 @@ button:active {
   align-items: center;
   gap: 12px;
   padding: 18px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary-color);
   color: white;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--shadow-md);
   min-height: 60px;
   text-align: left;
   width: 100%;
 }
 
 .op-menu-item.primary {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  background: var(--accent-color);
+  color: var(--text-main);
+  box-shadow: 0 4px 15px rgba(141, 198, 63, 0.3);
 }
 
 .op-menu-item i {
   font-size: 1.3rem;
   flex-shrink: 0;
-}
-
-.op-menu-item span {
-  flex: 1;
-}
-
-.op-menu-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-}
-
-.op-menu-item.primary:hover {
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
-}
-
-.op-menu-item:active {
-  transform: translateY(0);
 }
 
 /* Accordion specific styles */
@@ -3181,6 +3166,58 @@ button:active {
   border-color: #667eea;
   transform: translateX(4px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+}
+
+.op-submenu-item:active {
+  transform: translateX(2px);
+}
+.op-menu-item span {
+  flex: 1;
+}
+
+.op-menu-item:hover {
+  transform: translateY(-2px);
+  background: var(--primary-hover);
+  box-shadow: var(--shadow-lg);
+}
+
+.op-menu-item.primary:hover {
+  background: #7ab82d;
+  box-shadow: 0 8px 25px rgba(141, 198, 63, 0.4);
+}
+
+.op-menu-item:active {
+  transform: translateY(0);
+}
+
+.op-submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px 14px 40px;
+  background: var(--bg-surface);
+  color: var(--primary-color);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.op-submenu-item i {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.op-submenu-item:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateX(4px);
+  box-shadow: var(--shadow-md);
 }
 
 .op-submenu-item:active {
