@@ -7,7 +7,7 @@ import {
   handlePasswordReset, requestPasswordReset
 } from "./js/auth.js";
 import { showAdminArea } from "./js/admin.js";
-import { showInvoiceMenu } from "./js/operator.js";
+import { showOperatorMenu } from "./js/operator.js";
 
 // Espone funzioni globali per compatibilità (es. onclick in HTML se presenti, o console debug)
 window.requestPasswordReset = requestPasswordReset;
@@ -27,7 +27,7 @@ async function initializeApp() {
         const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', user.user_id).maybeSingle();
         stId = us?.station_id;
       }
-      showInvoiceMenu(user.user_id, stId);
+      showOperatorMenu(user.user_id, stId);
     }
   });
 
@@ -64,7 +64,7 @@ async function initializeApp() {
         const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', user.user_id).maybeSingle();
         stId = us?.station_id;
       }
-      showInvoiceMenu(user.user_id, stId);
+      showOperatorMenu(user.user_id, stId);
     }
   } else {
     console.log('Nessuna sessione attiva, mostro login');

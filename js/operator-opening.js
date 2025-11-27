@@ -113,7 +113,7 @@ export async function showAperturaForm(stationId, userId) {
         const { data: tanks } = tanksResult;
 
         if (islandsError) {
-            modalBody.innerHTML = createErrorMessage('Errore Caricamento Isole', islandsError) + 
+            modalBody.innerHTML = createErrorMessage('Errore Caricamento Isole', islandsError) +
                 `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-error" class="menu-button primary">Chiudi</button></div>`;
             document.getElementById('btn-close-error').addEventListener('click', () => closeModal());
             return;
@@ -201,9 +201,9 @@ export async function showAperturaForm(stationId, userId) {
 
             // Assegna i contatori con fallback
             allPistole.forEach(p => {
-                const counterValue = newCountersMap.get(p.id) || 
-                                   oldCountersMap.get(p.id) || 
-                                   parseFloat(p.numero_litri);
+                const counterValue = newCountersMap.get(p.id) ||
+                    oldCountersMap.get(p.id) ||
+                    parseFloat(p.numero_litri);
                 if (Number.isFinite(counterValue)) {
                     lastClosureCounters[p.id] = counterValue;
                 }
@@ -221,7 +221,7 @@ export async function showAperturaForm(stationId, userId) {
         }
 
         // Mostra form apertura
-        
+
         modalBody.innerHTML = `
         <form id="apertura-form">
           <div class="form-row">
@@ -383,21 +383,21 @@ export async function showAperturaForm(stationId, userId) {
                     if (tankError) console.error('Errore salvataggio cisterne:', tankError);
                 }
 
-                // Mostra successo e chiudi modal
-                closeModal();
-                const container = document.getElementById('operator-content');
-                container.innerHTML = `
-          <div class="success-message">
-            <i class="fas fa-check-circle" style="font-size: 48px; color: #10b981; margin-bottom: 20px;"></i>
-            <h3>Apertura Registrata!</h3>
-            <p>Il turno è stato aperto correttamente.</p>
-            <p class="small-text">Data: ${new Date().toLocaleString('it-IT')}</p>
-            <button id="btn-home" class="menu-button primary">Torna alla Home</button>
-          </div>
-        `;
+                // Mostra successo in un modal
+                openModal('Apertura Registrata');
+                const modalBody = document.getElementById('modal-body');
+                modalBody.innerHTML = `
+                  <div class="success-message" style="text-align: center;">
+                    <i class="fas fa-check-circle" style="font-size: 48px; color: #10b981; margin-bottom: 20px;"></i>
+                    <h3>Apertura Registrata!</h3>
+                    <p>Il turno è stato aperto correttamente.</p>
+                    <p class="small-text">Data: ${new Date().toLocaleString('it-IT')}</p>
+                    <button id="btn-home" class="menu-button primary" style="margin-top: 20px;">Torna alla Home</button>
+                  </div>
+                `;
 
                 document.getElementById('btn-home').addEventListener('click', () => {
-                    container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+                    closeModal();
                     updateOpeningStatus(stationId);
                 });
 
@@ -406,8 +406,8 @@ export async function showAperturaForm(stationId, userId) {
                 submitBtn.disabled = false;
                 cancelBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fas fa-check"></i> Conferma Apertura';
-                
-                modalBody.innerHTML = createErrorMessage('Errore Apertura Turno', err) + 
+
+                modalBody.innerHTML = createErrorMessage('Errore Apertura Turno', err) +
                     `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-error" class="menu-button primary">Chiudi</button></div>`;
                 document.getElementById('btn-close-error').addEventListener('click', () => closeModal());
             }

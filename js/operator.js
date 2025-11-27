@@ -7,19 +7,21 @@ import { escapeHtml } from "./utils.js";
 import { loggedUser, clearSession } from "./auth.js";
 
 // Import moduli specializzati
-import { showAperturaForm, updateOpeningStatus } from "./operator-opening.js";
+import { showAperturaForm, updateOpeningStatus, checkOpeningStatus } from "./operator-opening.js";
 import { startClosureWizard } from "./operator-closure.js";
 import { showPrezziEditForm } from "./operator-prices.js";
 import { showCreditsMenu } from "./operator-credits.js";
 import { showOutflowMenu } from "./operator-outflows.js";
 import { showExtraIncomeMenu } from "./operator-extra-income.js";
+import { showVoucherMenu } from "./operator-vouchers.js";
+import { showInvoiceMenu } from "./operator-invoices.js";
 
 /**
  * Mostra il menu principale dell'operatore
  * @param {number} userId - ID dell'operatore
  * @param {number} stationId - ID della stazione
  */
-export async function showInvoiceMenu(userId, stationId) {
+export async function showOperatorMenu(userId, stationId) {
   const mainContent = document.getElementById('main-content');
   if (!mainContent) return;
 
@@ -58,35 +60,51 @@ export async function showInvoiceMenu(userId, stationId) {
         </div>
       </header>
       
-      <div class="operator-grid">
-        <button class="op-card" id="btn-apertura">
-          <i class="fas fa-door-open"></i>
-          <span>Apertura</span>
+      <div class="operator-menu">
+        <!-- Apertura/Chiusura (dinamico) -->
+        <button class="op-menu-item primary" id="btn-turno">
+          <i class="fas fa-door-open" id="turno-icon"></i>
+          <span id="turno-text">Apertura</span>
           <span class="status-badge" id="opening-status"></span>
         </button>
-        <button class="op-card" id="btn-chiusura">
-          <i class="fas fa-door-closed"></i>
-          <span>Chiusura</span>
+
+        <!-- Movimenti (accordion) -->
+        <div class="op-menu-accordion">
+          <button class="op-menu-item accordion-trigger" id="btn-movimenti">
+            <i class="fas fa-exchange-alt"></i>
+            <span>Movimenti</span>
+            <i class="fas fa-chevron-down accordion-icon"></i>
+          </button>
+          <div class="accordion-content" id="movimenti-content">
+            <button class="op-submenu-item" id="btn-crediti">
+              <i class="fas fa-credit-card"></i>
+              <span>Crediti</span>
+            </button>
+            <button class="op-submenu-item" id="btn-voucher">
+              <i class="fas fa-ticket-alt"></i>
+              <span>Voucher</span>
+            </button>
+            <button class="op-submenu-item" id="btn-uscite">
+              <i class="fas fa-hand-holding-usd"></i>
+              <span>Uscite</span>
+            </button>
+            <button class="op-submenu-item" id="btn-incassi">
+              <i class="fas fa-cash-register"></i>
+              <span>Incassi</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Fatture -->
+        <button class="op-menu-item" id="btn-fatture">
+          <i class="fas fa-file-invoice"></i>
+          <span>Fatture</span>
         </button>
-        <button class="op-card" id="btn-prezzi">
+
+        <!-- Prezzi -->
+        <button class="op-menu-item" id="btn-prezzi">
           <i class="fas fa-tags"></i>
           <span>Prezzi</span>
-        </button>
-        <button class="op-card" id="btn-crediti">
-          <i class="fas fa-credit-card"></i>
-          <span>Crediti</span>
-        </button>
-        <button class="op-card" id="btn-voucher">
-          <i class="fas fa-ticket-alt"></i>
-          <span>Voucher</span>
-        </button>
-        <button class="op-card" id="btn-uscite">
-          <i class="fas fa-hand-holding-usd"></i>
-          <span>Uscite</span>
-        </button>
-        <button class="op-card" id="btn-incassi">
-          <i class="fas fa-cash-register"></i>
-          <span>Incassi</span>
         </button>
       </div>
       
@@ -114,13 +132,40 @@ export async function showInvoiceMenu(userId, stationId) {
     }
   });
 
-  document.getElementById('btn-apertura').addEventListener('click', () => showAperturaForm(stationId, userId));
-  document.getElementById('btn-chiusura').addEventListener('click', () => startClosureWizard(stationId, userId));
+  // Accordion toggle
+  const btnMovimenti = document.getElementById('btn-movimenti');
+  const movimentiContent = document.getElementById('movimenti-content');
+  btnMovimenti.addEventListener('click', () => {
+    const isOpen = movimentiContent.classList.contains('open');
+    movimentiContent.classList.toggle('open');
+    btnMovimenti.querySelector('.accordion-icon').style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+  });
+
+  // Gestione tasto turno dinamico (Apertura/Chiusura)
+  const btnTurno = document.getElementById('btn-turno');
+  const turnoIcon = document.getElementById('turno-icon');
+  const turnoText = document.getElementById('turno-text');
+
+  // Check dello stato apertura e update del pulsante
+  checkOpeningStatus(stationId).then(opening => {
+    if (opening) {
+      turnoIcon.className = 'fas fa-door-closed';
+      turnoText.textContent = 'Chiusura';
+      btnTurno.addEventListener('click', () => startClosureWizard(stationId, userId));
+    } else {
+      turnoIcon.className = 'fas fa-door-open';
+      turnoText.textContent = 'Apertura';
+      btnTurno.addEventListener('click', () => showAperturaForm(stationId, userId));
+    }
+  });
+
+  // Altri event listeners (funzioni invariate)
   document.getElementById('btn-prezzi').addEventListener('click', () => showPrezziEditForm(stationId));
   document.getElementById('btn-crediti').addEventListener('click', () => showCreditsMenu(stationId, userId));
   document.getElementById('btn-voucher').addEventListener('click', () => showVoucherMenu(stationId, userId));
   document.getElementById('btn-uscite').addEventListener('click', () => showOutflowMenu(stationId, userId));
   document.getElementById('btn-incassi').addEventListener('click', () => showExtraIncomeMenu(stationId, userId));
+  document.getElementById('btn-fatture').addEventListener('click', () => showInvoiceMenu(stationId, userId));
 
   // Controlla e mostra stato apertura
   updateOpeningStatus(stationId);

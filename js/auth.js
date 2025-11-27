@@ -51,35 +51,42 @@ export function setupLoginForm() {
     if (!loginForm) return;
     if (loginFormInitialized) return;
 
-    const newForm = loginForm.cloneNode(true);
-    loginForm.parentNode.replaceChild(newForm, loginForm);
-    loginForm = newForm;
+    // Rimosso cloneNode per evitare problemi con i riferimenti DOM
+    // const newForm = loginForm.cloneNode(true);
+    // loginForm.parentNode.replaceChild(newForm, loginForm);
+    // loginForm = newForm;
 
-    const passwordInput = loginForm.querySelector('#password');
-    const togglePasswordBtn = loginForm.querySelector('#toggle-password');
-    const passwordIcon = loginForm.querySelector('#password-icon');
-
-    if (togglePasswordBtn && passwordInput && passwordIcon) {
-        togglePasswordBtn.addEventListener('click', (e) => {
+    // Event Delegation per il toggle password
+    loginForm.addEventListener('click', (e) => {
+        const toggleBtn = e.target.closest('#toggle-password');
+        if (toggleBtn) {
             e.preventDefault();
             e.stopPropagation();
+            console.log('Delegated click on toggle password');
 
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                passwordIcon.classList.remove('fa-eye');
-                passwordIcon.classList.add('fa-eye-slash');
-                togglePasswordBtn.title = 'Nascondi password';
-            } else {
-                passwordInput.type = 'password';
-                passwordIcon.classList.remove('fa-eye-slash');
-                passwordIcon.classList.add('fa-eye');
-                togglePasswordBtn.title = 'Mostra password';
+            const passwordInput = loginForm.querySelector('#password');
+            const passwordIcon = toggleBtn.querySelector('i');
+
+            if (passwordInput && passwordIcon) {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    passwordIcon.classList.remove('fa-eye');
+                    passwordIcon.classList.add('fa-eye-slash');
+                    toggleBtn.title = 'Nascondi password';
+                } else {
+                    passwordInput.type = 'password';
+                    passwordIcon.classList.remove('fa-eye-slash');
+                    passwordIcon.classList.add('fa-eye');
+                    toggleBtn.title = 'Mostra password';
+                }
             }
-        });
-    }
+        }
+    });
 
+    console.log('Setup login form initiated');
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        console.log('Login form submitted');
 
         const errorElement = loginError || document.getElementById('login-error');
         if (errorElement) errorElement.textContent = "";
@@ -87,10 +94,15 @@ export function setupLoginForm() {
         const emailInput = loginForm.querySelector('#email') || loginForm.email;
         const passwordInput = loginForm.querySelector('#password') || loginForm.password;
 
-        if (!emailInput || !passwordInput) return;
+        if (!emailInput || !passwordInput) {
+            console.error('Email or password input not found');
+            return;
+        }
 
         const email = emailInput.value?.trim().toLowerCase();
         const password = passwordInput.value;
+
+        console.log('Attempting login for:', email);
 
         if (!email || !password) {
             if (errorElement) errorElement.textContent = "Inserisci email e password.";
@@ -98,12 +110,16 @@ export function setupLoginForm() {
         }
 
         try {
+            console.log('Calling supabase.auth.signInWithPassword...');
             let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email: email,
                 password: password
             });
 
+            console.log('Supabase auth response:', { authData, authError });
+
             if (authError) {
+                console.error('Auth error:', authError);
                 if (authError.message && (authError.message.includes('Email not confirmed') || authError.message.includes('email_not_confirmed'))) {
                     if (errorElement) errorElement.textContent = "Email non confermata. Contatta l'amministratore per la convalida.";
                     return;
@@ -120,17 +136,22 @@ export function setupLoginForm() {
             }
 
             if (!authData?.user) {
+                console.error('No user data returned');
                 if (errorElement) errorElement.textContent = "Errore durante il login. Riprova.";
                 return;
             }
 
+            console.log('Login successful, fetching user details...');
             let { data: userData, error: userError } = await supabase
                 .from('users')
                 .select('*')
                 .eq('email', email)
                 .maybeSingle();
 
+            console.log('User details fetch result:', { userData, userError });
+
             if (!userData) {
+                console.log('User not found in users table, creating default object');
                 userData = {
                     user_id: authData.user.id,
                     email: authData.user.email,
@@ -148,6 +169,8 @@ export function setupLoginForm() {
                 };
             }
 
+            console.log('Logged user set:', loggedUser);
+
             if (loginContainer) loginContainer.style.display = 'none';
             if (appContainer) appContainer.style.display = 'block';
 
@@ -158,11 +181,12 @@ export function setupLoginForm() {
             }
 
             if (onLoginSuccessCallback) {
+                console.log('Triggering onLoginSuccessCallback');
                 onLoginSuccessCallback(loggedUser);
             }
 
         } catch (err) {
-            console.error('Errore durante il login:', err);
+            console.error('Errore durante il login (catch):', err);
             if (errorElement) {
                 errorElement.textContent = `Errore durante il login: ${err.message || 'Errore sconosciuto'}`;
             }
@@ -214,20 +238,20 @@ export async function clearSession() {
         if (error) {
             console.error('Errore nel logout:', error);
         }
-        
+
         // Pulisci anche il localStorage di Supabase per sicurezza
         // Supabase salva la sessione in localStorage con chiavi specifiche
-        const supabaseKeys = Object.keys(localStorage).filter(key => 
+        const supabaseKeys = Object.keys(localStorage).filter(key =>
             key.startsWith('sb-') || key.includes('supabase')
         );
         supabaseKeys.forEach(key => localStorage.removeItem(key));
-        
+
         // Pulisci anche sessionStorage
-        const supabaseSessionKeys = Object.keys(sessionStorage).filter(key => 
+        const supabaseSessionKeys = Object.keys(sessionStorage).filter(key =>
             key.startsWith('sb-') || key.includes('supabase')
         );
         supabaseSessionKeys.forEach(key => sessionStorage.removeItem(key));
-        
+
         // Reset loggedUser
         loggedUser = null;
     } catch (err) {

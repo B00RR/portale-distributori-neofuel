@@ -400,9 +400,9 @@ function showClosureStep2() {
     .filter(m => m.tipo === 'credito' || (m.descrizione && m.descrizione.toLowerCase().includes('credito') && m.tipo !== 'incasso'))
     .reduce((sum, m) => sum + Number(m.importo), 0);
 
-  // 2. Voucher -> Sottrarre dal contante atteso (Prepagato)
+  // 2. Voucher e Punti -> Sottrarre dal contante atteso (Prepagato)
   const vouchersSum = movimenti
-    .filter(m => m.tipo === 'voucher' || (m.descrizione && m.descrizione.toLowerCase().includes('voucher')))
+    .filter(m => m.tipo === 'voucher' || m.tipo === 'punti' || (m.descrizione && (m.descrizione.toLowerCase().includes('voucher') || m.descrizione.toLowerCase().includes('punti'))))
     .reduce((sum, m) => sum + Number(m.importo), 0);
 
   // 3. Rimborsi -> Sottrarre dal contante atteso (Soldi usciti dalla cassa)

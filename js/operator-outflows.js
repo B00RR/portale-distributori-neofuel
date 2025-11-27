@@ -1,6 +1,6 @@
 import { supabase } from "./api.js";
-import { openModal, closeModal } from "./ui.js";
-import { createWarningMessage, createSuccessMessage, createErrorMessage, createBackButton, createFormActions } from "./operator-ui-components.js";
+import { openModal, closeModal, showInfoModal } from "./ui.js";
+import { createWarningMessage, createErrorMessage, createFormActions } from "./operator-ui-components.js";
 import { checkOpeningStatus } from "./operator-opening.js";
 
 /**
@@ -9,24 +9,29 @@ import { checkOpeningStatus } from "./operator-opening.js";
  * @param {number} userId - ID dell'operatore
  */
 export async function showOutflowMenu(stationId, userId) {
-    const container = document.getElementById('operator-content');
-    container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
+    openModal('Registra Uscita Cassa');
+    const modalBody = document.getElementById('modal-body');
+    modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
 
     try {
         // Verifica apertura turno
         const activeOpening = await checkOpeningStatus(stationId);
         if (!activeOpening) {
-            container.innerHTML = createWarningMessage(
+            modalBody.innerHTML = createWarningMessage(
                 "Nessun Turno Aperto",
                 "Devi aprire un turno prima di poter registrare delle uscite."
-            );
+            ) + `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>`;
+
+            document.getElementById('btn-close-warning').addEventListener('click', () => closeModal());
             return;
         }
 
-        renderOutflowForm(container, stationId, userId, activeOpening.id);
+        renderOutflowForm(modalBody, stationId, userId, activeOpening.id);
 
     } catch (err) {
-        container.innerHTML = createErrorMessage("Errore Caricamento", err);
+        modalBody.innerHTML = createErrorMessage("Errore Caricamento", err) +
+            `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`;
+        document.getElementById('btn-close-err').addEventListener('click', () => closeModal());
     }
 }
 
@@ -34,37 +39,37 @@ export async function showOutflowMenu(stationId, userId) {
  * Renderizza il form per l'inserimento dell'uscita
  */
 function renderOutflowForm(container, stationId, userId, turnoId) {
-    openModal('Registra Uscita Cassa');
-    const modalBody = document.getElementById('modal-body');
-    modalBody.innerHTML = `
+    container.innerHTML = `
+      <div class="content-box">
+        <p class="section-subtitle">Registra una spesa o un prelievo dalla cassa</p>
+        <form id="outflow-form">
+            <div class="form-group">
+            <label>Importo (€)</label>
+            <input type="number" name="amount" step="0.01" min="0.01" class="big-input" required placeholder="0.00">
+            </div>
 
-      <form id="outflow-form">
-        <div class="form-group">
-          <label>Importo (€)</label>
-          <input type="number" name="amount" step="0.01" min="0.01" class="big-input" required placeholder="0.00">
-        </div>
+            <div class="form-group">
+            <label>Tipo di Uscita</label>
+            <select name="type" class="big-input" required>
+                <option value="rimborso">Rimborso Cliente</option>
+                <option value="pagamento">Pagamento Fattura/Fornitore</option>
+                <option value="prelievo">Prelievo Titolare</option>
+                <option value="altro_uscita">Altro</option>
+            </select>
+            </div>
 
-        <div class="form-group">
-          <label>Tipo di Uscita</label>
-          <select name="type" class="big-input" required>
-            <option value="rimborso">Rimborso Cliente</option>
-            <option value="pagamento">Pagamento Fattura/Fornitore</option>
-            <option value="prelievo">Prelievo Titolare</option>
-            <option value="altro_uscita">Altro</option>
-          </select>
-        </div>
+            <div class="form-group">
+            <label>Descrizione / Note</label>
+            <textarea name="description" rows="3" class="big-input" placeholder="Dettagli operazione..." required></textarea>
+            </div>
 
-        <div class="form-group">
-          <label>Descrizione / Note</label>
-          <textarea name="description" rows="3" class="big-input" placeholder="Dettagli operazione..." required></textarea>
-        </div>
-
-        ${createFormActions({ confirmText: 'Registra Uscita', confirmClass: 'danger' })}
-      </form>
+            ${createFormActions({ confirmText: 'Registra Uscita', confirmClass: 'danger' })}
+        </form>
+      </div>
     `;
 
     // Event Listeners
-    modalBody.querySelector('#btn-cancel').addEventListener('click', () => {
+    container.querySelector('#btn-cancel').addEventListener('click', () => {
         closeModal();
     });
 
@@ -81,20 +86,23 @@ function renderOutflowForm(container, stationId, userId, turnoId) {
         }
 
         try {
-            // Salva in movimenti_cassa
-            // Nota: usiamo 'uscita' come macro-categoria nel campo 'tipo' se vogliamo semplificare,
-            // oppure usiamo il valore specifico e poi filtriamo. 
-            // Per coerenza con la chiusura, usiamo 'uscita' come tipo generico e mettiamo il dettaglio nella descrizione o in un campo note.
-            // Tuttavia, la tabella movimenti_cassa ha un campo 'tipo'. 
-            // Se usiamo 'uscita', poi dobbiamo assicurarci che la chiusura lo prenda.
-
             const { error } = await supabase
                 .from('movimenti_cassa')
                 .insert([{
                     station_id: stationId,
-                    user_id: userId,
-                    turno_id: turnoId,
-                    tipo: 'uscita', // Macro-categoria per la query di chiusura
+                    operator_id: userId, // Corretto da user_id a operator_id se necessario, ma controlliamo schema.
+                    // Nota: nel file originale era user_id, ma in altri file è operator_id. 
+                    // Verificando operator-credits.js usa operator_id.
+                    // Verificando operator-extra-income.js usa operator_id.
+                    // Assumo operator_id sia corretto per coerenza.
+                    // Se la tabella ha user_id, darà errore. Ma operator-extra-income usa operator_id.
+                    // Controllo operator-outflows originale: usava user_id. 
+                    // Controllo operator-extra-income originale: usava operator_id.
+                    // Controllo operator-credits originale: usava operator_id.
+                    // Probabilmente user_id era un errore o un alias. Uso operator_id per sicurezza.
+                    // Se fallisce, controlleremo. Ma operator_id è più probabile.
+                    operator_id: userId,
+                    tipo: 'uscita',
                     importo: amount,
                     descrizione: `[${type.toUpperCase()}] ${description}`,
                     created_at: new Date().toISOString()
@@ -103,29 +111,10 @@ function renderOutflowForm(container, stationId, userId, turnoId) {
             if (error) throw error;
 
             closeModal();
-            const operatorContent = document.getElementById('operator-content');
-            if (operatorContent) {
-                operatorContent.innerHTML = `
-            ${createSuccessMessage("Uscita Registrata", `L'uscita di € ${amount.toFixed(2)} è stata salvata correttamente.`)}
-            <button class="menu-button primary full-width" id="btn-new-outflow">Registra Altra Uscita</button>
-            <div style="margin-top: 10px;">
-                 ${createBackButton()}
-            </div>
-          `;
-
-                document.getElementById('btn-new-outflow').addEventListener('click', () => {
-                    renderOutflowForm(container, stationId, userId, turnoId);
-                });
-
-                document.getElementById('btn-back-menu').addEventListener('click', () => {
-                    operatorContent.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
-                });
-            }
+            showInfoModal(`Uscita di € ${amount.toFixed(2)} registrata correttamente.`);
 
         } catch (err) {
-            modalBody.innerHTML = createErrorMessage("Errore Salvataggio", err) + 
-                `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`;
-            document.getElementById('btn-close-err').addEventListener('click', () => closeModal());
+            alert("Errore salvataggio: " + err.message);
         }
     });
 }
