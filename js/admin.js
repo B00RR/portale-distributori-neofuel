@@ -30,9 +30,6 @@ export function showAdminArea() {
     <div class="admin-container">
       <aside class="admin-sidebar">
         <div class="sidebar-header">
-          <div class="sidebar-logo">
-            <span class="logo-neo">neo</span><span class="logo-fuel">fuel</span>
-          </div>
           <p class="sidebar-subtitle">Control Center</p>
         </div>
         <nav class="sidebar-nav">
@@ -57,11 +54,8 @@ export function showAdminArea() {
       </aside>
       <main class="admin-main">
         <header class="admin-header">
-          <div class="admin-header-left-logo">
-            <span>NEO</span><span>FUEL</span>
-          </div>
           <div class="admin-header-center">
-            <p class="welcome-title">Benvenuto, Amministratore</p>
+            <img src="logo svg.svg" alt="Neofuel" class="admin-header-logo" />
             <p class="welcome-subtitle" id="page-subtitle">Dashboard</p>
           </div>
           <div class="admin-header-right">
@@ -1024,7 +1018,10 @@ async function showCreditiOverview(container, actionsContainer) {
   try {
     const { data: customers, error } = await supabase
       .from('crediti_clienti')
-      .select('*')
+      .select(`
+        *,
+        fuel_stations(station_name)
+      `)
       .order('cliente');
 
     if (error) throw error;
@@ -1040,6 +1037,7 @@ async function showCreditiOverview(container, actionsContainer) {
           <thead>
             <tr>
               <th>Cliente</th>
+              <th>Distributore</th>
               <th>Saldo Attuale</th>
               <th>Ultimo Aggiornamento</th>
               <th>Azioni</th>
@@ -1049,9 +1047,11 @@ async function showCreditiOverview(container, actionsContainer) {
     `;
 
     customers.forEach(c => {
+      const stationName = c.fuel_stations?.station_name || '-';
       html += `
         <tr>
           <td>${escapeHtml(c.cliente)}</td>
+          <td>${escapeHtml(stationName)}</td>
           <td><strong>${formatEuro(c.saldo || 0)}</strong></td>
           <td>${c.updated_at ? new Date(c.updated_at).toLocaleDateString() : '-'}</td>
           <td>

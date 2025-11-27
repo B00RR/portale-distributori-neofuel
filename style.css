@@ -1239,20 +1239,11 @@ button:active {
 }
 
 .sidebar-logo {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-weight: 800;
-  font-size: 1.3rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.sidebar-logo .logo-neo {
-  color: #ffffff;
-}
-
-.sidebar-logo .logo-fuel {
-  color: var(--accent-color);
-}
 
 .sidebar-subtitle {
   margin: 6px 0 0;
@@ -1388,22 +1379,19 @@ button:active {
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
 }
 
-.admin-header-left-logo {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-weight: 800;
-  font-size: 1rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--primary-color);
-}
-
-.admin-header-left-logo span:last-child {
-  color: var(--accent-color);
-}
-
 .admin-header-center {
   text-align: center;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-header-logo {
+  height: 45px;
+  width: auto;
+  object-fit: contain;
 }
 
 .welcome-title {
