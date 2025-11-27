@@ -3219,6 +3219,7 @@ button:active {
 .op-submenu-item:active {
   transform: translateX(2px);
 }
+
 .op-menu-item span {
   flex: 1;
 }

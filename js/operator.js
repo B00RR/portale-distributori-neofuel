@@ -52,7 +52,7 @@ export async function showOperatorMenu(userId, stationId) {
     <div class="operator-container">
       <header class="operator-header">
         <div class="header-left">
-          <h2>Neofuel</h2>
+          <img src="logo svg.svg" alt="Neofuel" style="height: 40px; vertical-align: middle;">
           <span class="station-badge" id="station-badge">Caricamento...</span>
         </div>
         <div class="header-right">
