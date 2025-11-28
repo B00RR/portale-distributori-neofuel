@@ -18,6 +18,8 @@ import {
 } from "./export.js";
 import { loggedUser, clearSession } from "./auth.js";
 import { showIslandsModal } from "./admin-islands.js";
+import { showSettingsTab } from "./admin-logic.js";
+import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
 
 // Stato locale admin
 let currentAdminTab = 'dashboard';
@@ -41,6 +43,7 @@ export function showAdminArea() {
           <button class="nav-btn" data-tab="fatture"><i class="fas fa-file-invoice"></i> Fatture</button>
           <button class="nav-btn" data-tab="vouchers"><i class="fas fa-ticket-alt"></i> Voucher</button>
           <button class="nav-btn" data-tab="notifiche"><i class="fas fa-bell"></i> Notifiche</button>
+          <button class="nav-btn" data-tab="settings"><i class="fas fa-cog"></i> Impostazioni</button>
           <button class="nav-btn logout-btn" id="admin-logout"><i class="fas fa-sign-out-alt"></i> Esci</button>
         </nav>
         <div class="sidebar-footer">
@@ -139,6 +142,10 @@ function loadAdminTab(tab) {
       if (pageSubtitle) pageSubtitle.textContent = 'Notifiche';
       showNotificheAdmin(content);
       break;
+    case 'settings':
+      if (pageSubtitle) pageSubtitle.textContent = 'Impostazioni';
+      showSettingsTab(content, headerActions);
+      break;
     default:
       showDashboard(content);
   }
@@ -216,6 +223,97 @@ async function showDashboard(container) {
       tanksHtmlRows = `<tr><td colspan="4">Nessuna cisterna configurata.</td></tr>`;
     }
 
+    // Recupera venduto odierno (ricavo teorico chiusure di oggi)
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    let vendutoDataValue = 0;
+    try {
+      const { data: todayClosures } = await supabase
+        .from('shifts')
+        .select('closing_data')
+        .gte('closed_at', startOfDay.toISOString())
+        .lte('closed_at', endOfDay.toISOString())
+        .eq('status', 'closed');
+      if (Array.isArray(todayClosures)) {
+        vendutoDataValue = todayClosures.reduce((sum, item) => {
+          const ricavo = Number(item?.closing_data?.ricavo_teorico || 0);
+          return sum + ricavo;
+        }, 0);
+      }
+    } catch (salesErr) {
+      console.warn('Impossibile recuperare il venduto del giorno:', salesErr);
+    }
+
+    let vendutoKpiValue = vendutoDataValue;
+    try {
+      const engineResult = await calculationEngine.run(CALCULATION_SCOPES.KPI_VENDUTO, {
+        stationsCount,
+        operatorsCount,
+        closuresCount,
+        salesEuro: vendutoDataValue,
+        fallback: vendutoDataValue,
+        timestamp: Date.now()
+      }, { forceRefresh: false }); // Forza refresh cache se necessario
+      if (typeof engineResult === 'number') {
+        vendutoKpiValue = engineResult;
+      } else if (engineResult && typeof engineResult === 'object' && typeof engineResult.value === 'number') {
+        vendutoKpiValue = engineResult.value;
+      }
+    } catch (engineErr) {
+      console.warn('Motore calcoli KPI venduto non disponibile:', engineErr);
+    }
+
+    // Calcola litri erogati oggi (benzina e gasolio)
+    let totalLitriBenzina = 0;
+    let totalLitriGasolio = 0;
+    try {
+      const { data: todayClosuresForLiters } = await supabase
+        .from('shifts')
+        .select('closing_data')
+        .gte('closed_at', startOfDay.toISOString())
+        .lte('closed_at', endOfDay.toISOString())
+        .eq('status', 'closed');
+      
+      if (Array.isArray(todayClosuresForLiters)) {
+        todayClosuresForLiters.forEach(item => {
+          const closingData = item?.closing_data || {};
+          totalLitriBenzina += Number(closingData.litri_benzina || 0);
+          totalLitriGasolio += Number(closingData.litri_gasolio || 0);
+        });
+      }
+    } catch (litersErr) {
+      console.warn('Impossibile recuperare i litri erogati del giorno:', litersErr);
+    }
+
+    // Usa il motore di calcolo per il KPI Erogato
+    let erogatoKpiData = {
+      litriBenzina: totalLitriBenzina,
+      litriGasolio: totalLitriGasolio,
+      totale: totalLitriBenzina + totalLitriGasolio
+    };
+    
+    try {
+      const engineResult = await calculationEngine.run(CALCULATION_SCOPES.KPI_EROGATO, {
+        erogatoData: erogatoKpiData,
+        totalLitriBenzina,
+        totalLitriGasolio,
+        fallback: erogatoKpiData
+      }, { forceRefresh: false });
+      
+      if (engineResult && typeof engineResult === 'object') {
+        erogatoKpiData = {
+          litriBenzina: engineResult.litriBenzina ?? totalLitriBenzina,
+          litriGasolio: engineResult.litriGasolio ?? totalLitriGasolio,
+          totale: (engineResult.litriBenzina ?? totalLitriBenzina) + (engineResult.litriGasolio ?? totalLitriGasolio)
+        };
+      }
+    } catch (engineErr) {
+      console.warn('Motore calcoli KPI erogato non disponibile:', engineErr);
+    }
+
     // Andamento prezzi medi - verrà popolato via Chart.js
     container.innerHTML = `
       <section class="dashboard-grid">
@@ -224,7 +322,7 @@ async function showDashboard(container) {
             <div class="kpi-icon"><i class="fas fa-euro-sign"></i></div>
           </div>
           <p class="kpi-title">Venduto Oggi</p>
-          <p class="kpi-value">€ 0</p>
+          <p class="kpi-value">${vendutoKpiValue ? formatEuro(vendutoKpiValue) : '€ 0'}</p>
           <p class="kpi-sub">+0% vs ieri</p>
         </article>
         <article class="kpi-card">
@@ -232,8 +330,8 @@ async function showDashboard(container) {
             <div class="kpi-icon"><i class="fas fa-gas-pump"></i></div>
           </div>
           <p class="kpi-title">Erogato Oggi</p>
-          <p class="kpi-value">0 L</p>
-          <p class="kpi-sub">Benzina / Gasolio</p>
+          <p class="kpi-value">${(erogatoKpiData.totale || 0).toFixed(2)} L</p>
+          <p class="kpi-sub">${(erogatoKpiData.litriBenzina || 0).toFixed(2)} L Benzina / ${(erogatoKpiData.litriGasolio || 0).toFixed(2)} L Gasolio</p>
         </article>
         <article class="kpi-card">
           <div class="kpi-row">
@@ -275,57 +373,127 @@ async function showDashboard(container) {
         </article>
 
         <article class="panel-card">
-          <h3 class="panel-title">Andamento Prezzi Medi</h3>
-          <p class="panel-subtitle">Trend ultimi aggiornamenti listini benzina (valore medio rete).</p>
+          <h3 class="panel-title">Andamento Vendite</h3>
+          <p class="panel-subtitle">Trend vendite giornaliere per distributore (valore in €).</p>
           <div class="prices-chart-wrapper">
-            <canvas id="avg-prices-chart"></canvas>
+            <canvas id="sales-trend-chart"></canvas>
           </div>
         </article>
       </section>
     `;
 
-    // Popola grafico prezzi medi se Chart.js è disponibile
+    // Popola grafico vendite per distributore se Chart.js è disponibile
     if (window.Chart) {
-      const { data: pricesData } = await supabase
-        .from('prezzi_distributore')
-        .select('data_validita, prezzo_benzina')
-        .order('data_validita', { ascending: true })
-        .limit(50);
+      // Recupera le chiusure degli ultimi 30 giorni
+      const daysBack = 30;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+      startDate.setHours(0, 0, 0, 0);
 
-      const grouped = {};
-      if (pricesData) {
-        pricesData.forEach(p => {
-          const day = new Date(p.data_validita).toISOString().substring(0, 10);
-          if (!grouped[day]) grouped[day] = { sum: 0, count: 0 };
-          grouped[day].sum += p.prezzo_benzina || 0;
-          grouped[day].count += 1;
+      const { data: closuresData } = await supabase
+        .from('shifts')
+        .select('id, station_id, closed_at, closing_data, fuel_stations(station_name)')
+        .gte('closed_at', startDate.toISOString())
+        .eq('status', 'closed')
+        .order('closed_at', { ascending: true });
+
+      // Recupera tutti i distributori
+      const { data: allStations } = await supabase
+        .from('fuel_stations')
+        .select('station_id, station_name')
+        .order('station_name');
+
+      // Raggruppa vendite per data e distributore
+      const salesByDateAndStation = {};
+      const allDates = new Set();
+
+      if (closuresData) {
+        closuresData.forEach(closure => {
+          if (!closure.closed_at || !closure.closing_data) return;
+          
+          const day = new Date(closure.closed_at).toISOString().substring(0, 10);
+          allDates.add(day);
+          
+          const stationId = closure.station_id;
+          const ricavo = Number(closure.closing_data?.ricavo_teorico || 0);
+          
+          if (!salesByDateAndStation[day]) {
+            salesByDateAndStation[day] = {};
+          }
+          
+          if (!salesByDateAndStation[day][stationId]) {
+            salesByDateAndStation[day][stationId] = 0;
+          }
+          
+          salesByDateAndStation[day][stationId] += ricavo;
         });
       }
 
-      const labels = Object.keys(grouped).sort();
-      const values = labels.map(d => grouped[d].count ? grouped[d].sum / grouped[d].count : 0);
+      // Ordina le date
+      const sortedDates = Array.from(allDates).sort();
+      
+      // Colori per le linee (puoi aggiungere più colori se hai molti distributori)
+      const colors = [
+        '#8DC63F', '#10b981', '#3b82f6', '#f59e0b', '#ef4444',
+        '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'
+      ];
 
-      const ctx = document.getElementById('avg-prices-chart');
+      // Crea un dataset per ogni distributore
+      const datasets = [];
+      if (allStations) {
+        allStations.forEach((station, index) => {
+          const stationId = station.station_id;
+          const stationName = station.station_name || `Distributore ${stationId}`;
+          
+          // Crea array di vendite per questo distributore per ogni data
+          const salesData = sortedDates.map(date => {
+            return salesByDateAndStation[date]?.[stationId] || 0;
+          });
+
+          // Aggiungi solo se ci sono vendite (almeno un valore > 0)
+          if (salesData.some(v => v > 0)) {
+            datasets.push({
+              label: stationName,
+              data: salesData,
+              borderColor: colors[index % colors.length],
+              backgroundColor: colors[index % colors.length] + '20',
+              borderWidth: 2,
+              tension: 0.3,
+              pointRadius: 2.5,
+              fill: false
+            });
+          }
+        });
+      }
+
+      const ctx = document.getElementById('sales-trend-chart');
       if (ctx) {
         new window.Chart(ctx, {
           type: 'line',
           data: {
-            labels: labels.map(d => new Date(d).toLocaleDateString('it-IT')),
-            datasets: [{
-              label: 'Prezzo medio Benzina',
-              data: values,
-              borderColor: '#8DC63F',
-              backgroundColor: 'rgba(141, 198, 63, 0.08)',
-              borderWidth: 2,
-              tension: 0.3,
-              pointRadius: 2.5
-            }]
+            labels: sortedDates.map(d => new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
+            datasets: datasets
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { display: false }
+              legend: {
+                display: true,
+                position: 'bottom',
+                labels: {
+                  boxWidth: 12,
+                  padding: 8,
+                  font: { size: 10 }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return context.dataset.label + ': € ' + context.parsed.y.toFixed(2);
+                  }
+                }
+              }
             },
             scales: {
               x: {
@@ -334,7 +502,12 @@ async function showDashboard(container) {
               },
               y: {
                 grid: { color: 'rgba(148, 163, 184, 0.2)' },
-                ticks: { font: { size: 10 } }
+                ticks: {
+                  font: { size: 10 },
+                  callback: function(value) {
+                    return '€ ' + value.toFixed(0);
+                  }
+                }
               }
             }
           }

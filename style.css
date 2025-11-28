@@ -2305,6 +2305,293 @@ button:active {
   color: #fff;
 }
 
+.settings-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 24px 28px;
+}
+
+.settings-kicker {
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--secondary-color);
+  margin-bottom: 6px;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: var(--primary-color);
+}
+
+.settings-subtitle {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 12px;
+}
+
+.settings-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--radius-md);
+  padding: 10px 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-body);
+  color: var(--secondary-color);
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-tab i {
+  color: inherit;
+}
+
+.settings-tab:hover {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.settings-tab.active {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+  color: var(--text-light);
+  border-color: transparent;
+  box-shadow: var(--shadow-md);
+}
+
+.settings-panel {
+  display: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  padding: 28px;
+}
+
+.settings-panel.active {
+  display: block;
+}
+
+.logic-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(125deg, rgba(10, 35, 66, 0.95), rgba(13, 45, 87, 0.9));
+  color: var(--text-light);
+  border-radius: var(--radius-lg);
+  padding: 24px 32px;
+  box-shadow: var(--shadow-lg);
+}
+
+.logic-hero h2 {
+  margin: 0 0 6px 0;
+  font-size: 1.6rem;
+  color: #fff;
+}
+
+.logic-hero p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.logic-hero-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.logic-hero-kpi {
+  min-width: 120px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.logic-hero-kpi span {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.logic-hero-kpi small {
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+}
+
+.logic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.logic-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.logic-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.logic-card-scope {
+  font-size: 0.85rem;
+  color: var(--secondary-color);
+  margin: 0;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+.logic-card h3 {
+  margin: 0;
+  color: var(--primary-color);
+}
+
+.logic-card-description {
+  margin: 0;
+  color: var(--text-secondary);
+  min-height: 42px;
+}
+
+.logic-card-meta {
+  display: flex;
+  gap: 16px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.logic-card-meta .meta-label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.logic-card-meta .meta-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.logic-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.logic-badge.success {
+  background: rgba(141, 198, 63, 0.15);
+  color: var(--accent-color);
+}
+
+.logic-badge.muted {
+  background: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.logic-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-body);
+}
+
+.logic-empty-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  border-radius: 999px;
+  background: rgba(10, 35, 66, 0.08);
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+}
+
+.logic-empty-state h3 {
+  margin-bottom: 10px;
+  color: var(--primary-color);
+}
+
+.logic-empty-state p {
+  color: var(--text-secondary);
+  margin: 0 0 16px;
+}
+
+.logic-empty-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-main);
+}
+
+.logic-empty-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.logic-empty-steps span {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(13, 45, 87, 0.1);
+  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.logic-empty-tip {
+  font-style: italic;
+  color: var(--secondary-color);
+}
+
+.logic-details .admin-table {
+  margin-top: 12px;
+}
 /* Login Page Specifics (keeping some original styles but updated) */
 .login-container {
   max-width: 400px;

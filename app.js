@@ -8,12 +8,15 @@ import {
 } from "./js/auth.js";
 import { showAdminArea } from "./js/admin.js";
 import { showOperatorMenu } from "./js/operator.js";
+import "./js/calculation-engine.js";
+import { initializeCalculationPresets } from "./js/calculation-presets.js";
 
 // Espone funzioni globali per compatibilità (es. onclick in HTML se presenti, o console debug)
 window.requestPasswordReset = requestPasswordReset;
 
 async function initializeApp() {
   console.log('Inizializzazione App...');
+  initializeCalculationPresets();
 
   // Configura callback login
   setOnLoginSuccess(async (user) => {

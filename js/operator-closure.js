@@ -12,6 +12,7 @@ import {
   attachBackButtonListener
 } from "./operator-ui-components.js";
 import { escapeHtml, formatLitri, formatEuro } from "./utils.js";
+import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
 
 // Stato del wizard di chiusura
 let closureState = {
@@ -45,6 +46,21 @@ export async function startClosureWizard(stationId, userId) {
     }
 
     // Carica tutti i dati in parallelo
+    // 5. Prepara query movimenti cassa
+    let movimentiQuery = supabase
+      .from('movimenti_cassa')
+      .select('*')
+      .eq('station_id', stationId)
+      .gte('created_at', activeOpening.opened_at || activeOpening.date_time);
+    
+    // Se c'è una chiusura parziale, carica solo i movimenti DOPO la chiusura parziale
+    // per evitare di contare due volte i movimenti già conteggiati
+    // NOTA: I movimenti vengono sempre conteggiati dal momento dell'apertura, quindi
+    // se c'è una chiusura parziale, dobbiamo escludere i movimenti già conteggiati
+    // Tuttavia, la chiusura parziale non "consuma" i movimenti, quindi dobbiamo
+    // caricare tutti i movimenti dal momento dell'apertura. Il problema potrebbe
+    // essere che i crediti vengono inseriti due volte in movimenti_cassa.
+    
     const [
       openingCountersResult,
       pistoleResult,
@@ -73,11 +89,7 @@ export async function startClosureWizard(stationId, userId) {
         .limit(1)
         .maybeSingle(),
       // 5. Carica movimenti cassa (extra) del turno corrente
-      supabase
-        .from('movimenti_cassa')
-        .select('*')
-        .eq('station_id', stationId)
-        .gte('created_at', activeOpening.opened_at || activeOpening.date_time),
+      movimentiQuery,
       // 6. Carica impostazione chiusura parziale dalla stazione
       supabase
         .from('fuel_stations')
@@ -135,7 +147,29 @@ export async function startClosureWizard(stationId, userId) {
     const prezzoGasolio = prezzi?.prezzo_gasolio || 0;
 
     // Processa movimenti
-    const { data: movimenti } = movimentiResult;
+    const { data: movimentiRaw } = movimentiResult;
+    // Rimuovi duplicati basati su tipo, importo e created_at (arrotondato al secondo)
+    // per evitare di contare due volte gli stessi movimenti (es. crediti inseriti due volte)
+    const movimentiMap = new Map();
+    (movimentiRaw || []).forEach(m => {
+      // Arrotonda la data al secondo per gestire piccole differenze di timestamp
+      const dateKey = m.created_at ? new Date(m.created_at).setMilliseconds(0).toString() : '';
+      const key = `${m.tipo}_${m.importo}_${dateKey}`;
+      // Se esiste già un movimento con la stessa chiave, mantieni quello con l'ID più basso (il primo)
+      if (!movimentiMap.has(key) || (m.id && movimentiMap.get(key).id > m.id)) {
+        movimentiMap.set(key, m);
+      }
+    });
+    const movimenti = Array.from(movimentiMap.values());
+    
+    // Log per debug: verifica se ci sono crediti duplicati
+    if (movimentiRaw && movimentiRaw.length !== movimenti.length) {
+      console.warn(`Rimossi ${movimentiRaw.length - movimenti.length} movimenti duplicati`);
+      const crediti = movimenti.filter(m => m.tipo === 'credito');
+      if (crediti.length > 0) {
+        console.log('Crediti trovati:', crediti.map(c => ({ id: c.id, importo: c.importo, created_at: c.created_at })));
+      }
+    }
 
     // Processa impostazione stazione
     const { data: stationData } = stationDataResult;
@@ -461,7 +495,7 @@ function showClosureStep1() {
     });
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
 
@@ -513,14 +547,14 @@ function showClosureStep1() {
     closureState.data.tankSelections = selections;
 
     closureState.step = 2;
-    showClosureStep2();
+    await showClosureStep2();
   });
 }
 
 /**
  * Step 2: Riepilogo litri e inserimento incassi (Self + Operatore)
  */
-function showClosureStep2() {
+async function showClosureStep2() {
   openModal('Chiusura Turno - Step 2/3');
   const container = document.getElementById('modal-body');
   const { pistole, openingCounters, finalCounters, prezzoBenzina, prezzoGasolio } = closureState.data;
@@ -559,26 +593,31 @@ function showClosureStep2() {
   const movimenti = closureState.data.movimenti || [];
 
   // 1. Crediti (Nuovi Debiti) -> Sottrarre dal contante atteso (Carburante venduto ma non incassato)
-  const creditsSum = movimenti
-    .filter(m => m.tipo === 'credito' || (m.descrizione && m.descrizione.toLowerCase().includes('credito') && m.tipo !== 'incasso'))
-    .reduce((sum, m) => sum + Number(m.importo), 0);
-
-  // 2. Voucher e Punti -> Sottrarre dal contante atteso (Prepagato)
-  const vouchersSum = movimenti
-    .filter(m => m.tipo === 'voucher' || m.tipo === 'punti' || (m.descrizione && (m.descrizione.toLowerCase().includes('voucher') || m.descrizione.toLowerCase().includes('punti'))))
-    .reduce((sum, m) => sum + Number(m.importo), 0);
-
-  // 3. Rimborsi -> Sottrarre dal contante atteso (Soldi usciti dalla cassa)
-  // Include 'pagamento', 'uscita' (nuovo) e descrizioni con 'rimborso'
-  const refundsSum = movimenti
-    .filter(m => m.tipo === 'pagamento' || m.tipo === 'uscita' || (m.descrizione && m.descrizione.toLowerCase().includes('rimborso')))
-    .reduce((sum, m) => sum + Number(m.importo), 0);
-
-  // 4. Incassi Extra (Olio, Recupero Crediti, ecc.) -> Aggiungere al contante atteso
-  // Escludiamo i crediti (nuovi debiti) e i voucher. Includiamo tutto ciò che è 'incasso'.
-  const extraCashSum = movimenti
-    .filter(m => m.tipo === 'incasso')
-    .reduce((sum, m) => sum + Number(m.importo), 0);
+  let creditsSum = 0;
+  let vouchersSum = 0;
+  let refundsSum = 0;
+  let extraCashSum = 0;
+  try {
+    const movimentiSummary = await calculationEngine.run(CALCULATION_SCOPES.CHIUSURE_MOVIMENTI, { movimenti });
+    creditsSum = Number(movimentiSummary?.credits ?? 0);
+    vouchersSum = Number(movimentiSummary?.vouchers ?? 0);
+    refundsSum = Number(movimentiSummary?.refunds ?? 0);
+    extraCashSum = Number(movimentiSummary?.extra_cash ?? 0);
+  } catch (err) {
+    console.warn('Motore calcoli movimenti indisponibile:', err);
+    creditsSum = movimenti
+      .filter(m => m.tipo === 'credito' || (m.descrizione && m.descrizione.toLowerCase().includes('credito') && m.tipo !== 'incasso'))
+      .reduce((sum, m) => sum + Number(m.importo), 0);
+    vouchersSum = movimenti
+      .filter(m => m.tipo === 'voucher' || m.tipo === 'punti' || (m.descrizione && (m.descrizione.toLowerCase().includes('voucher') || m.descrizione.toLowerCase().includes('punti'))))
+      .reduce((sum, m) => sum + Number(m.importo), 0);
+    refundsSum = movimenti
+      .filter(m => m.tipo === 'pagamento' || m.tipo === 'uscita' || (m.descrizione && m.descrizione.toLowerCase().includes('rimborso')))
+      .reduce((sum, m) => sum + Number(m.importo), 0);
+    extraCashSum = movimenti
+      .filter(m => m.tipo === 'incasso')
+      .reduce((sum, m) => sum + Number(m.importo), 0);
+  }
 
   // Recupera valori precedenti o default
   const d = closureState.data;
@@ -594,18 +633,32 @@ function showClosureStep2() {
   const prevOperatorUta = partialAgg?.operatorUta || 0;
 
   // Totale venduto da self (solo erogazioni) - NOTA: bancomat e UTA/DKV self NON si sommano, sono sempre gli stessi
-  // Solo l'ID gestore si somma tra turni
-  const totalSelfManager = selfManager + prevSelfManager;
+  // Solo l'ID gestore si somma tra turni (se chiusura parziale abilitata)
+  // Se chiusura parziale disabilitata, è "Totale Gestore" e non si somma
+  const totalSelfManager = closureState.data.allowPartialClosure ? (selfManager + prevSelfManager) : selfManager;
   const selfTotalVenduto = selfCashOut + selfPos + selfFleet + totalSelfManager;
   const selfDeltaContante = selfCashIn - selfCashOut;
 
   // Logica Totale Atteso (SOLO CARBURANTE come richiesto)
   let totaleAtteso;
-  if (closureState.data.includeCounters) {
-    totaleAtteso = ricavoTotaleTeor; // Solo carburante
-  } else {
-    // Fallback: Se non leggiamo le pompe, l'atteso è il venduto riportato dallo scontrino self
-    totaleAtteso = selfTotalVenduto;
+  try {
+    const totalsResult = await calculationEngine.run(CALCULATION_SCOPES.CHIUSURE_TOTALE_ATTESO, {
+      includeCounters: closureState.data.includeCounters,
+      totalLitriBenzina,
+      totalLitriGasolio,
+      prezzoBenzina,
+      prezzoGasolio,
+      selfTotalVenduto
+    });
+    const ricavoEngine = Number(totalsResult?.ricavo_teorico ?? ricavoTotaleTeor);
+    ricavoTotaleTeor = Number.isFinite(ricavoEngine) ? ricavoEngine : ricavoTotaleTeor;
+    totaleAtteso = Number(totalsResult?.totale_atteso);
+    if (!Number.isFinite(totaleAtteso)) {
+      totaleAtteso = closureState.data.includeCounters ? ricavoTotaleTeor : selfTotalVenduto;
+    }
+  } catch (err) {
+    console.warn('Motore calcoli totale atteso indisponibile:', err);
+    totaleAtteso = closureState.data.includeCounters ? ricavoTotaleTeor : selfTotalVenduto;
   }
 
   closureState.data.ricavoTotaleTeor = ricavoTotaleTeor;
@@ -668,10 +721,10 @@ function showClosureStep2() {
           </div>
 
           <div class="form-group">
-            <label>5. ID Gestore (€)</label>
+            <label>5. ${closureState.data.allowPartialClosure ? 'ID Gestore' : 'Totale Gestore'} (€)</label>
             <input type="number" name="self_manager" step="0.01" min="0" value="${selfManager}" class="big-input self-input" required>
-            ${prevSelfManager ? `<small style="color: #6b7280;">Turno precedente: ${formatEuro(prevSelfManager)}</small>` : ''}
-            <small style="color: #6b7280;">(Fondi cambio turno/test)</small>
+            ${closureState.data.allowPartialClosure && prevSelfManager ? `<small style="color: #6b7280;">Turno precedente: ${formatEuro(prevSelfManager)}</small>` : ''}
+            <small style="color: #6b7280;">${closureState.data.allowPartialClosure ? '(Fondi cambio turno/test)' : '(Totale di entrambi gli operatori)'}</small>
           </div>
 
           <div class="summary-row total" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1;">
@@ -797,9 +850,10 @@ function showClosureStep2() {
     const pos = parseFloat(form.self_pos.value) || 0;
     const fleet = parseFloat(form.self_fleet.value) || 0;
     const manager = parseFloat(form.self_manager.value) || 0;
-    const prevManager = closureState.data.partialAggregates?.selfManager || 0;
+    const prevManager = closureState.data.allowPartialClosure ? (closureState.data.partialAggregates?.selfManager || 0) : 0;
 
-    // NOTA: bancomat e UTA/DKV self NON si sommano - solo ID gestore si somma
+    // NOTA: bancomat e UTA/DKV self NON si sommano - solo ID gestore si somma (se chiusura parziale abilitata)
+    // Se chiusura parziale disabilitata, è "Totale Gestore" e non si somma
     const totalVenduto = cashOut + pos + fleet + (manager + prevManager);
     const deltaContante = cashIn - cashOut;
     totalDisplay.textContent = formatEuro(totalVenduto);
@@ -825,7 +879,7 @@ function showClosureStep2() {
     showClosureStep1(container);
   });
 
-  document.getElementById('closure-step2-form').addEventListener('submit', (e) => {
+  document.getElementById('closure-step2-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
 
@@ -845,14 +899,14 @@ function showClosureStep2() {
     closureState.data.notes = formData.get('notes') || '';
 
     closureState.step = 3;
-    showClosureStep3();
+    await showClosureStep3();
   });
 }
 
 /**
  * Step 3: Conferma finale e salvataggio
  */
-function showClosureStep3() {
+async function showClosureStep3() {
   openModal('Chiusura Turno - Step 3/3');
   const container = document.getElementById('modal-body');
   const {
@@ -866,13 +920,14 @@ function showClosureStep3() {
   } = closureState.data;
 
   const partialAgg = closureState.data.partialAggregates || {};
-  const prevSelfManager = partialAgg?.selfManager || 0; // Solo ID gestore si somma tra turni
+  const prevSelfManager = partialAgg?.selfManager || 0; // Solo ID gestore si somma tra turni (se chiusura parziale abilitata)
   const prevOperatorPos = partialAgg?.operatorPos || 0;
   const prevOperatorUta = partialAgg?.operatorUta || 0;
 
   // Calcoli Totali
   // NOTA: bancomat e UTA/DKV self NON si sommano - sono sempre gli stessi per tutto il turno
-  const totalSelfManager = selfManager + prevSelfManager; // Solo ID gestore si somma
+  // Se chiusura parziale disabilitata, è "Totale Gestore" e non si somma
+  const totalSelfManager = closureState.data.allowPartialClosure ? (selfManager + prevSelfManager) : selfManager;
   const selfTotalVenduto = selfCashOut + selfPos + selfFleet + totalSelfManager;
   const totalPosOperatore = posReal + prevOperatorPos;
   // Somma UTA/DKV inserito dall'operatore + quello da apertura + eventuali chiusure parziali precedenti
@@ -894,7 +949,7 @@ function showClosureStep3() {
 
   const carburanteAtteso = closureState.data.totaleAtteso;
 
-  const expectedCash = carburanteAtteso
+  let expectedCash = carburanteAtteso
     - totalPosOperatore
     - totalUtaOperatore
     - selfPos  // Bancomat Self (non si somma, è sempre lo stesso)
@@ -904,9 +959,37 @@ function showClosureStep3() {
     - refundsSum
     + extraCashSum;
 
-  const cashDiff = cashReal - expectedCash;
-  const isCashValid = Math.abs(cashDiff) <= 5;
-  const discrepanza = cashDiff; // La discrepanza principale è sui contanti
+  let cashDiff = cashReal - expectedCash;
+  let isCashValid = Math.abs(cashDiff) <= 5;
+  let discrepanza = cashDiff; // La discrepanza principale è sui contanti
+  try {
+    const cashMetrics = await calculationEngine.run(CALCULATION_SCOPES.CHIUSURE_CASH_METRICS, {
+      carburante_atteso: carburanteAtteso,
+      pos_operatore: totalPosOperatore,
+      uta_operatore: totalUtaOperatore,
+      pos_self: selfPos,
+      crediti: creditsSum,
+      voucher: vouchersSum,
+      self_cash_in: selfCashIn,
+      self_cash_out: selfCashOut,
+      rimborsi: refundsSum,
+      incassi_extra: extraCashSum,
+      contanti_cassa: cashReal,
+      tolerance: 5
+    });
+    if (cashMetrics) {
+      if (Number.isFinite(cashMetrics.expected_cash)) expectedCash = cashMetrics.expected_cash;
+      if (Number.isFinite(cashMetrics.cash_diff)) {
+        cashDiff = cashMetrics.cash_diff;
+        discrepanza = cashMetrics.discrepanza ?? cashDiff;
+      }
+      if (typeof cashMetrics.is_valid === 'boolean') {
+        isCashValid = cashMetrics.is_valid;
+      }
+    }
+  } catch (err) {
+    console.warn('Motore calcoli contanti attesi indisponibile:', err);
+  }
   const discrepanzaClass = discrepanza >= 0 ? 'positive' : 'negative';
 
   container.innerHTML = `
@@ -950,7 +1033,7 @@ function showClosureStep3() {
         ` : ''}
         <div style="font-size: 0.85rem; color: #6b7280; padding-left: 10px; margin-bottom: 5px;">
           Incassato: ${formatEuro(selfCashIn)} | Erogato: ${formatEuro(selfCashOut)}<br>
-          POS: ${formatEuro(selfPos)} | Fleet: ${formatEuro(selfFleet)} | ID: ${formatEuro(totalSelfManager)}${prevSelfManager ? ` (prev. ${formatEuro(prevSelfManager)})` : ''}
+          POS: ${formatEuro(selfPos)} | Fleet: ${formatEuro(selfFleet)} | ${closureState.data.allowPartialClosure ? 'ID' : 'Totale Gestore'}: ${formatEuro(totalSelfManager)}${closureState.data.allowPartialClosure && prevSelfManager ? ` (prev. ${formatEuro(prevSelfManager)})` : ''}
         </div>
 
         <!-- Dettaglio Operatore -->
@@ -1041,9 +1124,9 @@ function showClosureStep3() {
     </div>
   `;
 
-  document.getElementById('btn-back-step3').addEventListener('click', () => {
+  document.getElementById('btn-back-step3').addEventListener('click', async () => {
     closureState.step = 2;
-    showClosureStep2();
+    await showClosureStep2();
   });
 
   document.getElementById('btn-confirm-closure').addEventListener('click', async () => {
