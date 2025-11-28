@@ -50,7 +50,8 @@ export async function startClosureWizard(stationId, userId) {
       pistoleResult,
       prezziResult,
       movimentiResult,
-      stationDataResult
+      stationDataResult,
+      tankLinksResult
     ] = await Promise.all([
       // 2. Carica contatori di apertura dal turno corrente in shift_pistols
       supabase
@@ -82,7 +83,24 @@ export async function startClosureWizard(stationId, userId) {
         .from('fuel_stations')
         .select('allow_partial_closure')
         .eq('station_id', stationId)
-        .single()
+        .single(),
+      // 7. Configurazioni serbatoi ↔︎ pistole
+      supabase
+        .from('tank_pump_links')
+        .select(`
+          id,
+          pump_id,
+          tank_id,
+          mode,
+          ratio,
+          priority,
+          is_active,
+          tanks ( id, name, fuel_type ),
+          pistole ( id, nome, islands(nome) )
+        `)
+        .eq('station_id', stationId)
+        .eq('is_active', true)
+        .order('pump_id')
     ]);
 
     // Processa contatori di apertura
@@ -124,6 +142,48 @@ export async function startClosureWizard(stationId, userId) {
 
     const allowPartialClosure = stationData?.allow_partial_closure !== false; // Default true se non specificato
 
+    // Configurazioni serbatoi ↔︎ pistole
+    const { data: tankLinksData, error: tankLinksError } = tankLinksResult || {};
+    if (tankLinksError && tankLinksError.code !== '42P01') {
+      console.warn('Errore configurazione serbatoi/pistole:', tankLinksError);
+    }
+    const tankLinksByPump = {};
+    (tankLinksData || []).forEach(link => {
+      if (!link?.pump_id || !link?.tank_id) return;
+      const normalized = {
+        id: link.id,
+        pump_id: link.pump_id,
+        tank_id: link.tank_id,
+        mode: link.mode || 'auto',
+        ratio: Number(link.ratio) || 0,
+        priority: Number(link.priority) || 1,
+        tankName: link.tanks?.name || `Cisterna #${link.tank_id}`,
+        tankFuel: link.tanks?.fuel_type || '',
+        pumpName: link.pistole?.nome || `Pistola #${link.pump_id}`,
+        islandName: link.pistole?.islands?.nome || ''
+      };
+      if (!tankLinksByPump[link.pump_id]) {
+        tankLinksByPump[link.pump_id] = [];
+      }
+      tankLinksByPump[link.pump_id].push(normalized);
+    });
+
+    Object.values(tankLinksByPump).forEach(list => {
+      list.sort((a, b) => {
+        if (a.mode !== b.mode) return a.mode === 'manual' ? -1 : 1;
+        if (a.mode === 'manual') {
+          return (a.priority || 999) - (b.priority || 999);
+        }
+        return (b.ratio || 0) - (a.ratio || 0);
+      });
+    });
+
+    const hasManualTankLinks = Object.values(tankLinksByPump).some(list => list.some(link => link.mode === 'manual'));
+    const pumpLabelMap = {};
+    allPistole.forEach(p => {
+      pumpLabelMap[p.id] = p.nome || `Pistola #${p.id}`;
+    });
+
     const partialCompleted = activeOpening.closing_data?.closure_stage === 'partial';
     const previousClosing = activeOpening.closing_data || {};
     // NOTA: I dati self (banconote, bancomat, UTA/DKV) NON si sommano - sono sempre gli stessi per tutto il turno
@@ -157,7 +217,12 @@ export async function startClosureWizard(stationId, userId) {
         openingUtaDkvIscard, // UTA/DKV/Iscard inserito in apertura
         // Default State
         closureType: partialCompleted ? 'final' : (allowPartialClosure ? 'partial' : 'final'), // Se disabilitata, forza 'final'
-        includeCounters: partialCompleted ? true : false
+        includeCounters: partialCompleted ? true : false,
+        tankLinksByPump,
+        tankSelections: {},
+        hasManualTankLinks,
+        pumpLabelMap,
+        litersPerPump: {}
       }
     };
 
@@ -176,11 +241,23 @@ export async function startClosureWizard(stationId, userId) {
 function showClosureStep1() {
   openModal('Chiusura Turno - Step 1/3');
   const container = document.getElementById('modal-body');
-  const { pistole, openingCounters, closureType, includeCounters, openingDate, partialCompleted, allowPartialClosure } = closureState.data;
+  const {
+    pistole,
+    openingCounters,
+    closureType,
+    includeCounters,
+    openingDate,
+    partialCompleted,
+    allowPartialClosure,
+    tankLinksByPump = {},
+    tankSelections = {},
+    hasManualTankLinks = false
+  } = closureState.data;
 
   // Se la chiusura parziale è disabilitata, forza sempre 'final'
   const isFinal = partialCompleted ? true : (!allowPartialClosure ? true : closureType === 'final');
   const showCounters = isFinal || includeCounters;
+  const keepSectionVisible = hasManualTankLinks;
   const formattedDate = new Date(openingDate).toLocaleString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   const infoBanner = partialCompleted ? `
@@ -236,6 +313,36 @@ function showClosureStep1() {
             <div class="pistole-grid">
             ${pistole.map(p => {
     const opening = openingCounters[p.id] || 0;
+    const links = tankLinksByPump[p.id] || [];
+    const manualLinks = links.filter(l => l.mode === 'manual');
+    const autoLinks = links.filter(l => l.mode !== 'manual');
+    const savedSelection = tankSelections[p.id]?.tankId;
+    const manualSelectHtml = manualLinks.length ? `
+      <div class="form-group tank-link-panel">
+        <label class="tank-link-title">Serbatoio collegato</label>
+        <select name="tank_select_${p.id}" data-pump="${p.id}" class="big-input tank-select" ${manualLinks.length ? 'required' : ''}>
+          <option value="">Seleziona serbatoio...</option>
+          ${manualLinks.map((link, idx) => {
+            const isSelected = savedSelection
+              ? savedSelection === link.tank_id
+              : (manualLinks.length === 1 && idx === 0);
+            return `<option value="${link.tank_id}" ${isSelected ? 'selected' : ''}>${escapeHtml(link.tankName)}${link.priority ? ` (prio ${link.priority})` : ''}</option>`;
+          }).join('')}
+        </select>
+      </div>
+    ` : '';
+
+    const autoInfoHtml = autoLinks.length ? `
+      <div class="tank-link-panel">
+        <p class="tank-link-title">Ripartizione automatica</p>
+        <div class="tank-link-info">
+          ${autoLinks.map(link => `<span class="badge badge-outline">${escapeHtml(link.tankName)} · ${link.ratio ? `${link.ratio}%` : 'equamente'}</span>`).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    const tankInfoHtml = links.length ? `${manualSelectHtml}${autoInfoHtml}` : '';
+
     return `
                 <div class="pistola-card">
                     <div class="pistola-header">
@@ -258,6 +365,7 @@ function showClosureStep1() {
                         placeholder="Lascia vuoto se invariato"
                     >
                     </div>
+                    ${tankInfoHtml || '<p class="tank-link-empty">Nessun serbatoio collegato</p>'}
                 </div>
                 `;
   }).join('')}
@@ -291,6 +399,7 @@ function showClosureStep1() {
   const pistoleSection = document.getElementById('pistole-section');
   const countersToggleContainer = document.getElementById('counters-toggle-container');
   const gunInputs = form.querySelectorAll('.gun-counter-input');
+  const tankSelects = form.querySelectorAll('.tank-select');
   const partialAlreadyDone = closureState.data.partialCompleted;
   const allowPartial = closureState.data.allowPartialClosure;
   const partialCard = document.querySelector('.radio-card[data-type="partial"]');
@@ -315,7 +424,8 @@ function showClosureStep1() {
 
     // Nascondi il toggle contatori se la chiusura parziale è disabilitata o se è già stata fatta una parziale
     countersToggleContainer.style.display = (type === 'final' || partialAlreadyDone || !allowPartial) ? 'none' : 'block';
-    pistoleSection.style.display = shouldShowCounters ? 'block' : 'none';
+    const shouldDisplayGrid = shouldShowCounters || keepSectionVisible;
+    pistoleSection.style.display = shouldDisplayGrid ? 'block' : 'none';
     gunInputs.forEach(i => {
       i.required = shouldShowCounters;
       i.disabled = !shouldShowCounters;
@@ -327,6 +437,28 @@ function showClosureStep1() {
 
   document.getElementById('btn-cancel-closure').addEventListener('click', () => {
     closeModal();
+  });
+
+  tankSelects.forEach(select => {
+    const pumpId = Number(select.dataset.pump);
+    const savedValue = tankSelections[pumpId]?.tankId;
+    if (!savedValue && select.options.length === 2) {
+      select.selectedIndex = 1;
+    }
+    if (select.value) {
+      closureState.data.tankSelections = closureState.data.tankSelections || {};
+      closureState.data.tankSelections[pumpId] = {
+        tankId: Number(select.value),
+        mode: 'manual'
+      };
+    }
+    select.addEventListener('change', () => {
+      closureState.data.tankSelections = closureState.data.tankSelections || {};
+      closureState.data.tankSelections[pumpId] = {
+        tankId: select.value ? Number(select.value) : null,
+        mode: 'manual'
+      };
+    });
   });
 
   form.addEventListener('submit', (e) => {
@@ -353,6 +485,33 @@ function showClosureStep1() {
       });
     }
 
+    // Valida selezioni manuali
+    const selections = {};
+    let missingSelection = null;
+    pistole.forEach(p => {
+      const manualLinks = (tankLinksByPump[p.id] || []).filter(l => l.mode === 'manual');
+      if (manualLinks.length > 0) {
+        const selectedTank = formData.get(`tank_select_${p.id}`);
+        if (!selectedTank) {
+          missingSelection = p;
+        } else {
+          selections[p.id] = {
+            tankId: Number(selectedTank),
+            mode: 'manual'
+          };
+        }
+      }
+    });
+
+    if (missingSelection) {
+      alert(`Seleziona il serbatoio per ${missingSelection.nome || `Pistola #${missingSelection.id}`}`);
+      const selectEl = form.querySelector(`[name="tank_select_${missingSelection.id}"]`);
+      selectEl?.focus();
+      return;
+    }
+
+    closureState.data.tankSelections = selections;
+
     closureState.step = 2;
     showClosureStep2();
   });
@@ -370,12 +529,14 @@ function showClosureStep2() {
   let totalLitriBenzina = 0;
   let totalLitriGasolio = 0;
   let ricavoTotaleTeor = 0;
+  const litersPerPump = {};
 
   if (closureState.data.includeCounters) {
     pistole.forEach(p => {
       const opening = openingCounters[p.id] || 0;
       const closing = finalCounters[p.id] || 0;
       const litri = Math.max(0, closing - opening);
+      litersPerPump[p.id] = litri;
 
       if (p.tipo_carburante === 'benzina') {
         totalLitriBenzina += litri;
@@ -388,6 +549,8 @@ function showClosureStep2() {
     const ricavoGasolio = totalLitriGasolio * prezzoGasolio;
     ricavoTotaleTeor = ricavoBenzina + ricavoGasolio;
   }
+
+  closureState.data.litersPerPump = litersPerPump;
 
   closureState.data.totalLitriBenzina = totalLitriBenzina;
   closureState.data.totalLitriGasolio = totalLitriGasolio;
@@ -895,7 +1058,64 @@ function showClosureStep3() {
     showLoadingMessage(container);
 
     try {
-      const { stationId, userId, turnoId, pistole, finalCounters } = closureState.data;
+      const {
+        stationId,
+        userId,
+        turnoId,
+        pistole,
+        finalCounters,
+        tankLinksByPump = {},
+        tankSelections = {},
+        litersPerPump = {},
+        pumpLabelMap = {}
+      } = closureState.data;
+
+      const tankUsageRecords = [];
+      Object.entries(tankLinksByPump).forEach(([pumpId, links]) => {
+        if (!Array.isArray(links) || links.length === 0) return;
+        const manualLinks = links.filter(l => l.mode === 'manual');
+        const autoLinks = links.filter(l => l.mode !== 'manual');
+        const litersValue = Number.isFinite(litersPerPump[pumpId]) ? litersPerPump[pumpId] : null;
+        const pumpName = pumpLabelMap[pumpId] || `Pistola #${pumpId}`;
+
+        if (manualLinks.length) {
+          const selectedTankId = tankSelections[pumpId]?.tankId;
+          const chosenLink = manualLinks.find(l => l.tank_id === selectedTankId) || manualLinks[0];
+          if (chosenLink) {
+            tankUsageRecords.push({
+              pump_id: Number(pumpId),
+              pump_name: pumpName,
+              tank_id: chosenLink.tank_id,
+              tank_name: chosenLink.tankName,
+              mode: 'manual',
+              ratio: null,
+              liters: litersValue
+            });
+          }
+        } else if (autoLinks.length) {
+          const ratioTotal = autoLinks.reduce((sum, link) => sum + (Number(link.ratio) || 0), 0);
+          autoLinks.forEach(link => {
+            let share = null;
+            if (litersValue !== null) {
+              if (ratioTotal > 0) {
+                share = (litersValue * (Number(link.ratio) || 0)) / ratioTotal;
+              } else {
+                share = litersValue / autoLinks.length;
+              }
+              share = Number(share.toFixed(3));
+            }
+            tankUsageRecords.push({
+              pump_id: Number(pumpId),
+              pump_name: pumpName,
+              tank_id: link.tank_id,
+              tank_name: link.tankName,
+              mode: 'auto',
+              ratio: link.ratio || null,
+              liters: share
+            });
+          });
+        }
+      });
 
       // Calcolo Aggregati per DB
       // Incasso Contanti = (Self Cash In - Self Cash Out) + Operator Cash
@@ -948,7 +1168,8 @@ function showClosureStep3() {
         discrepanza: discrepanza,
         is_final: isFinal,
         closure_type: closureState.data.closureType,
-        notes: notes
+        notes: notes,
+        tank_usage: tankUsageRecords
       };
 
       // Salva chiusura: aggiorna il record esistente in shifts
@@ -995,6 +1216,24 @@ function showClosureStep3() {
             .from('pistole')
             .update({ numero_litri: finalCounters[p.id] })
             .eq('id', p.id);
+        }
+      }
+
+      if (tankUsageRecords.length) {
+        const usagePayload = tankUsageRecords.map(record => ({
+          shift_id: turnoId,
+          station_id: stationId,
+          pump_id: record.pump_id,
+          tank_id: record.tank_id,
+          liters: record.liters,
+          mode: record.mode,
+          ratio: record.ratio
+        }));
+        const { error: tankUsageError } = await supabase
+          .from('tank_pump_usages')
+          .insert(usagePayload);
+        if (tankUsageError) {
+          console.warn('Errore salvataggio distribuzione serbatoi:', tankUsageError);
         }
       }
 

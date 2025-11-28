@@ -1877,6 +1877,88 @@ button:active {
   margin-top: 2px;
 }
 
+.tank-row {
+  border-bottom: 1px solid #edf2f7;
+}
+
+.tank-meta {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin-left: 12px;
+}
+
+.tank-links-section {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.tank-links-table th,
+.tank-links-table td {
+  font-size: 0.85rem;
+}
+
+.tank-link-form {
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tank-link-form.form-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.tank-link-note {
+  font-size: 0.78rem;
+  color: #475569;
+  margin-top: 6px;
+}
+
+.tank-link-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+
+.tank-link-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.tank-link-info {
+  font-size: 0.8rem;
+  color: #475569;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tank-link-empty {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-top: 6px;
+}
+
+.badge-outline {
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  background: transparent;
+}
+
+.badge-muted {
+  background-color: #e2e8f0;
+  color: #475569;
+  border: 1px solid #cbd5f5;
+}
+
 .prices-chart-wrapper {
   width: 100%;
   height: 260px;
@@ -1938,6 +2020,16 @@ button:active {
   align-items: center;
   justify-content: center;
   margin-right: 6px;
+}
+
+.icon-btn svg,
+.icon-btn .icon-btn-svg {
+  width: 20px;
+  height: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  display: block;
+  object-fit: contain;
 }
 
 .icon-btn:hover {
