@@ -148,14 +148,22 @@ export async function showOperatorMenu(userId, stationId) {
 
   // Check dello stato apertura e update del pulsante
   checkOpeningStatus(stationId).then(opening => {
+    // Rimuovi tutti gli event listener precedenti clonando e sostituendo il pulsante
+    const newBtnTurno = btnTurno.cloneNode(true);
+    btnTurno.parentNode.replaceChild(newBtnTurno, btnTurno);
+
+    // Aggiorna i riferimenti agli elementi interni dopo la clonazione
+    const newTurnoIcon = newBtnTurno.querySelector('#turno-icon');
+    const newTurnoText = newBtnTurno.querySelector('#turno-text');
+
     if (opening) {
-      turnoIcon.className = 'fas fa-door-closed';
-      turnoText.textContent = 'Chiusura';
-      btnTurno.addEventListener('click', () => startClosureWizard(stationId, userId));
+      newTurnoIcon.className = 'fas fa-door-closed';
+      newTurnoText.textContent = 'Chiusura';
+      newBtnTurno.addEventListener('click', () => startClosureWizard(stationId, userId));
     } else {
-      turnoIcon.className = 'fas fa-door-open';
-      turnoText.textContent = 'Apertura';
-      btnTurno.addEventListener('click', () => showAperturaForm(stationId, userId));
+      newTurnoIcon.className = 'fas fa-door-open';
+      newTurnoText.textContent = 'Apertura';
+      newBtnTurno.addEventListener('click', () => showAperturaForm(stationId, userId));
     }
   });
 
