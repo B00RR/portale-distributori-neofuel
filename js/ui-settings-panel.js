@@ -234,6 +234,47 @@ const UI_FIELDS = [
     defaultValue: "fas fa-sign-out-alt",
     description: "Icona bottone Esci",
     category: "icon_operator"
+  },
+  // Icone Azioni Distributori (Admin)
+  {
+    key: "station_action_icon_edit",
+    label: "Modifica",
+    type: "text",
+    defaultValue: "fas fa-edit",
+    description: "Icona azione Modifica distributore",
+    category: "icon_station_actions"
+  },
+  {
+    key: "station_action_icon_prices",
+    label: "Prezzi",
+    type: "text",
+    defaultValue: "fas fa-tag",
+    description: "Icona azione Prezzi distributore",
+    category: "icon_station_actions"
+  },
+  {
+    key: "station_action_icon_islands",
+    label: "Isole e Pistole",
+    type: "text",
+    defaultValue: "fas fa-gas-pump",
+    description: "Icona azione Isole e Pistole",
+    category: "icon_station_actions"
+  },
+  {
+    key: "station_action_icon_tanks",
+    label: "Cisterne",
+    type: "text",
+    defaultValue: "fas fa-oil-can",
+    description: "Icona azione Cisterne distributore",
+    category: "icon_station_actions"
+  },
+  {
+    key: "station_action_icon_delete",
+    label: "Elimina",
+    type: "text",
+    defaultValue: "fas fa-trash",
+    description: "Icona azione Elimina distributore",
+    category: "icon_station_actions"
   }
 ];
 
@@ -372,11 +413,11 @@ function preloadSettings() {
         // Applica defaults subito
         applyDefaultsImmediately();
       }
-      
+
       // Carica da Supabase in background
       const { data, error } = await supabase.from("ui_settings").select("key,value");
       if (error) throw error;
-      
+
       if (Array.isArray(data)) {
         data.forEach((row) => {
           if (row?.key && typeof row.value === "string") {
@@ -424,11 +465,11 @@ async function saveUiSettings(values) {
   await safeSupabaseQuery(() =>
     supabase.from("ui_settings").upsert(rows, { onConflict: "key" })
   );
-  
+
   // Aggiorna cache con i nuovi valori invece di invalidarla
   if (!cachedSettings) cachedSettings = { ...DEFAULT_SETTINGS };
   Object.assign(cachedSettings, values);
-  
+
   // Applica tutte le impostazioni in parallelo usando la cache aggiornata
   await Promise.all([
     applyUiSettings(cachedSettings),
@@ -740,11 +781,11 @@ async function renderAppearancePanel(panel) {
   form.querySelectorAll(".ui-color-picker").forEach((picker) => {
     const fieldKey = picker.name;
     const hexInput = form.querySelector(`input[name="${fieldKey}_hex"]`);
-    
+
     picker.addEventListener("input", (e) => {
       const value = e.target.value.toUpperCase();
       if (hexInput) hexInput.value = value;
-      
+
       const field = UI_FIELDS.find((f) => f.key === fieldKey);
       if (field?.cssVar) {
         document.documentElement.style.setProperty(field.cssVar, value);
@@ -756,13 +797,13 @@ async function renderAppearancePanel(panel) {
   form.querySelectorAll(".ui-color-hex").forEach((hexInput) => {
     const fieldKey = hexInput.name.replace("_hex", "");
     const picker = form.querySelector(`input[name="${fieldKey}"]`);
-    
+
     hexInput.addEventListener("input", (e) => {
       let value = e.target.value.trim().replace("#", "").toUpperCase();
       if (/^[0-9A-F]{6}$/i.test(value)) {
         value = "#" + value;
         if (picker) picker.value = value;
-        
+
         const field = UI_FIELDS.find((f) => f.key === fieldKey);
         if (field?.cssVar) {
           document.documentElement.style.setProperty(field.cssVar, value);
@@ -784,7 +825,7 @@ async function renderAppearancePanel(panel) {
   form.addEventListener("input", (event) => {
     const { name, value } = event.target;
     if (name.endsWith("_hex")) return; // Skip hex fields, già gestiti sopra
-    
+
     // Campi UI base
     const field = UI_FIELDS.find((f) => f.key === name);
     if (field?.cssVar) {
@@ -801,7 +842,7 @@ async function renderAppearancePanel(panel) {
 
     // Campi Componenti
     applyComponentsSettings({ [name]: value });
-    
+
     // Campi Form
     applyFormsSettings({ [name]: value });
   });
@@ -818,8 +859,8 @@ async function renderAppearancePanel(panel) {
     });
 
     // Salva campi Componenti
-    [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables, 
-     ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((field) => {
+    [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables,
+    ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((field) => {
       const value = formData.get(field.key);
       payload[field.key] = value || field.defaultValue;
     });
@@ -837,8 +878,8 @@ async function renderAppearancePanel(panel) {
     if (responsiveCollapse) payload.responsive_sidebar_collapse = responsiveCollapse;
 
     // Salva campi Layout Admin
-    [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu, 
-     ...ADMIN_LAYOUT_FIELDS.dashboard, ...ADMIN_LAYOUT_FIELDS.spacing].forEach((field) => {
+    [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
+    ...ADMIN_LAYOUT_FIELDS.dashboard, ...ADMIN_LAYOUT_FIELDS.spacing].forEach((field) => {
       const value = formData.get(field.key);
       payload[field.key] = value || field.defaultValue;
     });
@@ -871,15 +912,15 @@ async function renderAppearancePanel(panel) {
     try {
       form.classList.add("pending");
       const defaults = { ...DEFAULT_SETTINGS };
-      [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables, 
-       ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((f) => {
+      [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables,
+      ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((f) => {
         defaults[f.key] = f.defaultValue;
       });
       [...FORMS_FIELDS.inputs, ...FORMS_FIELDS.layout].forEach((f) => {
         defaults[f.key] = f.defaultValue;
       });
       [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
-       ...ADMIN_LAYOUT_FIELDS.dashboard, ...ADMIN_LAYOUT_FIELDS.spacing].forEach((f) => {
+      ...ADMIN_LAYOUT_FIELDS.dashboard, ...ADMIN_LAYOUT_FIELDS.spacing].forEach((f) => {
         defaults[f.key] = f.defaultValue;
       });
       [...OPERATOR_LAYOUT_FIELDS.header, ...OPERATOR_LAYOUT_FIELDS.menu].forEach((f) => {
@@ -902,7 +943,7 @@ async function renderAppearancePanel(panel) {
     const fieldKey = picker.name;
     if (fieldKey.includes("component_")) {
       const hexInput = form.querySelector(`input[name="${fieldKey}_hex"]`);
-      
+
       picker.addEventListener("input", (e) => {
         const value = e.target.value.toUpperCase();
         if (hexInput) hexInput.value = value;
@@ -915,7 +956,7 @@ async function renderAppearancePanel(panel) {
     const fieldKey = hexInput.name.replace("_hex", "");
     if (fieldKey.includes("component_")) {
       const picker = form.querySelector(`input[name="${fieldKey}"]`);
-      
+
       hexInput.addEventListener("input", (e) => {
         let value = e.target.value.trim().replace("#", "").toUpperCase();
         if (/^[0-9A-F]{6}$/i.test(value)) {
@@ -1053,7 +1094,7 @@ async function renderAppearancePanel(panel) {
         const preview = document.createElement("div");
         preview.className = "ui-icon-preview";
         preview.style.cssText = "margin-top: 8px; padding: 8px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);";
-        
+
         if (isSvg) {
           preview.innerHTML = `
             <small style="display: block; margin-bottom: 4px; color: var(--text-secondary);">Anteprima:</small>
@@ -1140,7 +1181,7 @@ async function renderAppearancePanel(panel) {
       try {
         const text = await file.text();
         const config = JSON.parse(text);
-        
+
         if (!config.settings || typeof config.settings !== "object") {
           throw new Error("Formato file non valido");
         }
@@ -1856,6 +1897,7 @@ function renderThemesSection(settings) {
 function renderIconsSection(settings) {
   const adminIconFields = UI_FIELDS.filter(f => f.category === "icon_admin");
   const operatorIconFields = UI_FIELDS.filter(f => f.category === "icon_operator");
+  const stationActionIconFields = UI_FIELDS.filter(f => f.category === "icon_station_actions");
 
   return `
     <div class="ui-layout-section">
@@ -1880,6 +1922,17 @@ function renderIconsSection(settings) {
           ${operatorIconFields.map(f => renderIconField(f, settings)).join("")}
         </div>
       </div>
+
+      <div class="ui-section-box">
+        <h4 class="ui-section-title">
+          <i class="fas fa-gas-pump"></i>
+          <span>Icone Azioni Distributori</span>
+        </h4>
+        <p class="ui-section-hint">Personalizza le icone delle azioni nella sezione Distributori (Modifica, Prezzi, Isole e Pistole, Cisterne, Elimina).</p>
+        <div class="ui-layout-fields">
+          ${stationActionIconFields.map(f => renderIconField(f, settings)).join("")}
+        </div>
+      </div>
     </div>
   `;
 }
@@ -1890,7 +1943,7 @@ function renderIconField(field, settings) {
   const isImage = value.trim().startsWith("IMAGE_BASE64:");
   const imageBase64 = isImage ? value.replace("IMAGE_BASE64:", "") : "";
   const displayValue = isImage ? "" : value; // Non mostrare base64 nel campo testo
-  
+
   return `
     <div class="ui-layout-field" data-icon-field-key="${field.key}">
       <label class="ui-text-label">
@@ -2006,12 +2059,12 @@ function renderAdvancedSection(settings) {
 }
 
 function renderOperatorLayoutSection(settings) {
-  const menuMainItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f => 
-    f.key === "operator_menu_show_turno" || f.key === "operator_menu_show_movimenti" || 
+  const menuMainItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f =>
+    f.key === "operator_menu_show_turno" || f.key === "operator_menu_show_movimenti" ||
     f.key === "operator_menu_show_fatture" || f.key === "operator_menu_show_prezzi"
   );
-  const menuSubItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f => 
-    f.key === "operator_menu_show_crediti" || f.key === "operator_menu_show_voucher" || 
+  const menuSubItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f =>
+    f.key === "operator_menu_show_crediti" || f.key === "operator_menu_show_voucher" ||
     f.key === "operator_menu_show_uscite" || f.key === "operator_menu_show_incassi"
   );
 
@@ -2055,7 +2108,7 @@ function renderOperatorLayoutSection(settings) {
 
 function renderLayoutField(field, settings) {
   const value = settings[field.key] ?? field.defaultValue;
-  
+
   if (field.type === "checkbox") {
     const checked = value === "true" || value === true;
     return `
@@ -2080,9 +2133,9 @@ function renderLayoutField(field, settings) {
           <small>${field.description}</small>
         </label>
         <select name="${field.key}" class="ui-text-input">
-          ${field.options.map(opt => 
-            `<option value="${opt.value}" ${value === opt.value ? "selected" : ""}>${opt.label}</option>`
-          ).join("")}
+          ${field.options.map(opt =>
+      `<option value="${opt.value}" ${value === opt.value ? "selected" : ""}>${opt.label}</option>`
+    ).join("")}
         </select>
       </div>
     `;
@@ -2377,7 +2430,52 @@ async function applyIconsSettings(overrideSettings = null) {
       }
     }
   }
+
+  // Applica icone azioni distributori
+  const stationActionIcons = {
+    edit: settings.station_action_icon_edit || "fas fa-edit",
+    prices: settings.station_action_icon_prices || "fas fa-tag",
+    islands: settings.station_action_icon_islands || "fas fa-gas-pump",
+    tanks: settings.station_action_icon_tanks || "fas fa-oil-can",
+    delete: settings.station_action_icon_delete || "fas fa-trash"
+  };
+
+  // Funzione helper per applicare icona
+  const applyStationActionIcon = (button, iconValue) => {
+    if (!button) return;
+    const iconEl = button.querySelector("i, img, span.icon-svg-wrapper, span.icon-img-wrapper");
+    if (!iconEl) return;
+
+    if (iconValue.trim().startsWith("IMAGE_BASE64:")) {
+      const base64 = iconValue.replace("IMAGE_BASE64:", "");
+      iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 16px; height: 16px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
+    } else if (iconValue.trim().startsWith("<svg") || iconValue.trim().startsWith("<?xml")) {
+      iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 16px; height: 16px; vertical-align: middle;">${iconValue}</span>`;
+    } else {
+      if (iconEl.tagName === "I") {
+        iconEl.className = iconValue;
+      } else {
+        iconEl.outerHTML = `<i class="${iconValue}"></i>`;
+      }
+    }
+  };
+
+  // Applica icone a tutti i bottoni delle azioni distributori
+  document.querySelectorAll(".edit-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.edit));
+  document.querySelectorAll(".prices-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.prices));
+  document.querySelectorAll(".islands-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.islands));
+  document.querySelectorAll(".tanks-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.tanks));
+  document.querySelectorAll(".delete-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.delete));
 }
+
+// Esponi funzione globale per aggiornare le icone (utile quando il DOM viene aggiornato dinamicamente)
+window.refreshUiIcons = () => {
+  if (cachedSettings) {
+    applyIconsSettings(cachedSettings);
+  } else {
+    fetchUiSettings().then(settings => applyIconsSettings(settings));
+  }
+};
 
 async function applyComponentsSettings(overrideSettings = null) {
   const settings = overrideSettings || await fetchUiSettings();
@@ -3133,10 +3231,10 @@ if (document.readyState === "loading") {
 document.addEventListener("DOMContentLoaded", async () => {
   injectStyles();
   isInitializing = true;
-  
+
   // Carica impostazioni (probabilmente già in cache dal preload)
   const settings = await fetchUiSettings();
-  
+
   // Applica tutte le impostazioni in parallelo
   await Promise.all([
     applyUiSettings(settings),
@@ -3145,18 +3243,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyFormsSettings(settings),
     applyIconsSettings(settings)
   ]);
-  
+
   isInitializing = false;
   watchSettingsTab();
-  
+
   // Applica settings quando cambia area (admin/operator) o vengono aggiunti elementi
   // Con debouncing per evitare troppe chiamate
   const observer = new MutationObserver(() => {
     if (isInitializing) return; // Evita durante l'inizializzazione
-    
+
     // Debounce: aspetta 100ms prima di applicare
     if (observerDebounceTimer) clearTimeout(observerDebounceTimer);
-    
+
     observerDebounceTimer = setTimeout(async () => {
       const currentSettings = await fetchUiSettings();
       applyLayoutSettings(currentSettings);
@@ -3165,10 +3263,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       applyIconsSettings(currentSettings);
     }, 100);
   });
-  
+
   // Osserva solo cambiamenti significativi (non attributi)
-  observer.observe(document.body, { 
-    childList: true, 
+  observer.observe(document.body, {
+    childList: true,
     subtree: true,
     attributes: false,
     characterData: false

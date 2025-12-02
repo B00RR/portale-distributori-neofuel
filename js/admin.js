@@ -276,7 +276,7 @@ async function showDashboard(container) {
         .gte('closed_at', startOfDay.toISOString())
         .lte('closed_at', endOfDay.toISOString())
         .eq('status', 'closed');
-      
+
       if (Array.isArray(todayClosuresForLiters)) {
         todayClosuresForLiters.forEach(item => {
           const closingData = item?.closing_data || {};
@@ -294,7 +294,7 @@ async function showDashboard(container) {
       litriGasolio: totalLitriGasolio,
       totale: totalLitriBenzina + totalLitriGasolio
     };
-    
+
     try {
       const engineResult = await calculationEngine.run(CALCULATION_SCOPES.KPI_EROGATO, {
         erogatoData: erogatoKpiData,
@@ -302,7 +302,7 @@ async function showDashboard(container) {
         totalLitriGasolio,
         fallback: erogatoKpiData
       }, { forceRefresh: false });
-      
+
       if (engineResult && typeof engineResult === 'object') {
         erogatoKpiData = {
           litriBenzina: engineResult.litriBenzina ?? totalLitriBenzina,
@@ -410,28 +410,28 @@ async function showDashboard(container) {
       if (closuresData) {
         closuresData.forEach(closure => {
           if (!closure.closed_at || !closure.closing_data) return;
-          
+
           const day = new Date(closure.closed_at).toISOString().substring(0, 10);
           allDates.add(day);
-          
+
           const stationId = closure.station_id;
           const ricavo = Number(closure.closing_data?.ricavo_teorico || 0);
-          
+
           if (!salesByDateAndStation[day]) {
             salesByDateAndStation[day] = {};
           }
-          
+
           if (!salesByDateAndStation[day][stationId]) {
             salesByDateAndStation[day][stationId] = 0;
           }
-          
+
           salesByDateAndStation[day][stationId] += ricavo;
         });
       }
 
       // Ordina le date
       const sortedDates = Array.from(allDates).sort();
-      
+
       // Colori per le linee (puoi aggiungere più colori se hai molti distributori)
       const colors = [
         '#8DC63F', '#10b981', '#3b82f6', '#f59e0b', '#ef4444',
@@ -444,7 +444,7 @@ async function showDashboard(container) {
         allStations.forEach((station, index) => {
           const stationId = station.station_id;
           const stationName = station.station_name || `Distributore ${stationId}`;
-          
+
           // Crea array di vendite per questo distributore per ogni data
           const salesData = sortedDates.map(date => {
             return salesByDateAndStation[date]?.[stationId] || 0;
@@ -489,7 +489,7 @@ async function showDashboard(container) {
               },
               tooltip: {
                 callbacks: {
-                  label: function(context) {
+                  label: function (context) {
                     return context.dataset.label + ': € ' + context.parsed.y.toFixed(2);
                   }
                 }
@@ -504,7 +504,7 @@ async function showDashboard(container) {
                 grid: { color: 'rgba(148, 163, 184, 0.2)' },
                 ticks: {
                   font: { size: 10 },
-                  callback: function(value) {
+                  callback: function (value) {
                     return '€ ' + value.toFixed(0);
                   }
                 }
@@ -574,6 +574,11 @@ async function showStationsTab(container, actionsContainer) {
 
     html += `</tbody></table></div>`;
     container.innerHTML = html;
+
+    // Aggiorna le icone personalizzate se presenti
+    if (window.refreshUiIcons) {
+      window.refreshUiIcons();
+    }
 
     // Listeners
     container.querySelectorAll('.edit-station').forEach(btn => {
@@ -672,13 +677,13 @@ async function showPrezziAdminModal(stationId) {
   openModal(`Modifica Prezzi - ${escapeHtml(stationName)}`);
   const target = document.getElementById('modal-body');
 
-    const { data: current } = await supabase
-      .from('prezzi_distributore')
-      .select('*')
-      .eq('station_id', stationId)
-      .order('data_validita', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  const { data: current } = await supabase
+    .from('prezzi_distributore')
+    .select('*')
+    .eq('station_id', stationId)
+    .order('data_validita', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   const benzinaValue = escapeNumber(current?.prezzo_benzina);
   const gasolioValue = escapeNumber(current?.prezzo_gasolio);
@@ -824,19 +829,19 @@ async function showTanksAdminModal(stationId) {
 
     const linkRows = Array.isArray(tankLinks) && tankLinks.length
       ? tankLinks.map(link => {
-          const pumpLabel = formatPumpLabel(link.pistole || {});
-          const tankLabel = link.tanks?.name ? `${link.tanks.name} (${link.tanks.fuel_type || '-'})` : `Cisterna #${link.tank_id}`;
-          const modeBadge = link.mode === 'manual'
-            ? '<span class="badge badge-warning">Manuale</span>'
-            : '<span class="badge badge-info">Automatica</span>';
-          const metaValue = link.mode === 'manual'
-            ? `Priorità ${link.priority || 1}`
-            : `${link.ratio || 0}%`;
-          const statusBadge = link.is_active
-            ? '<span class="badge badge-success">Attiva</span>'
-            : '<span class="badge badge-muted">Disattiva</span>';
-          const noteText = link.notes ? `<div class="tank-link-note">${escapeHtml(link.notes)}</div>` : '';
-          return `
+        const pumpLabel = formatPumpLabel(link.pistole || {});
+        const tankLabel = link.tanks?.name ? `${link.tanks.name} (${link.tanks.fuel_type || '-'})` : `Cisterna #${link.tank_id}`;
+        const modeBadge = link.mode === 'manual'
+          ? '<span class="badge badge-warning">Manuale</span>'
+          : '<span class="badge badge-info">Automatica</span>';
+        const metaValue = link.mode === 'manual'
+          ? `Priorità ${link.priority || 1}`
+          : `${link.ratio || 0}%`;
+        const statusBadge = link.is_active
+          ? '<span class="badge badge-success">Attiva</span>'
+          : '<span class="badge badge-muted">Disattiva</span>';
+        const noteText = link.notes ? `<div class="tank-link-note">${escapeHtml(link.notes)}</div>` : '';
+        return `
             <tr>
               <td>${escapeHtml(pumpLabel)}</td>
               <td>${escapeHtml(tankLabel)}</td>
@@ -856,7 +861,7 @@ async function showTanksAdminModal(stationId) {
               </td>
             </tr>
           `;
-        }).join('')
+      }).join('')
       : '<tr><td colspan="6">Nessuna associazione configurata.</td></tr>';
 
     const pumpOptions = Array.isArray(pumps) && pumps.length
@@ -1510,29 +1515,29 @@ async function showFattureTab(container, actionsContainer) {
       const stationName = inv.fuel_stations?.station_name || '-';
       const operatorName = inv.users?.full_name || inv.users?.username || '-';
       const customerName = inv.clienti_fatturazione?.nome || inv.customer_name || '-';
-      const statusBadge = inv.status === 'pending' 
+      const statusBadge = inv.status === 'pending'
         ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">In Attesa</span>'
         : inv.status === 'completed' || inv.status === 'emessa'
-        ? '<span style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Emessa</span>'
-        : '<span style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Annullata</span>';
-      
-      const paymentMethod = inv.payment_method === 'contanti' 
+          ? '<span style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Emessa</span>'
+          : '<span style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Annullata</span>';
+
+      const paymentMethod = inv.payment_method === 'contanti'
         ? '<span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">Contanti</span>'
         : inv.payment_method === 'pos'
-        ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">POS</span>'
-        : inv.payment_method === 'bonifico'
-        ? '<span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">Bonifico</span>'
-        : '-';
-      
-      const productCategory = inv.product_category 
+          ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">POS</span>'
+          : inv.payment_method === 'bonifico'
+            ? '<span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">Bonifico</span>'
+            : '-';
+
+      const productCategory = inv.product_category
         ? inv.product_category.charAt(0).toUpperCase() + inv.product_category.slice(1)
         : '-';
-      
+
       const isEmitted = inv.status === 'completed' || inv.status === 'emessa';
       const toggleStatusBtn = isEmitted
         ? `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="pending" title="Segna come non emessa"><i class="fas fa-undo"></i></button>`
         : `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="completed" title="Segna come emessa"><i class="fas fa-check"></i></button>`;
-      
+
       html += `
         <tr>
           <td>${inv.created_at ? new Date(inv.created_at).toLocaleDateString('it-IT') : '-'}</td>
@@ -1558,24 +1563,24 @@ async function showFattureTab(container, actionsContainer) {
         const invoiceId = btn.dataset.id;
         const newStatus = btn.dataset.status;
         const statusText = newStatus === 'completed' ? 'emessa' : 'non emessa';
-        
+
         if (!confirm(`Sei sicuro di voler segnare questa fattura come ${statusText}?`)) {
           return;
         }
 
         try {
           const updateData = {};
-          
+
           // Prova ad aggiungere updated_at solo se la colonna esiste
           try {
             updateData.updated_at = new Date().toISOString();
           } catch (e) {
             // Ignora se updated_at non può essere aggiunto
           }
-          
+
           // Aggiungi status
           updateData.status = newStatus;
-          
+
           const { error } = await supabase
             .from('invoices')
             .update(updateData)
