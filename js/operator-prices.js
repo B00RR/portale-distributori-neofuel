@@ -13,21 +13,21 @@ import { escapeHtml } from "./utils.js";
  * @param {number} stationId - ID della stazione
  */
 export async function showPrezziEditForm(stationId) {
-    try {
-        // Carica prezzi correnti
-        const { data: current } = await supabase
-            .from('prezzi_distributore')
-            .select('*')
-            .eq('station_id', stationId)
-            .order('data_validita', { ascending: false })
-            .maybeSingle();
+  try {
+    // Carica prezzi correnti
+    const { data: current } = await supabase
+      .from('prezzi_distributore')
+      .select('*')
+      .eq('station_id', stationId)
+      .order('data_validita', { ascending: false })
+      .maybeSingle();
 
-        const benzina = current?.prezzo_benzina || 0;
-        const gasolio = current?.prezzo_gasolio || 0;
+    const benzina = current?.prezzo_benzina || 0;
+    const gasolio = current?.prezzo_gasolio || 0;
 
-        openModal('Modifica Prezzi');
-        const modalBody = document.getElementById('modal-body');
-        modalBody.innerHTML = `
+    openModal('Modifica Prezzi');
+    const modalBody = document.getElementById('modal-body');
+    modalBody.innerHTML = `
       <form id="op-prezzi-form">
         <div class="form-row">
           <div class="form-group">
@@ -76,66 +76,82 @@ export async function showPrezziEditForm(stationId) {
       </style>
     `;
 
-        // Event listener per aggiornare stile radio cards
-        const radioCards = modalBody.querySelectorAll('.radio-card');
-        const radioInputs = modalBody.querySelectorAll('input[name="validita"]');
-        
-        radioInputs.forEach(input => {
-            input.addEventListener('change', () => {
-                radioCards.forEach(card => card.classList.remove('selected'));
-                const selectedCard = input.closest('.radio-card');
-                if (selectedCard) selectedCard.classList.add('selected');
-            });
-        });
-        
-        // Inizializza selezione
-        const checkedInput = modalBody.querySelector('input[name="validita"]:checked');
-        if (checkedInput) {
-            checkedInput.closest('.radio-card')?.classList.add('selected');
-        }
+    // Event listener per aggiornare stile radio cards
+    const radioCards = modalBody.querySelectorAll('.radio-card');
+    const radioInputs = modalBody.querySelectorAll('input[name="validita"]');
 
-        // Event listener per submit form
-        modalBody.querySelector('#op-prezzi-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const validita = fd.get('validita');
-            
-            // Calcola data_validita in base alla scelta
-            let dataValidita;
-            if (validita === 'next_day') {
-                // Domani alle 00:00
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                tomorrow.setHours(0, 0, 0, 0);
-                dataValidita = tomorrow.toISOString();
-            } else {
-                // Immediata - ora corrente
-                dataValidita = new Date().toISOString();
-            }
-            
-            const payload = {
-                station_id: stationId,
-                prezzo_benzina: parseFloat(fd.get('benzina')),
-                prezzo_gasolio: parseFloat(fd.get('gasolio')),
-                data_validita: dataValidita,
-                modificato_da: loggedUser?.user_id || null
-            };
+    radioInputs.forEach(input => {
+      input.addEventListener('change', () => {
+        radioCards.forEach(card => card.classList.remove('selected'));
+        const selectedCard = input.closest('.radio-card');
+        if (selectedCard) selectedCard.classList.add('selected');
+      });
+    });
 
-            try {
-                await safeSupabaseQuery(() => supabase.from('prezzi_distributore').insert([payload]));
-                const validitaMsg = validita === 'next_day' 
-                    ? 'I prezzi saranno validi a partire da domani alle 00:00.'
-                    : 'I prezzi sono validi da subito.';
-                closeModal();
-                showInfoModal(`Prezzi aggiornati con successo! ${validitaMsg}`);
-            } catch (err) {
-                showInfoModal('Errore: ' + err.message);
-            }
-        });
-    } catch (err) {
-        openModal('Errore');
-        const modalBody = document.getElementById('modal-body');
-        modalBody.innerHTML = `<p style="color: red; padding: 20px;">${escapeHtml(err.message)}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`;
-        document.getElementById('btn-close-err').addEventListener('click', () => closeModal());
+    // Inizializza selezione
+    const checkedInput = modalBody.querySelector('input[name="validita"]:checked');
+    if (checkedInput) {
+      checkedInput.closest('.radio-card')?.classList.add('selected');
     }
+
+    // Event listener per submit form
+    modalBody.querySelector('#op-prezzi-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const validita = fd.get('validita');
+
+      // Calcola data_validita in base alla scelta
+      let dataValidita;
+      if (validita === 'next_day') {
+        // Domani alle 00:00
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        dataValidita = tomorrow.toISOString();
+      } else {
+        // Immediata - ora corrente
+        dataValidita = new Date().toISOString();
+      }
+
+      const payload = {
+        station_id: stationId,
+        prezzo_benzina: parseFloat(fd.get('benzina')),
+        prezzo_gasolio: parseFloat(fd.get('gasolio')),
+        data_validita: dataValidita,
+        modificato_da: loggedUser?.user_id || null
+      };
+
+      try {
+        // OLD: Direct DB Insert
+        // await safeSupabaseQuery(() => supabase.from('prezzi_distributore').insert([payload]));
+
+        // NEW: Call Secure Edge Function
+        const { data, error } = await supabase.functions.invoke('update-prices', {
+          body: {
+            station_id: stationId,
+            benzina: parseFloat(fd.get('benzina')),
+            gasolio: parseFloat(fd.get('gasolio')),
+            validita: validita
+          }
+        });
+
+        if (error) throw new Error(error.message || 'Errore durante l\'aggiornamento prezzi');
+        if (data && !data.success) throw new Error(data.error || 'Errore sconosciuto dal server');
+
+        const validitaMsg = validita === 'next_day'
+          ? 'I prezzi saranno validi a partire da domani alle 00:00.'
+          : 'I prezzi sono validi da subito.';
+        closeModal();
+        showInfoModal(`Prezzi aggiornati con successo! ${validitaMsg}`);
+      } catch (err) {
+        console.error("Errore update-prices:", err);
+        showInfoModal('Errore: ' + err.message);
+      }
+    });
+  } catch (err) {
+    openModal('Errore');
+    const modalBody = document.getElementById('modal-body');
+    modalBody.innerHTML = `<p style="color: red; padding: 20px;">${escapeHtml(err.message)}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`;
+    document.getElementById('btn-close-err').addEventListener('click', () => closeModal());
+  }
 }

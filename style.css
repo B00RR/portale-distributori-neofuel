@@ -2045,18 +2045,7 @@ button:active {
   background: #fef2f2;
 }
 
-/* Modals */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(4px);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
+
 
 .modal-content {
   background: var(--bg-surface);
@@ -2592,6 +2581,7 @@ button:active {
 .logic-details .admin-table {
   margin-top: 12px;
 }
+
 /* Login Page Specifics (keeping some original styles but updated) */
 .login-container {
   max-width: 400px;
@@ -2637,7 +2627,8 @@ button:active {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
+  /* Increased to stay above password toggles */
   padding: 20px;
 }
 
@@ -3181,19 +3172,25 @@ button:active {
 }
 
 .status-badge.status-open {
-  background: #10b981;
-  color: white;
+  background: #ffffff;
+  color: #10b981;
+  font-weight: 800;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   animation: pulse-green 2s infinite;
 }
 
 .status-badge.status-closed {
-  background: #ef4444;
-  color: white;
+  background: #ffffff;
+  color: #ef4444;
+  font-weight: 800;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .status-badge.status-partial {
-  background: #f59e0b;
-  color: #1f2937;
+  background: #ffffff;
+  color: #f59e0b;
+  font-weight: 800;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes pulse-green {

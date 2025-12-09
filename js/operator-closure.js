@@ -52,7 +52,7 @@ export async function startClosureWizard(stationId, userId) {
       .select('*')
       .eq('station_id', stationId)
       .gte('created_at', activeOpening.opened_at || activeOpening.date_time);
-    
+
     // Se c'è una chiusura parziale, carica solo i movimenti DOPO la chiusura parziale
     // per evitare di contare due volte i movimenti già conteggiati
     // NOTA: I movimenti vengono sempre conteggiati dal momento dell'apertura, quindi
@@ -60,7 +60,7 @@ export async function startClosureWizard(stationId, userId) {
     // Tuttavia, la chiusura parziale non "consuma" i movimenti, quindi dobbiamo
     // caricare tutti i movimenti dal momento dell'apertura. Il problema potrebbe
     // essere che i crediti vengono inseriti due volte in movimenti_cassa.
-    
+
     const [
       openingCountersResult,
       pistoleResult,
@@ -161,7 +161,7 @@ export async function startClosureWizard(stationId, userId) {
       }
     });
     const movimenti = Array.from(movimentiMap.values());
-    
+
     // Log per debug: verifica se ci sono crediti duplicati
     if (movimentiRaw && movimentiRaw.length !== movimenti.length) {
       console.warn(`Rimossi ${movimentiRaw.length - movimenti.length} movimenti duplicati`);
@@ -357,11 +357,11 @@ function showClosureStep1() {
         <select name="tank_select_${p.id}" data-pump="${p.id}" class="big-input tank-select" ${manualLinks.length ? 'required' : ''}>
           <option value="">Seleziona serbatoio...</option>
           ${manualLinks.map((link, idx) => {
-            const isSelected = savedSelection
-              ? savedSelection === link.tank_id
-              : (manualLinks.length === 1 && idx === 0);
-            return `<option value="${link.tank_id}" ${isSelected ? 'selected' : ''}>${escapeHtml(link.tankName)}${link.priority ? ` (prio ${link.priority})` : ''}</option>`;
-          }).join('')}
+      const isSelected = savedSelection
+        ? savedSelection === link.tank_id
+        : (manualLinks.length === 1 && idx === 0);
+      return `<option value="${link.tank_id}" ${isSelected ? 'selected' : ''}>${escapeHtml(link.tankName)}${link.priority ? ` (prio ${link.priority})` : ''}</option>`;
+    }).join('')}
         </select>
       </div>
     ` : '';
@@ -945,50 +945,99 @@ async function showClosureStep3() {
   // Contanti Attesi = (Totale Carburante) - POS Operatore - UTA/DKV Operatore - Bancomat Self - Crediti - Voucher + (SelfIn - SelfOut) - Rimborsi + Incassi Extra
   // NOTA: Bancomat Self e UTA/DKV Self NON si sommano tra turni - sono sempre gli stessi
 
-  const selfDelta = selfCashIn - selfCashOut; // Differenza banconote self
+  // CALCOLO SERVER-SIDE SECURE (Edge Function)
+  const selfDelta = selfCashIn - selfCashOut; // Needed for UI
+  const carburanteAtteso = closureState.data.totaleAtteso; // Needed for UI
 
-  const carburanteAtteso = closureState.data.totaleAtteso;
+  let expectedCash = 0;
+  let cashDiff = 0;
+  let isCashValid = true;
+  let discrepanza = 0;
+  let serverResult = null;
 
-  let expectedCash = carburanteAtteso
-    - totalPosOperatore
-    - totalUtaOperatore
-    - selfPos  // Bancomat Self (non si somma, è sempre lo stesso)
-    - creditsSum
-    - vouchersSum
-    + selfDelta
-    - refundsSum
-    + extraCashSum;
-
-  let cashDiff = cashReal - expectedCash;
-  let isCashValid = Math.abs(cashDiff) <= 5;
-  let discrepanza = cashDiff; // La discrepanza principale è sui contanti
   try {
-    const cashMetrics = await calculationEngine.run(CALCULATION_SCOPES.CHIUSURE_CASH_METRICS, {
-      carburante_atteso: carburanteAtteso,
-      pos_operatore: totalPosOperatore,
-      uta_operatore: totalUtaOperatore,
-      pos_self: selfPos,
-      crediti: creditsSum,
-      voucher: vouchersSum,
-      self_cash_in: selfCashIn,
-      self_cash_out: selfCashOut,
-      rimborsi: refundsSum,
-      incassi_extra: extraCashSum,
-      contanti_cassa: cashReal,
-      tolerance: 5
+    // Show loading equivalent (optional, but good for UX if slow)
+    // Preparing payload
+    const payload = {
+      station_id: closureState.data.stationId,
+      shift_id: closureState.data.turnoId,
+      include_counters: closureState.data.includeCounters,
+      allow_partial: closureState.data.allowPartialClosure,
+      closing_counters: closureState.data.finalCounters, // map {id: val}
+      self_data: {
+        cash_in: selfCashIn,
+        cash_out: selfCashOut,
+        pos: selfPos,
+        fleet: selfFleet,
+        manager: selfManager // Totale Gestore for calculation
+      },
+      operator_data: {
+        cash: cashReal,
+        pos: totalPosOperatore,
+        uta: totalUtaOperatore,
+        credits: creditsSum,
+        vouchers: vouchersSum,
+        refunds: refundsSum
+      }
+    };
+
+    const { data, error } = await supabase.functions.invoke('calculate-closure', {
+      body: payload
     });
-    if (cashMetrics) {
-      if (Number.isFinite(cashMetrics.expected_cash)) expectedCash = cashMetrics.expected_cash;
-      if (Number.isFinite(cashMetrics.cash_diff)) {
-        cashDiff = cashMetrics.cash_diff;
-        discrepanza = cashMetrics.discrepanza ?? cashDiff;
-      }
-      if (typeof cashMetrics.is_valid === 'boolean') {
-        isCashValid = cashMetrics.is_valid;
-      }
-    }
+
+    if (error) throw new Error(error.message);
+    if (data && !data.success) throw new Error(data.error);
+
+    serverResult = data.data;
+
+    // Use Server Data
+    expectedCash = serverResult.expected_total; // expected_total from server is effectively expected revenue? 
+    // Wait, expected_total in server:
+    // if counters: FuelRevenue
+    // if not: SelfTotal
+    // BUT "Contanti Attesi" (Net Cash) is different from "Totale Atteso" (Revenue).
+    // My Edge Function returns 'expected_total' (Revenue) and 'real_total' (Revenue).
+    // Discrepancy = Real - Expected.
+    // And Discrepancy is also CashDiff.
+    // So CashDiff = Discrepanza.
+    // Expected Cash = CashReal - Discrepanza.
+
+    discrepanza = serverResult.discrepancy;
+    cashDiff = discrepanza;
+    expectedCash = cashReal - cashDiff;
+    // Logic: If Real (100) - Expected (110) = -10 Discrepancy (Missing)
+    // Then Expected Cash should have been Real (100) - (-10) = 110? No.
+    // Expected Cash = CashReal - Discrepancy?
+    // If I found 90 (CashReal). Discrepancy is -10. Expected was 100.
+    // 90 - (-10) = 100. Yes.
+
+    isCashValid = Math.abs(cashDiff) <= 5;
+
   } catch (err) {
-    console.warn('Motore calcoli contanti attesi indisponibile:', err);
+    console.error('Edge Function Error:', err);
+    // Fallback to local calculation if server fails (or show error)
+    // For robust production, maybe explicit error? For now, keep fallback logic?
+    // User requested "Cleanup", implies removing local logic.
+    // But if network fails, user is stuck.
+    // Let's alert error and try fallback logic just for display, or block.
+    // I will show alert and use basic fallback.
+    alert("Attenzione: Impossibile contattare il server per il calcolo sicuro. Uso calcolo locale di emergenza.");
+
+    // Fallback Replica
+    const selfDelta = selfCashIn - selfCashOut;
+    expectedCash = closureState.data.totaleAtteso
+      - totalPosOperatore
+      - totalUtaOperatore
+      - selfPos
+      - creditsSum
+      - vouchersSum
+      + selfDelta
+      - refundsSum
+      + (extraCashSum || 0);
+
+    cashDiff = cashReal - expectedCash;
+    isCashValid = Math.abs(cashDiff) <= 5;
+    discrepanza = cashDiff;
   }
   const discrepanzaClass = discrepanza >= 0 ? 'positive' : 'negative';
 

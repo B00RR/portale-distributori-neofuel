@@ -165,6 +165,22 @@ export async function showOperatorMenu(userId, stationId) {
       newTurnoText.textContent = 'Apertura';
       newBtnTurno.addEventListener('click', () => showAperturaForm(stationId, userId));
     }
+
+    // Aggiorna lo stato del badge DOPO aver sostituito il pulsante nel DOM
+    // Passiamo direttamente i dati per evitare una seconda chiamata di rete
+    const badge = document.getElementById('opening-status');
+    if (badge) {
+      if (opening) {
+        const hasPartial = opening.closing_data?.closure_stage === 'partial';
+        badge.textContent = hasPartial ? 'Parziale' : 'Aperto';
+        badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
+        badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
+      } else {
+        badge.textContent = 'Chiuso';
+        badge.className = 'status-badge status-closed';
+        badge.title = 'Nessuna apertura attiva';
+      }
+    }
   });
 
   // Altri event listeners (funzioni invariate)
@@ -174,7 +190,4 @@ export async function showOperatorMenu(userId, stationId) {
   document.getElementById('btn-uscite').addEventListener('click', () => showOutflowMenu(stationId, userId));
   document.getElementById('btn-incassi').addEventListener('click', () => showExtraIncomeMenu(stationId, userId));
   document.getElementById('btn-fatture').addEventListener('click', () => showInvoiceMenu(stationId, userId));
-
-  // Controlla e mostra stato apertura
-  updateOpeningStatus(stationId);
 }

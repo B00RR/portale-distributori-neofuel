@@ -133,9 +133,20 @@ async function showNewCreditForm(stationId, userId) {
                     </div>
                 </div>
 
-                <div class="form-group">
+                    <div class="form-group">
                     <label>Importo (€)</label>
                     <input type="number" name="amount" step="0.01" min="0.01" class="big-input" required placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label>Prodotto</label>
+                    <select name="product" class="big-input" required>
+                        <option value="Gasolio">Gasolio</option>
+                        <option value="Benzina">Benzina</option>
+                        <option value="AdBlue">AdBlue</option>
+                        <option value="Accessori">Accessori</option>
+                        <option value="Altro">Altro</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -205,12 +216,13 @@ async function showNewCreditForm(stationId, userId) {
         const formData = new FormData(e.target);
         const customerName = formData.get('customer_name').trim();
         const amount = parseFloat(formData.get('amount'));
+        const product = formData.get('product'); // New field
         const notes = formData.get('notes');
 
         if (!customerName || amount <= 0) return;
 
         try {
-            await processNewCredit(stationId, userId, customerName, amount, notes);
+            await processNewCredit(stationId, userId, customerName, amount, product, notes);
             closeModal();
             showInfoModal('Credito registrato con successo!');
         } catch (err) {
@@ -248,7 +260,7 @@ async function searchCustomersForInput(query, stationId, suggestionsDiv, inputFi
     }
 }
 
-async function processNewCredit(stationId, userId, customerName, amount, notes) {
+async function processNewCredit(stationId, userId, customerName, amount, product, notes) {
     // 1. Trova o crea cliente
     let { data: customer, error: fetchError } = await supabase
         .from('crediti_clienti')
@@ -289,7 +301,7 @@ async function processNewCredit(stationId, userId, customerName, amount, notes) 
             tipo: 'credito', // IMPORTANTE: Questo tipo viene sottratto dai contanti in chiusura
             importo: amount,
             metodo: 'credito',
-            note: notes,
+            note: `${product} - ${notes || ''}`, // Include product in notes
             created_at: new Date().toISOString()
         }]);
 
@@ -305,7 +317,7 @@ async function processNewCredit(stationId, userId, customerName, amount, notes) 
             operator_id: userId,
             tipo: 'credito',
             importo: amount,
-            descrizione: `Credito: ${customerName} ${notes ? '- ' + notes : ''}`,
+            descrizione: `Credito: ${customerName} (${product}) ${notes ? '- ' + notes : ''}`, // Include product in description
             created_at: new Date().toISOString()
         }]);
 

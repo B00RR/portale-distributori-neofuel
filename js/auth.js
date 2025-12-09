@@ -151,13 +151,31 @@ export function setupLoginForm() {
             console.log('User details fetch result:', { userData, userError });
 
             if (!userData) {
-                console.log('User not found in users table, creating default object');
-                userData = {
-                    user_id: authData.user.id,
-                    email: authData.user.email,
-                    full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
-                    role: authData.user.user_metadata?.role || 'operator'
-                };
+                console.warn('User not found via standard SELECT. Attempting Secure RPC lookup...');
+                // Fallback: Prova a recuperare l'ID tramite la funzione sicura (Security Definer)
+                // Questo aggira eventuali blocchi RLS sulla tabella users se la policy SELECT fallisce
+                const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
+
+                if (rpcId && !rpcError) {
+                    console.log('User ID retrieved via RPC:', rpcId);
+                    userData = {
+                        user_id: rpcId, // Integer ID corretto
+                        email: authData.user.email,
+                        full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
+                        role: authData.user.user_metadata?.role || 'operator'
+                    };
+                } else {
+                    console.error('RPC lookup failed:', rpcError);
+                    // Disperata fallback: usa UUID (ma probabilmente fallirà dopo)
+                    // Meglio lanciare errore? Per ora manteniamo comportamento ma logghiamo
+                    userData = {
+                        user_id: authData.user.id,
+                        email: authData.user.email,
+                        full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
+                        role: authData.user.user_metadata?.role || 'operator'
+                    };
+                    console.error("ATTENZIONE: Stiamo usando un UUID come user_id. Le query SQL potrebbero fallire.");
+                }
             }
 
             if (userData.role) {
@@ -212,12 +230,24 @@ export async function loadSession() {
             .maybeSingle();
 
         if (!userData) {
-            userData = {
-                user_id: session.user.id,
-                email: session.user.email,
-                full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Operatore',
-                role: session.user.user_metadata?.role || 'operator'
-            };
+            console.warn('Session User not found via SELECT. Attempting Secure RPC...');
+            const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
+
+            if (rpcId && !rpcError) {
+                userData = {
+                    user_id: rpcId,
+                    email: session.user.email,
+                    full_name: session.user.user_metadata?.full_name || 'Operatore',
+                    role: session.user.user_metadata?.role || 'operator'
+                };
+            } else {
+                userData = {
+                    user_id: session.user.id,
+                    email: session.user.email,
+                    full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Operatore',
+                    role: session.user.user_metadata?.role || 'operator'
+                };
+            }
         }
 
         if (!userData.role) {

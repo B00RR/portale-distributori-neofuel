@@ -228,9 +228,9 @@ function renderExistingCustomerForm(container, stationId, userId) {
     let searchTimeout;
     searchInput.addEventListener('input', async (e) => {
         const query = e.target.value.trim();
-        
+
         clearTimeout(searchTimeout);
-        
+
         if (query.length < 2) {
             suggestionsDiv.style.display = 'none';
             customerIdInput.value = '';
@@ -417,10 +417,11 @@ function renderInvoiceForm(container, stationId, userId, clienteId, customerName
         // Combina note prodotto e note generali
         let finalNotes = notes;
         if (productCategory === 'altro' && productNote) {
-            finalNotes = `Prodotto: ${productNote}${notes ? '\n' + notes : ''}`;
-        } else if (productCategory !== 'altro') {
-            finalNotes = `Categoria: ${productCategory.charAt(0).toUpperCase() + productCategory.slice(1)}${notes ? '\n' + notes : ''}`;
+            // Se "Altro", specifichiamo cosa è stato comprato nella descrizione
+            finalNotes = `${productNote}${notes ? '\n' + notes : ''}`;
         }
+        // Per categorie standard (Gasolio, Benzina, ecc...) NON aggiungiamo il prefisso
+        // in quanto c'è già la colonna apposita nella tabella admin.
 
         try {
             const { error } = await supabase
@@ -435,7 +436,10 @@ function renderInvoiceForm(container, stationId, userId, clienteId, customerName
                     product_category: productCategory,
                     description: finalNotes,
                     status: 'pending',
-                    created_at: new Date().toISOString()
+                    created_at: new Date().toISOString(),
+                    // Fix: Campi obbligatori mancanti
+                    invoice_number: `REQ-${Date.now()}`, // Genera un ID richiesta temporaneo
+                    invoice_date: new Date().toISOString().split('T')[0] // Data odierna
                 }]);
 
             if (error) throw error;

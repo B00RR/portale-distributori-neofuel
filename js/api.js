@@ -1,7 +1,7 @@
 // ==========================================
 // API & SUPABASE
 // ==========================================
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
 
 // Client standard (anon key) - tutte le autorizzazioni passano dalle RLS del database
