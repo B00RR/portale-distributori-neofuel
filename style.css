@@ -3646,3 +3646,118 @@ button:active {
   display: block;
   object-fit: contain;
 }
+
+/* Global Station Filter */
+.global-filter-wrapper {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 10px;
+  margin-right: 15px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.global-filter-wrapper:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.filter-icon {
+  color: #64748b;
+  margin-right: 8px;
+  font-size: 0.9rem;
+}
+
+.global-filter-select {
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  padding: 6px 0;
+  outline: none;
+  min-width: 180px;
+}
+
+.global-filter-select:focus {
+  outline: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* DASHBOARD RESIZABLE PANELS */
+/* ------------------------------------------------------------------ */
+.dashboard-panels {
+  display: flex;
+  width: 100%;
+  margin-top: 20px;
+  /* Split.js creates elements, we just need basic flex container */
+  /* Remove gap:0 if Split.js uses gutter, usually it sits between elements */
+}
+
+.panel-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Split.js controls width/flex-basis */
+}
+
+/* Split.js Gutter Styling */
+.gutter {
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: 50%;
+  position: relative;
+  z-index: 10;
+}
+
+.gutter.gutter-horizontal {
+  cursor: col-resize;
+}
+
+/* Gutter Visual Handle */
+.gutter::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 40px;
+  background: var(--border-color);
+  border-radius: 99px;
+  transition: all 0.2s;
+}
+
+.gutter:hover::after,
+.gutter:active::after {
+  background: var(--accent-color);
+  height: 100%;
+}
+
+@media (max-width: 900px) {
+  .dashboard-panels {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .panel-card {
+    width: 100% !important;
+    margin-bottom: 20px;
+    height: auto;
+    min-height: 400px;
+    flex: none !important;
+  }
+
+  /* Split.js disables itself? We might need to handle this in JS if Split doesn't auto-disable.
+     Ideally, we destroy Split instance on mobile, but CSS hiding handles visuals at least.
+     Actually, Split.js sets inline styles. We need explicit overrides. */
+}

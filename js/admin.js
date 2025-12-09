@@ -23,6 +23,35 @@ import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
 
 // Stato locale admin
 let currentAdminTab = 'dashboard';
+let currentStationFilter = null; // null = Tutte le stazioni
+
+async function renderGlobalFilter() {
+  const container = document.getElementById('header-actions');
+  if (!container) return;
+
+  // Carica stazioni per il filtro
+  const { data: stations } = await safeSupabaseQuery(() => supabase.from('fuel_stations').select('station_id, station_name').order('station_name'));
+
+  const options = stations || [];
+
+  container.innerHTML = `
+    <div class="global-filter-wrapper">
+      <i class="fas fa-filter filter-icon"></i>
+      <select id="global-station-filter" class="global-filter-select">
+        <option value="">Tutte le Stazioni</option>
+        ${options.map(s => `<option value="${s.station_id}" ${currentStationFilter == s.station_id ? 'selected' : ''}>${escapeHtml(s.station_name)}</option>`).join('')}
+      </select>
+    </div>
+  `;
+
+  document.getElementById('global-station-filter').addEventListener('change', (e) => {
+    const val = e.target.value;
+    currentStationFilter = val ? parseInt(val) : null;
+    // Ricarica la tab corrente con il nuovo filtro
+    loadAdminTab(currentAdminTab);
+  });
+}
+
 
 export function showAdminArea() {
   const mainContent = document.getElementById('main-content');
@@ -38,9 +67,9 @@ export function showAdminArea() {
           <button class="nav-btn active" data-tab="dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
           <button class="nav-btn" data-tab="stations"><i class="fas fa-gas-pump"></i> Distributori</button>
           <button class="nav-btn" data-tab="operators"><i class="fas fa-users"></i> Operatori</button>
-          <button class="nav-btn" data-tab="chiusure"><i class="fas fa-file-invoice-dollar"></i> Chiusure</button>
+          <button class="nav-btn" data-tab="shifts"><i class="fas fa-file-invoice-dollar"></i> Chiusure</button>
           <button class="nav-btn" data-tab="crediti"><i class="fas fa-credit-card"></i> Crediti</button>
-          <button class="nav-btn" data-tab="fatture"><i class="fas fa-file-invoice"></i> Fatture</button>
+          <button class="nav-btn" data-tab="invoices"><i class="fas fa-file-invoice"></i> Fatture</button>
           <button class="nav-btn" data-tab="vouchers"><i class="fas fa-ticket-alt"></i> Voucher</button>
           <button class="nav-btn" data-tab="notifiche"><i class="fas fa-bell"></i> Notifiche</button>
           <button class="nav-btn" data-tab="settings"><i class="fas fa-cog"></i> Impostazioni</button>
@@ -97,46 +126,75 @@ export function showAdminArea() {
   });
 
   // Carica tab iniziale
+  renderGlobalFilter();
   loadAdminTab('dashboard');
 }
 
-function loadAdminTab(tab) {
+async function loadAdminTab(tab) {
   currentAdminTab = tab;
   const pageSubtitle = document.getElementById('page-subtitle');
   const headerActions = document.getElementById('header-actions');
   const content = document.getElementById('admin-content');
 
+  // Reset header actions but preserve the global filter
+  // We need to re-render the filter because header-actions is often cleared
+  // OR we should move the filter out of header-actions.
+  // Given current structure, let's re-render or better, separate the container.
+  // Actually, renderGlobalFilter targets 'header-actions'.
+  // If we clear 'header-actions', we kill the filter.
+  // CHANGE: Let's modify rendered HTML structure in showAdminArea or here.
+  // Current showAdminArea:
+  // <div class="admin-header-right">
+  //   <div id="header-actions" class="header-actions"></div>
+  //   ...
+  // </div>
+
+  // If we clear headerActions, we lose the filter if it was inside.
+  // Quick fix: renderGlobalFilter puts it in a new container, OR we re-render it every time.
+  // Let's re-render it every time for now, it's safer and easier.
+
   if (headerActions) headerActions.innerHTML = '';
   if (content) content.innerHTML = '';
+
+  // Re-render Global Filter (it will check currentStationFilter state)
+  await renderGlobalFilter();
 
   switch (tab) {
     case 'dashboard':
       if (pageSubtitle) pageSubtitle.textContent = 'Dashboard';
-      showDashboard(content);
+      showDashboard(content, currentStationFilter);
       break;
     case 'stations':
       if (pageSubtitle) pageSubtitle.textContent = 'Gestione Distributori';
-      showStationsTab(content, headerActions);
+      showStationsTab(content, headerActions); // Stations usually don't need filtering by station
       break;
     case 'operators':
       if (pageSubtitle) pageSubtitle.textContent = 'Gestione Operatori';
       showOperatorsTab(content, headerActions);
       break;
-    case 'chiusure':
+    case 'shifts':
       if (pageSubtitle) pageSubtitle.textContent = 'Storico Chiusure';
-      showChiusureTab(content, headerActions);
+      showChiusureTab(content, headerActions, currentStationFilter);
+      break;
+    case 'prices':
+      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Prezzi';
+      showPricesTab(content, headerActions);
+      break;
+    case 'tanks':
+      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Cisterne';
+      showTanksTab(content, headerActions);
       break;
     case 'crediti':
       if (pageSubtitle) pageSubtitle.textContent = 'Gestione Crediti';
-      showCreditiOverview(content, headerActions);
+      showCreditiOverview(content, headerActions, currentStationFilter);
       break;
-    case 'fatture':
+    case 'invoices':
       if (pageSubtitle) pageSubtitle.textContent = 'Richieste Fatture';
-      showFattureTab(content, headerActions);
+      showFattureTab(content, headerActions, currentStationFilter);
       break;
     case 'vouchers':
       if (pageSubtitle) pageSubtitle.textContent = 'Gestione Voucher';
-      showVoucherAdminTab(content, headerActions);
+      showVoucherAdminTab(content, headerActions, currentStationFilter);
       break;
     case 'notifiche':
       if (pageSubtitle) pageSubtitle.textContent = 'Notifiche';
@@ -147,35 +205,97 @@ function loadAdminTab(tab) {
       showSettingsTab(content, headerActions);
       break;
     default:
-      showDashboard(content);
+      if (pageSubtitle) pageSubtitle.textContent = 'Dashboard';
+      showDashboard(content, currentStationFilter);
   }
 }
 
 // ------------------------------------------------------------------
 // DASHBOARD
 // ------------------------------------------------------------------
-async function showDashboard(container) {
+async function showDashboard(container, stationId = null) {
   showLoadingMessage(container);
   try {
-    // KPI base
-    const { count: stationsCount } = await supabase.from('fuel_stations').select('*', { count: 'exact', head: true });
-    const { count: operatorsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'operator');
-    const { count: closuresCount } = await supabase.from('shifts').select('*', { count: 'exact', head: true });
+    // ------------------------------------------------------------------
+    // PARALLEL DATA FETCHING
+    // ------------------------------------------------------------------
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
 
-    // Stato cisterne: ultimo livello registrato per ciascuna cisterna
-    const { data: tanks } = await supabase
-      .from('tanks')
-      .select('id, name, fuel_type, capacity, station_id, fuel_stations(station_name)')
-      .order('name');
+    const [
+      stationsRes,
+      operatorsRes,
+      closuresRes,
+      tanksRes,
+      todayClosuresRes
+    ] = await Promise.all([
+      // 1. Stations Count
+      stationId
+        ? supabase.from('fuel_stations').select('*', { count: 'exact', head: true }).eq('station_id', stationId)
+        : supabase.from('fuel_stations').select('*', { count: 'exact', head: true }),
 
+      // 2. Operators Count
+      stationId
+        ? supabase.from('user_stations').select('*', { count: 'exact', head: true }).eq('station_id', stationId)
+        : supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'operator'),
+
+      // 3. Closures Count
+      stationId
+        ? supabase.from('shifts').select('*', { count: 'exact', head: true }).eq('station_id', stationId)
+        : supabase.from('shifts').select('*', { count: 'exact', head: true }),
+
+      // 4. Tanks List
+      (async () => {
+        let q = supabase.from('tanks').select('id, name, fuel_type, capacity, station_id, fuel_stations(station_name)');
+        if (stationId) q = q.eq('station_id', stationId);
+        return q.order('name');
+      })(),
+
+      // 5. Today's Closures (for Sales & Liters)
+      (async () => {
+        let q = supabase
+          .from('shifts')
+          .select('closing_data')
+          .gte('closed_at', startOfDay.toISOString())
+          .lte('closed_at', endOfDay.toISOString())
+          .eq('status', 'closed');
+        if (stationId) q = q.eq('station_id', stationId);
+        return q;
+      })()
+    ]);
+
+    // EXTRACT RESULTS
+    const stationsCount = stationsRes.count || 0;
+    const operatorsCount = operatorsRes.count || 0;
+    const closuresCount = closuresRes.count || 0;
+    const tanks = tanksRes.data || [];
+    const todayClosures = todayClosuresRes.data || [];
+
+    // RACE CONDITION CHECK (Early)
+    if (currentAdminTab !== 'dashboard') return;
+
+    // ------------------------------------------------------------------
+    // PROCESS TANKS (Parallel Readings Fetch)
+    // ------------------------------------------------------------------
     let tanksHtmlRows = '';
-
-    if (tanks && tanks.length > 0) {
+    if (tanks.length > 0) {
       const tankIds = tanks.map(t => t.id);
+
+      // Optimization: Fetch only necessary recent readings or limited set
+      // Since we need latest per tank, and if we have many tanks, querying all history is bad.
+      // Strategy: Fetch last 1 reading for EACH tank in parallel (if < 20 tanks) or bulk if many.
+      // For robustness with many tanks, we typically bulk fetch with a limit per tank (complex in Supabase/PostgREST).
+      // Fallback: Fetch last 7 days of readings for these tanks to limit data size.
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
       const { data: tankReadings } = await supabase
         .from('tank_readings')
         .select('*')
         .in('tank_id', tankIds)
+        .gte('created_at', sevenDaysAgo.toISOString()) // LIMIT HISTORY
         .order('created_at', { ascending: false });
 
       const latestByTank = {};
@@ -220,101 +340,82 @@ async function showDashboard(container) {
         `;
       });
     } else {
-      tanksHtmlRows = `<tr><td colspan="4">Nessuna cisterna configurata.</td></tr>`;
+      tanksHtmlRows = `<tr><td colspan="4">Nessuna cisterna configurata o trovata per questo filtro.</td></tr>`;
     }
 
-    // Recupera venduto odierno (ricavo teorico chiusure di oggi)
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
+    // ------------------------------------------------------------------
+    // PROCESS KPI DATA (Sales & Liters)
+    // ------------------------------------------------------------------
     let vendutoDataValue = 0;
-    try {
-      const { data: todayClosures } = await supabase
-        .from('shifts')
-        .select('closing_data')
-        .gte('closed_at', startOfDay.toISOString())
-        .lte('closed_at', endOfDay.toISOString())
-        .eq('status', 'closed');
-      if (Array.isArray(todayClosures)) {
-        vendutoDataValue = todayClosures.reduce((sum, item) => {
-          const ricavo = Number(item?.closing_data?.ricavo_teorico || 0);
-          return sum + ricavo;
-        }, 0);
-      }
-    } catch (salesErr) {
-      console.warn('Impossibile recuperare il venduto del giorno:', salesErr);
-    }
-
-    let vendutoKpiValue = vendutoDataValue;
-    try {
-      const engineResult = await calculationEngine.run(CALCULATION_SCOPES.KPI_VENDUTO, {
-        stationsCount,
-        operatorsCount,
-        closuresCount,
-        salesEuro: vendutoDataValue,
-        fallback: vendutoDataValue,
-        timestamp: Date.now()
-      }, { forceRefresh: false }); // Forza refresh cache se necessario
-      if (typeof engineResult === 'number') {
-        vendutoKpiValue = engineResult;
-      } else if (engineResult && typeof engineResult === 'object' && typeof engineResult.value === 'number') {
-        vendutoKpiValue = engineResult.value;
-      }
-    } catch (engineErr) {
-      console.warn('Motore calcoli KPI venduto non disponibile:', engineErr);
-    }
-
-    // Calcola litri erogati oggi (benzina e gasolio)
     let totalLitriBenzina = 0;
     let totalLitriGasolio = 0;
-    try {
-      const { data: todayClosuresForLiters } = await supabase
-        .from('shifts')
-        .select('closing_data')
-        .gte('closed_at', startOfDay.toISOString())
-        .lte('closed_at', endOfDay.toISOString())
-        .eq('status', 'closed');
 
-      if (Array.isArray(todayClosuresForLiters)) {
-        todayClosuresForLiters.forEach(item => {
-          const closingData = item?.closing_data || {};
-          totalLitriBenzina += Number(closingData.litri_benzina || 0);
-          totalLitriGasolio += Number(closingData.litri_gasolio || 0);
-        });
-      }
-    } catch (litersErr) {
-      console.warn('Impossibile recuperare i litri erogati del giorno:', litersErr);
+    if (Array.isArray(todayClosures)) {
+      todayClosures.forEach(item => {
+        const closingData = item?.closing_data || {};
+        // Sales
+        vendutoDataValue += Number(closingData.ricavo_teorico || 0);
+        // Liters
+        totalLitriBenzina += Number(closingData.litri_benzina || 0);
+        totalLitriGasolio += Number(closingData.litri_gasolio || 0);
+      });
     }
 
-    // Usa il motore di calcolo per il KPI Erogato
-    let erogatoKpiData = {
+    // Prepare Calculation Engine Inputs
+    const erogatoKpiDataInput = {
       litriBenzina: totalLitriBenzina,
       litriGasolio: totalLitriGasolio,
       totale: totalLitriBenzina + totalLitriGasolio
     };
 
-    try {
-      const engineResult = await calculationEngine.run(CALCULATION_SCOPES.KPI_EROGATO, {
-        erogatoData: erogatoKpiData,
-        totalLitriBenzina,
-        totalLitriGasolio,
-        fallback: erogatoKpiData
-      }, { forceRefresh: false });
+    // Run Calculations Parallel
+    let vendutoKpiValue = vendutoDataValue;
+    let erogatoKpiData = { ...erogatoKpiDataInput };
 
-      if (engineResult && typeof engineResult === 'object') {
+    try {
+      const [kpiVendutoRes, kpiErogatoRes] = await Promise.all([
+        calculationEngine.run(CALCULATION_SCOPES.KPI_VENDUTO, {
+          stationsCount,
+          operatorsCount,
+          closuresCount,
+          salesEuro: vendutoDataValue,
+          fallback: vendutoDataValue,
+          timestamp: Date.now()
+        }, { forceRefresh: false }),
+
+        calculationEngine.run(CALCULATION_SCOPES.KPI_EROGATO, {
+          erogatoData: erogatoKpiDataInput,
+          totalLitriBenzina,
+          totalLitriGasolio,
+          fallback: erogatoKpiDataInput
+        }, { forceRefresh: false })
+      ]);
+
+      // Assign Venduto
+      if (typeof kpiVendutoRes === 'number') {
+        vendutoKpiValue = kpiVendutoRes;
+      } else if (kpiVendutoRes && typeof kpiVendutoRes === 'object' && typeof kpiVendutoRes.value === 'number') {
+        vendutoKpiValue = kpiVendutoRes.value;
+      }
+
+      // Assign Erogato
+      if (kpiErogatoRes && typeof kpiErogatoRes === 'object') {
         erogatoKpiData = {
-          litriBenzina: engineResult.litriBenzina ?? totalLitriBenzina,
-          litriGasolio: engineResult.litriGasolio ?? totalLitriGasolio,
-          totale: (engineResult.litriBenzina ?? totalLitriBenzina) + (engineResult.litriGasolio ?? totalLitriGasolio)
+          litriBenzina: kpiErogatoRes.litriBenzina ?? totalLitriBenzina,
+          litriGasolio: kpiErogatoRes.litriGasolio ?? totalLitriGasolio,
+          totale: (kpiErogatoRes.litriBenzina ?? totalLitriBenzina) + (kpiErogatoRes.litriGasolio ?? totalLitriGasolio)
         };
       }
-    } catch (engineErr) {
-      console.warn('Motore calcoli KPI erogato non disponibile:', engineErr);
+
+    } catch (calcErr) {
+      console.warn('Errore calcoli KPI (usando fallback):', calcErr);
     }
 
     // Andamento prezzi medi - verrà popolato via Chart.js
+
+    // RACE CONDITION CHECK: Stop if user switched tab
+    if (currentAdminTab !== 'dashboard') return;
+
     container.innerHTML = `
       <section class="dashboard-grid">
         <article class="kpi-card">
@@ -351,8 +452,8 @@ async function showDashboard(container) {
         </article>
       </section>
 
-      <section class="dashboard-panels">
-        <article class="panel-card">
+      <section class="dashboard-panels" id="dashboard-container">
+        <article class="panel-card" id="panel-tanks">
           <h3 class="panel-title">Stato Cisterne Rete in Tempo Reale</h3>
           <p class="panel-subtitle">Panoramica livelli percentuali su tutte le stazioni.</p>
           <div class="table-responsive" style="box-shadow:none; border:none; background:transparent;">
@@ -372,7 +473,10 @@ async function showDashboard(container) {
           </div>
         </article>
 
-        <article class="panel-card">
+        <!-- DRAGGABLE RESIZER: Handled largely by Split.js but we keep the structure clean -->
+        <!-- No explicit resizer div needed for Split.js, it injects 'gutter' element -->
+
+        <article class="panel-card" id="panel-sales">
           <h3 class="panel-title">Andamento Vendite</h3>
           <p class="panel-subtitle">Trend vendite giornaliere per distributore (valore in €).</p>
           <div class="prices-chart-wrapper">
@@ -382,6 +486,11 @@ async function showDashboard(container) {
       </section>
     `;
 
+    // Activate Resizer (Split.js)
+    requestAnimationFrame(() => {
+      initDashboardSplit();
+    });
+
     // Popola grafico vendite per distributore se Chart.js è disponibile
     if (window.Chart) {
       // Recupera le chiusure degli ultimi 30 giorni
@@ -390,18 +499,27 @@ async function showDashboard(container) {
       startDate.setDate(startDate.getDate() - daysBack);
       startDate.setHours(0, 0, 0, 0);
 
-      const { data: closuresData } = await supabase
+      let closuresQuery = supabase
         .from('shifts')
         .select('id, station_id, closed_at, closing_data, fuel_stations(station_name)')
         .gte('closed_at', startDate.toISOString())
-        .eq('status', 'closed')
-        .order('closed_at', { ascending: true });
+        .eq('status', 'closed');
 
-      // Recupera tutti i distributori
-      const { data: allStations } = await supabase
+      if (stationId) closuresQuery = closuresQuery.eq('station_id', stationId);
+
+      closuresQuery = closuresQuery.order('closed_at', { ascending: true });
+
+      const { data: closuresData } = await closuresQuery;
+
+      // Recupera tutti i distributori (o solo quello filtrato)
+      let stationsQuery = supabase
         .from('fuel_stations')
         .select('station_id, station_name')
         .order('station_name');
+
+      if (stationId) stationsQuery = stationsQuery.eq('station_id', stationId);
+
+      const { data: allStations } = await stationsQuery;
 
       // Raggruppa vendite per data e distributore
       const salesByDateAndStation = {};
@@ -516,6 +634,37 @@ async function showDashboard(container) {
     }
   } catch (err) {
     showErrorMessage(container, err);
+  }
+}
+
+// ------------------------------------------------------------------
+// RESIZE LOGIC (Split.js)
+// ------------------------------------------------------------------
+function initDashboardSplit() {
+  const leftPanel = document.getElementById('panel-tanks');
+  const rightPanel = document.getElementById('panel-sales');
+
+  if (!leftPanel || !rightPanel) return;
+
+  // Remove any previous custom styles that might conflict
+  leftPanel.style.width = '';
+  leftPanel.style.flex = '';
+  rightPanel.style.flex = '';
+
+  try {
+    // Initialize Split.js
+    Split(['#panel-tanks', '#panel-sales'], {
+      sizes: [35, 65],
+      minSize: 250,
+      gutterSize: 10,
+      cursor: 'col-resize',
+      onDragEnd: function () {
+        // Trigger resize for ChartJS
+        window.dispatchEvent(new Event('resize'));
+      }
+    });
+  } catch (e) {
+    console.warn('Split.js error or not loaded:', e);
   }
 }
 
@@ -1279,21 +1428,24 @@ async function openAssignStationModal(userId) {
 // ------------------------------------------------------------------
 // CHIUSURE (Closures)
 // ------------------------------------------------------------------
-async function showChiusureTab(container, actionsContainer) {
+async function showChiusureTab(container, actionsContainer, stationId = null) {
   showLoadingMessage(container);
-  if (actionsContainer) actionsContainer.innerHTML = ''; // Filtri potrebbero andare qui
+  if (actionsContainer) actionsContainer.innerHTML = '';
 
   try {
-    // MODIFICA: Query sulla tabella 'shifts' invece di 'closing_shift'
-    const { data: closures, error } = await supabase
-      .from('shifts')
+    // Fetch with joins to display station and operator names
+    let query = supabase.from('shifts')
       .select(`
         *,
-        fuel_stations (station_name),
-        users!operator_id (full_name)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(500);
+        fuel_stations(station_name),
+        users(full_name)
+      `);
+
+    if (stationId) query = query.eq('station_id', stationId);
+
+    query = query.order('created_at', { ascending: false }).limit(500);
+
+    const { data: closures, error } = await query;
 
     if (error) throw error;
 
@@ -1369,13 +1521,11 @@ async function showChiusureTab(container, actionsContainer) {
 }
 
 async function showClosureDetails(closureId) {
-  // Implementazione semplificata dettagli
   openModal('Dettagli Chiusura');
   const target = document.getElementById('modal-body');
   showLoadingMessage(target);
 
   try {
-    // MODIFICA: Query su 'shifts' invece di 'closing_shift'
     const { data: closure } = await supabase
       .from('shifts')
       .select('*')
@@ -1384,25 +1534,106 @@ async function showClosureDetails(closureId) {
 
     if (!closure) throw new Error('Chiusura non trovata');
 
-    // Estrai dati dal JSON closing_data
     const closingData = closure.closing_data || {};
     const dettaglio = closingData.dettaglio_incasso || {};
 
-    // Mappa i campi
-    const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString();
-    const contanti = formatEuro(dettaglio.contanti_operatore || closingData.incasso_contanti || 0);
-    const pos = formatEuro(dettaglio.pos_operatore || closingData.incasso_pos || 0);
-    const totale = formatEuro(closingData.incasso_reale || closingData.gran_totale || 0);
+    // Mappa dati
+    const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString('it-IT');
+
+    // Breakdown Incassi
+    const contanti = formatEuro(dettaglio.contanti_operatore || 0);
+    const pos = formatEuro(dettaglio.pos_operatore || 0);
+    const crediti = formatEuro(dettaglio.crediti || 0);
+    const voucher = formatEuro(dettaglio.voucher || 0);
+    const carteUta = formatEuro(dettaglio.uta_dkv_operatore || 0);
+    const rimborsi = formatEuro(dettaglio.rimborsi_uscite || 0);
+
+    // Self Service Breakdown Logic
+    const selfData = closingData.scontrino_self || {};
+    // MODIFICA: Somma esatta delle componenti (richiesta utente)
+    const banconoteErogate = selfData.banconote_erogate || 0;
+    const banconoteIncassate = selfData.banconote_incassate || 0;
+    const bancomatSelf = selfData.bancomat_erogati || 0;
+    const cardsSelf = selfData.transazioni_uta || 0; // Assuming this maps to Icad/dkv/iscard
+
+    const selfTotalVal = banconoteErogate + bancomatSelf + cardsSelf;
+    const selfTotalFormatted = formatEuro(selfTotalVal);
+
+    // Logic per Contanti Self: se uguali mostra solo uno, altrimenti entrambi
+    let contantiSelfHtml = '';
+    if (banconoteErogate === banconoteIncassate) {
+      contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(banconoteErogate)}</b>`;
+    } else {
+      contantiSelfHtml = `
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span>Contanti:</span>
+                <div style="text-align: right;">
+                    <div>Erogati: <b>${formatEuro(banconoteErogate)}</b></div>
+                    <div style="font-size: 0.85em; color: #64748b;">Incassati: <b>${formatEuro(banconoteIncassate)}</b></div>
+                </div>
+            </div>`;
+    }
+
+    // Extra
+    const extraVal = closingData.extra_incassi || 0;
+    const extra = formatEuro(extraVal);
+
+    // CALCOLO TOTALE REALE (Richiesto da utente: Venduto Carburante + Extra)
+    // ricavo_teorico = venduto carburante totale (contatori)
+    const vendutoCarburanteVal = closingData.ricavo_teorico || 0;
+    const vendutoCarburante = formatEuro(vendutoCarburanteVal);
+
+    const totaleRealeVal = vendutoCarburanteVal + extraVal;
+    const totaleReale = formatEuro(totaleRealeVal);
 
     target.innerHTML = `
-      <div class="closure-details">
-        <p><b>ID:</b> ${closure.id}</p>
-        <p><b>Data:</b> ${dateStr}</p>
-        <p><b>Contanti (Op):</b> ${contanti}</p>
-        <p><b>POS (Op):</b> ${pos}</p>
-        <p><b>Totale Reale:</b> ${totale}</p>
-        <hr>
-        <p><i>Dettagli completi disponibili in export</i></p>
+      <div class="closure-details" style="font-size: 0.95rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+            <span>ID Chiusura: <b>${closure.id}</b></span>
+            <span>${dateStr}</span>
+        </div>
+
+        <!-- SEZIONE SELF SERVICE -->
+        <div style="background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+            <div style="font-weight: 600; color: #334155; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">Dettaglio Self Service</div>
+            
+            <p style="display: flex; justify-content: space-between; margin: 5px 0;">${contantiSelfHtml}</p>
+            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Bancomat:</span> <b>${formatEuro(bancomatSelf)}</b></p>
+            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Icad/DKV/Iscard:</span> <b>${formatEuro(cardsSelf)}</b></p>
+            
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; font-weight: 700;">
+                <span>Incasso Totale Self:</span> <span>${selfTotalFormatted}</span>
+            </div>
+        </div>
+
+        <!-- SEZIONE OPERATORE -->
+        <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
+            <div style="font-weight: 600; color: #334155; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">Dettaglio Operatore</div>
+            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Contanti:</span> <b>${contanti}</b></p>
+            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>POS:</span> <b>${pos}</b></p>
+            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Crediti:</span> <b>${crediti}</b></p>
+            <p style="display: flex; justify: space-between; margin: 5px 0;"><span>Voucher/Buoni:</span> <b>${voucher}</b></p>
+            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
+            <p style="display: flex; justify: space-between; margin: 5px 0; color: #dc2626;"><span>Uscite/Rimborsi:</span> <b>- ${rimborsi}</b></p>
+            
+            <hr style="margin: 8px 0; border-color: #e2e8f0;">
+            
+            <!-- NUOVA RIGA: Totale venduto della giornata (pistole) -->
+            <p style="display: flex; justify-content: space-between; margin: 5px 0; font-weight: 600; color: #0f172a;"><span>Totale Venduto (Pistole):</span> <b>${vendutoCarburante}</b></p>
+            
+            <p style="display: flex; justify-content: space-between; margin: 5px 0; color: #1e40af;"><span>Incassi Extra:</span> <b>${extra}</b></p>
+        </div>
+
+        <div style="background: #eff6ff; padding: 15px; border-radius: 6px; border: 1px solid #bfdbfe; text-align: right; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 4px;">Totale Venduto (Carburante + Extra)</div>
+            <div style="font-size: 1.6rem; font-weight: 700; color: #1e3a8a;">${totaleReale}</div>
+        </div>
+        
+        <div style="margin-top: 15px; text-align: center;">
+             <button class="menu-button" onclick="document.querySelector('.icon-btn.export-closure[data-id=\\'${closure.id}\\']').click()">
+                <i class="fas fa-file-export"></i> Scarica Excel Dettagliato
+             </button>
+        </div>
       </div>
     `;
   } catch (err) {
@@ -1435,7 +1666,7 @@ async function openExportModal(closureId) {
 // ------------------------------------------------------------------
 // FATTURE (Invoice Requests)
 // ------------------------------------------------------------------
-async function showFattureTab(container, actionsContainer) {
+async function showFattureTab(container, actionsContainer, stationId = null) {
   showLoadingMessage(container);
 
   if (actionsContainer) {
@@ -1443,15 +1674,18 @@ async function showFattureTab(container, actionsContainer) {
   }
 
   try {
-    // Prima recupera le fatture
-    const { data: invoices, error } = await supabase
-      .from('invoices')
+    let query = supabase.from('invoices')
       .select(`
         *,
         fuel_stations(station_name),
-        users!operator_id(full_name, username)
-      `)
-      .order('created_at', { ascending: false });
+        users(full_name)
+      `);
+
+    if (stationId) query = query.eq('station_id', stationId);
+
+    query = query.order('created_at', { ascending: false });
+
+    const { data: invoices, error } = await query;
 
     if (error) throw error;
 
@@ -1612,7 +1846,7 @@ async function showFattureTab(container, actionsContainer) {
 // ------------------------------------------------------------------
 // CREDITI (Credits)
 // ------------------------------------------------------------------
-async function showCreditiOverview(container, actionsContainer) {
+async function showCreditiOverview(container, actionsContainer, stationId = null) {
   showLoadingMessage(container);
 
   if (actionsContainer) {
@@ -1621,13 +1855,17 @@ async function showCreditiOverview(container, actionsContainer) {
   }
 
   try {
-    const { data: customers, error } = await supabase
-      .from('crediti_clienti')
+    let query = supabase.from('crediti_clienti')
       .select(`
         *,
         fuel_stations(station_name)
-      `)
-      .order('cliente');
+      `);
+
+    if (stationId) query = query.eq('station_id', stationId);
+
+    query = query.order('cliente');
+
+    const { data: customers, error } = await query;
 
     if (error) throw error;
 
@@ -1748,7 +1986,7 @@ async function deleteCustomer(customerId) {
 // ------------------------------------------------------------------
 // VOUCHER
 // ------------------------------------------------------------------
-async function showVoucherAdminTab(container, actionsContainer) {
+async function showVoucherAdminTab(container, actionsContainer, stationId = null) {
   showLoadingMessage(container);
 
   if (actionsContainer) {
@@ -1757,11 +1995,13 @@ async function showVoucherAdminTab(container, actionsContainer) {
   }
 
   try {
-    const { data: vouchers, error } = await supabase
-      .from('vouchers')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500);
+    let query = supabase.from('vouchers').select('*');
+
+    if (stationId) query = query.eq('station_id', stationId);
+
+    query = query.order('created_at', { ascending: false }).limit(500);
+
+    const { data: vouchers, error } = await query;
 
     if (error) throw error;
 
