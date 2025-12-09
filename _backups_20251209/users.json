@@ -1,0 +1,50 @@
+[
+    {
+        "user_id": 11,
+        "username": "Operatore Di Prova",
+        "email": "lorenzo.barra@ergenya.com",
+        "password_hash": "123na123",
+        "role": "operator",
+        "full_name": "Operatore Di Prova 1",
+        "is_active": true,
+        "created_at": "2025-11-10T17:40:30.966715",
+        "updated_at": "2025-11-10T17:40:30.966715",
+        "created_by_auth": "6eabdb8e-9ad1-424b-a7ad-2a24f41c17ab"
+    },
+    {
+        "user_id": 1,
+        "username": "admin lorenzo",
+        "email": "lorenzo96barra@outlook.com",
+        "password_hash": "123na123",
+        "role": "admin",
+        "full_name": "Amministratore",
+        "is_active": true,
+        "created_at": "2025-10-27T16:24:22.812261",
+        "updated_at": "2025-10-27T16:24:22.812261",
+        "created_by_auth": "a3bfedde-58bd-46f2-9360-06e62289c124"
+    },
+    {
+        "user_id": 12,
+        "username": "Operatore Di Prova 2",
+        "email": "lorenzo.barra@neogas.it",
+        "password_hash": "123na123",
+        "role": "operator",
+        "full_name": "Operatore Di Prova 2",
+        "is_active": true,
+        "created_at": "2025-11-11T15:17:06.939886",
+        "updated_at": "2025-11-11T15:17:06.939886",
+        "created_by_auth": "eb4c238c-e571-4d34-bf08-ea2380e655f6"
+    },
+    {
+        "user_id": 13,
+        "username": "Operatore Di Prova 3",
+        "email": "lorenzo.barra.lb@gmail.com",
+        "password_hash": "123na123",
+        "role": "operator",
+        "full_name": "Operatore Di Prova 3",
+        "is_active": true,
+        "created_at": "2025-11-19T16:58:54.860592",
+        "updated_at": "2025-11-19T16:58:54.860592",
+        "created_by_auth": "47c91b7c-70f1-42bc-ba84-428d491a0cf8"
+    }
+]

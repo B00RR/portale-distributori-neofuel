@@ -1,0 +1,102 @@
+[
+    {
+        "id": 8,
+        "tipo": "incasso",
+        "descrizione": "olio",
+        "importo": 10,
+        "station_id": 12,
+        "operator_id": 11,
+        "foto_url": null,
+        "created_at": "2025-11-11T14:53:08.427+00:00"
+    },
+    {
+        "id": 10,
+        "tipo": "voucher",
+        "descrizione": null,
+        "importo": 20,
+        "station_id": 12,
+        "operator_id": 11,
+        "foto_url": "2025-11-12/voucher/12/1762934901715_Immagine_WhatsApp_2025-10-25_ore_20.36.08_bf5a8cf6.jpg",
+        "created_at": "2025-11-12T08:08:22.088+00:00"
+    },
+    {
+        "id": 11,
+        "tipo": "pagamento",
+        "descrizione": "rimborso",
+        "importo": 4.06,
+        "station_id": 12,
+        "operator_id": 12,
+        "foto_url": null,
+        "created_at": "2025-11-12T11:46:30.136+00:00"
+    },
+    {
+        "id": 12,
+        "tipo": "incasso",
+        "descrizione": "Olio",
+        "importo": 3,
+        "station_id": 12,
+        "operator_id": 11,
+        "foto_url": null,
+        "created_at": "2025-11-14T17:04:09.399+00:00"
+    },
+    {
+        "id": 13,
+        "tipo": "voucher",
+        "descrizione": null,
+        "importo": 40,
+        "station_id": 12,
+        "operator_id": 12,
+        "foto_url": "2025-11-17/voucher/12/1763398880270_Immagine_WhatsApp_2025-10-25_ore_20.36.08_bf5a8cf6.jpg",
+        "created_at": "2025-11-17T17:01:20.676+00:00"
+    },
+    {
+        "id": 16,
+        "tipo": "incasso",
+        "descrizione": "[OLIO] ",
+        "importo": 10,
+        "station_id": 12,
+        "operator_id": 11,
+        "foto_url": null,
+        "created_at": "2025-11-25T15:02:52.901+00:00"
+    },
+    {
+        "id": 17,
+        "tipo": "incasso",
+        "descrizione": "[OLIO] ",
+        "importo": 60,
+        "station_id": 12,
+        "operator_id": 11,
+        "foto_url": null,
+        "created_at": "2025-11-25T17:31:50.678+00:00"
+    },
+    {
+        "id": 19,
+        "tipo": "credito",
+        "descrizione": "Credito: Building Planning - Targa BH955ND",
+        "importo": 773,
+        "station_id": 13,
+        "operator_id": 13,
+        "foto_url": null,
+        "created_at": "2025-11-27T09:25:43.741+00:00"
+    },
+    {
+        "id": 20,
+        "tipo": "incasso",
+        "descrizione": "[OLIO] ",
+        "importo": 40,
+        "station_id": 13,
+        "operator_id": 13,
+        "foto_url": null,
+        "created_at": "2025-11-28T17:42:36.352+00:00"
+    },
+    {
+        "id": 21,
+        "tipo": "incasso",
+        "descrizione": "[OLIO] ",
+        "importo": 57.5,
+        "station_id": 13,
+        "operator_id": 13,
+        "foto_url": null,
+        "created_at": "2025-12-01T14:25:53.171+00:00"
+    }
+]
