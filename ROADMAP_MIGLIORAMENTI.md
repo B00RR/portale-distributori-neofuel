@@ -1217,21 +1217,15 @@ I18n.refresh();
 ### ⭐ Quick Wins (1-2 settimane)
 **Impatto Alto, Sforzo Basso**
 
-- [ ] **Toast Notifications** (2h)
-  - Sostituire `alert()` con sistema toast
-  - Miglioramento UX immediato
 
-- [ ] **Skeleton Loaders** (3h)
-  - Sostituire "Caricamento..." con skeleton
-  - Percezione velocità migliorata
+
+
 
 - [ ] **Debounce su Filtri** (2h)
   - Riduce chiamate API inutili
   - Performance migliorata
 
-- [ ] **Loading States Bottoni** (2h)
-  - Feedback visivo durante operazioni async
-  - Prevenzione double-click
+
 
 - [ ] **Breadcrumbs** (3h)
   - Migliore orientamento navigazione
@@ -1244,9 +1238,7 @@ I18n.refresh();
 ### 🚀 High Impact (2-4 settimane)
 **Impatto Alto, Sforzo Medio**
 
-- [ ] **Modularizzazione admin.js** (1-2 giorni)
-  - Suddividere in moduli logici
-  - Base per scalabilità futura
+
 
 - [ ] **Caching LocalStorage** (1 giorno)
   - Riduzione chiamate API
@@ -1287,10 +1279,7 @@ I18n.refresh();
   - Integration tests
   - E2E tests (Playwright)
 
-- [ ] **Analytics Dashboard** (2 settimane)
-  - Grafici trend avanzati
-  - Comparazioni periodi
-  - Export report
+
 
 - [ ] **Audit Log System** (1 settimana)
   - Tracciabilità azioni

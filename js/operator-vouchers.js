@@ -6,6 +6,7 @@ import { supabase } from "./api.js";
 import { showInfoModal, openModal, closeModal } from "./ui.js";
 import { createWarningMessage, createBackButton } from "./operator-ui-components.js";
 import { checkOpeningStatus } from "./operator-opening.js";
+import { Toast } from "./shared/toast.js";
 
 /**
  * Mostra il menu per la gestione voucher e punti
@@ -162,7 +163,7 @@ function showVoucherForm(stationId, userId, type) {
       closeModal();
       showInfoModal(`${isPoints ? 'Punti registrati' : 'Voucher registrato'} con successo!`);
     } catch (err) {
-      alert('Errore: ' + err.message);
+      Toast.show('Errore: ' + err.message, 'error');
     }
   });
 }

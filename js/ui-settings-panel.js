@@ -9,6 +9,8 @@
 // ============================================================
 
 import { supabase, safeSupabaseQuery } from "./api.js";
+import { Toast } from "./shared/toast.js";
+import { renderConfigPanel } from "./admin-dashboard-config.js";
 
 const UI_FIELDS = [
   {
@@ -317,14 +319,14 @@ function setupIconImageHandlers(form) {
 
       // Verifica che sia un'immagine
       if (!file.type.startsWith("image/")) {
-        alert("Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.)");
+        Toast.show("Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.).", 'warning');
         e.target.value = "";
         return;
       }
 
       // Limita dimensione a 500KB
       if (file.size > 500 * 1024) {
-        alert("L'immagine è troppo grande. Massimo 500KB.");
+        Toast.show("L'immagine è troppo grande. Massimo 500KB.", 'warning');
         e.target.value = "";
         return;
       }
@@ -358,7 +360,7 @@ function setupIconImageHandlers(form) {
         }
       } catch (err) {
         console.error("Errore nel caricamento immagine:", err);
-        alert("Errore nel caricamento dell'immagine: " + err.message);
+        Toast.show("Errore nel caricamento dell'immagine: " + err.message, 'error');
         e.target.value = "";
       }
     });
@@ -664,6 +666,10 @@ async function renderAppearancePanel(panel) {
           <i class="fas fa-icons"></i>
           <span>Icone</span>
         </button>
+        <button class="ui-appearance-tab" data-appearance-section="dashboard">
+          <i class="fas fa-chart-line"></i>
+          <span>Dashboard</span>
+        </button>
         <button class="ui-appearance-tab" data-appearance-section="advanced">
           <i class="fas fa-cog"></i>
           <span>Avanzate</span>
@@ -737,6 +743,11 @@ async function renderAppearancePanel(panel) {
           ${renderIconsSection(settings)}
         </div>
 
+        <!-- Sezione Dashboard Config -->
+        <div class="ui-appearance-section" data-appearance-section-content="dashboard">
+          <!-- Will be populated by renderConfigPanel -->
+        </div>
+
         <!-- Sezione Avanzate -->
         <div class="ui-appearance-section" data-appearance-section-content="advanced">
           ${renderAdvancedSection(settings)}
@@ -797,29 +808,26 @@ async function renderAppearancePanel(panel) {
   form.querySelectorAll(".ui-color-hex").forEach((hexInput) => {
     const fieldKey = hexInput.name.replace("_hex", "");
     const picker = form.querySelector(`input[name="${fieldKey}"]`);
-
-    hexInput.addEventListener("input", (e) => {
-      let value = e.target.value.trim().replace("#", "").toUpperCase();
-      if (/^[0-9A-F]{6}$/i.test(value)) {
-        value = "#" + value;
-        if (picker) picker.value = value;
-
-        const field = UI_FIELDS.find((f) => f.key === fieldKey);
-        if (field?.cssVar) {
-          document.documentElement.style.setProperty(field.cssVar, value);
+    if (picker) {
+      hexInput.addEventListener("input", (e) => {
+        const hex = e.target.value;
+        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+          picker.value = hex;
+          picker.dispatchEvent(new Event("input"));
         }
-      }
-    });
-
-    hexInput.addEventListener("blur", (e) => {
-      let value = e.target.value.trim().replace("#", "").toUpperCase();
-      if (!/^[0-9A-F]{6}$/i.test(value)) {
-        // Ripristina valore valido se non è valido
-        const pickerValue = picker?.value || "#000000";
-        e.target.value = pickerValue.toUpperCase();
-      }
-    });
+      });
+    }
   });
+
+  // Initialize Dashboard Config
+  const dashboardContainer = panel.querySelector('[data-appearance-section-content="dashboard"]');
+  if (dashboardContainer) {
+    // Render immediately or lazy load? 
+    // Let's render immediately so it's ready. It has its own loader.
+    renderConfigPanel(dashboardContainer);
+  }
+
+
 
   // Gestione altri campi (testi, font, componenti, ecc.)
   form.addEventListener("input", (event) => {
@@ -879,7 +887,7 @@ async function renderAppearancePanel(panel) {
 
     // Salva campi Layout Admin
     [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
-    ...ADMIN_LAYOUT_FIELDS.dashboard, ...ADMIN_LAYOUT_FIELDS.spacing].forEach((field) => {
+    ...ADMIN_LAYOUT_FIELDS.spacing].forEach((field) => {
       const value = formData.get(field.key);
       payload[field.key] = value || field.defaultValue;
     });
@@ -901,7 +909,7 @@ async function renderAppearancePanel(panel) {
       setTimeout(() => successMsg.remove(), 3000);
     } catch (err) {
       console.error("[UI Settings] Errore salvataggio:", err);
-      alert("Errore nel salvataggio delle impostazioni: " + err.message);
+      Toast.show("Errore nel salvataggio delle impostazioni: " + err.message, 'error');
     } finally {
       form.classList.remove("pending");
     }
@@ -920,7 +928,7 @@ async function renderAppearancePanel(panel) {
         defaults[f.key] = f.defaultValue;
       });
       [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
-      ...ADMIN_LAYOUT_FIELDS.dashboard, ...ADMIN_LAYOUT_FIELDS.spacing].forEach((f) => {
+      ...ADMIN_LAYOUT_FIELDS.spacing].forEach((f) => {
         defaults[f.key] = f.defaultValue;
       });
       [...OPERATOR_LAYOUT_FIELDS.header, ...OPERATOR_LAYOUT_FIELDS.menu].forEach((f) => {
@@ -929,10 +937,10 @@ async function renderAppearancePanel(panel) {
       await saveUiSettings(defaults);
       // Le impostazioni vengono già applicate da saveUiSettings
       renderAppearancePanel(panel);
-      alert("Impostazioni ripristinate.");
+      Toast.show("Impostazioni ripristinate.", 'success');
     } catch (err) {
       console.error(err);
-      alert("Impossibile ripristinare: " + err.message);
+      Toast.show("Impossibile ripristinare: " + err.message, 'error');
     } finally {
       form.classList.remove("pending");
     }
@@ -992,14 +1000,14 @@ async function renderAppearancePanel(panel) {
 
       // Verifica che sia un'immagine
       if (!file.type.startsWith("image/")) {
-        alert("Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.)");
+        Toast.show("Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.).", 'warning');
         e.target.value = "";
         return;
       }
 
       // Limita dimensione a 500KB
       if (file.size > 500 * 1024) {
-        alert("L'immagine è troppo grande. Massimo 500KB.");
+        Toast.show("L'immagine è troppo grande. Massimo 500KB.", 'warning');
         e.target.value = "";
         return;
       }
@@ -1033,7 +1041,7 @@ async function renderAppearancePanel(panel) {
         }
       } catch (err) {
         console.error("Errore nel caricamento immagine:", err);
-        alert("Errore nel caricamento dell'immagine: " + err.message);
+        Toast.show("Errore nel caricamento dell'immagine: " + err.message, 'error');
         e.target.value = "";
       }
     });
@@ -1135,9 +1143,9 @@ async function renderAppearancePanel(panel) {
         });
         await saveUiSettings(themePayload);
         renderAppearancePanel(panel);
-        alert(`Tema "${theme.name}" applicato con successo!`);
+        Toast.show(`Tema "${theme.name}" applicato con successo!`, 'success');
       } catch (err) {
-        alert("Errore nell'applicazione del tema: " + err.message);
+        Toast.show("Errore nell'applicazione del tema: " + err.message, 'error');
       } finally {
         form.classList.remove("pending");
       }
@@ -1164,9 +1172,9 @@ async function renderAppearancePanel(panel) {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        alert("Configurazione esportata con successo!");
+        Toast.show("Configurazione esportata con successo!", 'success');
       } catch (err) {
-        alert("Errore nell'export: " + err.message);
+        Toast.show("Errore nell'export: " + err.message, 'error');
       }
     });
   }
@@ -1194,9 +1202,9 @@ async function renderAppearancePanel(panel) {
         form.classList.add("pending");
         await saveUiSettings(config.settings);
         renderAppearancePanel(panel);
-        alert("Configurazione importata con successo!");
+        Toast.show("Configurazione importata con successo!", 'success');
       } catch (err) {
-        alert("Errore nell'import: " + err.message);
+        Toast.show("Errore nell'import: " + err.message, 'error');
       } finally {
         form.classList.remove("pending");
         e.target.value = "";
@@ -1314,56 +1322,7 @@ const ADMIN_LAYOUT_FIELDS = {
       description: "Mostra/nascondi la voce menu Notifiche"
     }
   ],
-  dashboard: [
-    {
-      key: "admin_dashboard_kpi_layout",
-      label: "Layout Griglia KPI",
-      type: "select",
-      defaultValue: "4",
-      options: [
-        { value: "1", label: "1 colonna" },
-        { value: "2", label: "2 colonne" },
-        { value: "3", label: "3 colonne" },
-        { value: "4", label: "4 colonne (default)" }
-      ],
-      description: "Numero di colonne per le card KPI nella dashboard"
-    },
-    {
-      key: "admin_dashboard_show_kpi_venduto",
-      label: "Mostra KPI Venduto Oggi",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la card Venduto Oggi"
-    },
-    {
-      key: "admin_dashboard_show_kpi_erogato",
-      label: "Mostra KPI Erogato Oggi",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la card Erogato Oggi"
-    },
-    {
-      key: "admin_dashboard_show_kpi_stazioni",
-      label: "Mostra KPI Stazioni Attive",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la card Stazioni Attive"
-    },
-    {
-      key: "admin_dashboard_show_kpi_alert",
-      label: "Mostra KPI Alert Cisterne",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la card Alert Cisterne"
-    },
-    {
-      key: "admin_dashboard_show_tanks",
-      label: "Mostra Tabella Cisterne",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la sezione Stato Cisterne"
-    }
-  ],
+
   spacing: [
     {
       key: "admin_content_padding",
@@ -1751,16 +1710,7 @@ function renderAdminLayoutSection(settings) {
         </div>
       </div>
 
-      <div class="ui-section-box">
-        <h4 class="ui-section-title">
-          <i class="fas fa-chart-line"></i>
-          <span>Dashboard</span>
-        </h4>
-        <p class="ui-section-hint">Configura layout e visibilità degli elementi della dashboard</p>
-        <div class="ui-layout-fields">
-          ${ADMIN_LAYOUT_FIELDS.dashboard.map(f => renderLayoutField(f, settings)).join("")}
-        </div>
-      </div>
+
 
       <div class="ui-section-box">
         <h4 class="ui-section-title">

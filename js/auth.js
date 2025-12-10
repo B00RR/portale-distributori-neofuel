@@ -2,6 +2,8 @@
 // AUTHENTICATION
 // ==========================================
 import { supabase } from "./api.js";
+import { Toast } from "./shared/toast.js";
+import { showFullScreenLoader, hideFullScreenLoader } from "./ui.js";
 
 let loginForm = null;
 let loginContainer = null;
@@ -110,6 +112,7 @@ export function setupLoginForm() {
         }
 
         try {
+            showFullScreenLoader();
             console.log('Calling supabase.auth.signInWithPassword...');
             let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email: email,
@@ -208,6 +211,8 @@ export function setupLoginForm() {
             if (errorElement) {
                 errorElement.textContent = `Errore durante il login: ${err.message || 'Errore sconosciuto'}`;
             }
+        } finally {
+            hideFullScreenLoader();
         }
     });
 }
@@ -307,16 +312,14 @@ export async function requestPasswordReset(email) {
 
         if (error) throw error;
 
-        alert('Email di reset password inviata!\n\n' +
-            'IMPORTANTE: Usa il codice OTP a 6 cifre ricevuto via email.\n\n' +
-            'Clicca OK per inserire il codice OTP.');
+        Toast.show('Email di reset password inviata! Usa il codice OTP a 6 cifre ricevuto via email.', 'success', 5000);
 
         showOTPResetForm();
 
         return { success: true };
     } catch (error) {
         console.error('Errore durante la richiesta di reset password:', error);
-        alert('Errore durante l\'invio dell\'email di reset password: ' + error.message);
+        Toast.show('Errore durante l\'invio dell\'email di reset password: ' + error.message, 'error');
         return { success: false, error: error.message };
     }
 }
@@ -471,7 +474,7 @@ export function showResetPasswordForm() {
             sessionStorage.removeItem('password_reset_in_progress');
             localStorage.removeItem('password_reset_session');
             await supabase.auth.signOut();
-            alert('Password aggiornata con successo! Ora puoi effettuare il login.');
+            Toast.show('Password aggiornata con successo! Ora puoi effettuare il login.', 'success');
             window.location.href = window.location.pathname;
         } catch (err) {
             errorElement.textContent = 'Errore imprevisto: ' + err.message;

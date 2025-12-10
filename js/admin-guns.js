@@ -7,6 +7,7 @@ import { supabase } from './api.js';
 import { safeSupabaseQuery } from './api.js';
 import { openModal, closeModal, showInfoModal, openConfirmModal, showLoadingMessage } from './ui.js';
 import { escapeHtml, formatNumberIt, parseNumberFlexible, formatGunCounter, parseGunCounter } from './utils.js';
+import { Toast } from './shared/toast.js';
 
 /**
  * Mostra modal con lista pistole per un'isola
@@ -317,7 +318,7 @@ async function openGunForm(islandId, islandName, stationId, gunId = null) {
       closeModal();
       showGunsModal(islandId, islandName, stationId);
     } catch (err) {
-      alert('Errore: ' + err.message);
+      Toast.show('Errore: ' + err.message, 'error');
     }
   });
 }
@@ -383,7 +384,7 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
     const numeroLitri = Math.round(parseGunCounter(numeroLitriStr) * 100) / 100; // Arrotonda a 2 decimali
 
     if (numeroLitri < 0) {
-      alert('Il numeratore non può essere negativo!');
+      Toast.show('Il numeratore non può essere negativo!', 'warning');
       return;
     }
 
@@ -452,7 +453,7 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
       closeModal();
       showGunsModal(islandId, islandName, stationId);
     } catch (err) {
-      alert('Errore: ' + err.message);
+      Toast.show('Errore: ' + err.message, 'error');
     }
   });
 }
@@ -475,6 +476,6 @@ async function deleteGun(gunId, islandId, islandName, stationId) {
     showInfoModal('Pistola eliminata con successo!');
     showGunsModal(islandId, islandName, stationId);
   } catch (err) {
-    alert('Errore eliminazione: ' + err.message);
+    Toast.show('Errore eliminazione: ' + err.message, 'error');
   }
 }

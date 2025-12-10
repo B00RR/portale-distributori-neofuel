@@ -3,6 +3,7 @@
 // ==========================================
 import { supabase, safeSupabaseQuery } from "./api.js";
 import { formatNumberIt, formatEuro, slugifyLabel, base64ToArrayBuffer, parseNumberFlexible, escapeHtml } from "./utils.js";
+import { Toast } from "./shared/toast.js";
 
 // Costanti per export
 const SUMMARY_TEMPLATE_START_ROW = 42;
@@ -814,7 +815,7 @@ function createClosurePdfElement(template) {
 function generateClosurePdfLegacy(template) {
     const jsPDFLib = window.jspdf;
     if (!jsPDFLib || !jsPDFLib.jsPDF) {
-        alert('Impossibile generare il PDF: libreria jsPDF non disponibile');
+        Toast.show('Impossibile generare il PDF: libreria jsPDF non disponibile', 'error');
         return;
     }
     const doc = new jsPDFLib.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -938,11 +939,11 @@ function generateClosurePdfLegacy(template) {
 export async function generateClosurePdf(template) {
     const jsPDFLib = window.jspdf;
     if (!jsPDFLib || !jsPDFLib.jsPDF) {
-        alert('Impossibile generare il PDF: libreria jsPDF non disponibile');
+        Toast.show('Impossibile generare il PDF: libreria jsPDF non disponibile', 'error');
         return;
     }
     if (typeof window === 'undefined') {
-        alert('Generazione PDF non disponibile in questo contesto');
+        Toast.show('Generazione PDF non disponibile in questo contesto', 'error');
         return;
     }
 
@@ -973,7 +974,7 @@ export async function generateClosurePdf(template) {
         doc.save(filename);
     } catch (err) {
         console.error('Errore generazione PDF con template Excel-like:', err);
-        alert('Impossibile generare il PDF con il template grafico. Verrà usato il layout semplificato.');
+        Toast.show('Impossibile generare il PDF con il template grafico. Verrà usato il layout semplificato.', 'warning');
         generateClosurePdfLegacy(template);
     } finally {
         tempEl?.remove();
@@ -982,17 +983,17 @@ export async function generateClosurePdf(template) {
 
 export async function generateClosureExcel(template) {
     if (!window.XlsxPopulate) {
-        alert('Impossibile generare il file Excel: libreria XlsxPopulate non disponibile');
+        Toast.show('Impossibile generare il file Excel: libreria XlsxPopulate non disponibile', 'error');
         return;
     }
     const templateBase64 = getClosureTemplateBase64();
     if (!templateBase64) {
-        alert('Template export non disponibile. Carica nuovamente la pagina.');
+        Toast.show('Template export non disponibile. Carica nuovamente la pagina.', 'error');
         return;
     }
     const arrayBuffer = base64ToArrayBuffer(templateBase64);
     if (!arrayBuffer) {
-        alert('Errore nella lettura del template (base64 non valido).');
+        Toast.show('Errore nella lettura del template (base64 non valido).', 'error');
         return;
     }
     let workbook;
@@ -1000,7 +1001,7 @@ export async function generateClosureExcel(template) {
         workbook = await XlsxPopulate.fromDataAsync(arrayBuffer);
     } catch (err) {
         console.error('Impossibile aprire il template con XlsxPopulate:', err);
-        alert('Errore durante il caricamento del template Excel. Controlla la console per i dettagli.');
+        Toast.show('Errore durante il caricamento del template Excel. Controlla la console per i dettagli.', 'error');
         return;
     }
 
@@ -1126,7 +1127,7 @@ export async function generateClosureExcel(template) {
         setCell(`V${summaryRow + 1}`, template.summary.utaDkv || 0);
     } catch (err) {
         console.error('Errore durante la compilazione del template Excel:', err);
-        alert('Errore nella compilazione del template Excel. Controlla la console per i dettagli.');
+        Toast.show('Errore nella compilazione del template Excel. Controlla la console per i dettagli.', 'error');
         return;
     }
 
@@ -1135,7 +1136,7 @@ export async function generateClosureExcel(template) {
         blob = await workbook.outputAsync({ type: 'blob' });
     } catch (err) {
         console.error('Errore generazione file Excel:', err);
-        alert('Errore nella generazione del file Excel.');
+        Toast.show('Errore nella generazione del file Excel.', 'error');
         return;
     }
     const url = URL.createObjectURL(blob);

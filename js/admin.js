@@ -20,6 +20,8 @@ import { loggedUser, clearSession } from "./auth.js";
 import { showIslandsModal } from "./admin-islands.js";
 import { showSettingsTab } from "./admin-logic.js";
 import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
+import { Toast } from "./shared/toast.js";
+import { loadDashboardConfig, showDashboardConfigPanel, KPI_CATALOG } from "./admin-dashboard-config.js";
 
 // Stato locale admin
 let currentAdminTab = 'dashboard';
@@ -128,6 +130,23 @@ export function showAdminArea() {
   // Carica tab iniziale
   renderGlobalFilter();
   loadAdminTab('dashboard');
+
+  // Event listener for dashboard configuration button (delegated)
+  document.getElementById('admin-content')?.addEventListener('click', (e) => {
+    if (e.target.closest('#btn-configure-dashboard')) {
+      showDashboardConfigPanel();
+    }
+  });
+
+  // Listen for dashboard config changes and reload dashboard
+  document.addEventListener('dashboard-config-changed', () => {
+    if (currentAdminTab === 'dashboard') {
+      const content = document.getElementById('admin-content');
+      if (content) {
+        showDashboard(content, currentStationFilter);
+      }
+    }
+  });
 }
 
 async function loadAdminTab(tab) {
@@ -411,45 +430,40 @@ async function showDashboard(container, stationId = null) {
       console.warn('Errore calcoli KPI (usando fallback):', calcErr);
     }
 
-    // Andamento prezzi medi - verrà popolato via Chart.js
+    // ------------------------------------------------------------------
+    // LOAD USER DASHBOARD CONFIGURATION
+    // ------------------------------------------------------------------
+    const dashboardConfig = await loadDashboardConfig();
 
+    // Build KPI data object
+    const kpiData = {
+      venduto: {
+        value: vendutoKpiValue ? formatEuro(vendutoKpiValue) : '€ 0',
+        subtitle: '+0% vs ieri'
+      },
+      erogato: {
+        value: `${(erogatoKpiData.totale || 0).toFixed(2)} L`,
+        subtitle: `${(erogatoKpiData.litriBenzina || 0).toFixed(2)} L Benzina / ${(erogatoKpiData.litriGasolio || 0).toFixed(2)} L Gasolio`
+      },
+      stazioni: {
+        value: `${stationsCount || 0}`,
+        subtitle: `${operatorsCount || 0} operatori attivi`
+      },
+      alert: {
+        value: `${closuresCount || 0}`,
+        subtitle: 'Chiusure registrate'
+      }
+    };
+
+    // Render KPI cards dynamically
+    const kpiHtml = renderKpiCards(dashboardConfig, kpiData);
     // RACE CONDITION CHECK: Stop if user switched tab
     if (currentAdminTab !== 'dashboard') return;
 
+
     container.innerHTML = `
-      <section class="dashboard-grid">
-        <article class="kpi-card">
-          <div class="kpi-row">
-            <div class="kpi-icon"><i class="fas fa-euro-sign"></i></div>
-          </div>
-          <p class="kpi-title">Venduto Oggi</p>
-          <p class="kpi-value">${vendutoKpiValue ? formatEuro(vendutoKpiValue) : '€ 0'}</p>
-          <p class="kpi-sub">+0% vs ieri</p>
-        </article>
-        <article class="kpi-card">
-          <div class="kpi-row">
-            <div class="kpi-icon"><i class="fas fa-gas-pump"></i></div>
-          </div>
-          <p class="kpi-title">Erogato Oggi</p>
-          <p class="kpi-value">${(erogatoKpiData.totale || 0).toFixed(2)} L</p>
-          <p class="kpi-sub">${(erogatoKpiData.litriBenzina || 0).toFixed(2)} L Benzina / ${(erogatoKpiData.litriGasolio || 0).toFixed(2)} L Gasolio</p>
-        </article>
-        <article class="kpi-card">
-          <div class="kpi-row">
-            <div class="kpi-icon"><i class="fas fa-map-marker-alt"></i></div>
-          </div>
-          <p class="kpi-title">Stazioni Attive</p>
-          <p class="kpi-value">${stationsCount || 0}</p>
-          <p class="kpi-sub">${operatorsCount || 0} operatori attivi</p>
-        </article>
-        <article class="kpi-card">
-          <div class="kpi-row">
-            <div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
-          </div>
-          <p class="kpi-title">Alert Cisterne</p>
-          <p class="kpi-value">${closuresCount || 0}</p>
-          <p class="kpi-sub">Chiusure registrate</p>
-        </article>
+      <section class="dashboard-grid" style="grid-template-columns: repeat(${dashboardConfig.gridColumns || 4}, 1fr);">
+        ${kpiHtml}
       </section>
 
       <section class="dashboard-panels" id="dashboard-container">
@@ -668,6 +682,42 @@ function initDashboardSplit() {
   }
 }
 
+/**
+ * Render KPI cards based on user configuration
+ * @param {Object} config - Dashboard configuration {kpiLayout, gridColumns}
+ * @param {Object} kpiData - KPI data values {venduto: {value, subtitle}, erogato: {...}, ...}
+ * @returns {string} HTML for KPI cards
+ */
+function renderKpiCards(config, kpiData) {
+  if (!config || !config.kpiLayout || !Array.isArray(config.kpiLayout)) {
+    return '';
+  }
+
+  return config.kpiLayout
+    .filter(kpi => kpi.visible !== false) // Only show visible KPIs
+    .sort((a, b) => (a.order || 0) - (b.order || 0)) // Sort by order
+    .map(kpi => {
+      const kpiMeta = KPI_CATALOG[kpi.id];
+      const kpiValue = kpiData[kpi.id];
+
+      if (!kpiMeta || !kpiValue) return '';
+
+      const sizeClass = `kpi-size-${kpi.size || '1x1'}`;
+
+      return `
+        <article class="kpi-card ${sizeClass}" data-kpi-id="${kpi.id}">
+          <div class="kpi-row">
+            <div class="kpi-icon"><i class="fas ${kpiMeta.icon}"></i></div>
+          </div>
+          <p class="kpi-title">${kpiMeta.title}</p>
+          <p class="kpi-value">${kpiValue.value}</p>
+          <p class="kpi-sub">${kpiValue.subtitle}</p>
+        </article>
+      `;
+    })
+    .join('');
+}
+
 // ------------------------------------------------------------------
 // STATIONS (Distributori)
 // ------------------------------------------------------------------
@@ -806,7 +856,7 @@ async function openStationModal(stationId = null) {
       closeModal();
       loadAdminTab('stations');
     } catch (err) {
-      alert('Errore salvataggio: ' + err.message);
+      Toast.show('Errore salvataggio: ' + err.message, 'error');
     }
   });
 }
@@ -817,7 +867,7 @@ async function deleteStation(stationId) {
     await safeSupabaseQuery(() => supabase.from('fuel_stations').delete().eq('station_id', stationId));
     loadAdminTab('stations');
   } catch (err) {
-    alert('Errore eliminazione: ' + err.message);
+    Toast.show('Errore eliminazione: ' + err.message, 'error');
   }
 }
 
@@ -886,9 +936,9 @@ async function showPrezziAdminModal(stationId) {
     try {
       await safeSupabaseQuery(() => supabase.from('prezzi_distributore').insert([payload]));
       closeModal();
-      alert('Prezzi aggiornati!');
+      Toast.show('Prezzi aggiornati!', 'success');
     } catch (err) {
-      alert('Errore: ' + err.message);
+      Toast.show('Errore: ' + err.message, 'error');
     }
   });
 }
@@ -1158,7 +1208,7 @@ async function showTanksAdminModal(stationId) {
         e.target.reset();
         renderTanks();
       } catch (err) {
-        alert('Errore: ' + err.message);
+        Toast.show('Errore: ' + err.message, 'error');
       }
     });
 
@@ -1211,7 +1261,7 @@ async function showTanksAdminModal(stationId) {
         refreshModeFields();
         renderTanks();
       } catch (err) {
-        alert('Errore: ' + err.message);
+        Toast.show('Errore: ' + err.message, 'error');
       }
     });
 
@@ -1375,7 +1425,7 @@ async function openOperatorModal(userId = null) {
       closeModal();
       loadAdminTab('operators');
     } catch (err) {
-      alert('Errore: ' + err.message);
+      Toast.show('Errore: ' + err.message, 'error');
     }
   });
 }
@@ -1418,9 +1468,9 @@ async function openAssignStationModal(userId) {
         await safeSupabaseQuery(() => supabase.from('user_stations').insert([{ user_id: userId, station_id: stationId }]));
       }
       closeModal();
-      alert('Assegnazione salvata');
+      Toast.show('Assegnazione salvata', 'success');
     } catch (err) {
-      alert('Errore: ' + err.message);
+      Toast.show('Errore: ' + err.message, 'error');
     }
   });
 }
@@ -1655,7 +1705,7 @@ async function openExportModal(closureId) {
 
     await generateClosureExcel(template);
   } catch (err) {
-    alert('Errore export: ' + (err?.message || err));
+    Toast.show('Errore export: ' + (err?.message || err), 'error');
     console.error('Errore export:', err);
   }
 }
@@ -1823,7 +1873,7 @@ async function showFattureTab(container, actionsContainer, stationId = null) {
           if (error) {
             // Se l'errore è relativo a colonne mancanti, informa l'utente
             if (error.message && (error.message.includes('status') || error.message.includes('updated_at'))) {
-              alert('Le colonne "status" e/o "updated_at" non esistono ancora nel database.\n\nEsegui lo script SQL "aggiungi_campi_invoices.sql" per aggiungere tutte le colonne necessarie.');
+              Toast.show('Le colonne "status" e/o "updated_at" non esistono ancora nel database.\\n\\nEsegui lo script SQL "aggiungi_campi_invoices.sql" per aggiungere tutte le colonne necessarie.', 'warning');
               return;
             }
             throw error;
@@ -1833,7 +1883,7 @@ async function showFattureTab(container, actionsContainer, stationId = null) {
           showFattureTab(container, actionsContainer);
 
         } catch (err) {
-          alert('Errore aggiornamento stato: ' + err.message);
+          Toast.show('Errore aggiornamento stato: ' + err.message, 'error');
         }
       });
     });
@@ -1968,7 +2018,7 @@ async function openCustomerModal(customerId = null) {
       closeModal();
       loadAdminTab('crediti');
     } catch (err) {
-      alert('Errore: ' + err.message);
+      Toast.show('Errore: ' + err.message, 'error');
     }
   });
 }
@@ -1979,7 +2029,7 @@ async function deleteCustomer(customerId) {
     await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
     loadAdminTab('crediti');
   } catch (err) {
-    alert('Errore: ' + err.message);
+    Toast.show('Errore: ' + err.message, 'error');
   }
 }
 
@@ -2097,7 +2147,7 @@ async function openVoucherModal() {
       loadAdminTab('vouchers');
       showInfoModal(`${quantity} voucher generati con successo!`);
     } catch (err) {
-      alert('Errore: ' + err.message);
+      Toast.show('Errore: ' + err.message, 'error');
     }
   });
 }
@@ -2117,7 +2167,7 @@ async function deleteVoucher(id) {
     await safeSupabaseQuery(() => supabase.from('vouchers').delete().eq('id', id));
     loadAdminTab('vouchers');
   } catch (err) {
-    alert('Errore: ' + err.message);
+    Toast.show('Errore: ' + err.message, 'error');
   }
 }
 

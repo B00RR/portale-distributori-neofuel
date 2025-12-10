@@ -2,6 +2,7 @@ import { supabase } from "./api.js";
 import { openModal, closeModal, showInfoModal } from "./ui.js";
 import { createWarningMessage, createErrorMessage, createFormActions } from "./operator-ui-components.js";
 import { checkOpeningStatus } from "./operator-opening.js";
+import { Toast } from "./shared/toast.js";
 
 /**
  * Mostra il menu per la gestione degli incassi extra (olio, AdBlue, ecc.)
@@ -101,7 +102,7 @@ function renderExtraIncomeForm(container, stationId, userId, turnoId) {
         const description = formData.get('description');
 
         if (!amount || amount <= 0) {
-            alert("Inserire un importo valido.");
+            Toast.show("Inserire un importo valido.", 'warning');
             return;
         }
 
@@ -124,7 +125,7 @@ function renderExtraIncomeForm(container, stationId, userId, turnoId) {
             showInfoModal(`Incasso di € ${amount.toFixed(2)} registrato correttamente.`);
 
         } catch (err) {
-            alert("Errore salvataggio: " + err.message);
+            Toast.show("Errore salvataggio: " + err.message, 'error');
         }
     });
 }

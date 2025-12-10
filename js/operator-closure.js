@@ -13,6 +13,7 @@ import {
 } from "./operator-ui-components.js";
 import { escapeHtml, formatLitri, formatEuro } from "./utils.js";
 import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
+import { Toast } from "./shared/toast.js";
 
 // Stato del wizard di chiusura
 let closureState = {
@@ -538,7 +539,7 @@ function showClosureStep1() {
     });
 
     if (missingSelection) {
-      alert(`Seleziona il serbatoio per ${missingSelection.nome || `Pistola #${missingSelection.id}`}`);
+      Toast.show(`Seleziona il serbatoio per ${missingSelection.nome || `Pistola #${missingSelection.id}`}`, 'warning');
       const selectEl = form.querySelector(`[name="tank_select_${missingSelection.id}"]`);
       selectEl?.focus();
       return;
@@ -1021,7 +1022,7 @@ async function showClosureStep3() {
     // But if network fails, user is stuck.
     // Let's alert error and try fallback logic just for display, or block.
     // I will show alert and use basic fallback.
-    alert("Attenzione: Impossibile contattare il server per il calcolo sicuro. Uso calcolo locale di emergenza.");
+    Toast.show("Attenzione: Impossibile contattare il server per il calcolo sicuro. Uso calcolo locale di emergenza.", 'warning');
 
     // Fallback Replica
     const selfDelta = selfCashIn - selfCashOut;

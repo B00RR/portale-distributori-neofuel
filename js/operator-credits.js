@@ -7,6 +7,7 @@ import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeMo
 import { escapeHtml, formatEuro } from "./utils.js";
 import { createBackButton, createFormActions, createWarningMessage } from "./operator-ui-components.js";
 import { checkOpeningStatus } from "./operator-opening.js";
+import { Toast } from "./shared/toast.js";
 
 /**
  * Mostra il menu principale per la gestione crediti
@@ -226,7 +227,7 @@ async function showNewCreditForm(stationId, userId) {
             closeModal();
             showInfoModal('Credito registrato con successo!');
         } catch (err) {
-            alert('Errore: ' + err.message);
+            Toast.show('Errore: ' + err.message, 'error');
         }
     });
 }
@@ -487,7 +488,7 @@ function showPaymentModal(customer, stationId, userId) {
 
         if (amount <= 0) return;
         if (amount > customer.saldo + 0.01) { // Tolleranza centesimi
-            alert('L\'importo non può superare il debito!');
+            Toast.show('L\'importo non può superare il debito!', 'warning');
             return;
         }
 
@@ -496,7 +497,7 @@ function showPaymentModal(customer, stationId, userId) {
             closeModal();
             showInfoModal('Pagamento registrato con successo!');
         } catch (err) {
-            alert('Errore: ' + err.message);
+            Toast.show('Errore: ' + err.message, 'error');
         }
     });
 }

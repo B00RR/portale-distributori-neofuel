@@ -10,6 +10,7 @@ import {
 import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
 import { loggedUser } from "./auth.js";
 import { ensureCalculationPresetsSynced } from "./calculation-presets.js";
+import { Toast } from "./shared/toast.js";
 
 const MODULE_TABLE = "calculation_modules";
 const VERSION_TABLE = "calculation_versions";
@@ -39,9 +40,7 @@ export async function showSettingsTab(container, actionsContainer) {
           <button class="settings-tab active" data-settings-tab="logic">
             <i class="fas fa-brain"></i> Calcoli e funzioni
           </button>
-          <button class="settings-tab" data-settings-tab="appearance" disabled>
-            <i class="fas fa-palette"></i> Aspetto (prossimamente)
-          </button>
+
         </div>
       </div>
       <div class="content-box settings-panel active" data-settings-panel="logic"></div>
@@ -252,14 +251,14 @@ function openModuleDetailsModal(module) {
                 <i class="fas fa-code"></i>
               </button>
               ${v.status !== "published"
-                ? `<button
+        ? `<button
                     class="icon-btn logic-version-publish"
                     data-version-index="${idx}"
                     title="Pubblica versione"
                   >
                     <i class="fas fa-check"></i>
                   </button>`
-                : ""}
+        : ""}
             </div>
           </td>
         </tr>
@@ -459,7 +458,7 @@ async function handleModuleCreation(event) {
     // created_by deve essere UUID, non integer - se user_id è un numero, passiamo null
     const userId = loggedUser?.user_id;
     const isValidUuid = userId && typeof userId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-    
+
     const modulePayload = {
       name,
       scope,
@@ -511,7 +510,7 @@ async function handleModuleCreation(event) {
     showInfoModal("Modulo creato con successo!", "Calcoli e funzioni");
     await refreshSettingsTab();
   } catch (err) {
-    alert(err.message || "Errore durante la creazione del modulo.");
+    Toast.show(err.message || "Errore durante la creazione del modulo.", 'error');
     console.error("Errore creazione modulo:", err);
   } finally {
     if (submitBtn) submitBtn.disabled = false;
@@ -561,7 +560,7 @@ function openDslEditorModal(module, version) {
       JSON.parse(value);
       showInfoModal("DSL valido.", "Validazione");
     } catch (err) {
-      alert("DSL non valido: " + err.message);
+      Toast.show("DSL non valido: " + err.message, 'error');
     }
   });
 
@@ -605,7 +604,7 @@ async function handleVersionCreation(event, module, nextVersion) {
     // created_by deve essere UUID, non integer - se user_id è un numero, passiamo null
     const userId = loggedUser?.user_id;
     const isValidUuid = userId && typeof userId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-    
+
     const payload = {
       module_id: module.id,
       version: nextVersion,
@@ -640,7 +639,7 @@ async function handleVersionCreation(event, module, nextVersion) {
     showInfoModal(`Versione v${nextVersion} creata!`, "Calcoli e funzioni");
     await refreshSettingsTab();
   } catch (err) {
-    alert(err.message || "Errore durante la creazione della versione.");
+    Toast.show(err.message || "Errore durante la creazione della versione.", 'error');
     console.error("Errore creazione versione:", err);
   } finally {
     if (submitBtn) submitBtn.disabled = false;
@@ -667,7 +666,7 @@ async function handlePublishVersion(module, version) {
     showInfoModal(`Versione v${version.version} pubblicata e impostata come attiva.`, "Calcoli e funzioni");
     await refreshSettingsTab();
   } catch (err) {
-    alert(err.message || "Errore durante la pubblicazione.");
+    Toast.show(err.message || "Errore durante la pubblicazione.", 'error');
     console.error("Errore publish versione:", err);
   }
 }

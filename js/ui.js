@@ -11,10 +11,42 @@ export function initAdminContent() {
     };
 }
 
-// Helper: Mostra messaggio di caricamento (pattern ripetuto)
-export function showLoadingMessage(content, message = 'Caricamento...') {
+// Helper: Mostra messaggio di caricamento (Logo Animato)
+export function showLoadingMessage(content, message = '') {
     if (content) {
-        content.innerHTML = `<b>${escapeHtml(message)}</b>`;
+        content.innerHTML = `
+            <div class="loader-container">
+                <img src="logo svg.svg" alt="Loading..." class="loader-logo">
+            </div>
+        `;
+    }
+}
+
+// Helper: Overlay Full Screen Loader (es. per Login)
+export function showFullScreenLoader(message = '') {
+    let loader = document.getElementById('full-screen-loader');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'full-screen-loader';
+        loader.className = 'loader-overlay-full';
+        document.body.appendChild(loader);
+    }
+    loader.innerHTML = `
+        <img src="logo svg.svg" alt="Loading..." class="loader-logo">
+    `;
+    loader.style.display = 'flex';
+}
+
+export function hideFullScreenLoader() {
+    const loader = document.getElementById('full-screen-loader');
+    if (loader) {
+        // Fade out effect
+        loader.style.opacity = '0';
+        loader.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => {
+            loader.style.display = 'none';
+            loader.style.opacity = '1';
+        }, 300);
     }
 }
 

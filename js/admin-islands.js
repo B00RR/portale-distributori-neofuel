@@ -5,6 +5,7 @@ import { supabase, safeSupabaseQuery, getStationName } from "./api.js";
 import { openModal, closeModal, showLoadingMessage, showErrorMessage, showInfoModal, openConfirmModal } from "./ui.js";
 import { escapeHtml, formatNumberIt } from "./utils.js";
 import { showGunsModal } from "./admin-guns.js";
+import { Toast } from "./shared/toast.js";
 
 /**
  * Mostra modal gestione isole per un distributore
@@ -175,7 +176,7 @@ async function openIslandForm(stationId, islandId = null) {
       closeModal();
       showIslandsModal(stationId);
     } catch (err) {
-      alert('Errore: ' + err.message);
+      Toast.show('Errore: ' + err.message, 'error');
     }
   });
 }
@@ -194,7 +195,7 @@ async function deleteIsland(islandId, stationId) {
       .eq('island_id', islandId);
 
     if (guns && guns.length > 0) {
-      alert(`Impossibile eliminare: l'isola ha ${guns.length} pistol${guns.length !== 1 ? 'e' : 'a'} associate. Rimuovile prima.`);
+      Toast.show(`Impossibile eliminare: l'isola ha ${guns.length} pistol${guns.length !== 1 ? 'e' : 'a'} associate. Rimuovile prima.`, 'warning');
       return;
     }
 
@@ -207,6 +208,6 @@ async function deleteIsland(islandId, stationId) {
     showInfoModal('Isola eliminata con successo!');
     showIslandsModal(stationId);
   } catch (err) {
-    alert('Errore eliminazione: ' + err.message);
+    Toast.show('Errore eliminazione: ' + err.message, 'error');
   }
 }

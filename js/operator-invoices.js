@@ -6,6 +6,7 @@ import { supabase } from "./api.js";
 import { openModal, closeModal, showInfoModal } from "./ui.js";
 import { createWarningMessage, createErrorMessage, createFormActions } from "./operator-ui-components.js";
 import { checkOpeningStatus } from "./operator-opening.js";
+import { Toast } from "./shared/toast.js";
 
 /**
  * Mostra il menu per la richiesta fatture
@@ -137,7 +138,7 @@ function renderNewCustomerForm(container, stationId, userId) {
 
         // Validazione: se tutti i campi sono vuoti, almeno il telefono è obbligatorio
         if (!nome && !partitaIva && !codiceUnivoco && !telefono && !targa) {
-            alert("Inserire almeno il numero di telefono o altri dati del cliente.");
+            Toast.show("Inserire almeno il numero di telefono o altri dati del cliente.", 'warning');
             return;
         }
 
@@ -189,7 +190,7 @@ function renderNewCustomerForm(container, stationId, userId) {
             renderInvoiceForm(container, stationId, userId, clienteId, nome || telefono || 'Cliente');
 
         } catch (err) {
-            alert("Errore salvataggio cliente: " + err.message);
+            Toast.show("Errore salvataggio cliente: " + err.message, 'error');
         }
     });
 }
@@ -297,7 +298,7 @@ function renderExistingCustomerForm(container, stationId, userId) {
         const customerName = searchInput.value.trim();
 
         if (!customerId || !customerName) {
-            alert("Seleziona un cliente dalla lista.");
+            Toast.show("Seleziona un cliente dalla lista.", 'warning');
             return;
         }
 
@@ -309,7 +310,7 @@ function renderExistingCustomerForm(container, stationId, userId) {
             .single();
 
         if (error) {
-            alert("Errore recupero cliente: " + error.message);
+            Toast.show("Errore recupero cliente: " + error.message, 'error');
             return;
         }
 
@@ -405,12 +406,12 @@ function renderInvoiceForm(container, stationId, userId, clienteId, customerName
 
         // Validazione categoria prodotto
         if (productCategory === 'altro' && !productNote) {
-            alert("Selezionando 'Altro' è obbligatorio specificare il prodotto nella nota.");
+            Toast.show("Selezionando 'Altro' è obbligatorio specificare il prodotto nella nota.", 'warning');
             return;
         }
 
         if (amount <= 0 || !paymentMethod || !productCategory) {
-            alert("Inserire tutti i dati obbligatori.");
+            Toast.show("Inserire tutti i dati obbligatori.", 'warning');
             return;
         }
 
@@ -448,7 +449,7 @@ function renderInvoiceForm(container, stationId, userId, clienteId, customerName
             showInfoModal(`Richiesta fattura per ${customerName} inviata correttamente.`);
 
         } catch (err) {
-            alert("Errore salvataggio: " + err.message);
+            Toast.show("Errore salvataggio: " + err.message, 'error');
         }
     });
 }
