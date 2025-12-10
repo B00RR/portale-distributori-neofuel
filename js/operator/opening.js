@@ -2,8 +2,8 @@
 // OPERATOR OPENING SHIFT MANAGEMENT
 // Gestione apertura turno con caricamento contatori
 // ==========================================
-import { supabase } from "./api.js";
-import { showLoadingMessage, showErrorMessage, openModal, closeModal } from "./ui.js";
+import { supabase } from "../core/api.js";
+import { showLoadingMessage, showErrorMessage, openModal, closeModal } from "../ui/ui.js";
 import {
     createWarningMessage,
     createSuccessMessage,
@@ -11,8 +11,8 @@ import {
     createBackButton,
     createContentBox,
     attachBackButtonListener
-} from "./operator-ui-components.js";
-import { escapeHtml, formatLitri } from "./utils.js";
+} from "./ui-components.js";
+import { escapeHtml, formatLitri } from "../utils/utils.js";
 
 /**
  * Aggiorna il badge di stato apertura nel menu principale

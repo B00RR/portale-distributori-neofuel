@@ -2,12 +2,12 @@
 // OPERATOR CREDITS MANAGEMENT
 // Gestione crediti clienti (Nuovo Credito vs Pagamento)
 // ==========================================
-import { supabase } from "./api.js";
-import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from "./ui.js";
-import { escapeHtml, formatEuro } from "./utils.js";
-import { createBackButton, createFormActions, createWarningMessage } from "./operator-ui-components.js";
-import { checkOpeningStatus } from "./operator-opening.js";
-import { Toast } from "./shared/toast.js";
+import { supabase } from "../core/api.js";
+import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from "../ui/ui.js";
+import { escapeHtml, formatEuro } from "../utils/utils.js";
+import { createBackButton, createFormActions, createWarningMessage } from "./ui-components.js";
+import { checkOpeningStatus } from "./opening.js";
+import { Toast } from "../ui/toast.js";
 
 /**
  * Mostra il menu principale per la gestione crediti

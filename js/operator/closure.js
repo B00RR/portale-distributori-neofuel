@@ -2,18 +2,18 @@
 // OPERATOR CLOSURE WIZARD
 // Gestione chiusura turno con wizard a 3 step
 // ==========================================
-import { supabase } from "./api.js";
-import { showLoadingMessage, showErrorMessage, openModal, closeModal } from "./ui.js";
-import { checkOpeningStatus, updateOpeningStatus } from "./operator-opening.js";
+import { supabase } from "../core/api.js";
+import { showLoadingMessage, showErrorMessage, openModal, closeModal } from "../ui/ui.js";
+import { checkOpeningStatus, updateOpeningStatus } from "./opening.js";
 import {
   createWarningMessage,
   createBackButton,
   createContentBox,
   attachBackButtonListener
-} from "./operator-ui-components.js";
-import { escapeHtml, formatLitri, formatEuro } from "./utils.js";
-import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
-import { Toast } from "./shared/toast.js";
+} from "./ui-components.js";
+import { escapeHtml, formatLitri, formatEuro } from "../utils/utils.js";
+import { calculationEngine, CALCULATION_SCOPES } from "../utils/calculation-engine.js";
+import { Toast } from "../ui/toast.js";
 
 // Stato del wizard di chiusura
 let closureState = {

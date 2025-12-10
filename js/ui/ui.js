@@ -1,7 +1,7 @@
 // ==========================================
 // UI HELPERS
 // ==========================================
-import { escapeHtml } from "./utils.js";
+import { escapeHtml } from "../utils/utils.js";
 
 // Helper: Inizializza elementi admin content (pattern ripetuto)
 export function initAdminContent() {

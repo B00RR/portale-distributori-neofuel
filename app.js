@@ -1,15 +1,15 @@
 // ==========================================
 // APP ENTRY POINT
 // ==========================================
-import { supabase } from "./js/api.js";
+import { supabase } from "./js/core/api.js";
 import {
   initLoginElements, loadSession, setLoggedUser, setOnLoginSuccess,
   handlePasswordReset, requestPasswordReset
-} from "./js/auth.js";
+} from "./js/core/auth.js";
 import { showAdminArea } from "./js/admin.js";
 import { showOperatorMenu } from "./js/operator.js";
-import "./js/calculation-engine.js";
-import { initializeCalculationPresets } from "./js/calculation-presets.js";
+import "./js/utils/calculation-engine.js";
+import { initializeCalculationPresets } from "./js/utils/calculation-presets.js";
 
 // Espone funzioni globali per compatibilità (es. onclick in HTML se presenti, o console debug)
 window.requestPasswordReset = requestPasswordReset;

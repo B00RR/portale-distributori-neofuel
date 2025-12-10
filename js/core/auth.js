@@ -2,8 +2,8 @@
 // AUTHENTICATION
 // ==========================================
 import { supabase } from "./api.js";
-import { Toast } from "./shared/toast.js";
-import { showFullScreenLoader, hideFullScreenLoader } from "./ui.js";
+import { Toast } from "../ui/toast.js";
+import { showFullScreenLoader, hideFullScreenLoader } from "../ui/ui.js";
 
 let loginForm = null;
 let loginContainer = null;

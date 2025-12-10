@@ -1,4 +1,4 @@
-import { supabase, safeSupabaseQuery } from "./api.js";
+import { supabase, safeSupabaseQuery } from "../core/api.js";
 import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
 
 const presetState = {

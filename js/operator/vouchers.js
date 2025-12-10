@@ -2,11 +2,11 @@
 // OPERATOR VOUCHER MANAGEMENT
 // Gestione voucher e punti (prepagati)
 // ==========================================
-import { supabase } from "./api.js";
-import { showInfoModal, openModal, closeModal } from "./ui.js";
-import { createWarningMessage, createBackButton } from "./operator-ui-components.js";
-import { checkOpeningStatus } from "./operator-opening.js";
-import { Toast } from "./shared/toast.js";
+import { supabase } from "../core/api.js";
+import { showInfoModal, openModal, closeModal } from "../ui/ui.js";
+import { createWarningMessage, createBackButton } from "./ui-components.js";
+import { checkOpeningStatus } from "./opening.js";
+import { Toast } from "../ui/toast.js";
 
 /**
  * Mostra il menu per la gestione voucher e punti

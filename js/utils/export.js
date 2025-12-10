@@ -1,9 +1,9 @@
 // ==========================================
 // EXPORT FUNCTIONS (PDF / EXCEL)
 // ==========================================
-import { supabase, safeSupabaseQuery } from "./api.js";
+import { supabase, safeSupabaseQuery } from "../core/api.js";
 import { formatNumberIt, formatEuro, slugifyLabel, base64ToArrayBuffer, parseNumberFlexible, escapeHtml } from "./utils.js";
-import { Toast } from "./shared/toast.js";
+import { Toast } from "../ui/toast.js";
 
 // Costanti per export
 const SUMMARY_TEMPLATE_START_ROW = 42;

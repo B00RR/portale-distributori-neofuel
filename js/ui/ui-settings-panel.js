@@ -8,9 +8,9 @@
 //   - Sezione "Layout": configurazione layout Admin e Operatore
 // ============================================================
 
-import { supabase, safeSupabaseQuery } from "./api.js";
-import { Toast } from "./shared/toast.js";
-import { renderConfigPanel } from "./admin-dashboard-config.js";
+import { supabase, safeSupabaseQuery } from "../core/api.js";
+import { Toast } from "./toast.js";
+import { renderConfigPanel } from "../admin/dashboard-config.js";
 
 const UI_FIELDS = [
   {

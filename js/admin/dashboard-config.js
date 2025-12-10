@@ -15,10 +15,10 @@
  * @module admin-dashboard-config
  */
 
-import { supabase } from './api.js';
-import { openModal, closeModal } from './ui.js';
-import { loggedUser } from './auth.js';
-import { Toast } from './shared/toast.js';
+import { supabase } from '../core/api.js';
+import { openModal, closeModal } from '../ui/ui.js';
+import { loggedUser } from '../core/auth.js';
+import { Toast } from '../ui/toast.js';
 
 // ============================================================================
 // KPI CATALOG

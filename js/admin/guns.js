@@ -3,11 +3,11 @@
  * Gestisce le operazioni CRUD per le pistole (guns) nel pannello admin
  */
 
-import { supabase } from './api.js';
-import { safeSupabaseQuery } from './api.js';
-import { openModal, closeModal, showInfoModal, openConfirmModal, showLoadingMessage } from './ui.js';
-import { escapeHtml, formatNumberIt, parseNumberFlexible, formatGunCounter, parseGunCounter } from './utils.js';
-import { Toast } from './shared/toast.js';
+import { supabase } from '../core/api.js';
+import { safeSupabaseQuery } from '../core/api.js';
+import { openModal, closeModal, showInfoModal, openConfirmModal, showLoadingMessage } from '../ui/ui.js';
+import { escapeHtml, formatNumberIt, parseNumberFlexible, formatGunCounter, parseGunCounter } from '../utils/utils.js';
+import { Toast } from '../ui/toast.js';
 
 /**
  * Mostra modal con lista pistole per un'isola

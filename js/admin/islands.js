@@ -1,11 +1,11 @@
 // ==========================================
 // ADMIN - ISLANDS MANAGEMENT
 // ==========================================
-import { supabase, safeSupabaseQuery, getStationName } from "./api.js";
-import { openModal, closeModal, showLoadingMessage, showErrorMessage, showInfoModal, openConfirmModal } from "./ui.js";
-import { escapeHtml, formatNumberIt } from "./utils.js";
-import { showGunsModal } from "./admin-guns.js";
-import { Toast } from "./shared/toast.js";
+import { supabase, safeSupabaseQuery, getStationName } from "../core/api.js";
+import { openModal, closeModal, showLoadingMessage, showErrorMessage, showInfoModal, openConfirmModal } from "../ui/ui.js";
+import { escapeHtml, formatNumberIt } from "../utils/utils.js";
+import { showGunsModal } from "./guns.js";
+import { Toast } from "../ui/toast.js";
 
 /**
  * Mostra modal gestione isole per un distributore

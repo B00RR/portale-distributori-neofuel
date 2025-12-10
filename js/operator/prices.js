@@ -2,11 +2,11 @@
 // OPERATOR PRICES MANAGEMENT
 // Gestione modifica prezzi carburante
 // ==========================================
-import { supabase, safeSupabaseQuery } from "./api.js";
-import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from "./ui.js";
-import { createContentBox } from "./operator-ui-components.js";
-import { loggedUser } from "./auth.js";
-import { escapeHtml } from "./utils.js";
+import { supabase, safeSupabaseQuery } from "../core/api.js";
+import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from "../ui/ui.js";
+import { createContentBox } from "./ui-components.js";
+import { loggedUser } from "../core/auth.js";
+import { escapeHtml } from "../utils/utils.js";
 
 /**
  * Mostra il form per modificare i prezzi del carburante

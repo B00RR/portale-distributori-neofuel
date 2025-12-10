@@ -2,7 +2,7 @@
 // OPERATOR UI COMPONENTS
 // Componenti riutilizzabili per eliminare duplicazione codice
 // ==========================================
-import { escapeHtml, formatLitri, formatEuro } from "./utils.js";
+import { escapeHtml, formatLitri, formatEuro } from "../utils/utils.js";
 
 /**
  * Crea un messaggio di warning standardizzato
@@ -12,7 +12,7 @@ import { escapeHtml, formatLitri, formatEuro } from "./utils.js";
  * @returns {string} HTML del messaggio warning
  */
 export function createWarningMessage(title, message, details = '') {
-    return `
+  return `
     <div class="warning-message">
       <i class="fas fa-exclamation-triangle"></i>
       <h3>${escapeHtml(title)}</h3>
@@ -30,7 +30,7 @@ export function createWarningMessage(title, message, details = '') {
  * @returns {string} HTML del messaggio successo
  */
 export function createSuccessMessage(title, message, details = '') {
-    return `
+  return `
     <div class="success-message">
       <i class="fas fa-check-circle" style="font-size: 48px; color: #10b981; margin-bottom: 20px;"></i>
       <h3>${escapeHtml(title)}</h3>
@@ -47,7 +47,7 @@ export function createSuccessMessage(title, message, details = '') {
  * @returns {string} HTML del messaggio errore
  */
 export function createErrorMessage(title, error) {
-    return `
+  return `
     <div class="warning-message">
       <i class="fas fa-exclamation-triangle"></i>
       <h3>${escapeHtml(title)}</h3>
@@ -65,7 +65,7 @@ export function createErrorMessage(title, error) {
  * @returns {string} HTML del pulsante
  */
 export function createBackButton(id = 'btn-back-menu') {
-    return `
+  return `
     <button class="menu-button secondary full-width" id="${id}">
       <i class="fas fa-arrow-left"></i> Torna al Menu
     </button>
@@ -83,15 +83,15 @@ export function createBackButton(id = 'btn-back-menu') {
  * @returns {string} HTML dei pulsanti azione
  */
 export function createFormActions(options = {}) {
-    const {
-        cancelId = 'btn-cancel',
-        confirmId = 'btn-confirm',
-        cancelText = 'Annulla',
-        confirmText = 'Conferma',
-        confirmClass = 'success'
-    } = options;
+  const {
+    cancelId = 'btn-cancel',
+    confirmId = 'btn-confirm',
+    cancelText = 'Annulla',
+    confirmText = 'Conferma',
+    confirmClass = 'success'
+  } = options;
 
-    return `
+  return `
     <div class="form-actions">
       <button type="button" class="menu-button secondary" id="${cancelId}">
         <i class="fas fa-times"></i> ${escapeHtml(cancelText)}
@@ -115,10 +115,10 @@ export function createFormActions(options = {}) {
  * @returns {string} HTML della card pistola
  */
 export function createPistolaCard(pistola, openingCounter, closingCounter = null, readonly = false) {
-    const islandName = pistola.islands?.nome || 'Isola';
-    const pistolaName = pistola.nome || `Pistola #${pistola.id}`;
+  const islandName = pistola.islands?.nome || 'Isola';
+  const pistolaName = pistola.nome || `Pistola #${pistola.id}`;
 
-    return `
+  return `
     <div class="pistola-card">
       <div class="pistola-header">
         <span class="pistola-name">${escapeHtml(pistolaName)}</span>
@@ -127,9 +127,9 @@ export function createPistolaCard(pistola, openingCounter, closingCounter = null
       <div class="form-group ${readonly ? 'readonly-field' : ''}">
         <label>Contatore ${closingCounter !== null ? 'Apertura' : 'Iniziale'} (litri)</label>
         ${readonly
-            ? `<div class="readonly-value">${formatLitri(openingCounter)}</div>`
-            : `<input type="number" value="${openingCounter}" class="big-input" disabled>`
-        }
+      ? `<div class="readonly-value">${formatLitri(openingCounter)}</div>`
+      : `<input type="number" value="${openingCounter}" class="big-input" disabled>`
+    }
       </div>
       ${closingCounter !== null ? `
         <div class="form-group">
@@ -156,7 +156,7 @@ export function createPistolaCard(pistola, openingCounter, closingCounter = null
  * @returns {string} HTML del summary box
  */
 export function createSummaryBox(title, rows) {
-    return `
+  return `
     <div class="summary-box">
       <h4>${escapeHtml(title)}</h4>
       ${rows.map(row => `
@@ -177,7 +177,7 @@ export function createSummaryBox(title, rows) {
  * @returns {Object} Oggetto riga per createSummaryBox
  */
 export function createSummaryRow(label, value, className = '') {
-    return { label, value, class: className };
+  return { label, value, class: className };
 }
 
 /**
@@ -186,7 +186,7 @@ export function createSummaryRow(label, value, className = '') {
  * @returns {string} HTML del contenitore
  */
 export function createContentBox(content) {
-    return `<div class="content-box">${content}</div>`;
+  return `<div class="content-box">${content}</div>`;
 }
 
 /**
@@ -194,7 +194,7 @@ export function createContentBox(content) {
  * @returns {string} HTML del divider
  */
 export function createDivider() {
-    return '<div class="section-divider"></div>';
+  return '<div class="section-divider"></div>';
 }
 
 /**
@@ -203,12 +203,12 @@ export function createDivider() {
  * @param {HTMLElement} container - Container da resettare
  */
 export function attachBackButtonListener(buttonId = 'btn-back-menu', container) {
-    const button = document.getElementById(buttonId);
-    if (button) {
-        button.addEventListener('click', () => {
-            container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
-        });
-    }
+  const button = document.getElementById(buttonId);
+  if (button) {
+    button.addEventListener('click', () => {
+      container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+    });
+  }
 }
 
 /**
@@ -217,10 +217,10 @@ export function attachBackButtonListener(buttonId = 'btn-back-menu', container) 
  * @param {HTMLElement} container - Container da resettare
  */
 export function attachCancelButtonListener(buttonId, container) {
-    const button = document.getElementById(buttonId);
-    if (button) {
-        button.addEventListener('click', () => {
-            container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
-        });
-    }
+  const button = document.getElementById(buttonId);
+  if (button) {
+    button.addEventListener('click', () => {
+      container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+    });
+  }
 }

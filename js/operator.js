@@ -2,19 +2,19 @@
 // OPERATOR AREA - MAIN ENTRY POINT
 // Refactored to use modular architecture
 // ==========================================
-import { getStationName } from "./api.js";
-import { escapeHtml } from "./utils.js";
-import { loggedUser, clearSession } from "./auth.js";
+import { getStationName } from "./core/api.js";
+import { escapeHtml } from "./utils/utils.js";
+import { loggedUser, clearSession } from "./core/auth.js";
 
 // Import moduli specializzati
-import { showAperturaForm, updateOpeningStatus, checkOpeningStatus } from "./operator-opening.js";
-import { startClosureWizard } from "./operator-closure.js";
-import { showPrezziEditForm } from "./operator-prices.js";
-import { showCreditsMenu } from "./operator-credits.js";
-import { showOutflowMenu } from "./operator-outflows.js";
-import { showExtraIncomeMenu } from "./operator-extra-income.js";
-import { showVoucherMenu } from "./operator-vouchers.js";
-import { showInvoiceMenu } from "./operator-invoices.js";
+import { showAperturaForm, updateOpeningStatus, checkOpeningStatus } from "./operator/opening.js";
+import { startClosureWizard } from "./operator/closure.js";
+import { showPrezziEditForm } from "./operator/prices.js";
+import { showCreditsMenu } from "./operator/credits.js";
+import { showOutflowMenu } from "./operator/outflows.js";
+import { showExtraIncomeMenu } from "./operator/extra-income.js";
+import { showVoucherMenu } from "./operator/vouchers.js";
+import { showInvoiceMenu } from "./operator/invoices.js";
 
 /**
  * Mostra il menu principale dell'operatore

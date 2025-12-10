@@ -1,8 +1,8 @@
-import { supabase } from "./api.js";
-import { openModal, closeModal, showInfoModal } from "./ui.js";
-import { createWarningMessage, createErrorMessage, createFormActions } from "./operator-ui-components.js";
-import { checkOpeningStatus } from "./operator-opening.js";
-import { Toast } from "./shared/toast.js";
+import { supabase } from "../core/api.js";
+import { openModal, closeModal, showInfoModal } from "../ui/ui.js";
+import { createWarningMessage, createErrorMessage, createFormActions } from "./ui-components.js";
+import { checkOpeningStatus } from "./opening.js";
+import { Toast } from "../ui/toast.js";
 
 /**
  * Mostra il menu per la gestione delle uscite di cassa

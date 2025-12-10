@@ -1,16 +1,16 @@
-import { supabase, safeSupabaseQuery } from "./api.js";
-import { escapeHtml } from "./utils.js";
+import { supabase, safeSupabaseQuery } from "../core/api.js";
+import { escapeHtml } from "../utils/utils.js";
 import {
   showLoadingMessage,
   showErrorMessage,
   openModal,
   closeModal,
   showInfoModal
-} from "./ui.js";
-import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
-import { loggedUser } from "./auth.js";
-import { ensureCalculationPresetsSynced } from "./calculation-presets.js";
-import { Toast } from "./shared/toast.js";
+} from "../ui/ui.js";
+import { calculationEngine, CALCULATION_SCOPES } from "../utils/calculation-engine.js";
+import { loggedUser } from "../core/auth.js";
+import { ensureCalculationPresetsSynced } from "../utils/calculation-presets.js";
+import { Toast } from "../ui/toast.js";
 
 const MODULE_TABLE = "calculation_modules";
 const VERSION_TABLE = "calculation_versions";

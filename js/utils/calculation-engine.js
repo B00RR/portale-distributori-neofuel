@@ -1,7 +1,7 @@
 // ==========================================
 // MOTORE DINAMICO DI CALCOLO (SCAFFOLDING)
 // ==========================================
-import { supabase, safeSupabaseQuery } from "./api.js";
+import { supabase, safeSupabaseQuery } from "../core/api.js";
 
 const MODULE_TABLE = "calculation_modules";
 const VERSION_TABLE = "calculation_versions";
