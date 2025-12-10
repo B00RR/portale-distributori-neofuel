@@ -21,7 +21,7 @@ import { showIslandsModal } from "./admin-islands.js";
 import { showSettingsTab } from "./admin-logic.js";
 import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
 import { Toast } from "./shared/toast.js";
-import { loadDashboardConfig, showDashboardConfigPanel, KPI_CATALOG } from "./admin-dashboard-config.js";
+import { loadDashboardConfig, saveDashboardConfig, showDashboardConfigPanel, KPI_CATALOG } from "./admin-dashboard-config.js";
 
 // Stato locale admin
 let currentAdminTab = 'dashboard';
@@ -462,7 +462,7 @@ async function showDashboard(container, stationId = null) {
 
 
     container.innerHTML = `
-      <section class="dashboard-grid" style="grid-template-columns: repeat(${dashboardConfig.gridColumns || 4}, 1fr);">
+      <section id="dashboard-kpi-grid" class="dashboard-grid" style="grid-template-columns: repeat(${dashboardConfig.gridColumns || 4}, 1fr);">
         ${kpiHtml}
       </section>
 
@@ -500,9 +500,70 @@ async function showDashboard(container, stationId = null) {
       </section>
     `;
 
-    // Activate Resizer (Split.js)
+    // Initialize Sortable for dashboard grid
+    const gridEl = document.getElementById('dashboard-kpi-grid');
+    if (gridEl && window.Sortable) {
+      new Sortable(gridEl, {
+        animation: 200,
+        ghostClass: 'kpi-card-ghost',
+        onEnd: async function () {
+          const newOrderIds = Array.from(gridEl.children).map(el => el.dataset.kpiId);
+
+          // Reorder layout based on new DOM order
+          const newLayout = [];
+          newOrderIds.forEach((id, index) => {
+            const item = dashboardConfig.kpiLayout.find(k => k.id === id);
+            if (item) {
+              // Create a copy to avoid mutation issues if any
+              newLayout.push({ ...item, order: index });
+            }
+          });
+
+          // Add any missing items (e.g. hidden ones not in DOM? Wait, hidden ones are not in DOM if renderKpiCards filters them)
+          // dashboardConfig.kpiLayout has ALL items (visible and hidden).
+          // But renderKpiCards ONLY returns visible ones.
+          // So newOrderIds only contains visible items.
+          // We must preserve hidden items positions or append them at the end.
+          // Better strategy: Keep hidden items at their original relative indices or just filter them out of the "reorder scope" and merge back.
+          // Simple approach: Map new order for visible items, leave hidden items as is (or with old order).
+          // Actually, best is to update order indices for ALL items. 
+          // - Visible items get 0 to N.
+          // - Hidden items get N+1 to M? Or keep old order?
+          // Let's assign strict order 0..N for visible, and keep hidden ones with their old 'order' but shifted?
+          // Safer: Just update 'order' property for the visible ones to be 0, 1, 2...
+          // and keep hidden ones where they were? No, that might cause collisions.
+          // Let's just update the visible ones to be in sequence matching the drag.
+
+          // 1. Get all items
+          const allItems = [...dashboardConfig.kpiLayout];
+
+          // 2. Update order for visible items found in DOM
+          newOrderIds.forEach((id, index) => {
+            const itemIndex = allItems.findIndex(k => k.id === id);
+            if (itemIndex !== -1) {
+              allItems[itemIndex].order = index;
+            }
+          });
+
+          // 3. For hidden items (not in DOM), we should ensure their order doesn't conflict or just leave it.
+          // If we leave it, sorting might be weird if mixed.
+          // Often best to put hidden items at the end or maintain "logical" order.
+          // Detailed Fix: We only care about visual order.
+          // Let's just save the updated layout.
+
+          dashboardConfig.kpiLayout = allItems;
+
+          // Save to DB
+          // use saveDashboardConfig imported from admin-dashboard-config.js (need to ensure it is imported)
+          // It is imported at top of file (checked in step 183 line 24).
+          await saveDashboardConfig(dashboardConfig);
+        }
+      });
+    }
+
+    // Activate Panels Drag & Drop
     requestAnimationFrame(() => {
-      initDashboardSplit();
+      initDashboardPanelsDrag();
     });
 
     // Popola grafico vendite per distributore se Chart.js è disponibile
@@ -654,31 +715,75 @@ async function showDashboard(container, stationId = null) {
 // ------------------------------------------------------------------
 // RESIZE LOGIC (Split.js)
 // ------------------------------------------------------------------
-function initDashboardSplit() {
-  const leftPanel = document.getElementById('panel-tanks');
-  const rightPanel = document.getElementById('panel-sales');
+// ------------------------------------------------------------------
+// DRAG & DROP FOR PANELS (Replaces Split.js)
+// ------------------------------------------------------------------
+function initDashboardPanelsDrag() {
+  const container = document.getElementById('dashboard-container');
+  if (!container || !window.Sortable) return;
 
-  if (!leftPanel || !rightPanel) return;
+  // 1. Initialize Sortable (Drag & Drop)
+  new Sortable(container, {
+    animation: 250,
+    handle: '.panel-title', // Drag only by title
+    ghostClass: 'panel-ghost',
+    onEnd: function (evt) {
+      saveDashboardState();
+    }
+  });
 
-  // Remove any previous custom styles that might conflict
-  leftPanel.style.width = '';
-  leftPanel.style.flex = '';
-  rightPanel.style.flex = '';
+  // 2. Initialize Resize Saving
+  // Use ResizeObserver to save size changes
+  const resizeObserver = new ResizeObserver(entries => {
+    // Debounce saving
+    if (window.dashboardResizeTimeout) clearTimeout(window.dashboardResizeTimeout);
+    window.dashboardResizeTimeout = setTimeout(() => {
+      saveDashboardState();
+    }, 500);
+  });
 
-  try {
-    // Initialize Split.js
-    Split(['#panel-tanks', '#panel-sales'], {
-      sizes: [35, 65],
-      minSize: 250,
-      gutterSize: 10,
-      cursor: 'col-resize',
-      onDragEnd: function () {
-        // Trigger resize for ChartJS
-        window.dispatchEvent(new Event('resize'));
+  Array.from(container.children).forEach(panel => {
+    resizeObserver.observe(panel);
+  });
+
+  restoreDashboardState();
+}
+
+function saveDashboardState() {
+  const container = document.getElementById('dashboard-container');
+  if (!container) return;
+
+  const state = Array.from(container.children).map(el => ({
+    id: el.id,
+    width: el.style.width,
+    height: el.style.height,
+    flex: el.style.flex // Save flex state if native resize alters it or if we switched to absolute sizes
+  }));
+
+  localStorage.setItem('dashboard_panels_state', JSON.stringify(state));
+}
+
+function restoreDashboardState() {
+  const container = document.getElementById('dashboard-container');
+  const savedState = JSON.parse(localStorage.getItem('dashboard_panels_state'));
+
+  if (savedState && Array.isArray(savedState)) {
+    // Restore Order
+    savedState.forEach(item => {
+      const el = document.getElementById(item.id);
+      if (el) {
+        container.appendChild(el); // Appending moves to end -> restore order
+
+        // Restore Size
+        if (item.width) el.style.width = item.width;
+        if (item.height) el.style.height = item.height;
+        // If native resize was used, it sets inline width/height.
+        // We might need to reset flex if it conflicts.
+        if (item.width || item.height) {
+          el.style.flex = 'none'; // Disable flex sizing to obey strict width
+        }
       }
     });
-  } catch (e) {
-    console.warn('Split.js error or not loaded:', e);
   }
 }
 

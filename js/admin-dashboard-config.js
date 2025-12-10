@@ -78,11 +78,24 @@ export const CARD_SIZES = [
 // ============================================================================
 
 /**
+ * Helper to get current user id reliably
+ */
+async function getCurrentUserId() {
+    if (loggedUser?.id) return loggedUser.id;
+
+    // Fallback: check supabase session
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user?.id || null;
+}
+
+/**
  * Load dashboard configuration for current user
  * Creates default config if none exists
  */
 export async function loadDashboardConfig() {
-    if (!loggedUser?.id) {
+    const userId = await getCurrentUserId();
+
+    if (!userId) {
         console.warn('[Dashboard Config] No logged user');
         return getDefaultConfig();
     }
@@ -92,7 +105,7 @@ export async function loadDashboardConfig() {
         const { data, error } = await supabase
             .from('user_dashboard_config')
             .select('kpi_layout, grid_columns')
-            .eq('user_id', loggedUser.id)
+            .eq('user_id', userId)
             .single();
 
         if (error && error.code !== '406' && error.code !== 'PGRST116') {
@@ -121,7 +134,9 @@ export async function loadDashboardConfig() {
  * Save dashboard configuration for current user
  */
 export async function saveDashboardConfig(config) {
-    if (!loggedUser?.id) {
+    const userId = await getCurrentUserId();
+
+    if (!userId) {
         Toast.show('Utente non autenticato', 'error');
         return false;
     }
@@ -130,7 +145,7 @@ export async function saveDashboardConfig(config) {
         const { error } = await supabase
             .from('user_dashboard_config')
             .upsert({
-                user_id: loggedUser.id,
+                user_id: userId,
                 kpi_layout: config.kpiLayout,
                 grid_columns: config.gridColumns,
                 updated_at: new Date().toISOString()
@@ -153,7 +168,9 @@ export async function saveDashboardConfig(config) {
  * Reset dashboard configuration to default
  */
 export async function resetDashboardConfig() {
-    if (!loggedUser?.id) {
+    const userId = await getCurrentUserId();
+
+    if (!userId) {
         Toast.show('Utente non autenticato', 'error');
         return false;
     }
@@ -163,7 +180,7 @@ export async function resetDashboardConfig() {
         const { error } = await supabase
             .from('user_dashboard_config')
             .upsert({
-                user_id: loggedUser.id,
+                user_id: userId,
                 kpi_layout: defaultConfig.kpiLayout,
                 grid_columns: defaultConfig.gridColumns,
                 updated_at: new Date().toISOString()
@@ -186,14 +203,15 @@ export async function resetDashboardConfig() {
  * Ensure default config exists for user (called on first load)
  */
 async function ensureDefaultConfig() {
-    if (!loggedUser?.id) return;
+    const userId = await getCurrentUserId();
+    if (!userId) return;
 
     try {
         const defaultConfig = getDefaultConfig();
         await supabase
             .from('user_dashboard_config')
             .insert({
-                user_id: loggedUser.id,
+                user_id: userId,
                 kpi_layout: defaultConfig.kpiLayout,
                 grid_columns: defaultConfig.gridColumns
             });
