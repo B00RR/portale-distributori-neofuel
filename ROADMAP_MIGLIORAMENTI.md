@@ -14,35 +14,6 @@
 6. [Features Aggiuntive](#features-aggiuntive)
 7. [Priorità Consigliate](#priorità-consigliate)
 
----
-
-## 🏗️ Architettura & Qualità Codice
-
-### 1.1 Modularizzazione
-**Problema attuale**: `admin.js` ha 2100+ righe - difficile da mantenere
-
-**Soluzione proposta**:
-```
-js/admin/
-  ├── dashboard.js          # Logica dashboard
-  ├── closures.js           # Gestione chiusure
-  ├── invoices.js           # Gestione fatture
-  ├── stations.js           # Gestione distributori
-  ├── operators.js          # Gestione operatori
-  └── shared/
-      ├── queries.js        # Query Supabase riutilizzabili
-      ├── formatters.js     # formatEuro, formatDate, etc.
-      ├── validators.js     # Validazione input
-      └── ui-helpers.js     # showLoadingMessage, showErrorMessage
-```
-
-**Benefici**:
-- 📦 Codice più organizzato e navigabile
-- 🔄 Riutilizzo funzioni comuni
-- 🧪 Testing più semplice
-- 👥 Collaborazione team facilitata
-
----
 
 ### 1.2 State Management Centralizzato
 **Problema**: Variabili globali sparse (`currentAdminTab`, `currentStationFilter`)
@@ -282,117 +253,8 @@ async function getStations() {
 
 ## 🎨 UX/UI Improvements
 
-### 3.1 Skeleton Loaders
-**Sostituire**: "Caricamento..." generico
 
-**Con**:
-```html
-<!-- style.css -->
-<style>
-.skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s ease-in-out infinite;
-  border-radius: 4px;
-}
 
-@keyframes loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.skeleton-row {
-  display: flex;
-  gap: 12px;
-  padding: 16px;
-}
-
-.skeleton-cell {
-  height: 20px;
-  flex: 1;
-  background: #e0e0e0;
-  border-radius: 4px;
-}
-</style>
-
-<!-- HTML -->
-<div class="skeleton-table">
-  <div class="skeleton-row">
-    <div class="skeleton-cell"></div>
-    <div class="skeleton-cell"></div>
-    <div class="skeleton-cell"></div>
-  </div>
-  <!-- Ripeti 5-10 volte -->
-</div>
-```
-
----
-
-### 3.2 Toast Notifications System
-**Problema**: `alert()` è invasivo e blocca l'UI
-
-**Soluzione**:
-```javascript
-// js/shared/toast.js
-export class Toast {
-  static show(message, type = 'info', duration = 3000) {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-      <i class="fas fa-${this._getIcon(type)}"></i>
-      <span>${message}</span>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => toast.remove(), 300);
-    }, duration);
-  }
-  
-  static _getIcon(type) {
-    return {
-      success: 'check-circle',
-      error: 'exclamation-circle',
-      warning: 'exclamation-triangle',
-      info: 'info-circle'
-    }[type] || 'info-circle';
-  }
-}
-
-// style.css
-.toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 16px 24px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transform: translateX(400px);
-  transition: transform 0.3s ease;
-  z-index: 10000;
-}
-
-.toast.show {
-  transform: translateX(0);
-}
-
-.toast-success { background: #10b981; color: white; }
-.toast-error { background: #ef4444; color: white; }
-.toast-warning { background: #f59e0b; color: white; }
-.toast-info { background: #3b82f6; color: white; }
-
-// Uso:
-Toast.show('Chiusura salvata con successo!', 'success');
-Toast.show('Errore di connessione', 'error');
-```
-
----
 
 ### 3.3 Loading States per Bottoni
 ```html

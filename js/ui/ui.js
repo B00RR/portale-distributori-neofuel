@@ -16,7 +16,7 @@ export function showLoadingMessage(content, message = '') {
     if (content) {
         content.innerHTML = `
             <div class="loader-container">
-                <img src="logo svg.svg" alt="Loading..." class="loader-logo">
+                <img src="assets/images/logo svg.svg" alt="Loading..." class="loader-logo">
             </div>
         `;
     }
@@ -32,7 +32,7 @@ export function showFullScreenLoader(message = '') {
         document.body.appendChild(loader);
     }
     loader.innerHTML = `
-        <img src="logo svg.svg" alt="Loading..." class="loader-logo">
+        <img src="assets/images/logo svg.svg" alt="Loading..." class="loader-logo">
     `;
     loader.style.display = 'flex';
 }
