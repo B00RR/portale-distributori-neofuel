@@ -3,7 +3,7 @@
 // ==========================================
 import { supabase } from "./api.js";
 import { Toast } from "../ui/toast.js";
-import { showFullScreenLoader, hideFullScreenLoader } from "../ui/ui.js";
+import { showFullScreenLoader, hideFullScreenLoader, setButtonLoading } from "../ui/ui.js";
 
 let loginForm = null;
 let loginContainer = null;
@@ -112,7 +112,15 @@ export function setupLoginForm() {
         }
 
         try {
+            // showFullScreenLoader(); // Manteniamo overlay se desiderato, o usiamo solo bottone
+            // In questo caso, usiamo entrambi per massima chiarezza o solo bottone.
+            // L'utente ha chiesto Loading States per bottoni.
+            // Usiamo il bottone e l'overlay (per ora mantengo overlay perché era già lì,
+            // ma aggiungo stato bottone).
             showFullScreenLoader();
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
+            setButtonLoading(submitBtn, true, 'Accesso in corso...');
+
             console.log('Calling supabase.auth.signInWithPassword...');
             let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email: email,
@@ -213,6 +221,8 @@ export function setupLoginForm() {
             }
         } finally {
             hideFullScreenLoader();
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
+            setButtonLoading(submitBtn, false);
         }
     });
 }

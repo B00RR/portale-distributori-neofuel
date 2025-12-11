@@ -8,6 +8,7 @@ import {
 } from "./core/auth.js";
 import { showAdminArea } from "./admin.js";
 import { showOperatorMenu } from "./operator.js";
+import { store } from "./shared/state.js";
 import "./utils/calculation-engine.js";
 import { initializeCalculationPresets } from "./utils/calculation-presets.js";
 
@@ -21,6 +22,8 @@ async function initializeApp() {
     // Configura callback login
     setOnLoginSuccess(async (user) => {
         console.log('Login success callback:', user);
+        store.setUser(user);
+
         if (user.role === 'admin') {
             showAdminArea();
         } else {
@@ -50,6 +53,7 @@ async function initializeApp() {
     if (user) {
         console.log('Sessione trovata:', user);
         setLoggedUser(user);
+        store.setUser(user);
 
         const loginContainer = document.getElementById('login-container');
         const appContainer = document.getElementById('app-container');

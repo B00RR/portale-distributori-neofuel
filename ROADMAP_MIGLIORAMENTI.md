@@ -6,145 +6,13 @@
 
 ## 📋 Indice
 
-1. [Architettura & Qualità Codice](#architettura--qualità-codice)
-2. [Performance](#performance)
-3. [UX/UI Improvements](#uxui-improvements)
-4. [Security & Robustness](#security--robustness)
-5. [Developer Experience](#developer-experience)
-6. [Features Aggiuntive](#features-aggiuntive)
-7. [Priorità Consigliate](#priorità-consigliate)
+1. [Performance (Virtual Scroller, Caching)](#performance)
+2. [UX/UI Improvements (Breadcrumbs, Filters, Theme)](#uxui-improvements)
+3. [Security & Robustness (Validation, Rate Limit)](#security--robustness)
+4. [Developer Experience (TS, Vite, Tests)](#developer-experience)
+5. [Features Aggiuntive](#features-aggiuntive)
+6. [Priorità Consigliate](#priorità-consigliate)
 
-
-### 1.2 State Management Centralizzato
-**Problema**: Variabili globali sparse (`currentAdminTab`, `currentStationFilter`)
-
-**Soluzione**:
-```javascript
-// js/shared/state.js
-export const AppState = {
-  currentTab: 'dashboard',
-  filters: {
-    station: null,
-    dateFrom: null,
-    dateTo: null
-  },
-  user: null,
-  
-  get(key) {
-    return this[key];
-  },
-  
-  set(key, value) {
-    this[key] = value;
-    this._notifyListeners(key, value);
-  },
-  
-  _listeners: {},
-  
-  subscribe(key, callback) {
-    if (!this._listeners[key]) this._listeners[key] = [];
-    this._listeners[key].push(callback);
-  },
-  
-  _notifyListeners(key, value) {
-    if (this._listeners[key]) {
-      this._listeners[key].forEach(fn => fn(value));
-    }
-  }
-};
-
-// Uso:
-AppState.subscribe('filters', (newFilters) => {
-  console.log('Filtri aggiornati:', newFilters);
-  refreshCurrentTab();
-});
-```
-
-**Benefici**:
-- 🎯 Singola fonte di verità
-- 🔔 Reactive updates
-- 🐛 Debug più semplice
-
----
-
-### 1.3 Error Handling Centralizzato
-**Problema**: `try/catch` ripetuti, alert() sparsi
-
-**Soluzione**:
-```javascript
-// js/shared/error-handler.js
-export class AppError extends Error {
-  constructor(message, code, originalError) {
-    super(message);
-    this.code = code;
-    this.originalError = originalError;
-  }
-}
-
-export function handleError(error, context = '') {
-  console.error(`[${context}]`, error);
-  
-  // Log to monitoring service (future: Sentry integration)
-  // logToSentry(error, context);
-  
-  let userMessage = 'Si è verificato un errore';
-  
-  if (error.code === 'PGRST116') {
-    userMessage = 'Dati non trovati';
-  } else if (error.message?.includes('network')) {
-    userMessage = 'Errore di connessione';
-  } else if (error instanceof AppError) {
-    userMessage = error.message;
-  }
-  
-  showToast(userMessage, 'error');
-}
-
-// Uso:
-try {
-  const { data, error } = await supabase.from('shifts').select();
-  if (error) throw error;
-  return data;
-} catch (err) {
-  handleError(err, 'showChiusureTab');
-  return [];
-}
-```
-
----
-
-## ⚡ Performance
-
-### 2.1 Lazy Loading / Code Splitting
-**Obiettivo**: Caricare solo il codice necessario
-
-**Implementazione**:
-```javascript
-// Invece di importare tutto all'inizio:
-// import { showDashboard, showChiusure, showFatture ... } from './admin.js';
-
-// Carica on-demand:
-async function loadAdminTab(tab) {
-  currentAdminTab = tab;
-  
-  let module;
-  switch(tab) {
-    case 'dashboard':
-      module = await import('./admin/dashboard.js');
-      break;
-    case 'shifts':
-      module = await import('./admin/closures.js');
-      break;
-    // ...
-  }
-  
-  module.render(container, currentStationFilter);
-}
-```
-
-**Stima risparmio**: ~40-60% JavaScript iniziale
-
----
 
 ### 2.2 Virtual Scrolling per Tabelle Grandi
 **Problema**: Rendering di 500 righe rallenta la pagina
@@ -168,35 +36,6 @@ function renderLargeTable(rows) {
 **Benefici**:
 - ⚡ Render istantaneo anche con 10k+ righe
 - 💾 Memoria ridotta
-
----
-
-### 2.3 Debouncing per Ricerca/Filtri
-**Implementazione**:
-```javascript
-// js/shared/utils.js
-export function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
-// Uso:
-const searchInput = document.querySelector('#search');
-const debouncedSearch = debounce((query) => {
-  performSearch(query);
-}, 300);
-
-searchInput.addEventListener('input', (e) => {
-  debouncedSearch(e.target.value);
-});
-```
 
 ---
 
@@ -256,38 +95,6 @@ async function getStations() {
 
 
 
-### 3.3 Loading States per Bottoni
-```html
-<!-- HTML -->
-<button class="btn primary" id="save-btn">
-  <span class="btn-spinner" style="display: none;">
-    <i class="fas fa-spinner fa-spin"></i>
-  </span>
-  <span class="btn-text">Salva</span>
-</button>
-
-<script>
-async function saveData() {
-  const btn = document.getElementById('save-btn');
-  btn.disabled = true;
-  btn.querySelector('.btn-spinner').style.display = 'inline-block';
-  btn.querySelector('.btn-text').textContent = 'Salvataggio...';
-  
-  try {
-    await performSave();
-    Toast.show('Salvato!', 'success');
-  } catch (err) {
-    handleError(err);
-  } finally {
-    btn.disabled = false;
-    btn.querySelector('.btn-spinner').style.display = 'none';
-    btn.querySelector('.btn-text').textContent = 'Salva';
-  }
-}
-</script>
-```
-
----
 
 ### 3.4 Breadcrumbs Navigation
 ```html

@@ -90,7 +90,20 @@ export function base64ToArrayBuffer(base64) {
     return bytes.buffer;
 }
 
+
 export function formatEuro(value) {
     const safe = Number.isFinite(value) ? value : 0;
     return `€ ${formatNumberIt(safe, 2)}`;
+}
+
+export function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }

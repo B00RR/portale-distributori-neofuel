@@ -1,6 +1,6 @@
 
 import { supabase, safeSupabaseQuery, getStationName } from "../core/api.js";
-import { showLoadingMessage, showErrorMessage, openModal, closeModal, openConfirmModal } from "../ui/ui.js";
+import { showLoadingMessage, showErrorMessage, openModal, closeModal, openConfirmModal, setButtonLoading } from "../ui/ui.js";
 import { escapeHtml } from "../utils/utils.js";
 import { showPrezziAdminModal } from "./prices.js";
 import { showIslandsModal } from "./islands.js";
@@ -136,8 +136,10 @@ export async function openStationModal(stationId = null) {
       location: formData.get('location'),
       allow_partial_closure: formData.get('allow_partial_closure') === 'on'
     };
+    const submitBtn = e.target.querySelector('button[type="submit"]');
 
     try {
+      setButtonLoading(submitBtn, true, 'Salvataggio...');
       if (isEdit) {
         await safeSupabaseQuery(() => supabase.from('fuel_stations').update(payload).eq('station_id', stationId));
       } else {
@@ -150,6 +152,8 @@ export async function openStationModal(stationId = null) {
       document.dispatchEvent(event);
     } catch (err) {
       Toast.show('Errore salvataggio: ' + err.message, 'error');
+    } finally {
+      setButtonLoading(submitBtn, false);
     }
   });
 }

@@ -119,38 +119,6 @@ export function showInfoModal(message, title = 'Informazione') {
     // Usa una funzione nominata per poter rimuovere il listener se necessario,
     // ma qui usiamo { once: true } che è più pulito
     const okBtn = document.getElementById('info-modal-ok');
-    if (okBtn) {
-        okBtn.addEventListener('click', () => closeModal(), { once: true });
-    }
 }
-
-// Conferma riutilizzabile: ritorna Promise<boolean>
-export function openConfirmModal(message, confirmText = 'Conferma', cancelText = 'Annulla') {
-    return new Promise((resolve) => {
-        openModal('Conferma');
-        const target = document.getElementById('modal-body');
-        target.innerHTML = `
-      <p style="margin-bottom:16px;">${escapeHtml(message)}</p>
-      <div style="text-align:right; display:flex; justify-content:flex-end; gap:8px;">
-        <button id="confirm-modal-cancel" class="menu-button secondary">${escapeHtml(cancelText)}</button>
-        <button id="confirm-modal-ok" class="menu-button danger">${escapeHtml(confirmText)}</button>
-      </div>
-    `;
-
-        const cancelBtn = document.getElementById('confirm-modal-cancel');
-        const okBtn = document.getElementById('confirm-modal-ok');
-
-        const cleanup = (value) => {
-            closeModal();
-            resolve(value);
-        };
-
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => cleanup(false), { once: true });
-        }
-
-        if (okBtn) {
-            okBtn.addEventListener('click', () => cleanup(true), { once: true });
-        }
     });
 }

@@ -4,7 +4,7 @@
 import { supabase, safeSupabaseQuery, getStationName } from "./core/api.js";
 import {
   initAdminContent, showLoadingMessage, showErrorMessage,
-  openModal, closeModal, showInfoModal, openConfirmModal
+  openModal, closeModal, showInfoModal, openConfirmModal, setButtonLoading
 } from "./ui/ui.js";
 import {
   escapeHtml, escapeNumber, formatNumberIt, formatLitri,
@@ -24,33 +24,44 @@ import { Toast } from "./ui/toast.js";
 import { loadDashboardConfig, saveDashboardConfig, showDashboardConfigPanel, KPI_CATALOG } from "./admin/dashboard-config.js";
 import { showDashboard } from "./admin/dashboard.js";
 import { handleError } from "./shared/error-handler.js";
+import { store } from "./shared/state.js";
 
 // Stato locale admin
 let currentAdminTab = 'dashboard';
-let currentStationFilter = null; // null = Tutte le stazioni
+// currentStationFilter rimosso in favore di store.state.stationFilter
 
 async function renderGlobalFilter() {
   const container = document.getElementById('header-actions');
   if (!container) return;
 
-  // Carica stazioni per il filtro
-  const { data: stations } = await safeSupabaseQuery(() => supabase.from('fuel_stations').select('station_id, station_name').order('station_name'));
+  // Usa stazioni dallo store se disponibili, altrimenti carica
+  let stations = store.state.stations;
+
+  if (!stations || stations.length === 0) {
+    const { data } = await safeSupabaseQuery(() => supabase.from('fuel_stations').select('station_id, station_name').order('station_name'));
+    if (data) {
+      store.setStations(data);
+      stations = data;
+    }
+  }
 
   const options = stations || [];
+  const currentFilter = store.getFilter();
 
   container.innerHTML = `
     <div class="global-filter-wrapper">
       <i class="fas fa-filter filter-icon"></i>
       <select id="global-station-filter" class="global-filter-select">
         <option value="">Tutte le Stazioni</option>
-        ${options.map(s => `<option value="${s.station_id}" ${currentStationFilter == s.station_id ? 'selected' : ''}>${escapeHtml(s.station_name)}</option>`).join('')}
+        ${options.map(s => `<option value="${s.station_id}" ${currentFilter == s.station_id ? 'selected' : ''}>${escapeHtml(s.station_name)}</option>`).join('')}
       </select>
     </div>
   `;
 
   document.getElementById('global-station-filter').addEventListener('change', (e) => {
     const val = e.target.value;
-    currentStationFilter = val ? parseInt(val) : null;
+    const newFilter = val ? parseInt(val) : null;
+    store.setStationFilter(newFilter);
     // Ricarica la tab corrente con il nuovo filtro
     loadAdminTab(currentAdminTab);
   });
@@ -145,143 +156,78 @@ export function showAdminArea() {
     if (currentAdminTab === 'dashboard') {
       const content = document.getElementById('admin-content');
       if (content) {
-        showDashboard(content, currentStationFilter);
+        if (pageSubtitle) pageSubtitle.textContent = 'Richieste Fatture';
+        showFattureTab(content, headerActions, filter);
+        break;
+    case 'vouchers':
+        if (pageSubtitle) pageSubtitle.textContent = 'Gestione Voucher';
+        showVoucherAdminTab(content, headerActions, filter);
+        break;
+    case 'notifiche':
+        if (pageSubtitle) pageSubtitle.textContent = 'Notifiche';
+        showNotificheAdmin(content);
+        break;
+    case 'settings':
+        if (pageSubtitle) pageSubtitle.textContent = 'Impostazioni';
+        showSettingsTab(content, headerActions);
+        break;
+    default:
+        if (pageSubtitle) pageSubtitle.textContent = 'Dashboard';
+        showDashboard(content, filter);
       }
     }
-  });
-}
 
-async function loadAdminTab(tab) {
-  currentAdminTab = tab;
-  const pageSubtitle = document.getElementById('page-subtitle');
-  const headerActions = document.getElementById('header-actions');
-  const content = document.getElementById('admin-content');
+    // ------------------------------------------------------------------
+    // DASHBOARD
+    // ------------------------------------------------------------------
+    // Logic moved to js/admin/dashboard.js for modularization
+    // ------------------------------------------------------------------
 
-  // Reset header actions but preserve the global filter
-  // We need to re-render the filter because header-actions is often cleared
-  // OR we should move the filter out of header-actions.
-  // Given current structure, let's re-render or better, separate the container.
-  // Actually, renderGlobalFilter targets 'header-actions'.
-  // If we clear 'header-actions', we kill the filter.
-  // CHANGE: Let's modify rendered HTML structure in showAdminArea or here.
-  // Current showAdminArea:
-  // <div class="admin-header-right">
-  //   <div id="header-actions" class="header-actions"></div>
-  //   ...
-  // </div>
+    // ------------------------------------------------------------------
+    // STATIONS (Distributori)
+    // ------------------------------------------------------------------
 
-  // If we clear headerActions, we lose the filter if it was inside.
-  // Quick fix: renderGlobalFilter puts it in a new container, OR we re-render it every time.
-  // Let's re-render it every time for now, it's safer and easier.
+    import { showStationsTab } from "./admin/stations.js";
+    import { showPrezziAdminModal, showPricesTab } from "./admin/prices.js";
+    import { showTanksAdminModal, showTanksTab } from "./admin/tanks.js";
 
-  if (headerActions) headerActions.innerHTML = '';
-  if (content) content.innerHTML = '';
+    // ------------------------------------------------------------------
+    // STATIONS (Distributori)
+    // ------------------------------------------------------------------
+    // Logic moved to js/admin/stations.js
+    // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // OPERATORS
+    // ------------------------------------------------------------------
+    async function showOperatorsTab(container, actionsContainer) {
+      showLoadingMessage(container);
 
-  // Re-render Global Filter (it will check currentStationFilter state)
-  await renderGlobalFilter();
+      if (actionsContainer) {
+        actionsContainer.innerHTML = `<button class="action-btn primary" id="add-operator-btn"><i class="fas fa-plus"></i> Nuovo Operatore</button>`;
+        document.getElementById('add-operator-btn').addEventListener('click', () => openOperatorModal());
+      }
 
-  switch (tab) {
-    case 'dashboard':
-      if (pageSubtitle) pageSubtitle.textContent = 'Dashboard';
-      await showDashboard(content, currentStationFilter, () => currentAdminTab === 'dashboard');
-      break;
-    case 'stations':
-      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Distributori';
-      showStationsTab(content, headerActions); // Stations usually don't need filtering by station
-      break;
-    case 'operators':
-      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Operatori';
-      showOperatorsTab(content, headerActions);
-      break;
-    case 'shifts':
-      if (pageSubtitle) pageSubtitle.textContent = 'Storico Chiusure';
-      showChiusureTab(content, headerActions, currentStationFilter);
-      break;
-    case 'prices':
-      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Prezzi';
-      showPricesTab(content, headerActions);
-      break;
-    case 'tanks':
-      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Cisterne';
-      showTanksTab(content, headerActions);
-      break;
-    case 'crediti':
-      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Crediti';
-      showCreditiOverview(content, headerActions, currentStationFilter);
-      break;
-    case 'invoices':
-      if (pageSubtitle) pageSubtitle.textContent = 'Richieste Fatture';
-      showFattureTab(content, headerActions, currentStationFilter);
-      break;
-    case 'vouchers':
-      if (pageSubtitle) pageSubtitle.textContent = 'Gestione Voucher';
-      showVoucherAdminTab(content, headerActions, currentStationFilter);
-      break;
-    case 'notifiche':
-      if (pageSubtitle) pageSubtitle.textContent = 'Notifiche';
-      showNotificheAdmin(content);
-      break;
-    case 'settings':
-      if (pageSubtitle) pageSubtitle.textContent = 'Impostazioni';
-      showSettingsTab(content, headerActions);
-      break;
-    default:
-      if (pageSubtitle) pageSubtitle.textContent = 'Dashboard';
-      showDashboard(content, currentStationFilter);
-  }
-}
-
-// ------------------------------------------------------------------
-// DASHBOARD
-// ------------------------------------------------------------------
-// Logic moved to js/admin/dashboard.js for modularization
-// ------------------------------------------------------------------
-
-// ------------------------------------------------------------------
-// STATIONS (Distributori)
-// ------------------------------------------------------------------
-
-import { showStationsTab } from "./admin/stations.js";
-import { showPrezziAdminModal, showPricesTab } from "./admin/prices.js";
-import { showTanksAdminModal, showTanksTab } from "./admin/tanks.js";
-
-// ------------------------------------------------------------------
-// STATIONS (Distributori)
-// ------------------------------------------------------------------
-// Logic moved to js/admin/stations.js
-// ------------------------------------------------------------------
-// ------------------------------------------------------------------
-// OPERATORS
-// ------------------------------------------------------------------
-async function showOperatorsTab(container, actionsContainer) {
-  showLoadingMessage(container);
-
-  if (actionsContainer) {
-    actionsContainer.innerHTML = `<button class="action-btn primary" id="add-operator-btn"><i class="fas fa-plus"></i> Nuovo Operatore</button>`;
-    document.getElementById('add-operator-btn').addEventListener('click', () => openOperatorModal());
-  }
-
-  try {
-    const { data: users, error } = await supabase
-      .from('users')
-      .select(`
+      try {
+        const { data: users, error } = await supabase
+          .from('users')
+          .select(`
         *,
         user_stations (
           station_id,
           fuel_stations ( station_name )
         )
       `)
-      .eq('role', 'operator')
-      .order('created_at', { ascending: false });
+          .eq('role', 'operator')
+          .order('created_at', { ascending: false });
 
-    if (error) throw error;
+        if (error) throw error;
 
-    if (!users || users.length === 0) {
-      container.innerHTML = '<p>Nessun operatore trovato.</p>';
-      return;
-    }
+        if (!users || users.length === 0) {
+          container.innerHTML = '<p>Nessun operatore trovato.</p>';
+          return;
+        }
 
-    let html = `
+        let html = `
       <div class="table-responsive">
         <table class="admin-table">
           <thead>
@@ -295,10 +241,10 @@ async function showOperatorsTab(container, actionsContainer) {
           <tbody>
     `;
 
-    users.forEach(u => {
-      const firstLink = Array.isArray(u.user_stations) ? u.user_stations[0] : u.user_stations;
-      const stationName = firstLink?.fuel_stations?.station_name || '-';
-      html += `
+        users.forEach(u => {
+          const firstLink = Array.isArray(u.user_stations) ? u.user_stations[0] : u.user_stations;
+          const stationName = firstLink?.fuel_stations?.station_name || '-';
+          html += `
         <tr>
           <td>${escapeHtml(u.full_name)}</td>
           <td>${escapeHtml(u.email)}</td>
@@ -309,35 +255,35 @@ async function showOperatorsTab(container, actionsContainer) {
           </td>
         </tr>
       `;
-    });
+        });
 
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
 
-    container.querySelectorAll('.edit-operator').forEach(btn => {
-      btn.addEventListener('click', () => openOperatorModal(btn.dataset.id));
-    });
-    container.querySelectorAll('.assign-station').forEach(btn => {
-      btn.addEventListener('click', () => openAssignStationModal(btn.dataset.id));
-    });
+        container.querySelectorAll('.edit-operator').forEach(btn => {
+          btn.addEventListener('click', () => openOperatorModal(btn.dataset.id));
+        });
+        container.querySelectorAll('.assign-station').forEach(btn => {
+          btn.addEventListener('click', () => openAssignStationModal(btn.dataset.id));
+        });
 
-  } catch (err) {
-    handleError(err, 'showOperatorsTab', container);
-  }
-}
+      } catch (err) {
+        handleError(err, 'showOperatorsTab', container);
+      }
+    }
 
-async function openOperatorModal(userId = null) {
-  const isEdit = !!userId;
-  openModal(isEdit ? 'Modifica Operatore' : 'Nuovo Operatore');
-  const target = document.getElementById('modal-body');
+    async function openOperatorModal(userId = null) {
+      const isEdit = !!userId;
+      openModal(isEdit ? 'Modifica Operatore' : 'Nuovo Operatore');
+      const target = document.getElementById('modal-body');
 
-  let user = {};
-  if (isEdit) {
-    const { data } = await supabase.from('users').select('*').eq('user_id', userId).single();
-    user = data || {};
-  }
+      let user = {};
+      if (isEdit) {
+        const { data } = await supabase.from('users').select('*').eq('user_id', userId).single();
+        user = data || {};
+      }
 
-  target.innerHTML = `
+      target.innerHTML = `
     <form id="operator-form">
       <div class="form-group">
         <label>Nome Completo</label>
@@ -356,55 +302,59 @@ async function openOperatorModal(userId = null) {
     </form>
   `;
 
-  document.getElementById('operator-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const email = fd.get('email');
-    const password = fd.get('password');
-    const fullName = fd.get('full_name');
+      document.getElementById('operator-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const email = fd.get('email');
+        const password = fd.get('password');
+        const fullName = fd.get('full_name');
+        const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    try {
-      if (isEdit) {
-        await safeSupabaseQuery(() => supabase.from('users').update({ full_name: fullName }).eq('user_id', userId));
-      } else {
-        // Crea user in Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email, password,
-          options: { data: { full_name: fullName, role: 'operator' } }
-        });
-        if (authError) throw authError;
+        try {
+          setButtonLoading(submitBtn, true, 'Salvataggio...');
+          if (isEdit) {
+            await safeSupabaseQuery(() => supabase.from('users').update({ full_name: fullName }).eq('user_id', userId));
+          } else {
+            // Crea user in Auth
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+              email, password,
+              options: { data: { full_name: fullName, role: 'operator' } }
+            });
+            if (authError) throw authError;
 
-        if (!authData.user) throw new Error("Errore creazione utente Auth");
+            if (!authData.user) throw new Error("Errore creazione utente Auth");
 
-        // Inserimento manuale in public.users se non c'è trigger
-        await safeSupabaseQuery(() => supabase.from('users').insert([{
-          user_id: authData.user.id,
-          email,
-          full_name: fullName,
-          role: 'operator'
-        }]));
-      }
-      closeModal();
-      loadAdminTab('operators');
-    } catch (err) {
-      handleError(err, 'admin_action');
+            // Inserimento manuale in public.users se non c'è trigger
+            await safeSupabaseQuery(() => supabase.from('users').insert([{
+              user_id: authData.user.id,
+              email,
+              full_name: fullName,
+              role: 'operator'
+            }]));
+          }
+          closeModal();
+          loadAdminTab('operators');
+        } catch (err) {
+          handleError(err, 'admin_action');
+        } finally {
+          setButtonLoading(submitBtn, false);
+        }
+      });
     }
-  });
-}
 
-async function openAssignStationModal(userId) {
-  openModal('Assegna Stazione');
-  const target = document.getElementById('modal-body');
+    async function openAssignStationModal(userId) {
+      openModal('Assegna Stazione');
+      const target = document.getElementById('modal-body');
 
-  const [stationsRes, currentRes] = await Promise.all([
-    supabase.from('fuel_stations').select('*'),
-    supabase.from('user_stations').select('station_id').eq('user_id', userId).maybeSingle()
-  ]);
+      const [stationsRes, currentRes] = await Promise.all([
+        supabase.from('fuel_stations').select('*'),
+        supabase.from('user_stations').select('station_id').eq('user_id', userId).maybeSingle()
+      ]);
 
-  const stations = stationsRes.data || [];
-  const currentStationId = currentRes.data?.station_id;
+      const stations = stationsRes.data || [];
+      const currentStationId = currentRes.data?.station_id;
 
-  let html = `
+      let html = `
     <form id="assign-station-form">
       <div class="form-group">
         <label>Seleziona Stazione</label>
@@ -416,57 +366,61 @@ async function openAssignStationModal(userId) {
       <button type="submit" class="menu-button primary">Salva Assegnazione</button>
     </form>
   `;
-  target.innerHTML = html;
+      target.innerHTML = html;
 
-  document.getElementById('assign-station-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const stationId = e.target.station_id.value;
+      document.getElementById('assign-station-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const stationId = e.target.station_id.value;
+        const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    try {
-      // Rimuovi precedente
-      await supabase.from('user_stations').delete().eq('user_id', userId);
+        try {
+          setButtonLoading(submitBtn, true, 'Salvataggio...');
+          // Rimuovi precedente
+          await supabase.from('user_stations').delete().eq('user_id', userId);
 
-      if (stationId) {
-        await safeSupabaseQuery(() => supabase.from('user_stations').insert([{ user_id: userId, station_id: stationId }]));
-      }
-      closeModal();
-      Toast.show('Assegnazione salvata', 'success');
-    } catch (err) {
-      handleError(err, 'admin_action');
+          if (stationId) {
+            await safeSupabaseQuery(() => supabase.from('user_stations').insert([{ user_id: userId, station_id: stationId }]));
+          }
+          closeModal();
+          Toast.show('Assegnazione salvata', 'success');
+        } catch (err) {
+          handleError(err, 'admin_action');
+        } finally {
+          setButtonLoading(submitBtn, false);
+        }
+      });
     }
-  });
-}
 
-// ------------------------------------------------------------------
-// CHIUSURE (Closures)
-// ------------------------------------------------------------------
-async function showChiusureTab(container, actionsContainer, stationId = null) {
-  showLoadingMessage(container);
-  if (actionsContainer) actionsContainer.innerHTML = '';
+    // ------------------------------------------------------------------
+    // CHIUSURE (Closures)
+    // ------------------------------------------------------------------
+    async function showChiusureTab(container, actionsContainer, stationId = null) {
+      showLoadingMessage(container);
+      if (actionsContainer) actionsContainer.innerHTML = '';
 
-  try {
-    // Fetch with joins to display station and operator names
-    let query = supabase.from('shifts')
-      .select(`
+      try {
+        // Fetch with joins to display station and operator names
+        let query = supabase.from('shifts')
+          .select(`
         *,
         fuel_stations(station_name),
         users(full_name)
       `);
 
-    if (stationId) query = query.eq('station_id', stationId);
+        if (stationId) query = query.eq('station_id', stationId);
 
-    query = query.order('created_at', { ascending: false }).limit(500);
+        query = query.order('created_at', { ascending: false }).limit(500);
 
-    const { data: closures, error } = await query;
+        const { data: closures, error } = await query;
 
-    if (error) throw error;
+        if (error) throw error;
 
-    if (!closures || closures.length === 0) {
-      container.innerHTML = '<p>Nessuna chiusura trovata.</p>';
-      return;
-    }
+        if (!closures || closures.length === 0) {
+          container.innerHTML = '<p>Nessuna chiusura trovata.</p>';
+          return;
+        }
 
-    let html = `
+        let html = `
       <div class="table-responsive">
         <table class="admin-table">
           <thead>
@@ -482,27 +436,27 @@ async function showChiusureTab(container, actionsContainer, stationId = null) {
           <tbody>
     `;
 
-    closures.forEach(c => {
-      // MAPPING DATI DA SHIFTS
-      const dateStr = new Date(c.closed_at || c.created_at).toLocaleString('it-IT');
-      const stationName = c.fuel_stations?.station_name || `#${c.station_id}`;
-      const operatorName = c.users?.full_name || `#${c.operator_id}`;
+        closures.forEach(c => {
+          // MAPPING DATI DA SHIFTS
+          const dateStr = new Date(c.closed_at || c.created_at).toLocaleString('it-IT');
+          const stationName = c.fuel_stations?.station_name || `#${c.station_id}`;
+          const operatorName = c.users?.full_name || `#${c.operator_id}`;
 
-      // Estrai dati dal JSON closing_data
-      const closingData = c.closing_data || {};
+          // Estrai dati dal JSON closing_data
+          const closingData = c.closing_data || {};
 
-      // Determina il tipo di chiusura
-      // Se status è 'closed' è finale, altrimenti controlla closing_data
-      const isFinal = c.status === 'closed' || closingData.is_final === true;
-      const closureType = isFinal ? 'Finale' : 'Parziale';
-      const closureClass = isFinal ? 'badge-success' : 'badge-warning';
+          // Determina il tipo di chiusura
+          // Se status è 'closed' è finale, altrimenti controlla closing_data
+          const isFinal = c.status === 'closed' || closingData.is_final === true;
+          const closureType = isFinal ? 'Finale' : 'Parziale';
+          const closureClass = isFinal ? 'badge-success' : 'badge-warning';
 
-      // Calcolo del totale - SOLO CARBURANTE (esclude movimenti di cassa)
-      // Usa ricavo_teorico che rappresenta il totale del carburante venduto
-      const totalValue = closingData.ricavo_teorico || closingData.totale_atteso || 0;
-      const total = formatEuro(totalValue);
+          // Calcolo del totale - SOLO CARBURANTE (esclude movimenti di cassa)
+          // Usa ricavo_teorico che rappresenta il totale del carburante venduto
+          const totalValue = closingData.ricavo_teorico || closingData.totale_atteso || 0;
+          const total = formatEuro(totalValue);
 
-      html += `
+          html += `
         <tr>
           <td>${dateStr}</td>
           <td>${escapeHtml(stationName)}</td>
@@ -515,68 +469,68 @@ async function showChiusureTab(container, actionsContainer, stationId = null) {
           </td>
         </tr>
       `;
-    });
+        });
 
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
 
-    container.querySelectorAll('.view-closure').forEach(btn => {
-      btn.addEventListener('click', () => showClosureDetails(btn.dataset.id));
-    });
-    container.querySelectorAll('.export-closure').forEach(btn => {
-      btn.addEventListener('click', () => openExportModal(btn.dataset.id));
-    });
+        container.querySelectorAll('.view-closure').forEach(btn => {
+          btn.addEventListener('click', () => showClosureDetails(btn.dataset.id));
+        });
+        container.querySelectorAll('.export-closure').forEach(btn => {
+          btn.addEventListener('click', () => openExportModal(btn.dataset.id));
+        });
 
-  } catch (err) {
-    handleError(err, 'showChiusureTab', container);
-  }
-}
+      } catch (err) {
+        handleError(err, 'showChiusureTab', container);
+      }
+    }
 
-async function showClosureDetails(closureId) {
-  openModal('Dettagli Chiusura');
-  const target = document.getElementById('modal-body');
-  showLoadingMessage(target);
+    async function showClosureDetails(closureId) {
+      openModal('Dettagli Chiusura');
+      const target = document.getElementById('modal-body');
+      showLoadingMessage(target);
 
-  try {
-    const { data: closure } = await supabase
-      .from('shifts')
-      .select('*')
-      .eq('id', closureId)
-      .single();
+      try {
+        const { data: closure } = await supabase
+          .from('shifts')
+          .select('*')
+          .eq('id', closureId)
+          .single();
 
-    if (!closure) throw new Error('Chiusura non trovata');
+        if (!closure) throw new Error('Chiusura non trovata');
 
-    const closingData = closure.closing_data || {};
-    const dettaglio = closingData.dettaglio_incasso || {};
+        const closingData = closure.closing_data || {};
+        const dettaglio = closingData.dettaglio_incasso || {};
 
-    // Mappa dati
-    const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString('it-IT');
+        // Mappa dati
+        const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString('it-IT');
 
-    // Breakdown Incassi
-    const contanti = formatEuro(dettaglio.contanti_operatore || 0);
-    const pos = formatEuro(dettaglio.pos_operatore || 0);
-    const crediti = formatEuro(dettaglio.crediti || 0);
-    const voucher = formatEuro(dettaglio.voucher || 0);
-    const carteUta = formatEuro(dettaglio.uta_dkv_operatore || 0);
-    const rimborsi = formatEuro(dettaglio.rimborsi_uscite || 0);
+        // Breakdown Incassi
+        const contanti = formatEuro(dettaglio.contanti_operatore || 0);
+        const pos = formatEuro(dettaglio.pos_operatore || 0);
+        const crediti = formatEuro(dettaglio.crediti || 0);
+        const voucher = formatEuro(dettaglio.voucher || 0);
+        const carteUta = formatEuro(dettaglio.uta_dkv_operatore || 0);
+        const rimborsi = formatEuro(dettaglio.rimborsi_uscite || 0);
 
-    // Self Service Breakdown Logic
-    const selfData = closingData.scontrino_self || {};
-    // MODIFICA: Somma esatta delle componenti (richiesta utente)
-    const banconoteErogate = selfData.banconote_erogate || 0;
-    const banconoteIncassate = selfData.banconote_incassate || 0;
-    const bancomatSelf = selfData.bancomat_erogati || 0;
-    const cardsSelf = selfData.transazioni_uta || 0; // Assuming this maps to Icad/dkv/iscard
+        // Self Service Breakdown Logic
+        const selfData = closingData.scontrino_self || {};
+        // MODIFICA: Somma esatta delle componenti (richiesta utente)
+        const banconoteErogate = selfData.banconote_erogate || 0;
+        const banconoteIncassate = selfData.banconote_incassate || 0;
+        const bancomatSelf = selfData.bancomat_erogati || 0;
+        const cardsSelf = selfData.transazioni_uta || 0; // Assuming this maps to Icad/dkv/iscard
 
-    const selfTotalVal = banconoteErogate + bancomatSelf + cardsSelf;
-    const selfTotalFormatted = formatEuro(selfTotalVal);
+        const selfTotalVal = banconoteErogate + bancomatSelf + cardsSelf;
+        const selfTotalFormatted = formatEuro(selfTotalVal);
 
-    // Logic per Contanti Self: se uguali mostra solo uno, altrimenti entrambi
-    let contantiSelfHtml = '';
-    if (banconoteErogate === banconoteIncassate) {
-      contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(banconoteErogate)}</b>`;
-    } else {
-      contantiSelfHtml = `
+        // Logic per Contanti Self: se uguali mostra solo uno, altrimenti entrambi
+        let contantiSelfHtml = '';
+        if (banconoteErogate === banconoteIncassate) {
+          contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(banconoteErogate)}</b>`;
+        } else {
+          contantiSelfHtml = `
             <div style="display: flex; justify-content: space-between; width: 100%;">
                 <span>Contanti:</span>
                 <div style="text-align: right;">
@@ -584,21 +538,21 @@ async function showClosureDetails(closureId) {
                     <div style="font-size: 0.85em; color: #64748b;">Incassati: <b>${formatEuro(banconoteIncassate)}</b></div>
                 </div>
             </div>`;
-    }
+        }
 
-    // Extra
-    const extraVal = closingData.extra_incassi || 0;
-    const extra = formatEuro(extraVal);
+        // Extra
+        const extraVal = closingData.extra_incassi || 0;
+        const extra = formatEuro(extraVal);
 
-    // CALCOLO TOTALE REALE (Richiesto da utente: Venduto Carburante + Extra)
-    // ricavo_teorico = venduto carburante totale (contatori)
-    const vendutoCarburanteVal = closingData.ricavo_teorico || 0;
-    const vendutoCarburante = formatEuro(vendutoCarburanteVal);
+        // CALCOLO TOTALE REALE (Richiesto da utente: Venduto Carburante + Extra)
+        // ricavo_teorico = venduto carburante totale (contatori)
+        const vendutoCarburanteVal = closingData.ricavo_teorico || 0;
+        const vendutoCarburante = formatEuro(vendutoCarburanteVal);
 
-    const totaleRealeVal = vendutoCarburanteVal + extraVal;
-    const totaleReale = formatEuro(totaleRealeVal);
+        const totaleRealeVal = vendutoCarburanteVal + extraVal;
+        const totaleReale = formatEuro(totaleRealeVal);
 
-    target.innerHTML = `
+        target.innerHTML = `
       <div class="closure-details" style="font-size: 0.95rem;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
             <span>ID Chiusura: <b>${closure.id}</b></span>
@@ -622,10 +576,10 @@ async function showClosureDetails(closureId) {
         <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
             <div style="font-weight: 600; color: #334155; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">Dettaglio Operatore</div>
             <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Contanti:</span> <b>${contanti}</b></p>
-            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>POS:</span> <b>${pos}</b></p>
+            <p style="display: flex; justify: space-between; margin: 5px 0;"><span>POS:</span> <b>${pos}</b></p>
             <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Crediti:</span> <b>${crediti}</b></p>
             <p style="display: flex; justify: space-between; margin: 5px 0;"><span>Voucher/Buoni:</span> <b>${voucher}</b></p>
-            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
+            <p style="display: flex; justify: space-between; margin: 5px 0;"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
             <p style="display: flex; justify: space-between; margin: 5px 0; color: #dc2626;"><span>Uscite/Rimborsi:</span> <b>- ${rimborsi}</b></p>
             
             <hr style="margin: 8px 0; border-color: #e2e8f0;">
@@ -648,302 +602,47 @@ async function showClosureDetails(closureId) {
         </div>
       </div>
     `;
-  } catch (err) {
-    target.innerHTML = `<p class="error">Errore: ${err.message}</p>`;
-  }
-}
-
-async function openExportModal(closureId) {
-  try {
-    const ctx = await fetchClosureExportData(closureId);
-    const template = buildClosureTemplate(ctx, ctx.layout, ctx.summaryDefaults);
-
-    console.log('=== DEBUG EXPORT ===');
-    console.log('ctx.layout:', ctx.layout);
-    console.log('ctx.metricsMap:', ctx.metricsMap);
-    console.log('template:', template);
-    console.log('template.sections:', template.sections);
-    console.log('===================');
-
-    await generateClosureExcel(template);
-  } catch (err) {
-    Toast.show('Errore export: ' + (err?.message || err), 'error');
-    console.error('Errore export:', err);
-  }
-}
-
-// ------------------------------------------------------------------
-// CREDITI & VOUCHER & NOTIFICHE (Placeholder/Minimal)
-// ------------------------------------------------------------------
-// ------------------------------------------------------------------
-// FATTURE (Invoice Requests)
-// ------------------------------------------------------------------
-async function showFattureTab(container, actionsContainer, stationId = null) {
-  showLoadingMessage(container);
-
-  if (actionsContainer) {
-    actionsContainer.innerHTML = '';
-  }
-
-  try {
-    let query = supabase.from('invoices')
-      .select(`
-        *,
-        fuel_stations(station_name),
-        users(full_name)
-      `);
-
-    if (stationId) query = query.eq('station_id', stationId);
-
-    query = query.order('created_at', { ascending: false });
-
-    const { data: invoices, error } = await query;
-
-    if (error) throw error;
-
-    // Se ci sono fatture con cliente_id, recupera i dati dei clienti separatamente
-    if (invoices && invoices.length > 0) {
-      const clienteIds = invoices
-        .filter(inv => inv.cliente_id)
-        .map(inv => inv.cliente_id)
-        .filter((id, index, self) => self.indexOf(id) === index); // rimuovi duplicati
-
-      if (clienteIds.length > 0) {
-        const { data: clienti } = await supabase
-          .from('clienti_fatturazione')
-          .select('id, nome, partita_iva, telefono')
-          .in('id', clienteIds);
-
-        // Aggiungi i dati dei clienti alle fatture
-        if (clienti) {
-          const clientiMap = {};
-          clienti.forEach(c => {
-            clientiMap[c.id] = c;
-          });
-
-          invoices.forEach(inv => {
-            if (inv.cliente_id && clientiMap[inv.cliente_id]) {
-              inv.clienti_fatturazione = clientiMap[inv.cliente_id];
-            }
-          });
-        }
+      } catch (err) {
+        target.innerHTML = `<p class="error">Errore: ${err.message}</p>`;
       }
     }
 
-    if (error) throw error;
+    async function openExportModal(closureId) {
+      try {
+        const ctx = await fetchClosureExportData(closureId);
+        const template = buildClosureTemplate(ctx, ctx.layout, ctx.summaryDefaults);
 
-    if (!invoices || invoices.length === 0) {
-      container.innerHTML = '<p>Nessuna richiesta fattura trovata.</p>';
-      return;
+        console.log('=== DEBUG EXPORT ===');
+        console.log('ctx.layout:', ctx.layout);
+        console.log('ctx.metricsMap:', ctx.metricsMap);
+        console.log('template:', template);
+        console.log('template.sections:', template.sections);
+        console.log('===================');
+
+        await generateClosureExcel(template);
+      } catch (err) {
+        Toast.show('Errore export: ' + (err?.message || err), 'error');
+        console.error('Errore export:', err);
+      }
     }
 
-    let html = `
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Data Richiesta</th>
-              <th>Cliente</th>
-              <th>Importo</th>
-              <th>Metodo Pagamento</th>
-              <th>Categoria Prodotto</th>
-              <th>Distributore</th>
-              <th>Operatore</th>
-              <th>Stato</th>
-              <th>Note</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
-
-    invoices.forEach(inv => {
-      const stationName = inv.fuel_stations?.station_name || '-';
-      const operatorName = inv.users?.full_name || inv.users?.username || '-';
-      const customerName = inv.clienti_fatturazione?.nome || inv.customer_name || '-';
-      const statusBadge = inv.status === 'pending'
-        ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">In Attesa</span>'
-        : inv.status === 'completed' || inv.status === 'emessa'
-          ? '<span style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Emessa</span>'
-          : '<span style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Annullata</span>';
-
-      const paymentMethod = inv.payment_method === 'contanti'
-        ? '<span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">Contanti</span>'
-        : inv.payment_method === 'pos'
-          ? '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">POS</span>'
-          : inv.payment_method === 'bonifico'
-            ? '<span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">Bonifico</span>'
-            : '-';
-
-      const productCategory = inv.product_category
-        ? inv.product_category.charAt(0).toUpperCase() + inv.product_category.slice(1)
-        : '-';
-
-      const isEmitted = inv.status === 'completed' || inv.status === 'emessa';
-      const toggleStatusBtn = isEmitted
-        ? `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="pending" title="Segna come non emessa"><i class="fas fa-undo"></i></button>`
-        : `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="completed" title="Segna come emessa"><i class="fas fa-check"></i></button>`;
-
-      html += `
-        <tr>
-          <td>${inv.created_at ? new Date(inv.created_at).toLocaleDateString('it-IT') : '-'}</td>
-          <td><strong>${escapeHtml(customerName)}</strong></td>
-          <td><strong>${formatEuro(inv.amount || 0)}</strong></td>
-          <td>${paymentMethod}</td>
-          <td>${escapeHtml(productCategory)}</td>
-          <td>${escapeHtml(stationName)}</td>
-          <td>${escapeHtml(operatorName)}</td>
-          <td>${statusBadge}</td>
-          <td>${escapeHtml(inv.description || inv.notes || '-')}</td>
-          <td>${toggleStatusBtn}</td>
-        </tr>
-      `;
-    });
-
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
-
-    // Event listeners per toggle stato
-    container.querySelectorAll('.toggle-status').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const invoiceId = btn.dataset.id;
-        const newStatus = btn.dataset.status;
-        const statusText = newStatus === 'completed' ? 'emessa' : 'non emessa';
-
-        if (!confirm(`Sei sicuro di voler segnare questa fattura come ${statusText}?`)) {
-          return;
-        }
-
-        try {
-          const updateData = {};
-
-          // Prova ad aggiungere updated_at solo se la colonna esiste
-          try {
-            updateData.updated_at = new Date().toISOString();
-          } catch (e) {
-            // Ignora se updated_at non può essere aggiunto
-          }
-
-          // Aggiungi status
-          updateData.status = newStatus;
-
-          const { error } = await supabase
-            .from('invoices')
-            .update(updateData)
-            .eq('id', invoiceId);
-
-          if (error) {
-            // Se l'errore è relativo a colonne mancanti, informa l'utente
-            if (error.message && (error.message.includes('status') || error.message.includes('updated_at'))) {
-              Toast.show('Le colonne "status" e/o "updated_at" non esistono ancora nel database.\\n\\nEsegui lo script SQL "aggiungi_campi_invoices.sql" per aggiungere tutte le colonne necessarie.', 'warning');
-              return;
-            }
-            throw error;
-          }
-
-          // Ricarica la tabella
-          showFattureTab(container, actionsContainer);
-
-        } catch (err) {
-          Toast.show('Errore aggiornamento stato: ' + err.message, 'error');
-        }
-      });
-    });
-
-  } catch (err) {
-    handleError(err, 'showFattureTab', container);
-  }
-}
-
-// ------------------------------------------------------------------
-// CREDITI (Credits)
-// ------------------------------------------------------------------
-async function showCreditiOverview(container, actionsContainer, stationId = null) {
-  showLoadingMessage(container);
-
-  if (actionsContainer) {
-    actionsContainer.innerHTML = `<button class="action-btn primary" id="add-customer-btn"><i class="fas fa-plus"></i> Nuovo Cliente</button>`;
-    document.getElementById('add-customer-btn').addEventListener('click', () => openCustomerModal());
+    // ------------------------------------------------------------------
+    // CREDITI & VOUCHER & NOTIFICHE (Placeholder/Minimal)
+    // ------------------------------------------------------------------
   }
 
-  try {
-    let query = supabase.from('crediti_clienti')
-      .select(`
-        *,
-        fuel_stations(station_name)
-      `);
+    async function openCustomerModal(customerId = null) {
+      const isEdit = !!customerId;
+      openModal(isEdit ? 'Modifica Cliente' : 'Nuovo Cliente');
+      const target = document.getElementById('modal-body');
 
-    if (stationId) query = query.eq('station_id', stationId);
+      let customer = {};
+      if (isEdit) {
+        const { data } = await supabase.from('crediti_clienti').select('*').eq('id', customerId).single();
+        customer = data || {};
+      }
 
-    query = query.order('cliente');
-
-    const { data: customers, error } = await query;
-
-    if (error) throw error;
-
-    if (!customers || customers.length === 0) {
-      container.innerHTML = '<p>Nessun cliente trovato.</p>';
-      return;
-    }
-
-    let html = `
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Distributore</th>
-              <th>Saldo Attuale</th>
-              <th>Ultimo Aggiornamento</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
-
-    customers.forEach(c => {
-      const stationName = c.fuel_stations?.station_name || '-';
-      html += `
-        <tr>
-          <td>${escapeHtml(c.cliente)}</td>
-          <td>${escapeHtml(stationName)}</td>
-          <td><strong>${formatEuro(c.saldo || 0)}</strong></td>
-          <td>${c.updated_at ? new Date(c.updated_at).toLocaleDateString() : '-'}</td>
-          <td>
-            <button class="icon-btn edit-customer" data-id="${c.id}" title="Modifica"><i class="fas fa-edit"></i></button>
-            <button class="icon-btn delete-customer" data-id="${c.id}" title="Elimina"><i class="fas fa-trash"></i></button>
-          </td>
-        </tr>
-      `;
-    });
-
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
-
-    container.querySelectorAll('.edit-customer').forEach(btn => {
-      btn.addEventListener('click', () => openCustomerModal(btn.dataset.id));
-    });
-    container.querySelectorAll('.delete-customer').forEach(btn => {
-      btn.addEventListener('click', () => deleteCustomer(btn.dataset.id));
-    });
-
-  } catch (err) {
-    handleError(err, 'showCreditiOverview', container);
-  }
-}
-
-async function openCustomerModal(customerId = null) {
-  const isEdit = !!customerId;
-  openModal(isEdit ? 'Modifica Cliente' : 'Nuovo Cliente');
-  const target = document.getElementById('modal-body');
-
-  let customer = {};
-  if (isEdit) {
-    const { data } = await supabase.from('crediti_clienti').select('*').eq('id', customerId).single();
-    customer = data || {};
-  }
-
-  target.innerHTML = `
+      target.innerHTML = `
     <form id="customer-form">
       <div class="form-group">
         <label>Nome Cliente / Azienda</label>
@@ -958,122 +657,59 @@ async function openCustomerModal(customerId = null) {
     </form>
   `;
 
-  document.getElementById('customer-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const cliente = fd.get('cliente');
-    const saldo = parseFloat(fd.get('saldo')) || 0;
+      document.getElementById('customer-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const cliente = fd.get('cliente');
+        const saldo = parseFloat(fd.get('saldo')) || 0;
+        const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    try {
-      if (isEdit) {
-        await safeSupabaseQuery(() => supabase.from('crediti_clienti').update({ cliente }).eq('id', customerId));
-      } else {
-        // Chiedi stazione di default? Per ora usiamo null o la prima trovata se necessario, 
-        // ma la tabella ha station_id. Se è globale, lasciamo null o gestiamo diversamente.
-        // Assumiamo che i crediti siano per stazione o globali. Qui mettiamo station_id null se non specificato.
-        await safeSupabaseQuery(() => supabase.from('crediti_clienti').insert([{
-          cliente,
-          saldo,
-          created_at: new Date().toISOString()
-        }]));
+        try {
+          setButtonLoading(submitBtn, true, 'Salvataggio...');
+          if (isEdit) {
+            await safeSupabaseQuery(() => supabase.from('crediti_clienti').update({ cliente }).eq('id', customerId));
+          } else {
+            // Chiedi stazione di default? Per ora usiamo null o la prima trovata se necessario, 
+            // ma la tabella ha station_id. Se è globale, lasciamo null o gestiamo diversamente.
+            // Assumiamo che i crediti siano per stazione o globali. Qui mettiamo station_id null se non specificato.
+            await safeSupabaseQuery(() => supabase.from('crediti_clienti').insert([{
+              cliente,
+              saldo,
+              created_at: new Date().toISOString()
+            }]));
+          }
+          closeModal();
+          loadAdminTab('crediti');
+        } catch (err) {
+          handleError(err, 'admin_action');
+        } finally {
+          setButtonLoading(submitBtn, false);
+        }
+      });
+    }
+
+    async function deleteCustomer(customerId) {
+      if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) return;
+      try {
+        await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
+        loadAdminTab('crediti');
+      } catch (err) {
+        handleError(err, 'admin_action');
       }
-      closeModal();
-      loadAdminTab('crediti');
-    } catch (err) {
-      handleError(err, 'admin_action');
-    }
-  });
-}
-
-async function deleteCustomer(customerId) {
-  if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) return;
-  try {
-    await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
-    loadAdminTab('crediti');
-  } catch (err) {
-    handleError(err, 'admin_action');
-  }
-}
-
-// ------------------------------------------------------------------
-// VOUCHER
-// ------------------------------------------------------------------
-async function showVoucherAdminTab(container, actionsContainer, stationId = null) {
-  showLoadingMessage(container);
-
-  if (actionsContainer) {
-    actionsContainer.innerHTML = `<button class="action-btn primary" id="generate-voucher-btn"><i class="fas fa-plus"></i> Genera Voucher</button>`;
-    document.getElementById('generate-voucher-btn').addEventListener('click', () => openVoucherModal());
-  }
-
-  try {
-    let query = supabase.from('vouchers').select('*');
-
-    if (stationId) query = query.eq('station_id', stationId);
-
-    query = query.order('created_at', { ascending: false }).limit(500);
-
-    const { data: vouchers, error } = await query;
-
-    if (error) throw error;
-
-    if (!vouchers || vouchers.length === 0) {
-      container.innerHTML = '<p>Nessun voucher trovato.</p>';
-      return;
     }
 
-    let html = `
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Codice</th>
-              <th>Importo</th>
-              <th>Stato</th>
-              <th>Creato il</th>
-              <th>Usato il</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+    // ------------------------------------------------------------------
+// VOUCHER -> Moved to js/admin/vouchers.js
+// ------------------------------------------------------------------
 
-    vouchers.forEach(v => {
-      const statusBadge = v.is_used
-        ? '<span class="badge badge-warning">Usato</span>'
-        : '<span class="badge badge-success">Attivo</span>';
+// ------------------------------------------------------------------
+// NOTIFICHE -> Moved to js/admin/notifications.js
+// ------------------------------------------------------------------
+    async function openVoucherModal() {
+      openModal('Genera Voucher');
+      const target = document.getElementById('modal-body');
 
-      html += `
-        <tr>
-          <td><code style="font-size: 1.1em;">${escapeHtml(v.code)}</code></td>
-          <td>${formatEuro(v.amount)}</td>
-          <td>${statusBadge}</td>
-          <td>${new Date(v.created_at).toLocaleDateString()}</td>
-          <td>${v.used_at ? new Date(v.used_at).toLocaleString() : '-'}</td>
-          <td>
-            <button class="icon-btn delete-voucher" data-id="${v.id}" title="Elimina"><i class="fas fa-trash"></i></button>
-          </td>
-        </tr>
-      `;
-    });
-
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
-
-    container.querySelectorAll('.delete-voucher').forEach(btn => {
-      btn.addEventListener('click', () => deleteVoucher(btn.dataset.id));
-    });
-
-  } catch (err) {
-    showErrorMessage(container, err);
-  }
-}
-
-async function openVoucherModal() {
-  openModal('Genera Voucher');
-  const target = document.getElementById('modal-body');
-
-  target.innerHTML = `
+      target.innerHTML = `
     <form id="voucher-form">
       <div class="form-group">
         <label>Importo (€)</label>
@@ -1087,52 +723,56 @@ async function openVoucherModal() {
     </form>
   `;
 
-  document.getElementById('voucher-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const amount = parseFloat(fd.get('amount'));
-    const quantity = parseInt(fd.get('quantity')) || 1;
+      document.getElementById('voucher-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const amount = parseFloat(fd.get('amount'));
+        const quantity = parseInt(fd.get('quantity')) || 1;
+        const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    try {
-      const vouchers = [];
-      for (let i = 0; i < quantity; i++) {
-        vouchers.push({
-          code: generateVoucherCode(),
-          amount: amount,
-          is_used: false,
-          created_at: new Date().toISOString()
-        });
-      }
+        try {
+          setButtonLoading(submitBtn, true, 'Generazione...');
+          const vouchers = [];
+          for (let i = 0; i < quantity; i++) {
+            vouchers.push({
+              code: generateVoucherCode(),
+              amount: amount,
+              is_used: false,
+              created_at: new Date().toISOString()
+            });
+          }
 
-      await safeSupabaseQuery(() => supabase.from('vouchers').insert(vouchers));
-      closeModal();
-      loadAdminTab('vouchers');
-      showInfoModal(`${quantity} voucher generati con successo!`);
-    } catch (err) {
-      handleError(err, 'admin_action');
+          await safeSupabaseQuery(() => supabase.from('vouchers').insert(vouchers));
+          closeModal();
+          loadAdminTab('vouchers');
+          showInfoModal(`${quantity} voucher generati con successo!`);
+        } catch (err) {
+          handleError(err, 'admin_action');
+        } finally {
+          setButtonLoading(submitBtn, false);
+        }
+      });
     }
-  });
-}
 
-function generateVoucherCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code; // Esempio: A7X2M9P1
-}
+    function generateVoucherCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 8; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code; // Esempio: A7X2M9P1
+    }
 
-async function deleteVoucher(id) {
-  if (!await openConfirmModal('Eliminare questo voucher?')) return;
-  try {
-    await safeSupabaseQuery(() => supabase.from('vouchers').delete().eq('id', id));
-    loadAdminTab('vouchers');
-  } catch (err) {
-    handleError(err, 'admin_action');
-  }
-}
+    async function deleteVoucher(id) {
+      if (!await openConfirmModal('Eliminare questo voucher?')) return;
+      try {
+        await safeSupabaseQuery(() => supabase.from('vouchers').delete().eq('id', id));
+        loadAdminTab('vouchers');
+      } catch (err) {
+        handleError(err, 'admin_action');
+      }
+    }
 
-async function showNotificheAdmin(container) {
-  container.innerHTML = '<p>Nessuna notifica.</p>';
-}
+    async function showNotificheAdmin(container) {
+      container.innerHTML = '<p>Nessuna notifica.</p>';
+    }

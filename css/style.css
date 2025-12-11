@@ -423,6 +423,18 @@ button:active {
   outline-offset: 4px;
 }
 
+/* Bottone con stato di caricamento */
+.btn-spinner {
+    display: inline-block;
+    margin-right: 8px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .error-msg {
   color: var(--danger-color);
   margin-top: 12px;
