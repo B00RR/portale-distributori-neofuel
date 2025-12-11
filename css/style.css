@@ -1825,6 +1825,45 @@ button:active {
   }
 }
 
+/* =========================================
+   PAGINATION
+   ========================================= */
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: white;
+  border-top: 1px solid var(--border-color);
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.pagination-controls .menu-button.small {
+  padding: 6px 12px;
+  margin: 0;
+  width: auto;
+  font-size: 1rem;
+}
+
+.pagination-controls .menu-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #e2e8f0;
+  color: #a0aec0;
+  box-shadow: none;
+}
+
 .admin-layout #admin-content {
   min-height: 560px;
 }

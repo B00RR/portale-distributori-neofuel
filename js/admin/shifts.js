@@ -3,6 +3,7 @@ import { showLoadingMessage } from "../ui/ui.js";
 import { handleError } from "../shared/error-handler.js";
 import { escapeHtml, formatEuro } from "../utils/utils.js";
 import { FilterBar } from "./components/FilterBar.js";
+import { Pagination } from "./components/Pagination.js";
 import { store } from "../shared/state.js";
 
 // Dipendenze esterne (devono essere gestite: showClosureDetails, openExportModal)
@@ -13,59 +14,83 @@ export async function showChiusureTab(container, actionsContainer, defaultStatio
   container.innerHTML = `
         <div id="filters-container"></div>
         <div id="data-container"></div>
+        <div id="pagination-container"></div>
     `;
 
-  // Render FilterBar
-  new FilterBar('filters-container').render();
+  // Render Components
+  const filterBar = new FilterBar('filters-container');
+  filterBar.render();
+
+  const pagination = new Pagination('pagination-container');
 
   if (actionsContainer) actionsContainer.innerHTML = '';
 
+  // Track params to prevent loop
+  let lastParams = { page: -1, filtersJson: '' };
+
   const renderTable = async () => {
     const dataContainer = document.getElementById('data-container');
-    if (!dataContainer) return; // Tab switched
+    if (!dataContainer) return;
+
+    const filters = store.getFilters();
+    const pagState = store.getPagination();
+    const stationId = store.getFilter() || defaultStationId;
+
+    // Params check
+    const currentFiltersJson = JSON.stringify({ ...filters, stationId });
+    // We proceed if filters changed OR page changed.
+    // If just totalCount changed (which is in pagState), we do NOT fetch.
+    // However, we MUST fetch if this function is called manually (initial).
+
+    lastParams = { page: pagState.page, filtersJson: currentFiltersJson };
+
+    // Render Pagination (with current totalCount - might be stale before fetch, updated after)
+    pagination.render();
 
     showLoadingMessage(dataContainer);
 
     try {
-      const filters = store.getFilters();
-      const stationId = store.getFilter() || defaultStationId; // Global filter takes precedence or merge? 
-      // Usually store.stationFilter IS the global filter. defaultStationId is passed from admin.js which reads it.
-      // Let's use the one from store directly to be safe, or the arg.
-
       // Build Query
       let query = supabase.from('shifts')
         .select(`
                     *,
                     fuel_stations(station_name),
                     users(full_name)
-                `);
+                `, { count: 'exact' }); // Request count
 
       // 1. Station Filter
       if (stationId) query = query.eq('station_id', stationId);
 
       // 2. Date Range Filter
       if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);
-      if (filters.dateTo) {
-        // Add 1 day to include end date fully or just use logic
-        // validators/UI sets dateTo as YYYY-MM-DD. We want < dateTo + 1 day or <= dateTo 23:59
-        // Simple: query.lt('created_at', filters.dateTo + 'T23:59:59')
-        query = query.lte('created_at', filters.dateTo + 'T23:59:59');
-      }
+      if (filters.dateTo) query = query.lte('created_at', filters.dateTo + 'T23:59:59');
 
-      // 3. Search Query - Client side for now or basic ILIKE on known fields?
-      // Relations search is hard. Let's do client side filtering for search text if simple.
-      // Or limit server side.
-      // For robust 'search', let's stick to client-side filtering after fetch for now (since we limit 500 anyway).
+      // 3. Pagination
+      const from = pagState.page * pagState.pageSize;
+      const to = from + pagState.pageSize - 1;
+      query = query.range(from, to).order('created_at', { ascending: false });
 
-      query = query.order('created_at', { ascending: false }).limit(500);
-
-      const { data: closures, error } = await query;
+      const { data: closures, error, count } = await query;
 
       if (error) throw error;
 
+      // Update totalCount if changed
+      if (count !== null && count !== pagState.totalCount) {
+        store.setPagination({ totalCount: count });
+        // Note: this triggers 'pagination' listener.
+        // Checks in listener must prevent loop.
+      }
+
+      // Re-render pagination with new count
+      pagination.render();
+
       let filteredClosures = closures || [];
 
-      // Client-side Text Search
+      // Client-side Text Search (Applied on the PAGE)
+      // Note: Search ideally should be server side for pagination to work correctly across pages.
+      // If we filter client side, we might end up with empty pages if matches are on other pages.
+      // For now, we keep client side search but warn it only searches current page.
+      // Ideally we implement server side search.
       if (filters.searchQuery) {
         const q = filters.searchQuery.toLowerCase();
         filteredClosures = filteredClosures.filter(c => {
@@ -141,15 +166,26 @@ export async function showChiusureTab(container, actionsContainer, defaultStatio
   // Initial Render
   await renderTable();
 
-  // Subscribe to filter changes
-  const unsub = store.subscribe((key) => {
-    if (key === 'filters') {
-      // Check if still mounted
-      if (!document.getElementById('filters-container')) {
-        unsub(); // Cleanup
-        return;
-      }
+  // Subscribe to state changes
+  const unsub = store.subscribe((key, val) => {
+    // Check if still mounted
+    if (!document.getElementById('filters-container')) {
+      unsub();
+      return;
+    }
+
+    if (key === 'filters' || key === 'stationFilter') {
+      // Always render if filters change
       renderTable();
+    }
+    else if (key === 'pagination') {
+      // Only render if PAGE changed. TotalCount change should be ignored (it was set by us)
+      if (val.page !== lastParams.page) {
+        renderTable();
+      } else {
+        // Just re-render pagination UI to be safe (e.g. totalCount updated)
+        pagination.render();
+      }
     }
   });
 }

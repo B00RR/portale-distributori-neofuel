@@ -15,6 +15,11 @@ class Store {
                 searchQuery: '',
                 rangeLabel: 'all' // 'today', 'week', 'month', 'custom', 'all'
             },
+            pagination: {
+                page: 0,
+                pageSize: 50,
+                totalCount: 0
+            },
             loading: false,
             error: null
         };
@@ -61,7 +66,19 @@ class Store {
      */
     setFilters(newFilters) {
         this.state.filters = { ...this.state.filters, ...newFilters };
+        // Reset page on filter change
+        this.state.pagination.page = 0;
         this.notify('filters', this.state.filters);
+        this.notify('pagination', this.state.pagination);
+    }
+
+    /**
+     * Update pagination
+     * @param {Object} newPagination 
+     */
+    setPagination(newPagination) {
+        this.state.pagination = { ...this.state.pagination, ...newPagination };
+        this.notify('pagination', this.state.pagination);
     }
 
     /**
@@ -94,6 +111,10 @@ class Store {
 
     getFilters() {
         return this.state.filters;
+    }
+
+    getPagination() {
+        return this.state.pagination;
     }
 
     getUser() {

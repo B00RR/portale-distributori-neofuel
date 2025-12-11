@@ -119,6 +119,7 @@ export function showInfoModal(message, title = 'Informazione') {
     // Usa una funzione nominata per poter rimuovere il listener se necessario,
     // ma qui usiamo { once: true } che è più pulito
     const okBtn = document.getElementById('info-modal-ok');
-}
-    });
+    if (okBtn) {
+        okBtn.addEventListener('click', () => closeModal(), { once: true });
+    }
 }
