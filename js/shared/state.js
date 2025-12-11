@@ -9,6 +9,12 @@ class Store {
             user: null,
             stations: [],
             stationFilter: null, // ID of selected station in Admin global filter
+            filters: {
+                dateFrom: null, // YYYY-MM-DD
+                dateTo: null,   // YYYY-MM-DD
+                searchQuery: '',
+                rangeLabel: 'all' // 'today', 'week', 'month', 'custom', 'all'
+            },
             loading: false,
             error: null
         };
@@ -50,6 +56,15 @@ class Store {
     }
 
     /**
+     * Update complex filters
+     * @param {Object} newFilters - partial object to merge
+     */
+    setFilters(newFilters) {
+        this.state.filters = { ...this.state.filters, ...newFilters };
+        this.notify('filters', this.state.filters);
+    }
+
+    /**
      * Subscribe to state changes
      * @param {Function} callback - Function called with (key, value) on change
      * @returns {Function} unsubscribe function
@@ -75,6 +90,10 @@ class Store {
      */
     getFilter() {
         return this.state.stationFilter;
+    }
+
+    getFilters() {
+        return this.state.filters;
     }
 
     getUser() {

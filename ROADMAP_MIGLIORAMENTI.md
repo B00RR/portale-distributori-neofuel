@@ -7,8 +7,8 @@
 ## 📋 Indice
 
 1. [Performance (Virtual Scroller, Caching)](#performance)
-2. [UX/UI Improvements (Breadcrumbs, Filters, Theme)](#uxui-improvements)
-3. [Security & Robustness (Validation, Rate Limit)](#security--robustness)
+2. [UX/UI Improvements (Breadcrumbs)](#uxui-improvements)
+3. [Security & Robustness (Rate Limit)](#security--robustness)
 4. [Developer Experience (TS, Vite, Tests)](#developer-experience)
 5. [Features Aggiuntive](#features-aggiuntive)
 6. [Priorità Consigliate](#priorità-consigliate)
@@ -133,92 +133,6 @@ async function getStations() {
 
 ---
 
-### 3.5 Search & Advanced Filters
-```html
-<!-- Barra ricerca + filtri -->
-<div class="search-filters">
-  <input type="text" class="search-input" placeholder="🔍 Cerca...">
-  
-  <div class="filter-chips">
-    <button class="chip" data-filter="today">Oggi</button>
-    <button class="chip" data-filter="week">Questa settimana</button>
-    <button class="chip active" data-filter="all">Tutto</button>
-  </div>
-  
-  <button class="filter-advanced" id="advanced-filters-btn">
-    <i class="fas fa-filter"></i> Filtri avanzati
-  </button>
-</div>
-
-<!-- Modal filtri avanzati -->
-<div class="modal" id="advanced-filters-modal" style="display: none;">
-  <div class="modal-content">
-    <h3>Filtri Avanzati</h3>
-    <div class="form-group">
-      <label>Data da:</label>
-      <input type="date" name="date_from">
-    </div>
-    <div class="form-group">
-      <label>Data a:</label>
-      <input type="date" name="date_to">
-    </div>
-    <div class="form-group">
-      <label>Stazione:</label>
-      <select name="station_id">
-        <option value="">Tutte</option>
-        <!-- ... -->
-      </select>
-    </div>
-    <button class="btn primary">Applica</button>
-  </div>
-</div>
-```
-
----
-
-### 3.6 Dark Mode Toggle
-```javascript
-// js/shared/theme.js
-export class ThemeManager {
-  static init() {
-    const saved = localStorage.getItem('theme') || 'light';
-    this.setTheme(saved);
-  }
-  
-  static setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }
-  
-  static toggle() {
-    const current = document.documentElement.getAttribute('data-theme');
-    this.setTheme(current === 'dark' ? 'light' : 'dark');
-  }
-}
-
-// style.css
-:root[data-theme="dark"] {
-  --bg-primary: #1a1a1a;
-  --text-primary: #e5e5e5;
-  --border-color: #333;
-  /* ... */
-}
-
-:root[data-theme="light"] {
-  --bg-primary: #ffffff;
-  --text-primary: #1a1a1a;
-  --border-color: #e0e0e0;
-  /* ... */
-}
-
-body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-}
-```
-
----
-
 ### 3.7 Micro-animations
 ```css
 /* Hover effects sulle card */
@@ -275,54 +189,6 @@ body {
 ---
 
 ## 🔒 Security & Robustness
-
-### 4.1 Input Validation Estesa
-```javascript
-// js/shared/validators.js
-export const Validators = {
-  email(value) {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(value) || 'Email non valida';
-  },
-  
-  phone(value) {
-    const re = /^[\d\s\-\+\(\)]{8,}$/;
-    return re.test(value) || 'Telefono non valido';
-  },
-  
-  partitaIva(value) {
-    const re = /^\d{11}$/;
-    return re.test(value) || 'Partita IVA deve essere 11 cifre';
-  },
-  
-  required(value) {
-    return (value && value.trim().length > 0) || 'Campo obbligatorio';
-  },
-  
-  min(minValue) {
-    return (value) => Number(value) >= minValue || `Minimo: ${minValue}`;
-  },
-  
-  max(maxValue) {
-    return (value) => Number(value) <= maxValue || `Massimo: ${maxValue}`;
-  }
-};
-
-// Uso:
-function validateInvoiceForm(formData) {
-  const errors = {};
-  
-  const emailResult = Validators.email(formData.email);
-  if (emailResult !== true) errors.email = emailResult;
-  
-  const phoneResult = Validators.phone(formData.phone);
-  if (phoneResult !== true) errors.phone = phoneResult;
-  
-  return Object.keys(errors).length === 0 ? null : errors;
-}
-```
-
----
 
 ### 4.2 Rate Limiting Client-Side
 ```javascript

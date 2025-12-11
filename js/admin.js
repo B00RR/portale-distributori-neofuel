@@ -6,6 +6,7 @@ import {
   initAdminContent, showLoadingMessage, showErrorMessage,
   openModal, closeModal, showInfoModal, openConfirmModal, setButtonLoading
 } from "./ui/ui.js";
+import { Validators, validateForm, formatErrorMessages } from "./shared/validators.js";
 import {
   escapeHtml, escapeNumber, formatNumberIt, formatLitri,
   parseNumberFlexible, slugifyLabel, formatEuro
@@ -310,6 +311,20 @@ export function showAdminArea() {
         const fullName = fd.get('full_name');
         const submitBtn = e.target.querySelector('button[type="submit"]');
 
+        const schema = {
+          full_name: [Validators.required]
+        };
+        if (!isEdit) {
+          schema.email = [Validators.required, Validators.email];
+          schema.password = [Validators.required, Validators.minLength(6)];
+        }
+
+        const errors = validateForm({ full_name: fullName, email, password }, schema);
+        if (errors) {
+          Toast.show('Dati non validi:\n' + formatErrorMessages(errors), 'error');
+          return;
+        }
+
         try {
           setButtonLoading(submitBtn, true, 'Salvataggio...');
           if (isEdit) {
@@ -333,7 +348,13 @@ export function showAdminArea() {
             }]));
           }
           closeModal();
-          loadAdminTab('operators');
+          // Reload operators tab if current
+          if (typeof showOperatorsTab === 'function') {
+            showOperatorsTab(document.getElementById('admin-content'));
+          } else {
+            const event = new CustomEvent('operators-updated'); // Fallback event
+            document.dispatchEvent(event);
+          }
         } catch (err) {
           handleError(err, 'admin_action');
         } finally {
@@ -664,14 +685,21 @@ export function showAdminArea() {
         const saldo = parseFloat(fd.get('saldo')) || 0;
         const submitBtn = e.target.querySelector('button[type="submit"]');
 
+        const errors = validateForm({ cliente, saldo }, {
+          cliente: [Validators.required],
+          saldo: [Validators.number]
+        });
+        if (errors) {
+          Toast.show('Errore validazione: ' + formatErrorMessages(errors), 'error');
+          return;
+        }
+
         try {
           setButtonLoading(submitBtn, true, 'Salvataggio...');
           if (isEdit) {
             await safeSupabaseQuery(() => supabase.from('crediti_clienti').update({ cliente }).eq('id', customerId));
           } else {
-            // Chiedi stazione di default? Per ora usiamo null o la prima trovata se necessario, 
-            // ma la tabella ha station_id. Se è globale, lasciamo null o gestiamo diversamente.
-            // Assumiamo che i crediti siano per stazione o globali. Qui mettiamo station_id null se non specificato.
+            // Chiedi stazione di default?
             await safeSupabaseQuery(() => supabase.from('crediti_clienti').insert([{
               cliente,
               saldo,
@@ -679,7 +707,8 @@ export function showAdminArea() {
             }]));
           }
           closeModal();
-          loadAdminTab('crediti');
+          // Semplice reload: la gestione tab potrebbe essere migliorata ma qui usiamo loadAdminTab se disponibile
+          if (typeof loadAdminTab === 'function') loadAdminTab('crediti');
         } catch (err) {
           handleError(err, 'admin_action');
         } finally {
@@ -730,6 +759,15 @@ export function showAdminArea() {
         const quantity = parseInt(fd.get('quantity')) || 1;
         const submitBtn = e.target.querySelector('button[type="submit"]');
 
+        const errors = validateForm({ amount, quantity }, {
+          amount: [Validators.required, Validators.minValue(0.1)],
+          quantity: [Validators.required, Validators.minValue(1), Validators.maxValue(50)]
+        });
+        if (errors) {
+          Toast.show('Dati non validi: ' + formatErrorMessages(errors), 'error');
+          return;
+        }
+
         try {
           setButtonLoading(submitBtn, true, 'Generazione...');
           const vouchers = [];
@@ -744,7 +782,7 @@ export function showAdminArea() {
 
           await safeSupabaseQuery(() => supabase.from('vouchers').insert(vouchers));
           closeModal();
-          loadAdminTab('vouchers');
+          if (typeof loadAdminTab === 'function') loadAdminTab('vouchers');
           showInfoModal(`${quantity} voucher generati con successo!`);
         } catch (err) {
           handleError(err, 'admin_action');
