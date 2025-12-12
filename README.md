@@ -4,6 +4,8 @@ Sistema di gestione completo per distributori di carburante con pannello amminis
 
 ## 🚀 Caratteristiche
 
+> 💡 **Roadmap Evolutiva**: Per dettagli sui prossimi sviluppi, consulta il file `ROADMAP_MIGLIORAMENTI.md` incluso nel progetto.
+
 ### Pannello Amministratore
 - ✅ Gestione stazioni di servizio
 - ✅ Configurazione isole e pistole
@@ -11,13 +13,17 @@ Sistema di gestione completo per distributori di carburante con pannello amminis
 - ✅ Gestione operatori
 - ✅ Visualizzazione report e statistiche
 
+- ✅ **Gestione Voucher Avanzata**:
+  - Generazione lotti con codice QR univoco e scadenza
+  - Cruscotto Admin per monitoraggio KPI (emessi vs riscattati)
+  - Stampa su template PDF personalizzato con sovrapposizione dati dinamica
+- ✅ Riepilogo incassi (contanti, POS, crediti, voucher)
+
 ### Pannello Operatore
 - ✅ Apertura turno con contatori iniziali
-- ✅ Chiusura turno (parziale e finale)
-- ✅ Calcolo automatico litri venduti
+- ✅ Chiusura turno (parziale e finale) con calcolo automatico
+- ✅ **Scanner QR Mobile**: Lettura voucher tramite fotocamera e contabilizzazione automatica
 - ✅ Gestione crediti clienti (UTA/DKV)
-- ✅ Gestione voucher
-- ✅ Riepilogo incassi (contanti, POS, crediti)
 
 ## 🛠️ Tecnologie
 
