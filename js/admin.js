@@ -268,7 +268,9 @@ export function showAdminArea() {
         else content.innerHTML = '<p>Modulo Crediti in caricamento...</p>';
         break;
       case 'invoices':
-        content.innerHTML = '<p>Modulo Fatture: Work in progress (Import missing)</p>';
+        await import('./admin/invoices.js').then(module => {
+          module.showFattureTab(content, headerActions);
+        });
         break;
       case 'vouchers':
         if (typeof showVoucherAdminTab !== 'undefined') showVoucherAdminTab(content, headerActions);
