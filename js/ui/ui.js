@@ -116,10 +116,50 @@ export function showInfoModal(message, title = 'Informazione') {
     </div>
   `;
 
-    // Usa una funzione nominata per poter rimuovere il listener se necessario,
-    // ma qui usiamo { once: true } che è più pulito
     const okBtn = document.getElementById('info-modal-ok');
     if (okBtn) {
         okBtn.addEventListener('click', () => closeModal(), { once: true });
+    }
+}
+
+export function openConfirmModal(message) {
+    return new Promise((resolve) => {
+        openModal('Conferma');
+        const target = document.getElementById('modal-body');
+        target.innerHTML = `
+            <p>${escapeHtml(message)}</p>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button id="confirm-cancel" class="menu-button btn-danger">Annulla</button>
+                <button id="confirm-ok" class="menu-button btn-success">Conferma</button>
+            </div>
+        `;
+
+        const okBtn = document.getElementById('confirm-ok');
+        const cancelBtn = document.getElementById('confirm-cancel');
+
+        const handleOk = () => {
+            closeModal();
+            resolve(true);
+        };
+
+        const handleCancel = () => {
+            closeModal();
+            resolve(false);
+        };
+
+        okBtn.addEventListener('click', handleOk, { once: true });
+        cancelBtn.addEventListener('click', handleCancel, { once: true });
+    });
+}
+
+export function setButtonLoading(btn, isLoading, loadingText = 'Attendi...') {
+    if (!btn) return;
+    if (isLoading) {
+        btn.dataset.originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingText}`;
+    } else {
+        btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
+        btn.disabled = false;
     }
 }

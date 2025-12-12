@@ -278,8 +278,8 @@ async function openGunForm(islandId, islandName, stationId, gunId = null) {
         >
       </div>
       <div style="display: flex; gap: 10px;">
-        <button type="button" class="menu-button secondary" id="cancel-btn">Annulla</button>
-        <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Pistola'}</button>
+        <button type="button" class="menu-button btn-danger" id="cancel-btn">Annulla</button>
+        <button type="submit" class="menu-button btn-success">${isEdit ? 'Salva Modifiche' : 'Crea Pistola'}</button>
       </div>
     </form>
   `;
@@ -365,8 +365,8 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
       </div>
 
       <div style="display: flex; gap: 10px;">
-        <button type="button" class="menu-button secondary" id="cancel-btn">Annulla</button>
-        <button type="submit" class="menu-button primary">Salva Numeratore</button>
+        <button type="button" class="menu-button btn-danger" id="cancel-btn">Annulla</button>
+        <button type="submit" class="menu-button btn-success">Salva Numeratore</button>
       </div>
     </form>
   `;

@@ -348,8 +348,8 @@ function openNewModuleModal() {
         <input type="text" name="notes" placeholder="Note interne (facoltative)">
       </div>
       <div class="logic-form-actions">
-        <button type="submit" class="menu-button primary">Crea Modulo</button>
-        <button type="button" class="menu-button secondary" id="logic-module-close">Annulla</button>
+        <button type="submit" class="menu-button btn-success">Crea Modulo</button>
+        <button type="button" class="menu-button btn-danger" id="logic-module-close">Annulla</button>
       </div>
     </form>
   `;
@@ -388,8 +388,8 @@ function openNewVersionModal(module) {
         <input type="text" name="notes" placeholder="Es. fix calcolo contanti">
       </div>
       <div class="logic-form-actions">
-        <button type="submit" class="menu-button primary">Salva Versione</button>
-        <button type="button" class="menu-button secondary" id="logic-version-close">Annulla</button>
+        <button type="submit" class="menu-button btn-success">Salva Versione</button>
+        <button type="button" class="menu-button btn-danger" id="logic-version-close">Annulla</button>
       </div>
     </form>
   `;

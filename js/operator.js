@@ -68,6 +68,12 @@ export async function showOperatorMenu(userId, stationId) {
           <span class="status-badge" id="opening-status"></span>
         </button>
 
+        <!-- Riscatto Voucher -->
+        <button class="op-menu-item" id="btn-vouchers-op">
+          <i class="fas fa-qrcode"></i>
+          <span>Riscatto Voucher</span>
+        </button>
+
         <!-- Movimenti (accordion) -->
         <div class="op-menu-accordion">
           <button class="op-menu-item accordion-trigger" id="btn-movimenti">
@@ -185,9 +191,17 @@ export async function showOperatorMenu(userId, stationId) {
 
   // Altri event listeners (funzioni invariate)
   document.getElementById('btn-prezzi').addEventListener('click', () => showPrezziEditForm(stationId));
-  document.getElementById('btn-crediti').addEventListener('click', () => showCreditsMenu(stationId, userId));
-  document.getElementById('btn-voucher').addEventListener('click', () => showVoucherMenu(stationId, userId));
+  document.getElementById('btn-crediti').addEventListener('click', () => { // Changed from btn-credits to btn-crediti to match HTML
+    import('./operator/credits.js').then(module => module.loadCreditsInterface('operator-content'));
+  });
+
+  document.getElementById('btn-vouchers-op').addEventListener('click', () => {
+    import('./operator/vouchers.js').then(module => module.loadOperatorVouchers('operator-content'));
+  });
+
+  document.getElementById('btn-fatture').addEventListener('click', () => showInvoiceMenu(stationId, userId)); // Corrected button ID and function call
+  document.getElementById('btn-voucher').addEventListener('click', () => showVoucherMenu(stationId, userId)); // Kept original btn-voucher for accordion item
   document.getElementById('btn-uscite').addEventListener('click', () => showOutflowMenu(stationId, userId));
   document.getElementById('btn-incassi').addEventListener('click', () => showExtraIncomeMenu(stationId, userId));
-  document.getElementById('btn-fatture').addEventListener('click', () => showInvoiceMenu(stationId, userId));
 }
+```

@@ -1,6 +1,34 @@
 # 🚀 Roadmap Miglioramenti - Neofuel Web App
 
-> Documento di riferimento per miglioramenti futuri (creato: 09/12/2025)
+> Documento di riferimento per miglioramenti futuri (creato: 09/12/2025, aggiornato: 12/12/2025)
+
+---
+
+## 📅 Status Aggiornamento (12/12/2025)
+**Obiettivo Sessione**: Standardizzazione UI e Implementazione Totale Sistema Voucher.
+
+### ✅ Completato (Voucher & UI)
+| Area | Dettaglio |
+| :--- | :--- |
+| **UI Standard** | Uniformati colori pulsanti (Verde=Conferma, Rosso=Annulla) su tutto il sito. |
+| **DB Voucher** | Create tabelle `voucher_batches` e `vouchers` con RLS e indici. |
+| **Admin Panel** | Generazione lotti, Dashboard KPI, Stampa PDF con Overlay automatico. |
+| **Operator UI** | Scanner QR integrato (Html5Qrcode), Riscossione automatica, Integrazione Chiusura Turno. |
+
+### 🎟️ Dettaglio Sistema Voucher (Roadmap Specifica)
+Tutto ciò che riguarda il modulo Voucher è tracciato qui per facilitare la ripresa dei lavori.
+
+#### 🟢 FATTO (Da non rifare)
+- [x] **Schema Database**: Struttura completa per tracciare emissioni e riscossioni.
+- [x] **Logica generazione**: Creazione codici univoci in batch.
+- [x] **Stampa PDF**: Il sistema accetta il PDF caricato (`template_voucher.pdf`), lo converte in immagine al volo e ci stampa sopra i dati.
+- [x] **Scanner Mobile**: L'operatore può usare la fotocamera del cellulare.
+- [x] **Contabilità**: Il riscatto aggiunge automaticamente i soldi alla chiusura del turno.
+
+#### 🟡 DA FARE (Miglioramenti Futuri Voucher)
+- [ ] **Logica "Annulla Riscatto"**: Permettere all'admin di annullare un riscatto fatto per errore (ora si può fare solo via DB).
+- [ ] **Associazione Cliente**: Permettere di selezionare il cliente da una lista dropdown (ora è un campo testo libero).
+- [ ] **Invio Email**: Inviare il PDF dei voucher generati direttamente via email al cliente.
 
 ---
 
@@ -749,24 +777,23 @@ I18n.refresh();
 
 ## 🎯 Priorità Consigliate
 
-### ⭐ Quick Wins (1-2 settimane)
-**Impatto Alto, Sforzo Basso**
+### ⭐ Quick Wins (Prossima Sessione)
+**Priorità Assoluta per Tasso di Successo Immediato**
 
+- [ ] **Breadcrumbs Navigation** (Priority: HIGH)
+  - *Perché*: Migliora drasticamente l'orientamento, specialmente su mobile. "Dove sono finito?" non sarà più un problema.
+  - *Stima*: 2-3 ore.
 
+- [ ] **Filtri Avanzati & Debounce** (Priority: HIGH)
+  - *Perché*: Le tabelle iniziano a riempirsi. Serve cercare velocemente per nome o data.
+  - *Stima*: 3 ore.
 
+- [ ] **Caching Liste Statiche** (Priority: MEDIUM)
+  - *Perché*: Lista Distributori e Clienti non cambia mai. Inutile scaricarla ogni volta.
+  - *Stima*: 2 ore.
 
+**Totale stima prossima sessione**: ~1 giornata di lavoro
 
-- [ ] **Debounce su Filtri** (2h)
-  - Riduce chiamate API inutili
-  - Performance migliorata
-
-
-
-- [ ] **Breadcrumbs** (3h)
-  - Migliore orientamento navigazione
-  - Soprattutto su mobile
-
-**Totale stima**: ~12 ore
 
 ---
 

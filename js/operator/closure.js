@@ -408,7 +408,7 @@ function showClosureStep1() {
         </div>
         
         <div class="form-actions">
-          <button type="button" class="menu-button secondary" id="btn-cancel-closure">
+          <button type="button" class="menu-button btn-danger" id="btn-cancel-closure">
             <i class="fas fa-times"></i> Annulla
           </button>
           <button type="submit" class="menu-button primary">
@@ -1167,7 +1167,7 @@ async function showClosureStep3() {
         <button type="button" class="menu-button secondary" id="btn-back-step3">
           <i class="fas fa-arrow-left"></i> Indietro
         </button>
-        <button type="button" class="menu-button success" id="btn-confirm-closure">
+        <button type="button" class="menu-button btn-success" id="btn-confirm-closure">
           <i class="fas fa-save"></i> Conferma e Salva
         </button>
       </div>

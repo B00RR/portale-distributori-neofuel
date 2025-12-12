@@ -61,7 +61,7 @@ function renderCustomerChoice(container, stationId, userId) {
         </div>
 
         <div style="text-align: center;">
-            <button id="btn-cancel-choice" class="menu-button" style="background: #f1f5f9; color: #475569;">
+            <button id="btn-cancel-choice" class="menu-button btn-danger">
                 <i class="fas fa-times"></i> Annulla
             </button>
         </div>
@@ -118,7 +118,7 @@ function renderNewCustomerForm(container, stationId, userId) {
                 <input type="text" name="targa" class="big-input" placeholder="Es. AB123CD">
             </div>
 
-            ${createFormActions({ confirmText: 'Continua', confirmClass: 'primary' })}
+            ${createFormActions({ confirmText: 'Continua', confirmClass: 'btn-success' })}
         </form>
       </div>
     `;
@@ -216,7 +216,7 @@ function renderExistingCustomerForm(container, stationId, userId) {
                 <input type="hidden" id="selected-customer-id" name="customer_id">
             </div>
 
-            ${createFormActions({ confirmText: 'Continua', confirmClass: 'primary' })}
+            ${createFormActions({ confirmText: 'Continua', confirmClass: 'btn-success' })}
         </form>
       </div>
     `;
@@ -370,7 +370,7 @@ function renderInvoiceForm(container, stationId, userId, clienteId, customerName
                 <textarea name="notes" rows="4" class="big-input" placeholder="Note aggiuntive..."></textarea>
             </div>
 
-            ${createFormActions({ confirmText: 'Invia Richiesta', confirmClass: 'primary' })}
+            ${createFormActions({ confirmText: 'Invia Richiesta', confirmClass: 'btn-success' })}
         </form>
       </div>
     `;

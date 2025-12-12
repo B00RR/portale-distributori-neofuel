@@ -1,192 +1,241 @@
-// ==========================================
-// OPERATOR VOUCHER MANAGEMENT
-// Gestione voucher e punti (prepagati)
-// ==========================================
 import { supabase } from "../core/api.js";
-import { showInfoModal, openModal, closeModal } from "../ui/ui.js";
-import { createWarningMessage, createBackButton } from "./ui-components.js";
-import { checkOpeningStatus } from "./opening.js";
+import { showInfoModal, showErrorMessage, showLoadingMessage } from "../ui/ui.js";
+import { formatEuro, formatDate } from "../utils/utils.js";
 import { Toast } from "../ui/toast.js";
 
-/**
- * Mostra il menu per la gestione voucher e punti
- * @param {number} stationId - ID della stazione
- * @param {number} userId - ID dell'operatore
- */
-export async function showVoucherMenu(stationId, userId) {
-  openModal('Gestione Voucher & Punti');
-  const modalBody = document.getElementById('modal-body');
-  modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
+// We assume Html5QrcodeScanner is loaded globally via script tag in index.html
+// If not, we should dynamically load it, but for now let's assume existence or load it here.
 
-  // Verifica apertura turno
-  const activeOpening = await checkOpeningStatus(stationId);
-  if (!activeOpening) {
-    modalBody.innerHTML = createWarningMessage(
-      "Nessun Turno Aperto",
-      "Devi aprire un turno prima di poter gestire voucher o punti."
-    ) + `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>`;
+let voucherState = {
+  scanner: null,
+  isScanning: false
+};
 
-    document.getElementById('btn-close-warning').addEventListener('click', () => closeModal());
-    return;
-  }
+// --- INITIALIZATION ---
+export function loadOperatorVouchers(containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = `
+        <div class="content-box">
+            <h3><i class="fas fa-qrcode"></i> Riscatto Voucher</h3>
+            <p class="section-subtitle">Inquadra il QR code del cliente per riscuotere il buono.</p>
 
-  modalBody.innerHTML = `
-        <div class="credits-menu-container">
-            <p class="section-subtitle" style="text-align: center; margin-bottom: 20px;">Seleziona un'operazione</p>
-            
-            <div class="credits-options" style="display: flex; gap: 20px; justify-content: center;">
-                <!-- Opzione 1: Voucher -->
-                <button id="btn-voucher-op" class="credit-option-card">
-                    <div class="icon-wrapper voucher-icon">
-                        <i class="fas fa-ticket-alt"></i>
-                    </div>
-                    <h3>Voucher</h3>
-                    <p>Riscatto buono prepagato</p>
-                </button>
-
-                <!-- Opzione 2: Punti -->
-                <button id="btn-points-op" class="credit-option-card">
-                    <div class="icon-wrapper points-icon">
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <h3>Punti</h3>
-                    <p>Utilizzo punti fedeltà</p>
+            <div id="scanner-container" style="display:none; margin: 20px auto; max-width: 500px;">
+                <div id="reader"></div>
+                <button class="menu-button secondary" id="stop-scan-btn" style="margin-top:10px; width:100%;">
+                    Ferma Fotocamera
                 </button>
             </div>
 
-            <style>
-                .credit-option-card {
-                    flex: 1;
-                    background: white;
-                    border: 2px solid #e2e8f0;
-                    border-radius: 12px;
-                    padding: 20px;
-                    text-align: center;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 10px;
-                    max-width: 250px;
-                }
-                .credit-option-card:hover {
-                    border-color: #3b82f6;
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                }
-                .icon-wrapper {
-                    width: 60px;
-                    height: 60px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 24px;
-                    margin-bottom: 5px;
-                }
-                .icon-wrapper.voucher-icon {
-                    background: #fdf2f8;
-                    color: #db2777;
-                }
-                .icon-wrapper.points-icon {
-                    background: #fffbeb;
-                    color: #d97706;
-                }
-                .credit-option-card h3 {
-                    margin: 0;
-                    color: #1e293b;
-                    font-size: 1.1rem;
-                }
-                .credit-option-card p {
-                    margin: 0;
-                    color: #64748b;
-                    font-size: 0.9rem;
-                }
-            </style>
+            <div id="scan-actions" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button class="menu-button primary big-btn" id="start-scan-btn">
+                    <i class="fas fa-camera"></i> Avvia Scanner
+                </button>
+                <button class="menu-button secondary big-btn" id="manual-entry-btn">
+                    <i class="fas fa-keyboard"></i> Inserimento Manuale
+                </button>
+            </div>
+
+            <!-- Result Area -->
+            <div id="voucher-result" style="margin-top: 20px;"></div>
         </div>
     `;
 
-  document.getElementById('btn-voucher-op').addEventListener('click', () => showVoucherForm(stationId, userId, 'voucher'));
-  document.getElementById('btn-points-op').addEventListener('click', () => showVoucherForm(stationId, userId, 'punti'));
+  document.getElementById('start-scan-btn').addEventListener('click', startScanner);
+  document.getElementById('stop-scan-btn').addEventListener('click', stopScanner);
+  document.getElementById('manual-entry-btn').addEventListener('click', showManualEntry);
+
+  // Dynamically load library if not present
+  if (!window.Html5Qrcode) {
+    const script = document.createElement('script');
+    script.src = "https://unpkg.com/html5-qrcode";
+    document.head.appendChild(script);
+  }
 }
 
-function showVoucherForm(stationId, userId, type) {
-  const isPoints = type === 'punti';
-  const title = isPoints ? 'Utilizzo Punti' : 'Riscatto Voucher';
-  const icon = isPoints ? 'fa-star' : 'fa-ticket-alt';
-  const colorClass = isPoints ? 'points-icon' : 'voucher-icon'; // Reuse styles if possible or define new
+function startScanner() {
+  const readerDiv = document.getElementById('reader');
+  const container = document.getElementById('scanner-container');
+  const actions = document.getElementById('scan-actions');
 
-  openModal(title);
-  const modalBody = document.getElementById('modal-body');
+  actions.style.display = 'none';
+  container.style.display = 'block';
 
-  modalBody.innerHTML = `
-        <div class="content-box">
-            <h3><i class="fas ${icon}"></i> ${title}</h3>
-            <p class="section-subtitle">Registra l'utilizzo di ${isPoints ? 'punti fedeltà' : 'un voucher'}</p>
-            
-            <form id="voucher-form">
-                <div class="form-group">
-                    <label>Nome Cliente / Riferimento</label>
-                    <input type="text" name="customer_name" class="big-input" required placeholder="Es. Mario Rossi o Codice...">
-                </div>
+  if (!window.Html5Qrcode) {
+    alert("Libreria Scanner in caricamento... riprova tra un secondo.");
+    return;
+  }
 
-                <div class="form-group">
-                    <label>Importo (€)</label>
-                    <input type="number" name="amount" step="0.01" min="0.01" class="big-input" required placeholder="0.00">
-                </div>
+  // Initialize Scanner
+  const html5QrCode = new Html5Qrcode("reader");
+  voucherState.scanner = html5QrCode;
+  voucherState.isScanning = true;
 
-                <div class="form-actions">
-                    <button type="button" class="menu-button secondary" id="btn-back-voucher">
-                        <i class="fas fa-arrow-left"></i> Indietro
-                    </button>
-                    <button type="submit" class="menu-button primary">
-                        Conferma
-                    </button>
-                </div>
-            </form>
-        </div>
-    `;
+  const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
-  document.getElementById('btn-back-voucher').addEventListener('click', () => showVoucherMenu(stationId, userId));
-
-  document.getElementById('voucher-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const customerName = formData.get('customer_name').trim();
-    const amount = parseFloat(formData.get('amount'));
-
-    if (!customerName || amount <= 0) return;
-
-    try {
-      await processVoucher(stationId, userId, type, customerName, amount);
-      closeModal();
-      showInfoModal(`${isPoints ? 'Punti registrati' : 'Voucher registrato'} con successo!`);
-    } catch (err) {
-      Toast.show('Errore: ' + err.message, 'error');
-    }
+  html5QrCode.start(
+    { facingMode: "environment" }, // Prefer back camera
+    config,
+    onScanSuccess,
+    onScanFailure
+  ).catch(err => {
+    console.error("Error starting scanner", err);
+    showErrorMessage("Errore Fotocamera", "Impossibile avviare la fotocamera. Assicurati di aver dato i permessi.");
+    stopScanner();
   });
 }
 
-async function processVoucher(stationId, userId, type, customerName, amount) {
-  // Inserimento in movimenti_cassa
-  // Tipo: 'voucher' o 'punti'
-  // Questi tipi verranno sottratti dal contante atteso nella chiusura (come prepagati)
+function stopScanner() {
+  if (voucherState.scanner && voucherState.isScanning) {
+    voucherState.scanner.stop().then(() => {
+      voucherState.scanner.clear();
+      voucherState.scanner = null;
+      document.getElementById('scanner-container').style.display = 'none';
+      document.getElementById('scan-actions').style.display = 'flex';
+    }).catch(err => console.error("Failed to stop scanner", err));
+  }
+}
 
-  const description = type === 'punti'
-    ? `Punti: ${customerName}`
-    : `Voucher: ${customerName}`;
+function onScanFailure(error) {
+  // handle scan failure, usually better to ignore and keep scanning.
+  // console.warn(`Code scan error = ${error}`);
+}
 
-  const { error } = await supabase
-    .from('movimenti_cassa')
-    .insert([{
-      station_id: stationId,
-      operator_id: userId,
-      tipo: type, // 'voucher' o 'punti'
-      importo: amount,
-      descrizione: description,
-      created_at: new Date().toISOString()
-    }]);
+function onScanSuccess(decodedText, decodedResult) {
+  // Audit: Stop scanning immediately
+  stopScanner();
+  // Play explicit beep or vibration
+  if (navigator.vibrate) navigator.vibrate(200);
 
-  if (error) throw error;
+  // Process Code
+  processVoucherCode(decodedText);
+}
+
+function showManualEntry() {
+  const code = prompt("Inserisci il codice del voucher (es. A4K9-XP3M...):");
+  if (code) {
+    processVoucherCode(code.trim().toUpperCase());
+  }
+}
+
+async function processVoucherCode(code) {
+  const resultContainer = document.getElementById('voucher-result');
+  resultContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Verifica in corso...</div>';
+
+  try {
+    // 1. Verify Code
+    const { data: voucher, error } = await supabase
+      .from('vouchers')
+      .select('*, voucher_batches(customer_name)')
+      .eq('code', code)
+      .single();
+
+    if (error || !voucher) {
+      throw new Error("Codice non trovato o inesistente.");
+    }
+
+    // 2. Check Status
+    if (voucher.status === 'redeemed') {
+      resultContainer.innerHTML = `
+                <div class="alert alert-warning" style="background:#fff3cd; color:#856404; padding:15px; border-radius:8px; border:1px solid #ffeeba;">
+                    <h4><i class="fas fa-exclamation-triangle"></i> Voucher Già Riscattato</h4>
+                    <p>Questo buono è stato usato il ${formatDate(voucher.redeemed_at)}.</p>
+                </div>
+            `;
+      return;
+    }
+
+    if (voucher.status === 'expired' || (voucher.expiration_date && new Date(voucher.expiration_date) < new Date())) {
+      resultContainer.innerHTML = `
+                <div class="alert alert-danger" style="background:#f8d7da; color:#721c24; padding:15px; border-radius:8px; border:1px solid #f5c6cb;">
+                    <h4><i class="fas fa-times-circle"></i> Voucher Scaduto</h4>
+                    <p>Data Scadenza: ${formatDate(voucher.expiration_date)}</p>
+                </div>
+            `;
+      return;
+    }
+
+    // 3. Show Verification Details & Confirm Redemption
+    resultContainer.innerHTML = `
+            <div class="voucher-card-preview" style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center;">
+                <div style="color: #22c55e; font-size: 3rem; margin-bottom: 10px;"><i class="fas fa-check-circle"></i></div>
+                <h3 style="margin:0;">Voucher Valido!</h3>
+                <div style="font-size: 2rem; font-weight: bold; margin: 10px 0;">${formatEuro(voucher.amount)}</div>
+                <p><strong>Codice:</strong> ${voucher.code}</p>
+                ${voucher.voucher_batches?.customer_name ? `<p><strong>Cliente:</strong> ${voucher.voucher_batches.customer_name}</p>` : ''}
+                
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button class="menu-button btn-danger" id="cancel-redeem">Annulla</button>
+                    <button class="menu-button btn-success" id="confirm-redeem">
+                        <i class="fas fa-save"></i> RISCATTA ORA
+                    </button>
+                </div>
+            </div>
+        `;
+
+    document.getElementById('cancel-redeem').addEventListener('click', () => {
+      resultContainer.innerHTML = '';
+    });
+
+    document.getElementById('confirm-redeem').addEventListener('click', () => redeemVoucher(voucher));
+
+  } catch (err) {
+    resultContainer.innerHTML = `
+            <div class="alert alert-danger">
+                <h4><i class="fas fa-times-circle"></i> Errore</h4>
+                <p>${err.message}</p>
+            </div>
+        `;
+  }
+}
+
+async function redeemVoucher(voucher) {
+  const resultContainer = document.getElementById('voucher-result');
+  resultContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Registrazione incasso...</div>';
+
+  try {
+    // Transaction: Update Voucher + Insert Cash Movement
+    // Supabase doesn't support complex transactions in client library easily without RPC.
+    // We will do optimistic sequential updates.
+
+    // 1. Update Voucher Status
+    const { error: updateError } = await supabase
+      .from('vouchers')
+      .update({
+        status: 'redeemed',
+        redeemed_at: new Date().toISOString()
+        // redeemed_by: operator_id // captured by RLS or session theoretically
+      })
+      .eq('id', voucher.id);
+
+    if (updateError) throw updateError;
+
+    // 2. Insert Movimento Cassa (So it appears in Closure)
+    const { error: moveError } = await supabase
+      .from('movimenti_cassa')
+      .insert([{
+        tipo: 'voucher',
+        importo: voucher.amount,
+        descrizione: `Riscatto Voucher ${voucher.code}`
+      }]);
+
+    if (moveError) {
+      // Rollback voucher (crudely)
+      await supabase.from('vouchers').update({ status: 'active', redeemed_at: null }).eq('id', voucher.id);
+      throw moveError;
+    }
+
+    Toast.show("Voucher Riscattato con Successo!", 'success');
+    resultContainer.innerHTML = `
+            <div class="alert alert-success" style="background:#d4edda; color:#155724; padding:20px; border-radius:8px; border:1px solid #c3e6cb; text-align: center;">
+                <h2><i class="fas fa-check"></i> Completato</h2>
+                <p>incasso di <strong>${formatEuro(voucher.amount)}</strong> registrato.</p>
+                <button class="menu-button primary" onclick="document.getElementById('voucher-result').innerHTML=''">Nuova Scansione</button>
+            </div>
+        `;
+
+  } catch (err) {
+    console.error(err);
+    showErrorMessage("Errore Riscatto", "Impossibile completare l'operazione. Riprova: " + err.message);
+    resultContainer.innerHTML = ''; // Reset to allow retry
+  }
 }

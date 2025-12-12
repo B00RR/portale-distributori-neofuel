@@ -141,8 +141,8 @@ async function openIslandForm(stationId, islandId = null) {
         <input type="text" name="nome" value="${escapeHtml(island.nome)}" required placeholder="es. Isola 1">
       </div>
       <div style="display: flex; gap: 10px;">
-        <button type="button" class="menu-button secondary" id="cancel-btn">Annulla</button>
-        <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Isola'}</button>
+        <button type="button" class="menu-button btn-danger" id="cancel-btn">Annulla</button>
+        <button type="submit" class="menu-button btn-success">${isEdit ? 'Salva Modifiche' : 'Crea Isola'}</button>
       </div>
     </form>
   `;

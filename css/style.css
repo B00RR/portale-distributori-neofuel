@@ -4502,3 +4502,26 @@ button:active {
     padding-bottom: 4px;
   }
 }
+
+/* Confirmation Modal Buttons */
+.menu-button.btn-danger {
+  background: var(--danger-color) !important;
+  color: white;
+  border: none;
+}
+.menu-button.btn-danger:hover {
+  background: #d32f2f !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 65, 54, 0.3);
+}
+
+.menu-button.btn-success {
+  background: var(--success-color) !important;
+  color: white;
+  border: none;
+}
+.menu-button.btn-success:hover {
+  background: #059669 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}

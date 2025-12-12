@@ -88,12 +88,12 @@ export function createFormActions(options = {}) {
     confirmId = 'btn-confirm',
     cancelText = 'Annulla',
     confirmText = 'Conferma',
-    confirmClass = 'success'
+    confirmClass = 'btn-success'
   } = options;
 
   return `
     <div class="form-actions">
-      <button type="button" class="menu-button secondary" id="${cancelId}">
+      <button type="button" class="menu-button btn-danger" id="${cancelId}">
         <i class="fas fa-times"></i> ${escapeHtml(cancelText)}
       </button>
       <button type="submit" class="menu-button ${confirmClass}" id="${confirmId}">

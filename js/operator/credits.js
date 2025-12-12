@@ -158,10 +158,10 @@ async function showNewCreditForm(stationId, userId) {
 
 
                 <div class="form-actions">
-                    <button type="button" class="menu-button secondary" id="btn-back-credits">
-                        <i class="fas fa-arrow-left"></i> Indietro
+                    <button type="button" class="menu-button btn-danger" id="btn-back-credits">
+                        <i class="fas fa-arrow-left"></i> Annulla
                     </button>
-                    <button type="submit" class="menu-button primary">
+                    <button type="submit" class="menu-button btn-success">
                         Conferma Credito
                     </button>
                 </div>
@@ -445,10 +445,10 @@ function showPaymentModal(customer, stationId, userId) {
             </div>
 
             <div class="form-actions">
-                <button type="button" class="menu-button secondary" id="btn-cancel-pay">
+                <button type="button" class="menu-button btn-danger" id="btn-cancel-pay">
                     Annulla
                 </button>
-                <button type="submit" class="menu-button primary">
+                <button type="submit" class="menu-button btn-success">
                     Registra Pagamento
                 </button>
             </div>
