@@ -30,7 +30,7 @@ import { showPrezziAdminModal, showPricesTab } from "./admin/prices.js";
 import { showTanksAdminModal, showTanksTab } from "./admin/tanks.js";
 // Imports for other modules should be here or dynamic imports if circular dependency issues arise.
 // Since we are fixing a file where imports were moved, we assume these functions are available or need to be imported.
-import { showVoucherAdminTab } from "./admin/vouchers.js";
+import { showVoucherAdminTab } from "./admin/vouchers_final.js";
 import { showFattureTab } from "./admin/invoices.js";
 import { showCreditiOverview as showCreditsTab } from "./admin/credits.js";
 import { showOperatorsTab } from "./admin/operators.js";
@@ -83,6 +83,34 @@ export function showAdminArea() {
       // Ricarica la tab corrente con il nuovo filtro
       loadAdminTab(currentAdminTab);
     });
+  }
+
+  function renderBreadcrumbs(tab, subPath = '') {
+    const container = document.getElementById('breadcrumbs');
+    if (!container) return;
+
+    const labels = {
+      'dashboard': 'Dashboard',
+      'stations': 'Distributori',
+      'operators': 'Operatori',
+      'shifts': 'Chiusure',
+      'crediti': 'Crediti',
+      'invoices': 'Fatture',
+      'vouchers': 'Voucher',
+      'notifiche': 'Notifiche',
+      'settings': 'Impostazioni'
+    };
+
+    let html = `<span class="breadcrumb-item"><i class="fas fa-home"></i> Home</span>`;
+    html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
+    html += `<span class="breadcrumb-item active">${labels[tab] || tab}</span>`;
+
+    if (subPath) {
+      html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
+      html += `<span class="breadcrumb-item">${subPath}</span>`;
+    }
+
+    container.innerHTML = html;
   }
 
   // Funzione per caricare le tab
@@ -184,7 +212,10 @@ export function showAdminArea() {
         <header class="admin-header">
           <div class="admin-header-center">
             <img src="assets/images/logo svg.svg" alt="Neofuel" class="admin-header-logo" />
-            <p class="welcome-subtitle" id="page-subtitle">Dashboard</p>
+            <div class="header-titles">
+              <p class="welcome-subtitle" id="page-subtitle">Dashboard</p>
+              <nav id="breadcrumbs" class="breadcrumbs"></nav>
+            </div>
           </div>
           <div class="admin-header-right">
             <div id="header-actions" class="header-actions"></div>
@@ -244,7 +275,10 @@ export function showAdminArea() {
       'notifiche': 'Notifiche',
       'settings': 'Impostazioni'
     };
+
     if (pageSubtitle) pageSubtitle.textContent = titles[tab] || 'Control Center';
+
+    renderBreadcrumbs(tab); // Update Breadcrumbs
 
     await renderGlobalFilter(); // Assicurati che il filtro sia presente/aggiornato
     const filter = store.getFilter();

@@ -637,12 +637,13 @@ button:active {
 }
 
 .segmented-control {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
   gap: 12px;
 }
 
 .segmented-option {
+  flex: 1;
+  max-width: 250px;
   position: relative;
   cursor: pointer;
 }
@@ -2136,12 +2137,14 @@ button:active {
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  white-space: nowrap;
+  table-layout: fixed;
+  /* STRICTLY enforce column widths */
+  white-space: normal;
 }
 
 .admin-table th {
   background: var(--bg-body);
-  padding: 16px 24px;
+  padding: 12px 16px;
   text-align: left;
   font-size: 0.85rem;
   font-weight: 600;
@@ -2149,13 +2152,27 @@ button:active {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-table td {
-  padding: 16px 24px;
+  padding: 12px 16px;
   font-size: 0.95rem;
   color: var(--text-main);
   border-bottom: 1px solid var(--border-color);
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  vertical-align: middle;
+}
+
+overflow-wrap: break-word;
+/* Ensure long words break */
+word-wrap: break-word;
+max-width: 300px;
+/* Prevent any single cell from expanding indefinitely */
 }
 
 .admin-table tr:last-child td {
@@ -4509,6 +4526,7 @@ button:active {
   color: white;
   border: none;
 }
+
 .menu-button.btn-danger:hover {
   background: #d32f2f !important;
   transform: translateY(-2px);
@@ -4520,8 +4538,41 @@ button:active {
   color: white;
   border: none;
 }
+
 .menu-button.btn-success:hover {
   background: #059669 !important;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* --- BREADCRUMBS --- */
+.header-titles {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.breadcrumb-item.active {
+  color: var(--primary-color, #0f172a);
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  font-size: 0.7rem;
+  color: #cbd5e1;
 }

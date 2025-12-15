@@ -107,3 +107,14 @@ export function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+export function formatDate(value) {
+    if (!value) return '';
+    try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return value;
+        return new Intl.DateTimeFormat('it-IT').format(date);
+    } catch (e) {
+        return value;
+    }
+}

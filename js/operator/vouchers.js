@@ -12,7 +12,7 @@ let voucherState = {
 };
 
 // --- INITIALIZATION ---
-export function loadOperatorVouchers(containerId) {
+export function showVoucherMenu(containerId) {
   const container = document.getElementById(containerId);
   container.innerHTML = `
         <div class="content-box">

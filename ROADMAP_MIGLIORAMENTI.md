@@ -4,31 +4,17 @@
 
 ---
 
-## 📅 Status Aggiornamento (12/12/2025)
-**Obiettivo Sessione**: Standardizzazione UI e Implementazione Totale Sistema Voucher.
-
-### ✅ Completato (Voucher & UI)
-| Area | Dettaglio |
-| :--- | :--- |
-| **UI Standard** | Uniformati colori pulsanti (Verde=Conferma, Rosso=Annulla) su tutto il sito. |
-| **DB Voucher** | Create tabelle `voucher_batches` e `vouchers` con RLS e indici. |
-| **Admin Panel** | Generazione lotti, Dashboard KPI, Stampa PDF con Overlay automatico. |
-| **Operator UI** | Scanner QR integrato (Html5Qrcode), Riscossione automatica, Integrazione Chiusura Turno. |
 
 ### 🎟️ Dettaglio Sistema Voucher (Roadmap Specifica)
 Tutto ciò che riguarda il modulo Voucher è tracciato qui per facilitare la ripresa dei lavori.
 
-#### 🟢 FATTO (Da non rifare)
-- [x] **Schema Database**: Struttura completa per tracciare emissioni e riscossioni.
-- [x] **Logica generazione**: Creazione codici univoci in batch.
-- [x] **Stampa PDF**: Il sistema accetta il PDF caricato (`template_voucher.pdf`), lo converte in immagine al volo e ci stampa sopra i dati.
-- [x] **Scanner Mobile**: L'operatore può usare la fotocamera del cellulare.
-- [x] **Contabilità**: Il riscatto aggiunge automaticamente i soldi alla chiusura del turno.
 
 #### 🟡 DA FARE (Miglioramenti Futuri Voucher)
 - [ ] **Logica "Annulla Riscatto"**: Permettere all'admin di annullare un riscatto fatto per errore (ora si può fare solo via DB).
 - [ ] **Associazione Cliente**: Permettere di selezionare il cliente da una lista dropdown (ora è un campo testo libero).
 - [ ] **Invio Email**: Inviare il PDF dei voucher generati direttamente via email al cliente.
+- [ ] **FIX URGENTE**: I tasti "Stampa", "Annulla", "Elimina" e la colonna "Comandi" non sono visibili nella tabella "Stampa" (bug di rendering/cache nonostante il backend funzioni).
+- [ ] **Test Stampa**: Verificare che il popup di stampa e il layout del PDF generato siano corretti e funzionanti.
 
 ---
 

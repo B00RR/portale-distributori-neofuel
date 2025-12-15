@@ -16,7 +16,7 @@ export async function showVoucherAdminTab(container, headerActions) {
     container.innerHTML = `
         <div class="app-container">
             <div class="top-bar-title">
-                <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher</h2>
+                <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher V3</h2>
             </div>
 
             <div class="segmented-control" style="margin: 24px 0;">
@@ -183,9 +183,6 @@ async function handleGeneration(e) {
         const vouchersPayload = [];
         for (let i = 0; i < quantity; i++) {
             // Generate unique unpredictable code
-            // Format: V-{BATCH_PREFIX}-{RANDOM_HEX}-{AMOUNT_INT}
-            // Realistically, a simple UUID or strong random string is enough.
-            // Let's use a 12-char alphanumeric string for readability/QR density.
             const uniqueCode = generateVoucherCode();
 
             vouchersPayload.push({
@@ -238,11 +235,6 @@ async function renderDashboard(container) {
         const { count: totalRedeemed } = await supabase.from('vouchers').select('*', { count: 'exact', head: true }).eq('status', 'redeemed');
         const { count: totalActive } = await supabase.from('vouchers').select('*', { count: 'exact', head: true }).eq('status', 'active');
 
-        /* 
-           Ideally we would allow "sum" aggregation via RPC, but for now filtering is fine if dataset isn't huge.
-           Or we can just show counts.
-        */
-
         // Fetch recent activity
         const { data: recent, error } = await supabase
             .from('vouchers')
@@ -290,11 +282,11 @@ async function renderDashboard(container) {
                     <table class="admin-table">
                         <thead>
                             <tr>
-                                <th>Codice</th>
-                                <th>Importo</th>
-                                <th>Stato</th>
-                                <th>Lotto / Cliente</th>
-                                <th>Scadenza</th>
+                                <th style="width: 25%">Codice</th>
+                                <th style="width: 15%">Importo</th>
+                                <th style="width: 15%">Stato</th>
+                                <th style="width: 15%">Lotto / Cliente</th>
+                                <th style="width: 30%">Scadenza</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -303,7 +295,7 @@ async function renderDashboard(container) {
                                     <td style="font-family: monospace; font-weight: 600; color: #333;">${escapeHtml(v.code)}</td>
                                     <td><strong>${formatEuro(v.amount)}</strong></td>
                                     <td>${getStatusBadge(v.status)}</td>
-                                    <td>${escapeHtml(v.voucher_batches?.description || '-')}</td>
+                                    <td style="white-space: normal;">${escapeHtml(v.voucher_batches?.description || '-')}</td>
                                     <td>${v.expiration_date ? formatDate(v.expiration_date) : 'Nessuna'}</td>
                                 </tr>
                             `).join('')}
@@ -353,11 +345,11 @@ async function renderPrintList(container) {
                     <table class="admin-table">
                         <thead>
                             <tr>
-                                <th>Descrizione Lotto</th>
-                                <th>Data Creazione</th>
-                                <th>Scadenza</th>
-                                <th>Cliente</th>
-                                <th style="text-align: right;">Comandi</th>
+                                <th style="width: 25%">Descrizione Lotto</th>
+                                <th style="width: 20%">Data Creazione</th>
+                                <th style="width: 20%">Scadenza</th>
+                                <th style="width: 20%">Cliente</th>
+                                <th style="width: 15%; text-align: right;">Comandi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -419,8 +411,6 @@ async function handleVoidBatch(batchId) {
 
         if (error) throw error;
         Toast.show("Tutti i voucher del lotto sono stati annullati.", 'success');
-        // Refresh? Using renderPrintList directly might be easier
-        // But we need the container. Ideally we just reload the tab.
         renderActiveTab();
     } catch (err) {
         console.error(err);
@@ -479,162 +469,7 @@ async function openPrintView(batchId) {
     }
 }
 
-async function generatePrintHtml(win, vouchers) {
-    // Basic A4 Grid Layout
-    const html = `
-      < !DOCTYPE html >
-    <html>
-    <head>
-        <title>Stampa Voucher</title>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-        <script>
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        </script>
-        <style>
-            @media print {
-                @page { margin: 0; size: A4; }
-                body { margin: 0; -webkit-print-color-adjust: exact; }
-            }
-            body { font-family: sans-serif; background: #eee; }
-            .page { 
-                width: 210mm; height: 297mm; background: white; margin: 20px auto; 
-                display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(5, 1fr);
-                page-break-after: always;
-                position: relative;
-            }
-            @media print { .page { margin: 0; box-shadow: none; } }
-            
-            .voucher-card {
-                border: 1px dashed #ccc; /* Cut lines */
-                position: relative;
-                overflow: hidden;
-                background-size: cover;
-                background-position: center;
-                background-repeat: no-repeat;
-            }
-            
-            .overlay-qr {
-                position: absolute;
-                bottom: 20px;
-                right: 20px;
-                width: 80px;
-                height: 80px;
-                background: white;
-                padding: 5px;
-            }
-            .overlay-amount {
-                position: absolute;
-                top: 20px;
-                right: 20px;
-                font-size: 24px;
-                font-weight: bold;
-                color: #000;
-            }
-            .overlay-code {
-                position: absolute;
-                bottom: 5px;
-                right: 20px;
-                font-size: 10px;
-                font-family: monospace;
-            }
-            .overlay-expiry {
-                position: absolute;
-                bottom: 5px;
-                left: 20px;
-                font-size: 10px;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="loading" style="text-align: center; padding: 50px; font-size: 24px;">
-            Elaborazione Template PDF in corso... <br>Attendere prego...
-        </div>
-        <div id="pages-container" style="display:none;"></div>
-        <script>
-            const vouchers = ${JSON.stringify(vouchers)};
-            const pdfUrl = '../assets/templates/template_voucher.pdf';
-            let templateDataUrl = '';
-
-            async function init() {
-                try {
-                    // Render PDF to Image
-                    const loadingTask = pdfjsLib.getDocument(pdfUrl);
-                    const pdf = await loadingTask.promise;
-                    const page = await pdf.getPage(1);
-                    
-                    const viewport = page.getViewport({ scale: 2 }); // High res
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-
-                    await page.render({ canvasContext: context, viewport: viewport }).promise;
-                    templateDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    
-                    renderVouchers();
-                } catch (err) {
-                    alert("Errore nel caricamento del template PDF: " + err.message);
-                    console.error(err);
-                }
-            }
-
-            function renderVouchers() {
-                const container = document.getElementById('pages-container');
-                const loading = document.getElementById('loading');
-                
-                // Chunk into 10 per page (2x5)
-                const chunkSize = 10;
-                for (let i = 0; i < vouchers.length; i += chunkSize) {
-                    const chunk = vouchers.slice(i, i + chunkSize);
-                    const page = document.createElement('div');
-                    page.className = 'page';
-                    
-                    chunk.forEach(v => {
-                        const card = document.createElement('div');
-                        card.className = 'voucher-card';
-                        // Apply the rendered PDF image as background
-                        card.style.backgroundImage = \`url(\${templateDataUrl})\`;
-                        
-                        card.innerHTML = \`
-                            <div class=\"overlay-amount\">€ \${parseFloat(v.amount).toFixed(2)}</div>
-                            <div class=\"overlay-expiry\">Scad: \${v.expiration_date ? v.expiration_date.split('-').reverse().join('/') : 'Illimitata'}</div>
-                            <div class=\"overlay-code\">\${v.code}</div>
-                            <div class=\"overlay-qr\" id=\"qr-\${v.id}\"></div>
-    \`;
-                        page.appendChild(card);
-                        
-                        // Generate QR
-                        setTimeout(() => {
-                             new QRCode(document.getElementById('qr-' + v.id), {
-                                text: v.code,
-                                width: 70,
-                                height: 70
-                            });
-                        }, 50);
-                    });
-                    
-                    container.appendChild(page);
-                }
-
-                loading.style.display = 'none';
-                container.style.display = 'block';
-                
-                // Auto print prompt
-                setTimeout(() => window.print(), 1000);
-            }
-
-            init();
-        </script>
-    </body>
-    </html>
-    `;
-
-    win.document.write(html);
-    win.document.close();
-}
-
-function generatePrintHtmlCSS(win, vouchers) {
+async function generatePrintHtmlCSS(win, vouchers) {
     const logoUrl = 'assets/images/logo svg.svg';
 
     // Create the HTML content
@@ -798,49 +633,51 @@ function generatePrintHtmlCSS(win, vouchers) {
         function renderVouchers() {
             const container = document.getElementById('pages-container');
             const chunkSize = 10;
-            
             for (let i = 0; i < vouchers.length; i += chunkSize) {
                 const chunk = vouchers.slice(i, i + chunkSize);
                 const page = document.createElement('div');
                 page.className = 'page';
                 
                 chunk.forEach(v => {
-                    const expiry = v.expiration_date ? v.expiration_date.split('-').reverse().join('/') : 'Illimitata';
-                    
                     const card = document.createElement('div');
                     card.className = 'voucher-card';
+                    
                     card.innerHTML = \`
                         <div class="voucher-header">
                             <div class="brand-area">
-                                <img src="\${logoUrl}" class="brand-logo" onerror="this.style.display='none'">
+                                <img src="\${logoUrl}" class="brand-logo" alt="Neofuel">
                                 <span class="brand-name">NEOFUEL</span>
                             </div>
-                            <div style="font-size: 10px; opacity: 0.8;">BUONO CARBURANTE</div>
+                            <div style="font-size: 10px; opacity: 0.8; letter-spacing: 1px;">BUONO CARBURANTE</div>
                         </div>
+                        
                         <div class="voucher-body">
                             <div class="voucher-info">
-                                <div class="amount-label">Valore</div>
+                                <div class="amount-label">Valore Buono</div>
                                 <div class="amount-value">€ \${parseFloat(v.amount).toFixed(2)}</div>
                                 
                                 <div class="code-box">
                                     <div class="voucher-code">\${v.code}</div>
                                 </div>
                             </div>
+                            
                             <div class="voucher-qr" id="qr-\${v.id}"></div>
                         </div>
+                        
                         <div class="voucher-footer">
-                            <span>Scadenza: <strong>\${expiry}</strong></span>
-                            <span class="helper-text">Presentare alla cassa</span>
+                            <div class="expiry">Scadenza: <strong>\${v.expiration_date ? v.expiration_date.split('-').reverse().join('/') : 'Illimitata'}</strong></div>
+                            <div class="helper-text">Presentare alla cassa</div>
                         </div>
-                    \`;
+\`;
                     page.appendChild(card);
                     
+                    // Generate QR
                     setTimeout(() => {
-                         new QRCode(document.getElementById('qr-' + v.id), {
+                            new QRCode(document.getElementById('qr-' + v.id), {
                             text: v.code,
                             width: 80,
                             height: 80,
-                            colorDark : "#000000",
+                            colorDark : "#0A2342",
                             colorLight : "#ffffff",
                             correctLevel : QRCode.CorrectLevel.H
                         });
@@ -851,13 +688,13 @@ function generatePrintHtmlCSS(win, vouchers) {
             }
         }
 
-        // Wait for fonts
-        document.fonts.ready.then(renderVouchers);
+        // Wait for resources
+        window.onload = renderVouchers;
     </script>
 </body>
-</html>`;
+</html>
+    `;
 
-    win.document.open();
     win.document.write(html);
     win.document.close();
 }

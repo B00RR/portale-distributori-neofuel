@@ -196,12 +196,11 @@ export async function showOperatorMenu(userId, stationId) {
   });
 
   document.getElementById('btn-vouchers-op').addEventListener('click', () => {
-    import('./operator/vouchers.js').then(module => module.loadOperatorVouchers('operator-content'));
+    import('./operator/vouchers.js').then(module => module.showVoucherMenu('operator-content'));
   });
 
   document.getElementById('btn-fatture').addEventListener('click', () => showInvoiceMenu(stationId, userId)); // Corrected button ID and function call
-  document.getElementById('btn-voucher').addEventListener('click', () => showVoucherMenu(stationId, userId)); // Kept original btn-voucher for accordion item
+  document.getElementById('btn-voucher').addEventListener('click', () => showVoucherMenu('operator-content')); // Kept original btn-voucher for accordion item
   document.getElementById('btn-uscite').addEventListener('click', () => showOutflowMenu(stationId, userId));
   document.getElementById('btn-incassi').addEventListener('click', () => showExtraIncomeMenu(stationId, userId));
 }
-```

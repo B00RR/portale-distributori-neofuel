@@ -6,7 +6,7 @@ import {
     initLoginElements, loadSession, setLoggedUser, setOnLoginSuccess,
     handlePasswordReset, requestPasswordReset
 } from "./core/auth.js";
-import { showAdminArea } from "./admin.js";
+import { showAdminArea } from "./admin.js?v=3";
 import { showOperatorMenu } from "./operator.js";
 import { store } from "./shared/state.js";
 import "./utils/calculation-engine.js";
