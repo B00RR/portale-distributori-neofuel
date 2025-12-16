@@ -30,7 +30,7 @@ import { showPrezziAdminModal, showPricesTab } from "./admin/prices.js";
 import { showTanksAdminModal, showTanksTab } from "./admin/tanks.js";
 // Imports for other modules should be here or dynamic imports if circular dependency issues arise.
 // Since we are fixing a file where imports were moved, we assume these functions are available or need to be imported.
-import { showVoucherAdminTab } from "./admin/vouchers_final.js";
+import { showVoucherAdminTab } from "./admin/vouchers_reboot.js";
 import { showFattureTab } from "./admin/invoices.js";
 import { showCreditiOverview as showCreditsTab } from "./admin/credits.js";
 import { showOperatorsTab } from "./admin/operators.js";
