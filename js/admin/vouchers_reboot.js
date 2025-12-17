@@ -25,13 +25,13 @@ let voucherState = {
 export async function showVoucherAdminTab(container, headerActions) {
     // V3 REBOOT: Clean Flexbox Structure
     container.innerHTML = `
-        <div class="app-container">
+        <div class="app-container" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
             <div class="top-bar-title">
                 <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher V3</h2>
             </div>
             
             <!-- TABS: Flex Wrap for responsiveness -->
-            <div class="tabs-container" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="tabs-container" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; max-width: 100%;">
                 <button class="tab-btn-large ${voucherState.activeTab === 'generator' ? 'active' : ''}" data-tab="generator" style="
                     flex: 1 1 200px;
                     background: ${voucherState.activeTab === 'generator' ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)' : 'white'};
@@ -75,7 +75,7 @@ export async function showVoucherAdminTab(container, headerActions) {
                 </button>
             </div>
             
-            <div id="voucher-content" class="tab-content" style="background: #fff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0;">
+            <div id="voucher-content" class="tab-content" style="background: #fff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
                 <!-- Content injected here -->
             </div>
         </div>
@@ -331,19 +331,25 @@ async function renderDashboard(container) {
                     overflow: hidden;
                     margin-top: 20px;
                     border: 1px solid #e2e8f0;
+                    max-width: 100%;
+                    width: 100%;
                 }
                 .voucher-scroll-wrapper {
                     overflow-x: auto;
+                    overflow-y: visible;
                     width: 100%;
+                    max-width: 100%;
                     padding-bottom: 5px; /* Space for scrollbar */
+                    -webkit-overflow-scrolling: touch;
                 }
                 .voucher-grid-inner {
-                    min-width: 1100px; /* Slightly wider for breathing room */
+                    min-width: 900px; /* Reduced from 1100px for better fit */
+                    width: 100%;
                 }
                 .voucher-grid-header {
                     display: grid;
-                    /* Revised Columns: Description(Auto), Amount(140), Client(160), Disp(100), Status(100), Expires(120), Actions(140) */
-                    grid-template-columns: minmax(250px, 1fr) 140px minmax(160px, 1.2fr) 100px 100px 120px 140px;
+                    /* Revised Columns: Description(Auto), Amount(140), Client(160), Disp(100), Status(100), Expires(120), Actions(160) */
+                    grid-template-columns: minmax(200px, 1fr) 130px minmax(140px, 1fr) 90px 90px 110px 160px;
                     background: #f8fafc;
                     border-bottom: 2px solid #e2e8f0;
                     font-weight: 600;
@@ -364,7 +370,7 @@ async function renderDashboard(container) {
                 }
                 .voucher-grid-row {
                     display: grid;
-                    grid-template-columns: minmax(250px, 1fr) 140px minmax(160px, 1.2fr) 100px 100px 120px 140px;
+                    grid-template-columns: minmax(200px, 1fr) 130px minmax(140px, 1fr) 90px 90px 110px 160px;
                     border-bottom: 1px solid #f1f5f9;
                     transition: background-color 0.15s;
                     align-items: center; /* Vertically center by default */
@@ -373,19 +379,21 @@ async function renderDashboard(container) {
                     background-color: #f1f5f9;
                 }
                 .voucher-cell {
-                    padding: 12px 16px; /* Tighter padding */
+                    padding: 12px 12px; /* Reduced padding */
                     display: flex;
                     align-items: center;
                     color: #334155;
-                    font-size: 0.95rem; /* Ensure readable font size */
+                    font-size: 0.9rem; /* Slightly smaller font */
                     border-right: 1px dashed #f1f5f9; /* Subtle vertical guide */
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
+                    min-width: 0; /* Allow flex shrinking */
                 }
                 .voucher-cell:last-child {
                     border-right: none;
                     overflow: visible; /* Allow dropups if needed */
+                    flex-shrink: 0; /* Prevent action buttons from shrinking */
                 }
                 .voucher-cell.center {
                     justify-content: center;
@@ -396,6 +404,40 @@ async function renderDashboard(container) {
                 .voucher-cell strong {
                     font-weight: 600;
                     color: #0f172a;
+                }
+                
+                /* Action buttons hover effects */
+                [data-action] {
+                    transition: all 0.2s ease;
+                }
+                [data-action]:hover {
+                    transform: scale(1.1);
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                }
+                [data-action]:active {
+                    transform: scale(0.95);
+                }
+                
+                /* Responsive adjustments */
+                @media (max-width: 1200px) {
+                    .voucher-grid-inner {
+                        min-width: 800px;
+                    }
+                    .voucher-grid-header,
+                    .voucher-grid-row {
+                        grid-template-columns: minmax(180px, 1fr) 120px minmax(120px, 1fr) 80px 80px 100px 150px;
+                    }
+                }
+                
+                @media (max-width: 768px) {
+                    .voucher-grid-inner {
+                        min-width: 700px;
+                    }
+                    .voucher-header-cell,
+                    .voucher-cell {
+                        padding: 10px 8px;
+                        font-size: 0.85rem;
+                    }
                 }
             `;
             document.head.appendChild(style);
@@ -452,19 +494,19 @@ async function renderDashboard(container) {
                                 <div class="voucher-cell">
                                     <div style="color: #475569;">${b.expiration_date ? new Date(b.expiration_date).toLocaleDateString() : 'Illimitata'}</div>
                                 </div>
-                                <div class="voucher-cell center">
-                                    <div style="display: flex; gap: 8px;">
-                                        <button class="action-btn primary" onclick="window.voucherActions.openPrintView('${b.id}')" title="Stampa" 
-                                            style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: none; border-radius: 8px; background: #eff6ff; color: #3b82f6; cursor: pointer;">
-                                            <i class="fas fa-print"></i>
+                                <div class="voucher-cell center" style="flex-shrink: 0; min-width: 140px;">
+                                    <div style="display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center;">
+                                        <button class="action-btn-primary-${b.id}" data-action="print" data-batch-id="${b.id}" title="Stampa" 
+                                            style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
+                                            <i class="fas fa-print" style="font-size: 12px;"></i>
                                         </button>
-                                        <button class="action-btn warning" onclick="window.voucherActions.handleVoidBatch('${b.id}')" title="Annulla" 
-                                            style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: none; border-radius: 8px; background: #fffbeb; color: #f59e0b; cursor: pointer;">
-                                            <i class="fas fa-ban"></i>
+                                        <button class="action-btn-warning-${b.id}" data-action="void" data-batch-id="${b.id}" title="Annulla" 
+                                            style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #f59e0b; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
+                                            <i class="fas fa-ban" style="font-size: 12px;"></i>
                                         </button>
-                                        <button class="action-btn danger" onclick="window.voucherActions.handleDeleteBatch('${b.id}')" title="Elimina" 
-                                            style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: none; border-radius: 8px; background: #fef2f2; color: #ef4444; cursor: pointer;">
-                                            <i class="fas fa-trash"></i>
+                                        <button class="action-btn-danger-${b.id}" data-action="delete" data-batch-id="${b.id}" title="Elimina" 
+                                            style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #ef4444; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
+                                            <i class="fas fa-trash" style="font-size: 12px;"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -475,7 +517,15 @@ async function renderDashboard(container) {
                 </div>
             </div>`;
         container.innerHTML = `
-            <section class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 1rem;">
+                <h3 style="margin: 0; font-size: 1.25rem; color: #0f172a;">Gestione Voucher</h3>
+                <button id="btn-generate-voucher" class="menu-button primary" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%); color: white; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Genera Crea nuovi buoni</span>
+                </button>
+            </div>
+
+            <section class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; width: 100%; max-width: 100%;">
                 <article class="kpi-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
                     <div class="kpi-row">
                         <div class="kpi-icon" style="color: rgba(255,255,255,0.8);"><i class="fas fa-ticket-alt"></i></div>
@@ -504,12 +554,44 @@ async function renderDashboard(container) {
                 </article>
             </section>
 
-            <div class="menu-card" style="padding: 0; background: transparent; box-shadow: none;">
+            <div class="menu-card" style="padding: 0; background: transparent; box-shadow: none; max-width: 100%; overflow: hidden;">
                 ${tableHtml}
             </div>
         `;
 
-        // Global Actions Exposed
+        // Bind generate button
+        const generateBtn = container.querySelector('#btn-generate-voucher');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => {
+                voucherState.activeTab = 'generator';
+                renderActiveTab();
+            });
+        }
+
+        // Bind action buttons with event delegation
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            
+            const action = btn.dataset.action;
+            const batchId = btn.dataset.batchId;
+            
+            if (!batchId) return;
+            
+            switch (action) {
+                case 'print':
+                    openPrintView(batchId);
+                    break;
+                case 'void':
+                    handleVoidBatch(batchId);
+                    break;
+                case 'delete':
+                    handleDeleteBatch(batchId);
+                    break;
+            }
+        });
+
+        // Global Actions Exposed (for backwards compatibility)
         if (!window.voucherActions) {
             window.voucherActions = {
                 openPrintView,
