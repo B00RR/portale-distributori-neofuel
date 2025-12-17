@@ -6,15 +6,9 @@
 
 
 ### 🎟️ Dettaglio Sistema Voucher (Roadmap Specifica)
-Tutto ciò che riguarda il modulo Voucher è tracciato qui per facilitare la ripresa dei lavori.
 
-
-#### 🟡 DA FARE (Miglioramenti Futuri Voucher)
-- [ ] **Logica "Annulla Riscatto"**: Permettere all'admin di annullare un riscatto fatto per errore (ora si può fare solo via DB).
-- [ ] **Associazione Cliente**: Permettere di selezionare il cliente da una lista dropdown (ora è un campo testo libero).
-- [ ] **Invio Email**: Inviare il PDF dei voucher generati direttamente via email al cliente.
-- [ ] **FIX URGENTE**: I tasti "Stampa", "Annulla", "Elimina" e la colonna "Comandi" non sono visibili nella tabella "Stampa" (bug di rendering/cache nonostante il backend funzioni).
-- [ ] **Test Stampa**: Verificare che il popup di stampa e il layout del PDF generato siano corretti e funzionanti.
+#### 🟡 DA FARE
+- [ ] **Logica Scansione e Feedback**: Implementare la logica di scansione del codice QR e il messaggio visualizzato a video (esito validazione).
 
 ---
 

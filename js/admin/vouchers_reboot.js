@@ -135,41 +135,46 @@ function renderGenerator(container) {
     const nextYearStr = nextYear.toISOString().split('T')[0];
 
     container.innerHTML = `
-        <div class="menu-card">
-            <h3><i class="fas fa-ticket-alt"></i> Crea Nuovi Voucher</h3>
-            <p class="section-subtitle">Genera un lotto di codici univoci pronti per la stampa.</p>
+        <div class="menu-card" style="max-width: 900px; margin: 40px auto; padding: 50px; border-radius: 20px; box-shadow: var(--shadow-md);">
+            <div style="text-align: center; margin-bottom: 50px;">
+                <h3 style="font-size: 2rem; margin-bottom: 12px; color: var(--primary-color);">Crea Nuovi Voucher</h3>
+                <p class="section-subtitle" style="font-size: 1.2rem; color: var(--text-secondary);">Compila i dati per generare e stampare un nuovo lotto.</p>
+            </div>
             
-            <form id="voucher-generator-form" class="form-styled">
+            <form id="voucher-generator-form" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px;">
+                
+                <!-- Row 1: Metrics -->
                 <div class="form-field">
-                    <label>Importo Singolo Voucher</label>
-                    <div class="input-with-prefix">
-                        <span class="input-prefix">€</span>
-                        <input type="number" name="amount" step="0.50" min="0.50" required placeholder="0.00">
+                    <label style="font-weight: 600; margin-bottom: 10px; display: block; color: var(--text-main); font-size: 1.05rem;">Valore (€)</label>
+                    <div class="input-with-prefix" style="display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: #f8fafc; transition: border 0.2s;">
+                        <span class="input-prefix" style="padding: 16px 20px; background: #e2e8f0; color: #64748b; font-weight: 600; font-size: 1.1rem;">€</span>
+                        <input type="number" name="amount" step="0.50" min="0.50" required placeholder="0.00" style="border: none; padding: 16px; width: 100%; outline: none; font-size: 1.2rem; background: transparent;">
                     </div>
                 </div>
 
                 <div class="form-field">
-                    <label>Cliente (Opzionale)</label>
-                    <input type="text" name="customer_name" class="form-input" list="customer-list" placeholder="Cerca o inserisci nuovo cliente">
+                    <label style="font-weight: 600; margin-bottom: 10px; display: block; color: var(--text-main); font-size: 1.05rem;">Quantità</label>
+                    <input type="number" name="quantity" class="form-input" min="1" max="100" value="10" required style="width: 100%; padding: 16px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 1.2rem;">
+                </div>
+
+                <div class="form-field">
+                    <label style="font-weight: 600; margin-bottom: 10px; display: block; color: var(--text-main); font-size: 1.05rem;">Scadenza</label>
+                    <input type="date" name="expiration_date" class="form-input" value="${nextYearStr}" min="${today}" style="width: 100%; padding: 18px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 1.3rem; color: #334155;">
+                </div>
+
+                <!-- Row 2: Customer (Full Width) -->
+                <div class="form-field" style="grid-column: 1 / -1;">
+                    <label style="font-weight: 600; margin-bottom: 10px; display: block; color: var(--text-main); font-size: 1.05rem;">Assegna a Cliente (Opzionale)</label>
+                    <input type="text" name="customer_name" class="form-input" list="customer-list" placeholder="Cerca o inserisci nuovo cliente..." style="width: 100%; padding: 16px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 1.1rem;">
                     <datalist id="customer-list">
                         ${voucherState.customers.map(c => `<option value="${escapeHtml(c.cliente)}">`).join('')}
                     </datalist>
-                    <small style="color: #64748b; font-size: 0.9em; margin-top: 4px;">Inserisci un nuovo nome o selezionane uno esistente.</small>
                 </div>
 
-                <div class="form-field">
-                    <label>Data di Scadenza</label>
-                    <input type="date" name="expiration_date" class="form-input" value="${nextYearStr}" min="${today}">
-                </div>
-
-                <div class="form-field">
-                    <label>Quantità da Generare</label>
-                    <input type="number" name="quantity" class="form-input" min="1" max="100" value="10" required>
-                </div>
-
-                <div class="form-actions" style="margin-top: 20px;">
-                    <button type="submit" class="menu-button primary">
-                        <i class="fas fa-cogs"></i> Genera Ora
+                <!-- Row 3: Action Button -->
+                <div class="form-actions" style="grid-column: 1 / -1; margin-top: 30px;">
+                    <button type="submit" class="menu-button primary" style="width: 100%; padding: 20px; font-size: 1.25rem; font-weight: 600; border-radius: 14px; display: flex; justify-content: center; align-items: center; gap: 12px; background: var(--primary-color); color: white; border: none; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-md);">
+                        <i class="fas fa-magic"></i> Genera Voucher ORA
                     </button>
                 </div>
             </form>
@@ -282,19 +287,27 @@ async function renderDashboard(container) {
 
         if (vouchersError) throw vouchersError;
 
-        // Calculate stats per batch
+        // Calculate stats per batch AND global monetary stats
         const batchStats = {};
+        let globalRedeemedValue = 0;
+        let globalCirculatingValue = 0;
+
         allVouchers.forEach(v => {
             if (!batchStats[v.batch_id]) {
-                batchStats[v.batch_id] = { totalAmount: 0, redeemedAmount: 0, totalCount: 0, redeemedCount: 0, activeCount: 0 };
+                batchStats[v.batch_id] = { totalAmount: 0, redeemedAmount: 0, totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0 };
             }
             batchStats[v.batch_id].totalAmount += v.amount;
             batchStats[v.batch_id].totalCount++;
+
             if (v.status === 'redeemed') {
                 batchStats[v.batch_id].redeemedCount++;
                 batchStats[v.batch_id].redeemedAmount += v.amount;
+                globalRedeemedValue += v.amount;
             } else if (v.status === 'active') {
                 batchStats[v.batch_id].activeCount++;
+                globalCirculatingValue += v.amount;
+            } else if (v.status === 'void') {
+                batchStats[v.batch_id].voidCount++;
             }
         });
 
@@ -333,6 +346,14 @@ async function renderDashboard(container) {
                     border: 1px solid #e2e8f0;
                     max-width: 100%;
                     width: 100%;
+                    /* CSS VARIABLES FOR COLUMN WIDTHS */
+                    --col-1: 150px;
+                    --col-2: minmax(200px, 1fr);
+                    --col-3: 160px; /* Wider to fix overlap */
+                    --col-4: 90px;
+                    --col-5: 90px;
+                    --col-6: 110px;
+                    --col-7: 160px;
                 }
                 .voucher-scroll-wrapper {
                     overflow-x: auto;
@@ -348,8 +369,8 @@ async function renderDashboard(container) {
                 }
                 .voucher-grid-header {
                     display: grid;
-                    /* Revised Columns: Description(Auto), Amount(140), Client(160), Disp(100), Status(100), Expires(120), Actions(160) */
-                    grid-template-columns: minmax(200px, 1fr) 130px minmax(140px, 1fr) 90px 90px 110px 160px;
+                    /* Revised Columns: Use variables */
+                    grid-template-columns: var(--col-1) var(--col-2) var(--col-3) var(--col-4) var(--col-5) var(--col-6) var(--col-7);
                     background: #f8fafc;
                     border-bottom: 2px solid #e2e8f0;
                     font-weight: 600;
@@ -364,13 +385,28 @@ async function renderDashboard(container) {
                     align-items: center;
                     border-right: 1px solid #e2e8f0; /* Simulate vertical borders */
                     white-space: nowrap;
+                    position: relative; /* For resizer */
+                }
+                .resizer {
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    width: 4px;
+                    height: 100%;
+                    cursor: col-resize;
+                    user-select: none;
+                    background: transparent;
+                    z-index: 10;
+                }
+                .resizer:hover, .resizing {
+                    background: #3b82f6; /* Blue highlight on hover/drag */
                 }
                 .voucher-header-cell:last-child {
                     border-right: none;
                 }
                 .voucher-grid-row {
                     display: grid;
-                    grid-template-columns: minmax(200px, 1fr) 130px minmax(140px, 1fr) 90px 90px 110px 160px;
+                     grid-template-columns: var(--col-1) var(--col-2) var(--col-3) var(--col-4) var(--col-5) var(--col-6) var(--col-7);
                     border-bottom: 1px solid #f1f5f9;
                     transition: background-color 0.15s;
                     align-items: center; /* Vertically center by default */
@@ -425,7 +461,7 @@ async function renderDashboard(container) {
                     }
                     .voucher-grid-header,
                     .voucher-grid-row {
-                        grid-template-columns: minmax(180px, 1fr) 120px minmax(120px, 1fr) 80px 80px 100px 150px;
+                        grid-template-columns: minmax(130px, 1fr) minmax(180px, 1fr) 120px 80px 80px 100px 150px;
                     }
                 }
                 
@@ -449,9 +485,9 @@ async function renderDashboard(container) {
                     <div class="voucher-grid-inner">
                         <!-- HEADER -->
                         <div class="voucher-grid-header">
-                            <div class="voucher-header-cell">Descrizione Lotto</div>
-                            <div class="voucher-header-cell">Importo Tot. / Res.</div>
                             <div class="voucher-header-cell">Cliente</div>
+                            <div class="voucher-header-cell">Lotto</div>
+                            <div class="voucher-header-cell">Importo Tot. / Res.</div>
                             <div class="voucher-header-cell center">Disp. / Risc.</div>
                             <div class="voucher-header-cell center">Stato</div>
                             <div class="voucher-header-cell">Scadenza</div>
@@ -460,17 +496,43 @@ async function renderDashboard(container) {
 
                         <!-- ROWS -->
                         ${batches.map(b => {
-            const stats = batchStats[b.id] || { totalVouchers: 0, redeemed: 0, active: 0, totalAmount: 0, redeemedAmount: 0 };
+            const stats = batchStats[b.id] || { totalVouchers: 0, redeemedCount: 0, activeCount: 0, voidCount: 0, totalAmount: 0, redeemedAmount: 0 };
             const residualAmount = stats.totalAmount - stats.redeemedAmount;
             const isExpired = b.expiration_date && new Date(b.expiration_date) < new Date();
-            const statusLabel = isExpired ? 'Scaduto' : (stats.activeCount === 0 && stats.totalCount > 0 ? 'Esaurito' : 'Attivo');
-            const statusClass = isExpired ? 'badge-danger' : (stats.activeCount === 0 && stats.totalCount > 0 ? 'badge-secondary' : 'badge-success');
+
+            let statusLabel = 'Attivo';
+            let statusClass = 'badge-success';
+
+            if (stats.voidCount === stats.totalCount && stats.totalCount > 0) {
+                statusLabel = 'Bloccato';
+                statusClass = 'badge-danger';
+            } else if (stats.redeemedCount === stats.totalCount && stats.totalCount > 0) {
+                statusLabel = 'Riscattato';
+                statusClass = 'badge-secondary';
+            } else if (isExpired) {
+                statusLabel = 'Scaduto';
+                statusClass = 'badge-danger';
+            } else if (stats.activeCount === 0 && stats.totalCount > 0) {
+                // Fallback likely not needed if logic is correct, but effectively exhausted/redeemed
+                statusLabel = 'Riscattato';
+                statusClass = 'badge-secondary';
+            }
+
+            // Lotto Column Content: e.g. "10 / 50€"
+            // We need to infer single voucher amount. 
+            // Assumption: All vouchers in batch have same amount.
+            // stats.totalAmount / stats.totalCount = single amount
+            const singleAmount = stats.totalCount > 0 ? (stats.totalAmount / stats.totalCount) : 0;
+            const lottoStr = `${stats.totalCount} / ${formatEuro(singleAmount)}`;
 
             return `
                             <div class="voucher-grid-row">
                                 <div class="voucher-cell">
+                                    <div style="color: #334155; font-weight: 500;">${b.customer_name || '-'}</div>
+                                </div>
+                                <div class="voucher-cell">
                                     <div style="width:100%">
-                                        <div style="font-weight: 500;">${b.description || 'Lotto ' + b.id}</div>
+                                        <div style="font-weight: 500;">${lottoStr}</div>
                                         <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">ID: ${b.id.substring(0, 8)}...</div>
                                     </div>
                                 </div>
@@ -479,9 +541,6 @@ async function renderDashboard(container) {
                                         <div style="font-weight: 600;">${formatEuro(stats.totalAmount)}</div>
                                         <div style="font-size: 0.8em; color: ${residualAmount > 0 ? '#10b981' : '#94a3b8'};">Res: ${formatEuro(residualAmount)}</div>
                                     </div>
-                                </div>
-                                <div class="voucher-cell">
-                                    <div style="color: #334155; font-weight: 500;">${b.customer_name || '-'}</div>
                                 </div>
                                 <div class="voucher-cell center">
                                     <span style="color: #3b82f6; font-weight: 600; font-size: 1.1em;">${stats.activeCount}</span>
@@ -519,38 +578,51 @@ async function renderDashboard(container) {
         container.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 1rem;">
                 <h3 style="margin: 0; font-size: 1.25rem; color: #0f172a;">Gestione Voucher</h3>
-                <button id="btn-generate-voucher" class="menu-button primary" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%); color: white; cursor: pointer; font-weight: 600; transition: all 0.2s;">
-                    <i class="fas fa-plus-circle"></i>
-                    <span>Genera Crea nuovi buoni</span>
-                </button>
             </div>
 
-            <section class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; width: 100%; max-width: 100%;">
-                <article class="kpi-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+            <section class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; width: 100%; max-width: 100%;">
+                
+                <!-- PRIMARY: Total Issued -->
+                <article class="kpi-card" style="border-top-color: var(--primary-color);">
                     <div class="kpi-row">
-                        <div class="kpi-icon" style="color: rgba(255,255,255,0.8);"><i class="fas fa-ticket-alt"></i></div>
+                        <div class="kpi-icon" style="color: var(--primary-color); background: rgba(10, 35, 66, 0.08);"><i class="fas fa-ticket-alt"></i></div>
                     </div>
-                    <p class="kpi-title" style="color: rgba(255,255,255,0.9);">Totale Emessi</p>
-                    <p class="kpi-value" style="color: white;">${totalGen || 0}</p>
-                    <p class="kpi-sub" style="color: rgba(255,255,255,0.8);">Voucher generati</p>
+                    <p class="kpi-title">Totale Emessi</p>
+                    <p class="kpi-value">${totalGen || 0}</p>
+                    <p class="kpi-sub">Voucher generati</p>
                 </article>
                 
-                <article class="kpi-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                <!-- SUCCESS: Redeemed -->
+                <article class="kpi-card" style="border-top-color: var(--success-color);">
                     <div class="kpi-row">
-                        <div class="kpi-icon" style="color: rgba(255,255,255,0.8);"><i class="fas fa-check-circle"></i></div>
+                        <div class="kpi-icon" style="color: var(--success-color); background: rgba(16, 185, 129, 0.1);"><i class="fas fa-check-circle"></i></div>
                     </div>
-                    <p class="kpi-title" style="color: rgba(255,255,255,0.9);">Riscattati</p>
-                    <p class="kpi-value" style="color: white;">${totalRedeemed || 0}</p>
-                    <p class="kpi-sub" style="color: rgba(255,255,255,0.8);">Utilizzati con successo</p>
+                    <p class="kpi-title">Riscattati</p>
+                    <p class="kpi-value">${totalRedeemed || 0}</p>
+                    <p class="kpi-sub">Utilizzati con successo</p>
                 </article>
 
-                <article class="kpi-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+                <!-- WARNING: Active -->
+                <article class="kpi-card" style="border-top-color: var(--warning-color);">
                     <div class="kpi-row">
-                        <div class="kpi-icon" style="color: rgba(255,255,255,0.8);"><i class="fas fa-clock"></i></div>
+                        <div class="kpi-icon" style="color: var(--warning-color); background: rgba(245, 158, 11, 0.1);"><i class="fas fa-clock"></i></div>
                     </div>
-                    <p class="kpi-title" style="color: rgba(255,255,255,0.9);">Attivi</p>
-                    <p class="kpi-value" style="color: white;">${totalActive || 0}</p>
-                    <p class="kpi-sub" style="color: rgba(255,255,255,0.8);">In circolazione</p>
+                    <p class="kpi-title">Attivi</p>
+                    <p class="kpi-value">${totalActive || 0}</p>
+                    <p class="kpi-sub">In circolazione</p>
+                </article>
+
+                <!-- VALUE: Monetary Stats -->
+                <article class="kpi-card" style="border-top-color: var(--text-secondary);">
+                    <div class="kpi-row">
+                        <div class="kpi-icon" style="color: var(--text-main); background: rgba(0, 0, 0, 0.05);"><i class="fas fa-euro-sign"></i></div>
+                    </div>
+                    <p class="kpi-title">Valore Totale</p>
+                    <div class="kpi-value" style="font-size: 1.25rem; display: flex; flex-direction: column; gap: 2px; font-weight: 600;">
+                        <span style="color: var(--success-color); font-size: 0.9em;">Riscattato: ${formatEuro(globalRedeemedValue)}</span>
+                        <span style="color: var(--warning-color); font-size: 0.9em;">Attivo: ${formatEuro(globalCirculatingValue)}</span>
+                    </div>
+                    <p class="kpi-sub">Controvalore Economico</p>
                 </article>
             </section>
 
@@ -559,25 +631,18 @@ async function renderDashboard(container) {
             </div>
         `;
 
-        // Bind generate button
-        const generateBtn = container.querySelector('#btn-generate-voucher');
-        if (generateBtn) {
-            generateBtn.addEventListener('click', () => {
-                voucherState.activeTab = 'generator';
-                renderActiveTab();
-            });
-        }
+
 
         // Bind action buttons with event delegation
         container.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-action]');
             if (!btn) return;
-            
+
             const action = btn.dataset.action;
             const batchId = btn.dataset.batchId;
-            
+
             if (!batchId) return;
-            
+
             switch (action) {
                 case 'print':
                     openPrintView(batchId);
@@ -599,6 +664,9 @@ async function renderDashboard(container) {
                 handleDeleteBatch
             };
         }
+
+        // Initialize Column Resizing
+        setupColumnResizing(container.querySelector('.voucher-list-container'));
 
     } catch (err) {
         container.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
@@ -795,6 +863,91 @@ async function handleVoidBatch(batchId) {
     }
 }
 
+// --- COLUMN RESIZING UTILS ---
+function setupColumnResizing(table) {
+    if (!table) return;
+
+    // LOAD SAVED WIDTHS
+    try {
+        const saved = localStorage.getItem('voucher_table_widths');
+        if (saved) {
+            const widths = JSON.parse(saved);
+            Object.keys(widths).forEach(key => {
+                table.style.setProperty(`--col-${key}`, widths[key]);
+            });
+        }
+    } catch (e) {
+        console.error("Failed to load column widths", e);
+    }
+
+    const headers = table.querySelectorAll('.voucher-grid-header .voucher-header-cell');
+
+    // We only attach resizers to columns 1 through N-1.
+    // Index is 0-based.
+    headers.forEach((header, index) => {
+        if (index === headers.length - 1) return; // No resizer on last col
+
+        const resizer = document.createElement('div');
+        resizer.classList.add('resizer');
+        header.appendChild(resizer);
+        createResizableColumn(header, resizer, index + 1, table);
+    });
+}
+
+function createResizableColumn(col, resizer, colIndex, table) {
+    let x = 0;
+    let w = 0;
+
+    const mouseDownHandler = function (e) {
+        x = e.clientX;
+
+        // Get current computed width
+        // Careful: minmax(200px, 1fr) computes to pixel value in getComputedStyle, but we need to set explicit px to override it effectively during resize.
+        const styles = window.getComputedStyle(table);
+        // Try getting variable directly first? No, get variable string.
+        // We need computed pixel width of the *grid cell*? 
+        // No, we are setting property on container.
+
+        // Better approach: Get current width of the HEADER CELL itself.
+        w = col.getBoundingClientRect().width;
+
+        document.addEventListener('mousemove', mouseMoveHandler);
+        document.addEventListener('mouseup', mouseUpHandler);
+        resizer.classList.add('resizing');
+    };
+
+    const mouseMoveHandler = function (e) {
+        const dx = e.clientX - x;
+        const newWidth = w + dx;
+        if (newWidth > 50) { // Minimum width constraint
+            table.style.setProperty(`--col-${colIndex}`, `${newWidth}px`);
+        }
+    };
+
+    const mouseUpHandler = function () {
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+        resizer.classList.remove('resizing');
+
+        // SAVE WIDTHS
+        try {
+            const widths = {};
+            // Iterate cols 1 to 7 (or however many we have resizable)
+            // Just scan inline styles.
+            // Or better: Iterate known columns 1 to 6.
+            for (let i = 1; i <= 6; i++) {
+                const val = table.style.getPropertyValue(`--col-${i}`);
+                if (val) widths[i] = val;
+            }
+            localStorage.setItem('voucher_table_widths', JSON.stringify(widths));
+        } catch (e) {
+            console.error("Failed to save column widths", e);
+        }
+    };
+
+    resizer.addEventListener('mousedown', mouseDownHandler);
+}
+
 async function handleDeleteBatch(batchId) {
     if (!confirm("PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.")) return;
 
@@ -847,7 +1000,9 @@ async function openPrintView(batchId) {
 }
 
 async function generatePrintHtmlCSS(win, vouchers) {
-    const logoUrl = 'assets/images/logo svg.svg';
+    // Paths to user templates
+    const frontBg = 'assets/templates/template_voucher_pagina 1.jpg';
+    const backBg = 'assets/templates/template_voucher_pagina 2.jpg';
 
     // Create the HTML content
     const html = `<!DOCTYPE html>
@@ -856,221 +1011,171 @@ async function generatePrintHtmlCSS(win, vouchers) {
                     <title>Stampa Voucher Neofuel</title>
                     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
                     <style>
-                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap');
+                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&family=Oswald:wght@700&display=swap');
 
                         @media print {
-                            @page {margin: 0; size: A4; }
-                        body {margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        .no-print {display: none !important; }
-        }
+                            @page { margin: 0; size: A4; }
+                            body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                            .no-print { display: none !important; }
+                        }
 
                         body {
                             font-family: 'Inter', sans-serif;
-                        background: #f3f4f6;
-                        margin: 0;
-                        padding: 20px;
-        }
+                            background: #f3f4f6;
+                            margin: 0;
+                            padding: 20px;
+                        }
 
+                        /* Page Container - A4 */
                         .page {
                             width: 210mm;
-                        height: 297mm;
-                        background: white;
-                        margin: 0 auto 20px;
-                        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-                        padding: 15mm;
-                        box-sizing: border-box;
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        grid-template-rows: repeat(5, 1fr);
-                        gap: 10mm;
-                        page-break-after: always;
-        }
+                            height: 297mm;
+                            background: white;
+                            margin: 0 auto 20px;
+                            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                            padding: 0; 
+                            box-sizing: border-box;
+                            display: block; /* Block layout for single item */
+                            page-break-after: always;
+                            position: relative;
+                            background-size: 100% 100%;
+                            background-repeat: no-repeat;
+                        }
 
-                        .voucher-card {
-                            border: 2px solid #e5e7eb;
-                        border-radius: 16px;
-                        position: relative;
-                        background: white;
-                        display: flex;
-                        flex-direction: column;
-                        overflow: hidden;
-                        break-inside: avoid;
-        }
+                        .page-front {
+                            background-image: url('${frontBg}');
+                        }
 
-                        .voucher-header {
-                            background: #0A2342;
-                        color: white;
-                        padding: 12px 16px;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-        }
+                        .page-back {
+                            background-image: url('${backBg}');
+                        }
 
-                        .brand-area {
-                            display: flex;
-                        align-items: center;
-                        gap: 8px;
-        }
+                        /* FRONT Styles */
+                        .voucher-front {
+                            width: 100%;
+                            height: 100%;
+                            background: transparent; 
+                            position: relative;
+                        }
 
-                        .brand-logo {
-                            height: 24px;
-                        filter: brightness(0) invert(1);
-        }
-
-                        .brand-name {
+                        /* DATA POSITIONS (Relative to full A4 Page) */
+                        .voucher-amount {
+                            position: absolute;
+                            top: 30.6%; /* Centered precisely */
+                            left: 0;
+                            width: 100%;
+                            text-align: center;
+                            font-family: 'Oswald', sans-serif; 
+                            font-size: 56px; 
                             font-weight: 700;
-                        font-size: 14px;
-                        letter-spacing: 0.5px;
-        }
+                            color: #000000; 
+                            z-index: 10;
+                            letter-spacing: 2px;
+                            text-transform: uppercase; 
+                            /* STICKER EFFECT: 1px White Border + 5px Blue Shadow */
+                            text-shadow: 
+                                -1px -1px 0 #fff,  
+                                 1px -1px 0 #fff,
+                                -1px  1px 0 #fff,
+                                 1px  1px 0 #fff,
+                                 5px  5px 0 #6CADDF;
+                        }
 
-                        .voucher-body {
-                            flex: 1;
-                        padding: 16px;
-                        display: flex;
-                        flex-direction: row;
-                        align-items: center;
-                        gap: 16px;
-        }
-
-                        .voucher-info {
-                            flex: 1;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-        }
-
-                        .amount-label {
-                            font-size: 10px;
-                        text-transform: uppercase;
-                        color: #6b7280;
-                        font-weight: 600;
-                        letter-spacing: 1px;
-        }
-
-                        .amount-value {
-                            font-size: 32px;
-                        font-weight: 700;
-                        color: #0A2342;
-                        line-height: 1;
-                        margin: 4px 0 12px;
-        }
-
-                        .code-box {
-                            background: #f3f4f6;
-                        padding: 6px 10px;
-                        border-radius: 6px;
-                        border: 1px dashed #d1d5db;
-                        display: inline-block;
-        }
+                        .qr-code {
+                            position: absolute;
+                            top: 38%; /* Moved UP slightly */
+                            left: 0; 
+                            right: 0;
+                            margin: auto;
+                            width: 160px;
+                            height: 160px;
+                            z-index: 10;
+                        }
+                        
+                        .qr-code img {
+                            width: 100%;
+                            height: 100%;
+                        }
 
                         .voucher-code {
+                            position: absolute;
+                            top: 54.2%;
+                            left: 43.5%; /* Moved Left slightly */
                             font-family: 'JetBrains Mono', monospace;
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: #1f2937;
-                        letter-spacing: 0.5px;
-        }
+                            font-size: 22px; 
+                            font-weight: bold;
+                            color: #333;
+                            letter-spacing: 2px;
+                        }
 
-                        .voucher-qr {
-                            width: 80px;
-                        height: 80px;
-                        flex-shrink: 0;
-                        background: white;
-        }
+                        .voucher-expiry {
+                            position: absolute;
+                            top: 58%; 
+                            left: 0;
+                            width: 100%;
+                            text-align: center; 
+                            font-size: 26px; 
+                            font-weight: bold;
+                            color: #333;
+                        }
 
-                        .voucher-footer {
-                            border-top: 1px solid #f3f4f6;
-                        padding: 8px 16px;
-                        font-size: 9px;
-                        color: #6b7280;
-                        display: flex;
-                        justify-content: space-between;
-                        background: #fafafa;
-        }
-
-                        .helper-text {
-                            font-style: italic;
-        }
                     </style>
                 </head>
                 <body>
-                    <div class="no-print" style="position: fixed; top: 0; left: 0; right: 0; padding: 15px; background: #0A2342; color: white; text-align: center; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                        <button onclick="window.print()" style="padding: 10px 24px; font-size: 16px; font-weight: bold; cursor: pointer; background: #8DC63F; border: none; color: white; border-radius: 6px;">
-                            <i class="fas fa-print"></i> Stampa Voucher
-                        </button>
-                        <span style="margin-left: 20px; font-size: 14px; opacity: 0.9;">Stampa su foglio A4 (10 voucher per pagina)</span>
-                    </div>
-
-                    <div id="pages-container" style="margin-top: 60px;"></div>
-
+                    <div id="print-container"></div>
                     <script>
                         const vouchers = ${JSON.stringify(vouchers)};
-                        const logoUrl = '${logoUrl}';
-
-                        function renderVouchers() {
-            const container = document.getElementById('pages-container');
-                        const chunkSize = 10;
+                        const container = document.getElementById('print-container');
+                        
+                        // 1 Voucher per Page (Full A4)
+                        const chunkSize = 1;
                         for (let i = 0; i < vouchers.length; i += chunkSize) {
-                const chunk = vouchers.slice(i, i + chunkSize);
-                        const page = document.createElement('div');
-                        page.className = 'page';
-                
-                chunk.forEach(v => {
-                    const card = document.createElement('div');
-                        card.className = 'voucher-card';
+                            const chunk = vouchers.slice(i, i + chunkSize);
+                            
+                            // --- FRONT PAGE ---
+                            const pageFront = document.createElement('div');
+                            pageFront.className = 'page page-front'; 
+                            
+                            chunk.forEach(v => {
+                                const date = v.expiration_date ? new Date(v.expiration_date).toLocaleDateString('it-IT') : 'Illimitata';
+                                // Format amount: No decimals, "euro" suffix
+                                const amount = Math.floor(v.amount) + ' euro';
+                                const visibleCode = v.code.substring(0, 4); 
 
-                        card.innerHTML = \`
-                        <div class="voucher-header">
-                            <div class="brand-area">
-                                <img src="\${logoUrl}" class="brand-logo" alt="Neofuel">
-                                    <span class="brand-name">NEOFUEL</span>
-                            </div>
-                            <div style="font-size: 10px; opacity: 0.8; letter-spacing: 1px;">BUONO CARBURANTE</div>
-                        </div>
-
-                        <div class="voucher-body">
-                            <div class="voucher-info">
-                                <div class="amount-label">Valore Buono</div>
-                                <div class="amount-value">€ \${parseFloat(v.amount).toFixed(2)}</div>
-
-                                <div class="code-box">
-                                    <div class="voucher-code">\${v.code}</div>
-                                </div>
-                            </div>
-
-                            <div class="voucher-qr" id="qr-\${v.id}"></div>
-                        </div>
-
-                        <div class="voucher-footer">
-                            <div class="expiry">Scadenza: <strong>\${v.expiration_date ? v.expiration_date.split('-').reverse().join('/') : 'Illimitata'}</strong></div>
-                            <div class="helper-text">Presentare alla cassa</div>
-                        </div>
-                        \`;
-                        page.appendChild(card);
-
-                    // Generate QR
-                    setTimeout(() => {
-                            new QRCode(document.getElementById('qr-' + v.id), {
-                                text: v.code,
-                                width: 80,
-                                height: 80,
-                                colorDark: "#0A2342",
-                                colorLight: "#ffffff",
-                                correctLevel: QRCode.CorrectLevel.H
+                                const content = document.createElement('div');
+                                content.className = 'voucher-front';
+                                content.innerHTML = \`
+                                    <div class="voucher-amount">\${amount}</div>
+                                    <div class="voucher-code">\${visibleCode}</div>
+                                    <div class="voucher-expiry">\${date}</div>
+                                    <div id="qr-\${v.code}" class="qr-code"></div>
+                                \`;
+                                pageFront.appendChild(content);
                             });
-                    }, 50);
-                });
+                            
+                            container.appendChild(pageFront);
 
-                        container.appendChild(page);
-            }
-        }
+                            // --- BACK PAGE --- 
+                            const pageBack = document.createElement('div');
+                            pageBack.className = 'page page-back'; 
+                            // Empty back page
+                            container.appendChild(pageBack);
 
-                        // Wait for resources
-                        window.onload = renderVouchers;
+                            // QR Gen
+                            chunk.forEach(v => {
+                                new QRCode(document.getElementById('qr-' + v.code), {
+                                    text: v.code,
+                                    width: 128,
+                                    height: 128,
+                                    colorDark : "#000000",
+                                    colorLight : "#ffffff",
+                                    correctLevel : QRCode.CorrectLevel.H
+                                });
+                            });
+                        }
                     </script>
                 </body>
-            </html>
-        `;
+            </html>`;
 
     win.document.write(html);
     win.document.close();
