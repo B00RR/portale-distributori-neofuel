@@ -172,7 +172,7 @@ export async function openOperatorModal(userId = null) {
       schema.password = [Validators.required, Validators.minLength(6)];
     }
 
-    const errors = validateForm({ full_name: fullName, email, password }, schema);
+    const errors = validateForm({ full_name: fullName, email, password, role }, schema);
     if (errors) {
       Toast.show('Dati non validi:\n' + formatErrorMessages(errors), 'error');
       return;
@@ -186,22 +186,15 @@ export async function openOperatorModal(userId = null) {
           role: role
         }).eq('user_id', userId));
       } else {
-        // Crea user in Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email, password,
-          options: { data: { full_name: fullName, role: role } }
+        // Usa la Edge Function per creare l'utente senza perdere la sessione Admin
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('admin_create_user_v2', {
+          body: { email, password, full_name: fullName, role }
         });
-        if (authError) throw authError;
 
-        if (!authData.user) throw new Error("Errore creazione utente Auth");
+        if (fnError) throw fnError;
+        if (fnData?.error) throw new Error(fnData.error);
 
-        // Inserimento manuale in public.users se non c'è trigger
-        await safeSupabaseQuery(() => supabase.from('users').insert([{
-          user_id: authData.user.id,
-          email,
-          full_name: fullName,
-          role: role
-        }]));
+        Toast.show('Utente creato con successo (email pre-confermata)!', 'success');
       }
       closeModal();
       // Reload operators tab if current
