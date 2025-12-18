@@ -3,7 +3,7 @@
 // ==========================================
 import { supabase } from "./api.js";
 import { Toast } from "../ui/toast.js";
-import { showFullScreenLoader, hideFullScreenLoader, setButtonLoading } from "../ui/ui.js";
+import { showFullScreenLoader, hideFullScreenLoader, setButtonLoading, showPromptModal } from "../ui/ui.js";
 
 let loginForm = null;
 let loginContainer = null;
@@ -384,7 +384,7 @@ export function showOTPResetForm() {
             const savedEmail = localStorage.getItem('password_reset_email');
 
             if (!savedEmail) {
-                const email = prompt('Inserisci la tua email per verificare il codice:');
+                const email = await showPromptModal('Inserisci la tua email per verificare il codice:', 'Email Richiesta', 'email@esempio.com', 'email');
                 if (!email) {
                     errorElement.textContent = 'Email richiesta per verificare il codice.';
                     return;

@@ -89,17 +89,6 @@ export async function showChiusureTab(container, actionsContainer, defaultStatio
 
       let filteredClosures = closures || [];
 
-      // Client-side Text Search (Applied on the PAGE)
-      if (filters.searchQuery) {
-        const q = filters.searchQuery.toLowerCase();
-        filteredClosures = filteredClosures.filter(c => {
-          const stName = c.fuel_stations?.station_name?.toLowerCase() || '';
-          const usName = c.users?.full_name?.toLowerCase() || '';
-          const dateStr = new Date(c.created_at).toLocaleDateString().toLowerCase();
-          return stName.includes(q) || usName.includes(q) || dateStr.includes(q);
-        });
-      }
-
       if (filteredClosures.length === 0) {
         dataContainer.innerHTML = '<p>Nessuna chiusura trovata.</p>';
         return;

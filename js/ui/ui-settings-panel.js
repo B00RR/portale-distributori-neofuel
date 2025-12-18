@@ -11,6 +11,7 @@
 import { supabase, safeSupabaseQuery } from "../core/api.js";
 import { Toast } from "./toast.js";
 import { renderConfigPanel } from "../admin/dashboard-config.js";
+import { openConfirmModal, showInfoModal } from "./ui.js";
 
 const UI_FIELDS = [
   {
@@ -916,7 +917,8 @@ async function renderAppearancePanel(panel) {
   });
 
   resetBtn.addEventListener("click", async () => {
-    if (!confirm("Ripristinare tutti i valori di default (colori, layout, ecc.)?")) return;
+    const confirmed = await openConfirmModal("Ripristinare tutti i valori di default (colori, layout, ecc.)?");
+    if (!confirmed) return;
     try {
       form.classList.add("pending");
       const defaults = { ...DEFAULT_SETTINGS };
@@ -1131,7 +1133,8 @@ async function renderAppearancePanel(panel) {
       const theme = PREDEFINED_THEMES[themeKey];
       if (!theme) return;
 
-      if (!confirm(`Applicare il tema "${theme.name}"? I colori attuali verranno sostituiti.`)) return;
+      const confirmed = await openConfirmModal(`Applicare il tema "${theme.name}"? I colori attuali verranno sostituiti.`);
+      if (!confirmed) return;
 
       try {
         form.classList.add("pending");
@@ -1194,7 +1197,8 @@ async function renderAppearancePanel(panel) {
           throw new Error("Formato file non valido");
         }
 
-        if (!confirm(`Importare la configurazione? Tutte le impostazioni attuali verranno sostituite.`)) {
+        const confirmed = await openConfirmModal(`Importare la configurazione? Tutte le impostazioni attuali verranno sostituite.`);
+        if (!confirmed) {
           e.target.value = "";
           return;
         }

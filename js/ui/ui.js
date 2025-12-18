@@ -152,6 +152,55 @@ export function openConfirmModal(message) {
     });
 }
 
+/**
+ * Mostra un modal di input (sostituto premium di prompt())
+ * @param {string} message Messaggio da mostrare
+ * @param {string} defaultValue Valore predefinito
+ * @param {string} title Titolo del modal
+ * @returns {Promise<string|null>} Il valore inserito o null se annullato
+ */
+export function showPromptModal(message, defaultValue = '', title = 'Input Richiesto') {
+    return new Promise((resolve) => {
+        openModal(title);
+        const target = document.getElementById('modal-body');
+        target.innerHTML = `
+            <p style="margin-bottom: 15px;">${escapeHtml(message)}</p>
+            <div class="form-group">
+                <input type="text" id="prompt-input" class="form-control" value="${escapeHtml(defaultValue)}" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button id="prompt-cancel" class="menu-button">Annulla</button>
+                <button id="prompt-ok" class="menu-button primary">Ok</button>
+            </div>
+        `;
+
+        const input = document.getElementById('prompt-input');
+        const okBtn = document.getElementById('prompt-ok');
+        const cancelBtn = document.getElementById('prompt-cancel');
+
+        // Focus automatico sull'input
+        setTimeout(() => input?.focus(), 100);
+
+        const handleOk = () => {
+            const val = input.value;
+            closeModal();
+            resolve(val);
+        };
+
+        const handleCancel = () => {
+            closeModal();
+            resolve(null);
+        };
+
+        okBtn.addEventListener('click', handleOk, { once: true });
+        cancelBtn.addEventListener('click', handleCancel, { once: true });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleOk();
+            if (e.key === 'Escape') handleCancel();
+        });
+    });
+}
+
 export function setButtonLoading(btn, isLoading, loadingText = 'Attendi...') {
     if (!btn) return;
     if (isLoading) {

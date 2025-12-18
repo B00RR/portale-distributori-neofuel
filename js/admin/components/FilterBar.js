@@ -24,11 +24,20 @@ export class FilterBar {
             { label: 'Mese', value: 'month' }
         ];
 
+        const stations = store.state.stations || [];
+        const currentStation = store.getFilter();
+
         container.innerHTML = `
             <div class="filter-bar">
-                <div class="search-wrapper">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="filter-search" class="search-input" placeholder="Cerca..." value="${currentFilters.searchQuery || ''}">
+                <div class="station-filter-wrapper" style="flex: 1; min-width: 200px;">
+                    <select id="station-filter-select" class="search-input" style="appearance: auto; padding-left: 12px; cursor: pointer;">
+                        <option value="">Tutte le Stazioni</option>
+                        ${stations.map(s => `
+                            <option value="${s.station_id}" ${currentStation == s.station_id ? 'selected' : ''}>
+                                ${s.station_name}
+                            </option>
+                        `).join('')}
+                    </select>
                 </div>
 
                 <div class="filter-chips">
@@ -41,10 +50,6 @@ export class FilterBar {
                         <i class="fas fa-calendar-alt"></i>
                     </button>
                 </div>
-
-                <button class="action-btn secondary" id="btn-advanced-filters">
-                    <i class="fas fa-sliders-h"></i> Filtri
-                </button>
             </div>
         `;
 
@@ -55,17 +60,14 @@ export class FilterBar {
         const container = document.getElementById(this.containerId);
         if (!container) return;
 
-        // Search Input (Debounced handled by caller usually, but here we update store)
-        // We update store immediately, caller (tab) will debounce the fetch if needed or we debounce here.
-        // Let's update store on input, let the tab handle debouncing the EFFECT.
-        const searchInput = container.querySelector('#filter-search');
-        let timeout;
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                store.setFilters({ searchQuery: e.target.value });
-            }, 300);
-        });
+        // Station Select
+        const stationSelect = container.querySelector('#station-filter-select');
+        if (stationSelect) {
+            stationSelect.addEventListener('change', (e) => {
+                const val = e.target.value;
+                store.setStationFilter(val ? parseInt(val) : null);
+            });
+        }
 
         // Chips
         container.querySelectorAll('.chip[data-value]').forEach(btn => {

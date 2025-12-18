@@ -1,5 +1,5 @@
 import { supabase } from "../core/api.js";
-import { showLoadingMessage, showInfoModal, showErrorMessage, openModal, closeModal } from "../ui/ui.js";
+import { showLoadingMessage, showInfoModal, showErrorMessage, openModal, closeModal, openConfirmModal } from "../ui/ui.js";
 import { escapeHtml, formatEuro, formatDate } from "../utils/utils.js";
 import { Toast } from "../ui/toast.js";
 
@@ -194,7 +194,8 @@ async function handleGeneration(e) {
 
     if (!amount || quantity < 1) return;
 
-    if (!confirm(`Confermi la generazione di ${quantity} voucher da ${formatEuro(amount)} ciascuno?\nTotale Valore Nominale: ${formatEuro(amount * quantity)}`)) {
+    const confirmed = await openConfirmModal(`Confermi la generazione di ${quantity} voucher da ${formatEuro(amount)} ciascuno?\nTotale Valore Nominale: ${formatEuro(amount * quantity)}`);
+    if (!confirmed) {
         return;
     }
 
@@ -845,7 +846,8 @@ async function renderPrintList(container) {
 }
 
 async function handleVoidBatch(batchId) {
-    if (!confirm("ATTENZIONE: Sei sicuro di voler annullare TUTTI i voucher di questo lotto? L'operazione renderà i buoni inutilizzabili.")) return;
+    const confirmed = await openConfirmModal("ATTENZIONE: Sei sicuro di voler annullare TUTTI i voucher di questo lotto? L'operazione renderà i buoni inutilizzabili.");
+    if (!confirmed) return;
 
     try {
         const { error } = await supabase
@@ -1017,7 +1019,8 @@ async function showBatchDetails(batchId) {
 }
 
 async function handleDeleteBatch(batchId) {
-    if (!confirm("PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.")) return;
+    const confirmed = await openConfirmModal("PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.");
+    if (!confirmed) return;
 
     try {
         const { error } = await supabase
@@ -1053,7 +1056,7 @@ async function openPrintView(batchId) {
         // Open Print Window
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
-            alert('Attenzione: Il browser ha bloccato il popup. Autorizza i popup per stampare.');
+            showInfoModal('Attenzione: Il browser ha bloccato il popup. Autorizza i popup per stampare.', 'Stampa Bloccata');
             return;
         }
 
@@ -1062,7 +1065,7 @@ async function openPrintView(batchId) {
 
     } catch (err) {
         console.error(err);
-        alert("Errore recupero voucher: " + err.message);
+        Toast.show("Errore recupero voucher: " + err.message, 'error');
         renderPrintList(container);
     }
 }

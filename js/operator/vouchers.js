@@ -92,7 +92,7 @@ function startScanner() {
   container.style.display = 'block';
 
   if (!window.Html5Qrcode) {
-    alert("Libreria Scanner in caricamento... riprova tra un secondo.");
+    Toast.show("Libreria Scanner in caricamento... riprova tra un secondo.", 'warning');
     return;
   }
 

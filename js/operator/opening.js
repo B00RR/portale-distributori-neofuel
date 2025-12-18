@@ -3,7 +3,7 @@
 // Gestione apertura turno con caricamento contatori
 // ==========================================
 import { supabase } from "../core/api.js";
-import { showLoadingMessage, showErrorMessage, openModal, closeModal } from "../ui/ui.js";
+import { showLoadingMessage, showErrorMessage, openModal, closeModal, openConfirmModal } from "../ui/ui.js";
 import {
     createWarningMessage,
     createSuccessMessage,
@@ -285,7 +285,8 @@ export async function showAperturaForm(stationId, userId) {
                 return;
             }
 
-            if (!confirm('Confermi l\'apertura del turno?')) return;
+            const confirmed = await openConfirmModal('Confermi l\'apertura del turno?');
+            if (!confirmed) return;
 
             // Disabilita il form per prevenire doppi invii
             isSubmitting = true;

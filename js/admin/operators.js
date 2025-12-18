@@ -1,5 +1,5 @@
 import { supabase, safeSupabaseQuery } from "../core/api.js";
-import { showLoadingMessage, openModal, closeModal, setButtonLoading } from "../ui/ui.js";
+import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from "../ui/ui.js";
 import { handleError } from "../shared/error-handler.js";
 import { escapeHtml } from "../utils/utils.js";
 import { Validators, validateForm, formatErrorMessages } from "../shared/validators.js";
@@ -23,7 +23,6 @@ export async function showOperatorsTab(container, actionsContainer) {
           fuel_stations ( station_name )
         )
       `)
-      .eq('role', 'operator')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -40,6 +39,7 @@ export async function showOperatorsTab(container, actionsContainer) {
             <tr>
               <th>Nome</th>
               <th>Email</th>
+              <th>Ruolo</th>
               <th>Distributore</th>
               <th>Azioni</th>
             </tr>
@@ -50,14 +50,24 @@ export async function showOperatorsTab(container, actionsContainer) {
     users.forEach(u => {
       const firstLink = Array.isArray(u.user_stations) ? u.user_stations[0] : u.user_stations;
       const stationName = firstLink?.fuel_stations?.station_name || '-';
+      const roleLabels = {
+        'admin': 'Admin',
+        'operator': 'Operatore',
+        'accounting': 'Contabilità',
+        'billing': 'Fatturazione'
+      };
+      const roleLabel = roleLabels[u.role] || u.role || 'Operatore';
+
       html += `
         <tr>
           <td>${escapeHtml(u.full_name)}</td>
           <td>${escapeHtml(u.email)}</td>
+          <td><span class="badge role-${u.role || 'operator'}">${roleLabel}</span></td>
           <td>${escapeHtml(stationName)}</td>
           <td>
             <button class="icon-btn edit-operator" data-id="${u.user_id}" title="Modifica"><i class="fas fa-edit"></i></button>
             <button class="icon-btn assign-station" data-id="${u.user_id}" title="Assegna Stazione"><i class="fas fa-map-marker-alt"></i></button>
+            <button class="icon-btn delete-operator" data-id="${u.user_id}" title="Elimina" style="color: #ff4d4d;"><i class="fas fa-trash-alt"></i></button>
           </td>
         </tr>
       `;
@@ -72,9 +82,36 @@ export async function showOperatorsTab(container, actionsContainer) {
     container.querySelectorAll('.assign-station').forEach(btn => {
       btn.addEventListener('click', () => openAssignStationModal(btn.dataset.id));
     });
-
+    container.querySelectorAll('.delete-operator').forEach(btn => {
+      btn.addEventListener('click', () => deleteUser(btn.dataset.id, container, actionsContainer));
+    });
   } catch (err) {
     handleError(err, 'showOperatorsTab', container);
+  }
+}
+
+export async function deleteUser(userId, container, actionsContainer) {
+  const confirmed = await openConfirmModal('Sei sicuro di voler eliminare questo operatore? Questa azione è irreversibile e rimuoverà tutte le sue assegnazioni.');
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    // First, delete associated user_stations records
+    await safeSupabaseQuery(() => supabase.from('user_stations').delete().eq('user_id', userId));
+
+    // Then, delete the user from the users table
+    await safeSupabaseQuery(() => supabase.from('users').delete().eq('user_id', userId));
+
+    // Optionally, if you want to delete from Supabase Auth as well (requires service role key or admin context)
+    // const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+    // if (authError) throw authError;
+
+    Toast.show('Operatore eliminato con successo!', 'success');
+    showOperatorsTab(container, actionsContainer); // Reload the list
+  } catch (err) {
+    handleError(err, 'deleteUser');
+    Toast.show('Errore durante l\'eliminazione dell\'operatore.', 'error');
   }
 }
 
@@ -97,27 +134,38 @@ export async function openOperatorModal(userId = null) {
       </div>
       <div class="form-group">
         <label>Email</label>
-        <input type="email" name="email" value="${escapeHtml(user.email)}" required ${isEdit ? 'readonly' : ''}>
+        <input type="email" name="email" value="${escapeHtml(user.email || '')}" required ${isEdit ? 'readonly' : ''}>
       </div>
       ${!isEdit ? `
       <div class="form-group">
         <label>Password</label>
         <input type="password" name="password" required minlength="6">
       </div>` : ''}
-      <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Operatore'}</button>
+      <div class="form-group">
+        <label>Ruolo</label>
+        <select name="role" class="form-control" required>
+          <option value="operator" ${user.role === 'operator' || !user.role ? 'selected' : ''}>Operatore</option>
+          <option value="accounting" ${user.role === 'accounting' ? 'selected' : ''}>Contabilità (Accounting)</option>
+          <option value="billing" ${user.role === 'billing' ? 'selected' : ''}>Fatturazione (Billing)</option>
+          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin (Full Access)</option>
+        </select>
+      </div>
+      <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Utente'}</button>
     </form>
   `;
 
   document.getElementById('operator-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
+    const fd = new FormData(e.target); // Use FormData to get values
     const email = fd.get('email');
     const password = fd.get('password');
     const fullName = fd.get('full_name');
+    const role = fd.get('role');
     const submitBtn = e.target.querySelector('button[type="submit"]');
 
     const schema = {
-      full_name: [Validators.required]
+      full_name: [Validators.required],
+      role: [Validators.required]
     };
     if (!isEdit) {
       schema.email = [Validators.required, Validators.email];
@@ -133,12 +181,15 @@ export async function openOperatorModal(userId = null) {
     try {
       setButtonLoading(submitBtn, true, 'Salvataggio...');
       if (isEdit) {
-        await safeSupabaseQuery(() => supabase.from('users').update({ full_name: fullName }).eq('user_id', userId));
+        await safeSupabaseQuery(() => supabase.from('users').update({
+          full_name: fullName,
+          role: role
+        }).eq('user_id', userId));
       } else {
         // Crea user in Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email, password,
-          options: { data: { full_name: fullName, role: 'operator' } }
+          options: { data: { full_name: fullName, role: role } }
         });
         if (authError) throw authError;
 
@@ -149,7 +200,7 @@ export async function openOperatorModal(userId = null) {
           user_id: authData.user.id,
           email,
           full_name: fullName,
-          role: 'operator'
+          role: role
         }]));
       }
       closeModal();

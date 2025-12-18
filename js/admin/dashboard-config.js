@@ -16,7 +16,7 @@
  */
 
 import { supabase } from '../core/api.js';
-import { openModal, closeModal } from '../ui/ui.js';
+import { openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import { loggedUser } from '../core/auth.js';
 import { Toast } from '../ui/toast.js';
 
@@ -478,10 +478,10 @@ function initializeConfigHandlers(initialConfig, container) {
         });
     }
 
-    const resetBtn = $('#btn-config-reset');
     if (resetBtn) {
         resetBtn.addEventListener('click', async () => {
-            if (confirm('Sei sicuro di voler ripristinare la configurazione predefinita? Tutte le personalizzazioni andranno perse.')) {
+            const confirmed = await openConfirmModal('Sei sicuro di voler ripristinare la configurazione predefinita? Tutte le personalizzazioni andranno perse.');
+            if (confirmed) {
                 const success = await resetDashboardConfig();
                 if (success) {
                     // Do NOT close modal

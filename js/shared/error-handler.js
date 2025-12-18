@@ -41,8 +41,7 @@ export function handleError(error, context = '', renderTarget = null) {
         Toast.show(userMessage, type);
     } else {
         // Fallback se Toast non è disponibile
-        console.warn('Toast not available due to error');
-        if (!renderTarget) alert(`${type.toUpperCase()}: ${userMessage}`);
+        console.warn('Toast not available due to error', userMessage);
     }
 
     // Renderizza in pagina se richiesto

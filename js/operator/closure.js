@@ -3,7 +3,7 @@
 // Gestione chiusura turno con wizard a 3 step
 // ==========================================
 import { supabase } from "../core/api.js";
-import { showLoadingMessage, showErrorMessage, openModal, closeModal } from "../ui/ui.js";
+import { showLoadingMessage, showErrorMessage, openModal, closeModal, openConfirmModal } from "../ui/ui.js";
 import { checkOpeningStatus, updateOpeningStatus } from "./opening.js";
 import {
   createWarningMessage,
@@ -1183,10 +1183,12 @@ async function showClosureStep3() {
     const isFinal = closureState.data.closureType === 'final';
 
     if (!isCashValid) {
-      if (!confirm('ATTENZIONE: C\'è una discrepanza significativa nei contanti (> 5€). Sei sicuro di voler procedere?')) return;
+      const confirmProceed = await openConfirmModal('ATTENZIONE: C\'è una discrepanza significativa nei contanti (> 5€). Sei sicuro di voler procedere?');
+      if (!confirmProceed) return;
     }
 
-    if (!confirm(`Confermi la chiusura ${isFinal ? 'FINALE' : 'PARZIALE'} del turno?`)) return;
+    const confirmClosure = await openConfirmModal(`Confermi la chiusura ${isFinal ? 'FINALE' : 'PARZIALE'} del turno?`);
+    if (!confirmClosure) return;
 
     showLoadingMessage(container);
 

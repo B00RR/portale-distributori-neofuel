@@ -5,7 +5,8 @@ import {
   showErrorMessage,
   openModal,
   closeModal,
-  showInfoModal
+  showInfoModal,
+  openConfirmModal
 } from "../ui/ui.js";
 import { calculationEngine, CALCULATION_SCOPES } from "../utils/calculation-engine.js";
 import { loggedUser } from "../core/auth.js";
@@ -221,7 +222,8 @@ function bindVersionRowActions(target, module, versions) {
       const index = parseInt(btn.dataset.versionIndex, 10);
       const version = versions[index];
       if (!version) return;
-      if (!confirm(`Pubblicare la versione v${version.version}?`)) return;
+      const confirmed = await openConfirmModal(`Pubblicare la versione v${version.version}?`);
+      if (!confirmed) return;
       await handlePublishVersion(module, version);
     });
   });

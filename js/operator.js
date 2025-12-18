@@ -125,7 +125,8 @@ export async function showOperatorMenu(userId, stationId) {
 
   // Event listeners
   document.getElementById('op-logout-btn').addEventListener('click', async () => {
-    if (confirm('Vuoi uscire?')) {
+    const confirmed = await openConfirmModal('Vuoi uscire dal portale operatore?');
+    if (confirmed) {
       await clearSession();
       // Attendi un momento per assicurarsi che la sessione sia stata pulita
       await new Promise(resolve => setTimeout(resolve, 100));

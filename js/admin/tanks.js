@@ -1,6 +1,6 @@
 
 import { supabase, safeSupabaseQuery, getStationName } from "../core/api.js";
-import { openModal, closeModal } from "../ui/ui.js";
+import { openModal, closeModal, openConfirmModal } from "../ui/ui.js";
 import { escapeHtml, formatNumberIt } from "../utils/utils.js";
 import { Toast } from "../ui/toast.js";
 import { handleError } from "../shared/error-handler.js";
@@ -248,7 +248,8 @@ export async function showTanksAdminModal(stationId) {
     // Listeners per cisterne
     target.querySelectorAll('.delete-tank').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Eliminare questa cisterna?')) return;
+        const confirmed = await openConfirmModal('Eliminare questa cisterna?');
+        if (!confirmed) return;
         await safeSupabaseQuery(() => supabase.from('tanks').delete().eq('id', btn.dataset.id));
         renderTanks();
       });
@@ -340,7 +341,8 @@ export async function showTanksAdminModal(stationId) {
     // Elimina associazione
     target.querySelectorAll('.tank-link-delete').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Rimuovere questa associazione pistola/cisterna?')) return;
+        const confirmed = await openConfirmModal('Rimuovere questa associazione pistola/cisterna?');
+        if (!confirmed) return;
         await safeSupabaseQuery(() => supabase.from('tank_pump_links').delete().eq('id', btn.dataset.id));
         renderTanks();
       });

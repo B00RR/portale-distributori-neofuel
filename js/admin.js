@@ -102,8 +102,12 @@ export function showAdminArea() {
     };
 
     let html = `<span class="breadcrumb-item"><i class="fas fa-home"></i> Home</span>`;
-    html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
-    html += `<span class="breadcrumb-item active">${labels[tab] || tab}</span>`;
+
+    // Mostra la tab corrente nei breadcrumb solo se valida
+    if (labels[tab]) {
+      html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
+      html += `<span class="breadcrumb-item active">${labels[tab]}</span>`;
+    }
 
     if (subPath) {
       html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
@@ -188,14 +192,29 @@ export function showAdminArea() {
         </div>
         <nav class="sidebar-nav">
           <button class="nav-btn active" data-tab="dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
-          <button class="nav-btn" data-tab="stations"><i class="fas fa-gas-pump"></i> Distributori</button>
-          <button class="nav-btn" data-tab="operators"><i class="fas fa-users-cog"></i> Gestione Operatori</button>
+          
+          ${(loggedUser?.role === 'admin' || loggedUser?.role === 'super_admin') ? `
+            <button class="nav-btn" data-tab="stations"><i class="fas fa-gas-pump"></i> Distributori</button>
+            <button class="nav-btn" data-tab="operators"><i class="fas fa-users-cog"></i> Gestione Operatori</button>
+          ` : ''}
+
           <button class="nav-btn" data-tab="vouchers"><i class="fas fa-ticket-alt"></i> Gestione Voucher</button>
-          <button class="nav-btn" data-tab="shifts"><i class="fas fa-clock"></i> Turni e Chiusure</button>
-          <button class="nav-btn" data-tab="crediti"><i class="fas fa-credit-card"></i> Crediti</button>
-          <button class="nav-btn" data-tab="invoices"><i class="fas fa-file-invoice"></i> Fatture</button>
+          
+          ${(loggedUser?.role === 'admin' || loggedUser?.role === 'super_admin' || loggedUser?.role === 'accounting') ? `
+            <button class="nav-btn" data-tab="shifts"><i class="fas fa-clock"></i> Turni e Chiusure</button>
+            <button class="nav-btn" data-tab="crediti"><i class="fas fa-credit-card"></i> Crediti</button>
+          ` : ''}
+
+          ${(loggedUser?.role === 'admin' || loggedUser?.role === 'super_admin' || loggedUser?.role === 'billing') ? `
+            <button class="nav-btn" data-tab="invoices"><i class="fas fa-file-invoice"></i> Fatture</button>
+          ` : ''}
+
           <button class="nav-btn" data-tab="notifiche"><i class="fas fa-bell"></i> Notifiche</button>
-          <button class="nav-btn" data-tab="settings"><i class="fas fa-cog"></i> Impostazioni</button>
+          
+          ${(loggedUser?.role === 'admin' || loggedUser?.role === 'super_admin') ? `
+            <button class="nav-btn" data-tab="settings"><i class="fas fa-cog"></i> Impostazioni</button>
+          ` : ''}
+
           <button class="nav-btn logout-btn" id="admin-logout"><i class="fas fa-sign-out-alt"></i> Esci</button>
         </nav>
         <div class="sidebar-footer">
@@ -203,8 +222,8 @@ export function showAdminArea() {
             <i class="fas fa-user-shield"></i>
           </div>
           <div class="sidebar-footer-meta">
-            <span class="sidebar-footer-role">Admin User</span>
-            <span class="sidebar-footer-name">${escapeHtml(loggedUser?.full_name || 'Amministratore')}</span>
+            <span class="sidebar-footer-role">${escapeHtml(loggedUser?.role === 'admin' ? 'Superuser' : (loggedUser?.role === 'accounting' ? 'Contabilità' : (loggedUser?.role === 'billing' ? 'Fatturazione' : 'Amministratore')))}</span>
+            <span class="sidebar-footer-name">${escapeHtml(loggedUser?.full_name || 'Utente')}</span>
           </div>
         </div>
       </aside>
@@ -243,7 +262,8 @@ export function showAdminArea() {
   });
 
   document.getElementById('admin-logout').addEventListener('click', async () => {
-    if (confirm('Sei sicuro di voler uscire?')) {
+    const confirmLogout = await openConfirmModal('Sei sicuro di voler uscire dal Portale Neofuel?');
+    if (confirmLogout) {
       await clearSession();
       // Attendi un momento per assicurarsi che la sessione sia stata pulita
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -283,6 +303,28 @@ export function showAdminArea() {
     await renderGlobalFilter(); // Assicurati che il filtro sia presente/aggiornato
     const filter = store.getFilter();
 
+    // Controllo Accessi Granulare
+    const userRole = loggedUser?.role || 'operator';
+    const hasFullAccess = userRole === 'admin' || userRole === 'super_admin';
+
+    // Verifichiamo il permesso per la tab
+    let allowed = true;
+    if (['stations', 'operators', 'settings'].includes(tab) && !hasFullAccess) allowed = false;
+    if (tab === 'shifts' && !hasFullAccess && userRole !== 'accounting') allowed = false;
+    if (tab === 'crediti' && !hasFullAccess && userRole !== 'accounting') allowed = false;
+    if (tab === 'invoices' && !hasFullAccess && userRole !== 'billing') allowed = false;
+
+    if (!allowed) {
+      content.innerHTML = `
+        <div class="error-container">
+          <i class="fas fa-lock error-icon"></i>
+          <h2>Accesso Negato</h2>
+          <p>Non disponi dei permessi necessari per visualizzare questa sezione.</p>
+          <button class="menu-button primary" onclick="window.location.reload()">Torna alla Dashboard</button>
+        </div>
+      `;
+      return;
+    }
     switch (tab) {
       case 'dashboard':
         showDashboard(content, filter);
