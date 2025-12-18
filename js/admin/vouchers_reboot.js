@@ -553,15 +553,15 @@ async function renderDashboard(container) {
                                 <div class="voucher-cell">
                                     <div style="color: #475569;">${b.expiration_date ? new Date(b.expiration_date).toLocaleDateString() : 'Illimitata'}</div>
                                 </div>
-                                <div class="voucher-cell center" style="flex-shrink: 0; min-width: 140px;">
+                                <div class="voucher-cell center" style="flex-shrink: 0; min-width: 150px;">
                                     <div style="display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center;">
                                         <button class="action-btn-primary-${b.id}" data-action="print" data-batch-id="${b.id}" title="Stampa" 
                                             style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
                                             <i class="fas fa-print" style="font-size: 12px;"></i>
                                         </button>
-                                        <button class="action-btn-warning-${b.id}" data-action="void" data-batch-id="${b.id}" title="Annulla" 
-                                            style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #f59e0b; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
-                                            <i class="fas fa-ban" style="font-size: 12px;"></i>
+                                        <button class="action-btn-info-${b.id}" data-action="details" data-batch-id="${b.id}" title="Dettaglio" 
+                                            style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #0ea5e9; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
+                                            <i class="fas fa-list" style="font-size: 12px;"></i>
                                         </button>
                                         <button class="action-btn-danger-${b.id}" data-action="delete" data-batch-id="${b.id}" title="Elimina" 
                                             style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #ef4444; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
@@ -647,8 +647,8 @@ async function renderDashboard(container) {
                 case 'print':
                     openPrintView(batchId);
                     break;
-                case 'void':
-                    handleVoidBatch(batchId);
+                case 'details':
+                    showBatchDetails(batchId);
                     break;
                 case 'delete':
                     handleDeleteBatch(batchId);
@@ -660,7 +660,7 @@ async function renderDashboard(container) {
         if (!window.voucherActions) {
             window.voucherActions = {
                 openPrintView,
-                handleVoidBatch,
+                showBatchDetails,
                 handleDeleteBatch
             };
         }
@@ -946,6 +946,74 @@ function createResizableColumn(col, resizer, colIndex, table) {
     };
 
     resizer.addEventListener('mousedown', mouseDownHandler);
+}
+
+async function showBatchDetails(batchId) {
+    openModal('Dettaglio Lotto Voucher');
+    const modalBody = document.getElementById('modal-body');
+    modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento dettagli...</div>';
+
+    try {
+        const { data: vouchers, error } = await supabase
+            .from('vouchers')
+            .select('*')
+            .eq('batch_id', batchId)
+            .order('serial_number');
+
+        if (error) throw error;
+
+        const { data: batch } = await supabase
+            .from('voucher_batches')
+            .select('description')
+            .eq('id', batchId)
+            .single();
+
+        modalBody.innerHTML = `
+            <div style="padding: 10px;">
+                <h3 style="margin-bottom: 20px;">${escapeHtml(batch?.description || 'Dettaglio Lotto')}</h3>
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <table class="admin-table" style="width: 100%; border-collapse: collapse;">
+                        <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 1;">
+                            <tr>
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; text-align: left;">S/N</th>
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; text-align: left;">Codice</th>
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; text-align: center;">Stato</th>
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; text-align: left;">Data Riscatto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${vouchers.map(v => {
+            const isRedeemed = v.status === 'redeemed';
+            return `
+                                    <tr style="background: ${isRedeemed ? '#f1f5f9' : 'white'}; border-bottom: 1px solid #f1f5f9;">
+                                        <td style="padding: 12px; font-weight: 500;">#${v.serial_number}</td>
+                                        <td style="padding: 12px; font-family: monospace; font-size: 1.1em;">${v.code}</td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            ${isRedeemed
+                    ? '<span class="badge badge-secondary"><i class="fas fa-check"></i> Riscattato</span>'
+                    : '<span class="badge badge-success">Attivo</span>'}
+                                        </td>
+                                        <td style="padding: 12px; color: #64748b; font-size: 0.9rem;">
+                                            ${v.redeemed_at ? formatDate(v.redeemed_at) : '-'}
+                                        </td>
+                                    </tr>
+                                `;
+        }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 20px; text-align: right;">
+                    <button class="menu-button primary" id="btn-close-details">Chiudi</button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('btn-close-details').addEventListener('click', () => closeModal());
+
+    } catch (err) {
+        console.error(err);
+        modalBody.innerHTML = `<div class="alert alert-danger">Errore caricamento: ${err.message}</div>`;
+    }
 }
 
 async function handleDeleteBatch(batchId) {

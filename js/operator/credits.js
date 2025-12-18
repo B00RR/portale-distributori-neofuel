@@ -23,10 +23,13 @@ export async function showCreditsMenu(stationId, userId) {
     // Verifica apertura turno
     const activeOpening = await checkOpeningStatus(stationId);
     if (!activeOpening) {
-        modalBody.innerHTML = createWarningMessage(
-            "Nessun Turno Aperto",
-            "Devi aprire un turno prima di poter gestire i crediti."
-        ) + `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>`;
+        modalBody.innerHTML = `
+            <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
+                <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
+                <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter gestire i crediti.</p>
+                <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
+            </div>
+        `;
 
         document.getElementById('btn-close-warning').addEventListener('click', () => closeModal());
         return;

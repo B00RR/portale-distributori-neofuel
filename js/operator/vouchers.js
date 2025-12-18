@@ -1,5 +1,5 @@
 import { supabase } from "../core/api.js";
-import { showInfoModal, showErrorMessage, showLoadingMessage } from "../ui/ui.js";
+import { showInfoModal, showErrorMessage, showLoadingMessage, openModal, closeModal } from "../ui/ui.js";
 import { formatEuro, formatDate } from "../utils/utils.js";
 import { Toast } from "../ui/toast.js";
 
@@ -12,14 +12,15 @@ let voucherState = {
 };
 
 // --- INITIALIZATION ---
-export function showVoucherMenu(containerId) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = `
-        <div class="content-box">
-            <h3><i class="fas fa-qrcode"></i> Riscatto Voucher</h3>
-            <p class="section-subtitle">Inquadra il QR code del cliente per riscuotere il buono.</p>
+export function showVoucherMenu() {
+  openModal("Riscatto Voucher");
+  const container = document.getElementById('modal-body');
 
-            <div id="scanner-container" style="display:none; margin: 20px auto; max-width: 500px;">
+  container.innerHTML = `
+        <div class="voucher-modal-content">
+            <p id="voucher-modal-subtitle" class="section-subtitle" style="text-align: center; margin-bottom: 20px;">Inquadra il QR code del cliente o inserisci il codice manualmente.</p>
+
+            <div id="scanner-container" style="display:none; margin: 0 auto 20px; max-width: 100%;">
                 <div id="reader"></div>
                 <button class="menu-button secondary" id="stop-scan-btn" style="margin-top:10px; width:100%;">
                     Ferma Fotocamera
@@ -35,6 +36,15 @@ export function showVoucherMenu(containerId) {
                 </button>
             </div>
 
+            <!-- Manual Entry Form (Hidden by default) -->
+            <div id="manual-entry-form" style="display:none; margin-top: 20px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; animation: slideIn 0.3s ease;">
+                <label style="display: block; font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #475569;">Codice Voucher</label>
+                <div style="display: flex; gap: 10px; align-items: stretch;">
+                    <input type="text" id="manual-voucher-code" placeholder="es. 6VJT" class="form-input" style="flex: 1; margin: 0; text-transform: uppercase; font-weight: bold; width: 100%;">
+                    <button class="menu-button primary" id="btn-verify-manual" style="margin: 0; width: auto; min-width: 120px; height: 52px; padding: 0 20px;">Verifica</button>
+                </div>
+            </div>
+
             <!-- Result Area -->
             <div id="voucher-result" style="margin-top: 20px;"></div>
         </div>
@@ -42,7 +52,28 @@ export function showVoucherMenu(containerId) {
 
   document.getElementById('start-scan-btn').addEventListener('click', startScanner);
   document.getElementById('stop-scan-btn').addEventListener('click', stopScanner);
-  document.getElementById('manual-entry-btn').addEventListener('click', showManualEntry);
+  document.getElementById('manual-entry-btn').addEventListener('click', toggleManualEntry);
+  document.getElementById('btn-verify-manual').addEventListener('click', () => {
+    const code = document.getElementById('manual-voucher-code').value.trim();
+    if (code) processVoucherCode(code.toUpperCase());
+  });
+
+  // Also handle "Enter" key
+  document.getElementById('manual-voucher-code').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const code = e.target.value.trim();
+      if (code) processVoucherCode(code.toUpperCase());
+    }
+  });
+
+  // Capture modal close to stop scanner
+  const closeBtn = document.getElementById('modal-close-btn');
+  if (closeBtn) {
+    const originalClose = closeBtn.onclick;
+    closeBtn.addEventListener('click', () => {
+      stopScanner();
+    });
+  }
 
   // Dynamically load library if not present
   if (!window.Html5Qrcode) {
@@ -110,10 +141,21 @@ function onScanSuccess(decodedText, decodedResult) {
   processVoucherCode(decodedText);
 }
 
-function showManualEntry() {
-  const code = prompt("Inserisci il codice del voucher (es. A4K9-XP3M...):");
-  if (code) {
-    processVoucherCode(code.trim().toUpperCase());
+function toggleManualEntry() {
+  const form = document.getElementById('manual-entry-form');
+  const input = document.getElementById('manual-voucher-code');
+  const actions = document.getElementById('scan-actions');
+  const subtitle = document.getElementById('voucher-modal-subtitle');
+
+  if (form.style.display === 'none') {
+    form.style.display = 'block';
+    actions.style.display = 'none';
+    subtitle.textContent = "Inserisci il numero del voucher";
+    input.focus();
+  } else {
+    form.style.display = 'none';
+    actions.style.display = 'flex';
+    subtitle.textContent = "Inquadra il QR code del cliente o inserisci il codice manualmente.";
   }
 }
 
@@ -123,22 +165,32 @@ async function processVoucherCode(code) {
 
   try {
     // 1. Verify Code
-    const { data: voucher, error } = await supabase
+    let query = supabase
       .from('vouchers')
-      .select('*, voucher_batches(customer_name)')
-      .eq('code', code)
-      .single();
+      .select('*, voucher_batches(customer_name)');
 
-    if (error || !voucher) {
+    if (code.length === 4) {
+      query = query.like('code', `${code}%`);
+    } else {
+      query = query.eq('code', code);
+    }
+
+    const { data: vouchers, error } = await query;
+
+    if (error || !vouchers || vouchers.length === 0) {
       throw new Error("Codice non trovato o inesistente.");
     }
+
+    // If multiple vouchers start with the same 4 chars, we might need logic to pick one.
+    // However, usually these codes are designed to be unique enough or we take the first active one.
+    const voucher = vouchers[0];
 
     // 2. Check Status
     if (voucher.status === 'redeemed') {
       resultContainer.innerHTML = `
-                <div class="alert alert-warning" style="background:#fff3cd; color:#856404; padding:15px; border-radius:8px; border:1px solid #ffeeba;">
-                    <h4><i class="fas fa-exclamation-triangle"></i> Voucher Già Riscattato</h4>
-                    <p>Questo buono è stato usato il ${formatDate(voucher.redeemed_at)}.</p>
+                <div class="alert alert-danger" style="background:#fee2e2; color:#b91c1c; padding:25px; border-radius:12px; border:2px solid #fecaca; text-align:center;">
+                    <h2 style="margin:0 0 10px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Voucher Già Riscattato</h2>
+                    <p style="font-size:1.1em; margin:0;">Questo buono è stato usato il <strong>${formatDate(voucher.redeemed_at)}</strong>.</p>
                 </div>
             `;
       return;
@@ -146,9 +198,9 @@ async function processVoucherCode(code) {
 
     if (voucher.status === 'expired' || (voucher.expiration_date && new Date(voucher.expiration_date) < new Date())) {
       resultContainer.innerHTML = `
-                <div class="alert alert-danger" style="background:#f8d7da; color:#721c24; padding:15px; border-radius:8px; border:1px solid #f5c6cb;">
-                    <h4><i class="fas fa-times-circle"></i> Voucher Scaduto</h4>
-                    <p>Data Scadenza: ${formatDate(voucher.expiration_date)}</p>
+                <div class="alert alert-danger" style="background:#fee2e2; color:#b91c1c; padding:25px; border-radius:12px; border:2px solid #fecaca; text-align:center;">
+                    <h2 style="margin:0 0 10px 0; color:#b91c1c;"><i class="fas fa-times-circle"></i> Voucher Scaduto</h2>
+                    <p style="font-size:1.1em; margin:0;">Il buono è scaduto il <strong>${formatDate(voucher.expiration_date)}</strong></p>
                 </div>
             `;
       return;
@@ -229,9 +281,13 @@ async function redeemVoucher(voucher) {
             <div class="alert alert-success" style="background:#d4edda; color:#155724; padding:20px; border-radius:8px; border:1px solid #c3e6cb; text-align: center;">
                 <h2><i class="fas fa-check"></i> Completato</h2>
                 <p>incasso di <strong>${formatEuro(voucher.amount)}</strong> registrato.</p>
-                <button class="menu-button primary" onclick="document.getElementById('voucher-result').innerHTML=''">Nuova Scansione</button>
+                <button class="menu-button primary" id="btn-done-redeem">Chiudi</button>
             </div>
         `;
+
+    document.getElementById('btn-done-redeem').addEventListener('click', () => {
+      closeModal();
+    });
 
   } catch (err) {
     console.error(err);
