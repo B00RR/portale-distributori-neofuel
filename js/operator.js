@@ -190,7 +190,7 @@ export async function showOperatorMenu(userId, stationId) {
   document.getElementById('btn-crediti').addEventListener('click', () => showCreditsMenu(stationId, userId));
 
   document.getElementById('btn-fatture').addEventListener('click', () => showInvoiceMenu(stationId, userId)); // Corrected button ID and function call
-  document.getElementById('btn-voucher').addEventListener('click', () => showVoucherMenu());
+  document.getElementById('btn-voucher').addEventListener('click', () => showVoucherMenu(stationId, userId));
   document.getElementById('btn-uscite').addEventListener('click', () => showOutflowMenu(stationId, userId));
   document.getElementById('btn-incassi').addEventListener('click', () => showExtraIncomeMenu(stationId, userId));
 }

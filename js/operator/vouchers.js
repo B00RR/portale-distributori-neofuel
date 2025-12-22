@@ -1,6 +1,7 @@
 import { supabase } from "../core/api.js";
 import { showInfoModal, showErrorMessage, showLoadingMessage, openModal, closeModal } from "../ui/ui.js";
 import { formatEuro, formatDate } from "../utils/utils.js";
+import { checkOpeningStatus } from "./opening.js";
 import { Toast } from "../ui/toast.js";
 
 // We assume Html5QrcodeScanner is loaded globally via script tag in index.html
@@ -8,15 +9,37 @@ import { Toast } from "../ui/toast.js";
 
 let voucherState = {
   scanner: null,
-  isScanning: false
+  isScanning: false,
+  stationId: null,
+  userId: null
 };
 
 // --- INITIALIZATION ---
-export function showVoucherMenu() {
+export async function showVoucherMenu(stationId, userId) {
+  voucherState.stationId = stationId;
+  voucherState.userId = userId;
+
   openModal("Riscatto Voucher");
   const container = document.getElementById('modal-body');
+  container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
 
-  container.innerHTML = `
+  try {
+    // Verifica apertura turno
+    const activeOpening = await checkOpeningStatus(stationId);
+    if (!activeOpening) {
+      container.innerHTML = `
+                <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
+                    <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
+                    <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter riscattare dei voucher.</p>
+                    <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
+                </div>
+            `;
+
+      document.getElementById('btn-close-warning').addEventListener('click', () => closeModal());
+      return;
+    }
+
+    container.innerHTML = `
         <div class="voucher-modal-content">
             <p id="voucher-modal-subtitle" class="section-subtitle" style="text-align: center; margin-bottom: 20px;">Inquadra il QR code del cliente o inserisci il codice manualmente.</p>
 
@@ -49,6 +72,15 @@ export function showVoucherMenu() {
             <div id="voucher-result" style="margin-top: 20px;"></div>
         </div>
     `;
+  } catch (err) {
+    container.innerHTML = `
+            <div class="alert alert-danger" style="margin: 20px;">
+                <h4><i class="fas fa-times-circle"></i> Errore Caricamento</h4>
+                <p>${err.message}</p>
+            </div>
+        `;
+    return;
+  }
 
   document.getElementById('start-scan-btn').addEventListener('click', startScanner);
   document.getElementById('stop-scan-btn').addEventListener('click', stopScanner);
@@ -245,17 +277,12 @@ async function redeemVoucher(voucher) {
   resultContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Registrazione incasso...</div>';
 
   try {
-    // Transaction: Update Voucher + Insert Cash Movement
-    // Supabase doesn't support complex transactions in client library easily without RPC.
-    // We will do optimistic sequential updates.
-
     // 1. Update Voucher Status
     const { error: updateError } = await supabase
       .from('vouchers')
       .update({
         status: 'redeemed',
         redeemed_at: new Date().toISOString()
-        // redeemed_by: operator_id // captured by RLS or session theoretically
       })
       .eq('id', voucher.id);
 
@@ -265,9 +292,12 @@ async function redeemVoucher(voucher) {
     const { error: moveError } = await supabase
       .from('movimenti_cassa')
       .insert([{
+        station_id: voucherState.stationId,
+        operator_id: voucherState.userId,
         tipo: 'voucher',
         importo: voucher.amount,
-        descrizione: `Riscatto Voucher ${voucher.code}`
+        descrizione: `Riscatto Voucher ${voucher.code}`,
+        created_at: new Date().toISOString()
       }]);
 
     if (moveError) {

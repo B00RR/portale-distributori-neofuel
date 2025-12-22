@@ -24,7 +24,8 @@ async function initializeApp() {
         console.log('Login success callback:', user);
         store.setUser(user);
 
-        if (user.role === 'admin') {
+        const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(user.role);
+        if (isAdminRole) {
             showAdminArea();
         } else {
             let stId = user.station_id;
@@ -61,7 +62,8 @@ async function initializeApp() {
         if (loginContainer) loginContainer.style.display = 'none';
         if (appContainer) appContainer.style.display = 'block';
 
-        if (user.role === 'admin') {
+        const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(user.role);
+        if (isAdminRole) {
             document.body.classList.add('admin-layout', 'desktop-layout');
             showAdminArea();
         } else {

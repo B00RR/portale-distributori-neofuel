@@ -63,26 +63,46 @@ export function showAdminArea() {
       }
     }
 
-    const options = stations || [];
+    const assignedStations = loggedUser?.assignedStations || [];
+
+    let options = stations || [];
+
+    // Se non è admin, mostra solo le stazioni assegnate
+    if (!isFullAdmin) {
+      options = options.filter(s => assignedStations.some(as => as.id === s.station_id));
+    }
+
     const currentFilter = store.getFilter();
+
+    // Se non c'è un filtro impostato e l'utente ha stazioni assegnate (e non è admin), imposta la prima come default
+    if (currentFilter === null && !isFullAdmin && options.length > 0) {
+      store.setStationFilter(options[0].station_id);
+      // Ricarichiamo dopo aver impostato il filtro per evitare loop ma assicurare la coerenza
+      // Tuttavia, setStationFilter notificherà i listener. In questo contesto, meglio farlo prima del render.
+    }
+
+    const finalFilter = store.getFilter();
 
     container.innerHTML = `
       <div class="global-filter-wrapper">
         <i class="fas fa-filter filter-icon"></i>
         <select id="global-station-filter" class="global-filter-select">
-          <option value="">Tutte le Stazioni</option>
-          ${options.map(s => `<option value="${s.station_id}" ${currentFilter == s.station_id ? 'selected' : ''}>${escapeHtml(s.station_name)}</option>`).join('')}
+          ${isFullAdmin ? '<option value="">Tutte le Stazioni</option>' : ''}
+          ${options.map(s => `<option value="${s.station_id}" ${finalFilter == s.station_id ? 'selected' : ''}>${escapeHtml(s.station_name)}</option>`).join('')}
         </select>
       </div>
     `;
 
-    document.getElementById('global-station-filter').addEventListener('change', (e) => {
-      const val = e.target.value;
-      const newFilter = val ? parseInt(val) : null;
-      store.setStationFilter(newFilter);
-      // Ricarica la tab corrente con il nuovo filtro
-      loadAdminTab(currentAdminTab);
-    });
+    const filterSelect = document.getElementById('global-station-filter');
+    if (filterSelect) {
+      filterSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const newFilter = val ? parseInt(val) : null;
+        store.setStationFilter(newFilter);
+        // Ricarica la tab corrente con il nuovo filtro
+        loadAdminTab(currentAdminTab);
+      });
+    }
   }
 
   function renderBreadcrumbs(tab, subPath = '') {
@@ -117,72 +137,11 @@ export function showAdminArea() {
     container.innerHTML = html;
   }
 
-  // Funzione per caricare le tab
-  async function loadAdminTab(tab) {
-    currentAdminTab = tab;
-    const content = document.getElementById('admin-content');
-    const headerActions = document.getElementById('header-actions');
-    const pageSubtitle = document.getElementById('page-subtitle');
 
-    // Aggiorna navigazione
-    document.querySelectorAll('.nav-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.tab === tab);
-    });
 
-    // Imposta titolo
-    const titles = {
-      'dashboard': 'Dashboard',
-      'stations': 'Gestione Distributori',
-      'operators': 'Gestione Operatori',
-      'shifts': 'Registro Chiusure',
-      'crediti': 'Gestione Crediti',
-      'invoices': 'Richieste Fatture',
-      'vouchers': 'Gestione Voucher',
-      'notifiche': 'Notifiche',
-      'settings': 'Impostazioni'
-    };
-    if (pageSubtitle) pageSubtitle.textContent = titles[tab] || 'Control Center';
 
-    await renderGlobalFilter();
-    const filter = store.getFilter();
-
-    switch (tab) {
-      case 'dashboard':
-        showDashboard(content, filter);
-        break;
-      case 'stations':
-        showStationsTab(content, headerActions);
-        break;
-      case 'operators':
-        showOperatorsTab(content, headerActions);
-        break;
-      case 'shifts':
-        showChiusureTab(content, headerActions, filter);
-        break;
-      case 'crediti':
-        if (typeof showCreditsTab !== 'undefined') showCreditsTab(content, headerActions);
-        else content.innerHTML = '<p>Modulo Crediti in caricamento...</p>';
-        break;
-      case 'invoices':
-        if (typeof showFattureTab !== 'undefined') showFattureTab(content, headerActions);
-        else content.innerHTML = '<p>Modulo Fatture in fase di completamento...</p>';
-        break;
-      case 'vouchers':
-        if (typeof showVoucherAdminTab !== 'undefined') showVoucherAdminTab(content, headerActions);
-        else if (typeof showVoucherView !== 'undefined') showVoucherView();
-        else content.innerHTML = '<p>Modulo Voucher in caricamento...</p>';
-        break;
-      case 'notifiche':
-        showNotificheAdmin(content);
-        break;
-      case 'settings':
-        showSettingsTab(content, headerActions);
-        break;
-      default:
-        showDashboard(content, filter);
-    }
-  }
-
+  const userRole = loggedUser?.role || 'operator';
+  const isFullAdmin = userRole === 'admin' || userRole === 'super_admin';
 
   mainContent.innerHTML = `
     <div class="admin-container">
@@ -193,25 +152,24 @@ export function showAdminArea() {
         <nav class="sidebar-nav">
           <button class="nav-btn active" data-tab="dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
           
-          ${(loggedUser?.role === 'admin' || loggedUser?.role === 'super_admin') ? `
+          ${isFullAdmin ? `
             <button class="nav-btn" data-tab="stations"><i class="fas fa-gas-pump"></i> Distributori</button>
             <button class="nav-btn" data-tab="operators"><i class="fas fa-users-cog"></i> Gestione Operatori</button>
           ` : ''}
 
-          <button class="nav-btn" data-tab="vouchers"><i class="fas fa-ticket-alt"></i> Gestione Voucher</button>
-          
-          ${(loggedUser?.role === 'admin' || loggedUser?.role === 'super_admin' || loggedUser?.role === 'accounting') ? `
+          ${(isFullAdmin || userRole === 'accounting') ? `
+            <button class="nav-btn" data-tab="vouchers"><i class="fas fa-ticket-alt"></i> Gestione Voucher</button>
             <button class="nav-btn" data-tab="shifts"><i class="fas fa-clock"></i> Turni e Chiusure</button>
             <button class="nav-btn" data-tab="crediti"><i class="fas fa-credit-card"></i> Crediti</button>
           ` : ''}
 
-          ${(loggedUser?.role === 'admin' || loggedUser?.role === 'super_admin' || loggedUser?.role === 'billing') ? `
+          ${(isFullAdmin || userRole === 'billing' || userRole === 'accounting') ? `
             <button class="nav-btn" data-tab="invoices"><i class="fas fa-file-invoice"></i> Fatture</button>
           ` : ''}
 
           <button class="nav-btn" data-tab="notifiche"><i class="fas fa-bell"></i> Notifiche</button>
           
-          ${(loggedUser?.role === 'admin' || loggedUser?.role === 'super_admin') ? `
+          ${isFullAdmin ? `
             <button class="nav-btn" data-tab="settings"><i class="fas fa-cog"></i> Impostazioni</button>
           ` : ''}
 
@@ -222,7 +180,7 @@ export function showAdminArea() {
             <i class="fas fa-user-shield"></i>
           </div>
           <div class="sidebar-footer-meta">
-            <span class="sidebar-footer-role">${escapeHtml(loggedUser?.role === 'admin' ? 'Superuser' : (loggedUser?.role === 'accounting' ? 'Contabilità' : (loggedUser?.role === 'billing' ? 'Fatturazione' : 'Amministratore')))}</span>
+            <span class="sidebar-footer-role">${escapeHtml(userRole === 'admin' || userRole === 'super_admin' ? 'Amministratore' : (userRole === 'accounting' ? 'Contabilità' : (userRole === 'billing' ? 'Fatturazione' : 'Operatore')))}</span>
             <span class="sidebar-footer-name">${escapeHtml(loggedUser?.full_name || 'Utente')}</span>
           </div>
         </div>
@@ -303,16 +261,13 @@ export function showAdminArea() {
     await renderGlobalFilter(); // Assicurati che il filtro sia presente/aggiornato
     const filter = store.getFilter();
 
-    // Controllo Accessi Granulare
-    const userRole = loggedUser?.role || 'operator';
-    const hasFullAccess = userRole === 'admin' || userRole === 'super_admin';
-
     // Verifichiamo il permesso per la tab
     let allowed = true;
-    if (['stations', 'operators', 'settings'].includes(tab) && !hasFullAccess) allowed = false;
-    if (tab === 'shifts' && !hasFullAccess && userRole !== 'accounting') allowed = false;
-    if (tab === 'crediti' && !hasFullAccess && userRole !== 'accounting') allowed = false;
-    if (tab === 'invoices' && !hasFullAccess && userRole !== 'billing') allowed = false;
+    if (['stations', 'operators', 'settings'].includes(tab) && !isFullAdmin) allowed = false;
+    if (tab === 'shifts' && !isFullAdmin && userRole !== 'accounting') allowed = false;
+    if (tab === 'crediti' && !isFullAdmin && userRole !== 'accounting') allowed = false;
+    if (tab === 'invoices' && !isFullAdmin && userRole !== 'billing' && userRole !== 'accounting') allowed = false;
+    if (tab === 'vouchers' && !isFullAdmin && userRole !== 'accounting') allowed = false;
 
     if (!allowed) {
       content.innerHTML = `
@@ -345,7 +300,7 @@ export function showAdminArea() {
         break;
       case 'invoices':
         await import('./admin/invoices.js').then(module => {
-          module.showFattureTab(content, headerActions);
+          module.showFattureTab(content, headerActions, filter);
         });
         break;
       case 'vouchers':
@@ -361,6 +316,13 @@ export function showAdminArea() {
         break;
       default:
         showDashboard(content, filter);
+    }
+  }
+
+  // Pre-inizializza il filtro se necessario per utenti ristretti
+  if (!isFullAdmin && loggedUser?.assignedStations?.length > 0) {
+    if (store.getFilter() === null) {
+      store.setStationFilter(loggedUser.assignedStations[0].id);
     }
   }
 

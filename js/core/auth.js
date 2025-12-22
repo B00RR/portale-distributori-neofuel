@@ -155,7 +155,13 @@ export function setupLoginForm() {
             console.log('Login successful, fetching user details...');
             let { data: userData, error: userError } = await supabase
                 .from('users')
-                .select('*')
+                .select(`
+                    *,
+                    user_stations (
+                        station_id,
+                        fuel_stations ( station_name )
+                    )
+                `)
                 .eq('email', email)
                 .maybeSingle();
 
@@ -203,7 +209,8 @@ export function setupLoginForm() {
             if (loginContainer) loginContainer.style.display = 'none';
             if (appContainer) appContainer.style.display = 'block';
 
-            if (loggedUser.role === 'admin') {
+            const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(loggedUser.role);
+            if (isAdminRole) {
                 document.body.classList.add('admin-layout', 'desktop-layout');
             } else {
                 document.body.classList.remove('admin-layout', 'desktop-layout');
@@ -211,6 +218,15 @@ export function setupLoginForm() {
 
             if (onLoginSuccessCallback) {
                 console.log('Triggering onLoginSuccessCallback');
+                // Ensure stations are properly structured in loggedUser
+                if (userData && userData.user_stations) {
+                    loggedUser.assignedStations = userData.user_stations.map(us => ({
+                        id: us.station_id,
+                        name: us.fuel_stations?.station_name
+                    }));
+                } else {
+                    loggedUser.assignedStations = [];
+                }
                 onLoginSuccessCallback(loggedUser);
             }
 
@@ -240,7 +256,13 @@ export async function loadSession() {
         const email = session.user.email;
         let { data: userData } = await supabase
             .from('users')
-            .select('*')
+            .select(`
+                *,
+                user_stations (
+                    station_id,
+                    fuel_stations ( station_name )
+                )
+            `)
             .eq('email', email)
             .maybeSingle();
 
@@ -267,6 +289,15 @@ export async function loadSession() {
 
         if (!userData.role) {
             userData.role = session.user.user_metadata?.role || 'operator';
+        }
+
+        if (userData.user_stations) {
+            userData.assignedStations = userData.user_stations.map(us => ({
+                id: us.station_id,
+                name: us.fuel_stations?.station_name
+            }));
+        } else {
+            userData.assignedStations = [];
         }
 
         return userData;
