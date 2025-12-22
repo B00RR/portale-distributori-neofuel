@@ -64,7 +64,6 @@ export function setupLoginForm() {
         if (toggleBtn) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Delegated click on toggle password');
 
             const passwordInput = loginForm.querySelector('#password');
             const passwordIcon = toggleBtn.querySelector('i');
@@ -85,10 +84,8 @@ export function setupLoginForm() {
         }
     });
 
-    console.log('Setup login form initiated');
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        console.log('Login form submitted');
 
         const errorElement = loginError || document.getElementById('login-error');
         if (errorElement) errorElement.textContent = "";
@@ -103,8 +100,6 @@ export function setupLoginForm() {
 
         const email = emailInput.value?.trim().toLowerCase();
         const password = passwordInput.value;
-
-        console.log('Attempting login for:', email);
 
         if (!email || !password) {
             if (errorElement) errorElement.textContent = "Inserisci email e password.";
@@ -121,13 +116,10 @@ export function setupLoginForm() {
             const submitBtn = loginForm.querySelector('button[type="submit"]');
             setButtonLoading(submitBtn, true, 'Accesso in corso...');
 
-            console.log('Calling supabase.auth.signInWithPassword...');
             let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email: email,
                 password: password
             });
-
-            console.log('Supabase auth response:', { authData, authError });
 
             if (authError) {
                 console.error('Auth error:', authError);
@@ -152,7 +144,6 @@ export function setupLoginForm() {
                 return;
             }
 
-            console.log('Login successful, fetching user details...');
             let { data: userData, error: userError } = await supabase
                 .from('users')
                 .select(`
@@ -165,8 +156,6 @@ export function setupLoginForm() {
                 .eq('email', email)
                 .maybeSingle();
 
-            console.log('User details fetch result:', { userData, userError });
-
             if (!userData) {
                 console.warn('User not found via standard SELECT. Attempting Secure RPC lookup...');
                 // Fallback: Prova a recuperare l'ID tramite la funzione sicura (Security Definer)
@@ -174,7 +163,6 @@ export function setupLoginForm() {
                 const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
 
                 if (rpcId && !rpcError) {
-                    console.log('User ID retrieved via RPC:', rpcId);
                     userData = {
                         user_id: rpcId, // Integer ID corretto
                         email: authData.user.email,
@@ -204,8 +192,6 @@ export function setupLoginForm() {
                 };
             }
 
-            console.log('Logged user set:', loggedUser);
-
             if (loginContainer) loginContainer.style.display = 'none';
             if (appContainer) appContainer.style.display = 'block';
 
@@ -217,7 +203,6 @@ export function setupLoginForm() {
             }
 
             if (onLoginSuccessCallback) {
-                console.log('Triggering onLoginSuccessCallback');
                 // Ensure stations are properly structured in loggedUser
                 if (userData && userData.user_stations) {
                     loggedUser.assignedStations = userData.user_stations.map(us => ({

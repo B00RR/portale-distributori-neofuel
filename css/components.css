@@ -1,0 +1,407 @@
+/* ==========================================
+   COMPONENTS.CSS - Bottoni, Form, Badge, Cards
+   ========================================== */
+
+/* ========== BUTTONS ========== */
+button,
+.menu-button {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: #fff;
+    border: none;
+    padding: 14px 20px;
+    border-radius: var(--radius-md);
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+button:hover,
+.menu-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+button:active,
+.menu-button:active {
+    transform: translateY(0);
+}
+
+button:disabled,
+.menu-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.menu-button.primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+}
+
+.menu-button.secondary {
+    background: var(--secondary-color);
+}
+
+.menu-button.success {
+    background: var(--success-color);
+}
+
+.menu-button.danger {
+    background: var(--danger-color);
+}
+
+.menu-button.outline {
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+.menu-button.outline:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Button with loading spinner */
+.btn-spinner {
+    display: inline-block;
+    margin-right: 8px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ========== FORMS ========== */
+label {
+    display: block;
+    font-size: 0.95em;
+    color: var(--text-main);
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    font-size: 1em;
+    background: var(--bg-surface);
+    transition: all 0.2s ease;
+    color: var(--text-main);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-input {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    font-size: 1em;
+    background: var(--bg-surface);
+    transition: all 0.2s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+    background: #ffffff;
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.form-error {
+    min-height: 18px;
+    color: var(--danger-color);
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.error-msg {
+    color: var(--danger-color);
+    margin-top: 12px;
+    font-size: 0.95em;
+    min-height: 24px;
+    font-weight: 500;
+}
+
+/* ========== BADGES ========== */
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success-color);
+}
+
+.badge-warning {
+    background: rgba(255, 165, 0, 0.15);
+    color: var(--warning-color);
+}
+
+.badge-danger {
+    background: rgba(255, 65, 54, 0.15);
+    color: var(--danger-color);
+}
+
+.badge-secondary {
+    background: rgba(100, 116, 139, 0.15);
+    color: var(--secondary-color);
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--info-color);
+}
+
+/* ========== CARDS ========== */
+.card,
+.menu-card,
+.content-box {
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+}
+
+.card-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* ========== TABLES ========== */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.admin-table th {
+    text-align: left;
+    padding: 12px 16px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bg-body);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.admin-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.95rem;
+}
+
+.admin-table tbody tr:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ========== LOADING ========== */
+.loading-spinner {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.loading-spinner i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+/* ========== ALERTS ========== */
+.alert {
+    padding: 14px 18px;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+}
+
+.alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid var(--success-color);
+    color: var(--success-color);
+}
+
+.alert-danger {
+    background: rgba(255, 65, 54, 0.1);
+    border: 1px solid var(--danger-color);
+    color: var(--danger-color);
+}
+
+.alert-warning {
+    background: rgba(255, 165, 0, 0.1);
+    border: 1px solid var(--warning-color);
+    color: var(--warning-color);
+}
+
+.alert-info {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid var(--info-color);
+    color: var(--info-color);
+}
+
+/* ========== INLINE STYLE REPLACEMENTS ========== */
+/* Classi per sostituire stili inline ripetuti nei file JS */
+
+/* Warning box rosso - usato per "Nessun turno aperto" e simili */
+.warning-box {
+    background: #fee2e2;
+    color: #b91c1c;
+    padding: 30px;
+    border-radius: 12px;
+    border: 2px solid #fecaca;
+    text-align: center;
+    margin: 20px;
+}
+
+.warning-box h2 {
+    margin: 0 0 15px 0;
+    color: #b91c1c;
+}
+
+.warning-box p {
+    font-size: 1.1em;
+    margin: 0 0 20px 0;
+}
+
+/* Info box blu - usato per note informative */
+.info-box-blue {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+/* Info box verde - usato per conferme positive */
+.info-box-green {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+/* Input disabilitato con stile */
+.input-disabled {
+    background: #e2e8f0 !important;
+    color: #475569 !important;
+    cursor: not-allowed;
+}
+
+/* Summary box grigio con bordo laterale */
+.summary-box {
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+.summary-box-accent {
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border-left: 4px solid #64748b;
+}
+
+/* Highlight box azzurro */
+.highlight-box-blue {
+    background: #f0f9ff;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #0ea5e9;
+}
+
+/* Highlight box rosa */
+.highlight-box-pink {
+    background: #fdf2f8;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #db2777;
+}
+
+/* Voucher card preview */
+.voucher-card-preview {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Success confirmation box */
+.success-box {
+    background: #d4edda;
+    color: #155724;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #c3e6cb;
+    text-align: center;
+}
+
+/* Danger/Error confirmation box */
+.error-box {
+    background: #fee2e2;
+    color: #b91c1c;
+    padding: 25px;
+    border-radius: 12px;
+    border: 2px solid #fecaca;
+    text-align: center;
+}

@@ -16,12 +16,10 @@ import { initializeCalculationPresets } from "./utils/calculation-presets.js";
 window.requestPasswordReset = requestPasswordReset;
 
 async function initializeApp() {
-    console.log('Inizializzazione App...');
     initializeCalculationPresets();
 
     // Configura callback login
     setOnLoginSuccess(async (user) => {
-        console.log('Login success callback:', user);
         store.setUser(user);
 
         const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(user.role);
@@ -44,7 +42,6 @@ async function initializeApp() {
     const type = urlParams.get('type');
 
     if (tokenHash && type === 'recovery') {
-        console.log('Rilevato token di recupero password');
         await handlePasswordReset();
         return;
     }
@@ -52,7 +49,6 @@ async function initializeApp() {
     // Controllo sessione esistente
     const user = await loadSession();
     if (user) {
-        console.log('Sessione trovata:', user);
         setLoggedUser(user);
         store.setUser(user);
 
@@ -76,7 +72,6 @@ async function initializeApp() {
             showOperatorMenu(user.user_id, stId);
         }
     } else {
-        console.log('Nessuna sessione attiva, mostro login');
         initLoginElements();
     }
 }

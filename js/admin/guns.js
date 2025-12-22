@@ -57,22 +57,13 @@ async function renderGuns(target, islandId, islandName, stationId) {
       // Trova il turno_id più alto (ultima chiusura)
       const maxTurnoId = Math.max(...allCounters.map(c => c.turno_id));
 
-      console.log('DEBUG: turno_id più alto:', maxTurnoId);
-      console.log('DEBUG: record trovati:', allCounters.length);
-
       // Filtra solo i contatori con il turno_id più alto
       const latest = allCounters.filter(c => c.turno_id === maxTurnoId);
-
-      console.log('DEBUG: contatori per ultimo turno:', latest);
 
       // Popola la mappa dei contatori
       latest.forEach(c => {
         latestCounters[c.pistola_id] = parseFloat(c.numeratore_chiusura);
       });
-
-      console.log('DEBUG: mappa latestCounters:', latestCounters);
-    } else {
-      console.log('DEBUG: Nessun contatore trovato in chiusura_turno_pistole');
     }
 
     if (!guns || guns.length === 0) {
@@ -106,8 +97,6 @@ async function renderGuns(target, islandId, islandName, stationId) {
       const fallbackVal = gun.numero_litri;
       // Usa il valore da chiusura_turno_pistole se presente, altrimenti fallback su pistole.numero_litri
       const currentCounter = latestVal !== undefined ? latestVal : fallbackVal;
-
-      console.log(`DEBUG: Gun ${gun.nome} (ID: ${gun.id}) - Latest: ${latestVal}, Fallback: ${fallbackVal}, Used: ${currentCounter}`);
 
       const counter = formatGunCounter(currentCounter);
       const color = fuelColors[gun.tipo_carburante] || '#6b7280';

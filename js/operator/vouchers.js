@@ -3,6 +3,7 @@ import { showInfoModal, showErrorMessage, showLoadingMessage, openModal, closeMo
 import { formatEuro, formatDate } from "../utils/utils.js";
 import { checkOpeningStatus } from "./opening.js";
 import { Toast } from "../ui/toast.js";
+import { handleError } from "../shared/error-handler.js";
 
 // We assume Html5QrcodeScanner is loaded globally via script tag in index.html
 // If not, we should dynamically load it, but for now let's assume existence or load it here.
@@ -28,9 +29,9 @@ export async function showVoucherMenu(stationId, userId) {
     const activeOpening = await checkOpeningStatus(stationId);
     if (!activeOpening) {
       container.innerHTML = `
-                <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
-                    <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
-                    <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter riscattare dei voucher.</p>
+                <div class="warning-box">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
+                    <p>Devi aprire un turno prima di poter riscattare dei voucher.</p>
                     <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
                 </div>
             `;

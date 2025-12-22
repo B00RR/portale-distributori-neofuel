@@ -1,0 +1,93 @@
+{
+    "env": {
+        "browser": true,
+        "es2022": true
+    },
+    "extends": [
+        "eslint:recommended"
+    ],
+    "parserOptions": {
+        "ecmaVersion": 2022,
+        "sourceType": "module"
+    },
+    "rules": {
+        "no-unused-vars": [
+            "warn",
+            {
+                "argsIgnorePattern": "^_"
+            }
+        ],
+        "no-console": [
+            "warn",
+            {
+                "allow": [
+                    "warn",
+                    "error"
+                ]
+            }
+        ],
+        "semi": [
+            "error",
+            "always"
+        ],
+        "quotes": [
+            "warn",
+            "single",
+            {
+                "avoidEscape": true
+            }
+        ],
+        "indent": [
+            "warn",
+            2,
+            {
+                "SwitchCase": 1
+            }
+        ],
+        "no-multiple-empty-lines": [
+            "warn",
+            {
+                "max": 2
+            }
+        ],
+        "eqeqeq": [
+            "error",
+            "smart"
+        ],
+        "curly": [
+            "warn",
+            "multi-line"
+        ],
+        "no-var": "error",
+        "prefer-const": "warn",
+        "arrow-spacing": "warn",
+        "comma-dangle": [
+            "warn",
+            "never"
+        ],
+        "object-curly-spacing": [
+            "warn",
+            "always"
+        ],
+        "array-bracket-spacing": [
+            "warn",
+            "never"
+        ]
+    },
+    "globals": {
+        "jspdf": "readonly",
+        "jsPDF": "readonly",
+        "XLSX": "readonly",
+        "XlsxPopulate": "readonly",
+        "Chart": "readonly",
+        "Split": "readonly",
+        "Sortable": "readonly",
+        "Html5Qrcode": "readonly",
+        "TEMPLATE_BASE64": "readonly"
+    },
+    "ignorePatterns": [
+        "node_modules/",
+        "*.min.js",
+        "js/utils/template_chiusura_base64.js"
+    ]
+}

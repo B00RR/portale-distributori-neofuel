@@ -1,0 +1,14 @@
+/* ==========================================
+   INDEX.CSS - Entry point per tutti i moduli CSS
+   Importa i moduli in ordine di dipendenza
+   ========================================== */
+
+/* 1. Base - Variabili, reset, typography */
+@import url('./base.css');
+
+/* 2. Componenti - Bottoni, form, badge, cards, tables */
+@import url('./components.css');
+
+/* 3. Stili legacy - Manteniamo compatibilità con style.css esistente */
+/* NOTA: man mano che i moduli vengono completati, rimuovere le sezioni da style.css */
+@import url('./style.css');

@@ -13,6 +13,7 @@ import {
     attachBackButtonListener
 } from "./ui-components.js";
 import { escapeHtml, formatLitri } from "../utils/utils.js";
+import { handleError } from "../shared/error-handler.js";
 
 /**
  * Aggiorna il badge di stato apertura nel menu principale

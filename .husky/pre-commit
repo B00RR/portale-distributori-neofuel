@@ -1,0 +1,21 @@
+#!/bin/sh
+# Husky pre-commit hook
+# Esegue ESLint prima di ogni commit
+
+echo "🔍 Running ESLint..."
+
+# Esegui lint solo sui file staged
+npx eslint --cache --fix $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx)$' | xargs)
+
+# Se ESLint fallisce, blocca il commit
+if [ $? -ne 0 ]; then
+  echo "❌ ESLint ha trovato errori. Correggi prima di committare."
+  exit 1
+fi
+
+echo "✅ ESLint passed!"
+
+# Riaggiungi i file modificati da --fix
+git add $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx)$' | xargs)
+
+exit 0

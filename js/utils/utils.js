@@ -118,3 +118,70 @@ export function formatDate(value) {
         return value;
     }
 }
+
+/**
+ * Throttle: esegue la funzione al massimo una volta ogni `limit` ms
+ * @param {Function} func - Funzione da limitare
+ * @param {number} limit - Intervallo minimo in ms
+ * @returns {Function} Funzione limitata
+ */
+export function throttle(func, limit) {
+    let inThrottle = false;
+    return function (...args) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+/**
+ * Rate Limiter per azioni critiche
+ * Previene chiamate ripetute troppo frequenti
+ * @param {number} maxCalls - Numero massimo di chiamate
+ * @param {number} windowMs - Finestra temporale in ms
+ * @returns {Object} Rate limiter con metodi check() e reset()
+ */
+export function createRateLimiter(maxCalls = 5, windowMs = 60000) {
+    const calls = [];
+
+    return {
+        /**
+         * Verifica se l'azione è consentita
+         * @returns {boolean} true se consentita, false se rate limited
+         */
+        check() {
+            const now = Date.now();
+            // Rimuovi chiamate fuori dalla finestra
+            while (calls.length > 0 && calls[0] < now - windowMs) {
+                calls.shift();
+            }
+
+            if (calls.length >= maxCalls) {
+                return false;
+            }
+
+            calls.push(now);
+            return true;
+        },
+
+        /**
+         * Resetta il contatore
+         */
+        reset() {
+            calls.length = 0;
+        },
+
+        /**
+         * Ottiene il tempo rimanente prima del prossimo slot
+         * @returns {number} Millisecondi rimanenti
+         */
+        getRemainingTime() {
+            if (calls.length === 0) return 0;
+            const oldest = calls[0];
+            const remaining = (oldest + windowMs) - Date.now();
+            return Math.max(0, remaining);
+        }
+    };
+}

@@ -5,6 +5,7 @@
 import { getStationName } from "./core/api.js";
 import { escapeHtml } from "./utils/utils.js";
 import { loggedUser, clearSession } from "./core/auth.js";
+import { openConfirmModal } from "./ui/ui.js";
 
 // Import moduli specializzati
 import { showAperturaForm, updateOpeningStatus, checkOpeningStatus } from "./operator/opening.js";
@@ -26,27 +27,30 @@ export async function showOperatorMenu(userId, stationId) {
   if (!mainContent) return;
 
   // Layout operatore
-  // Stili inline per le nuove funzionalità (da spostare in style.css in Fase 2)
-  const style = document.createElement('style');
-  style.innerHTML = `
-    .result-item {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;
-    }
-    .result-item:hover { background: #f9f9f9; }
-    .customer-header {
-      background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;
-      border-left: 4px solid #0284c7;
-    }
-    .balance-display { font-size: 1.2em; color: #0284c7; margin-top: 5px; }
-    .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-    .tab-btn {
-      flex: 1; padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer;
-    }
-    .tab-btn.active { background: #0284c7; color: white; border-color: #0284c7; }
-    .voucher-amount { font-size: 2em; font-weight: bold; color: #10b981; margin: 10px 0; }
-  `;
-  document.head.appendChild(style);
+  // Stili inline per le nuove funzionalità (iniettati una sola volta)
+  if (!document.getElementById('operator-custom-styles')) {
+    const style = document.createElement('style');
+    style.id = 'operator-custom-styles';
+    style.innerHTML = `
+      .result-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;
+      }
+      .result-item:hover { background: #f9f9f9; }
+      .customer-header {
+        background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+        border-left: 4px solid #0284c7;
+      }
+      .balance-display { font-size: 1.2em; color: #0284c7; margin-top: 5px; }
+      .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+      .tab-btn {
+        flex: 1; padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer;
+      }
+      .tab-btn.active { background: #0284c7; color: white; border-color: #0284c7; }
+      .voucher-amount { font-size: 2em; font-weight: bold; color: #10b981; margin: 10px 0; }
+    `;
+    document.head.appendChild(style);
+  }
 
   mainContent.innerHTML = `
     <div class="operator-container">

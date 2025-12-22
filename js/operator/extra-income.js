@@ -3,6 +3,7 @@ import { openModal, closeModal, showInfoModal } from "../ui/ui.js";
 import { createWarningMessage, createErrorMessage, createFormActions } from "./ui-components.js";
 import { checkOpeningStatus } from "./opening.js";
 import { Toast } from "../ui/toast.js";
+import { handleError } from "../shared/error-handler.js";
 
 /**
  * Mostra il menu per la gestione degli incassi extra (olio, AdBlue, ecc.)
@@ -19,9 +20,9 @@ export async function showExtraIncomeMenu(stationId, userId) {
         const activeOpening = await checkOpeningStatus(stationId);
         if (!activeOpening) {
             modalBody.innerHTML = `
-                <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
-                    <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
-                    <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter registrare degli incassi extra.</p>
+                <div class="warning-box">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
+                    <p>Devi aprire un turno prima di poter registrare degli incassi extra.</p>
                     <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
                 </div>
             `;

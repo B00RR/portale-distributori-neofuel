@@ -14,8 +14,7 @@ import {
 import { escapeHtml, formatLitri, formatEuro } from "../utils/utils.js";
 import { calculationEngine, CALCULATION_SCOPES } from "../utils/calculation-engine.js";
 import { Toast } from "../ui/toast.js";
-
-// Stato del wizard di chiusura
+import { handleError } from "../shared/error-handler.js";
 let closureState = {
   step: 1,
   data: {}
@@ -166,10 +165,6 @@ export async function startClosureWizard(stationId, userId) {
     // Log per debug: verifica se ci sono crediti duplicati
     if (movimentiRaw && movimentiRaw.length !== movimenti.length) {
       console.warn(`Rimossi ${movimentiRaw.length - movimenti.length} movimenti duplicati`);
-      const crediti = movimenti.filter(m => m.tipo === 'credito');
-      if (crediti.length > 0) {
-        console.log('Crediti trovati:', crediti.map(c => ({ id: c.id, importo: c.importo, created_at: c.created_at })));
-      }
     }
 
     // Processa impostazione stazione

@@ -30,7 +30,7 @@ import { showPrezziAdminModal, showPricesTab } from "./admin/prices.js";
 import { showTanksAdminModal, showTanksTab } from "./admin/tanks.js";
 // Imports for other modules should be here or dynamic imports if circular dependency issues arise.
 // Since we are fixing a file where imports were moved, we assume these functions are available or need to be imported.
-import { showVoucherAdminTab } from "./admin/vouchers_reboot.js";
+// NOTA: showVoucherAdminTab ora usa lazy loading (vedi case 'vouchers')
 import { showFattureTab } from "./admin/invoices.js";
 import { showCreditiOverview as showCreditsTab } from "./admin/credits.js";
 import { showOperatorsTab } from "./admin/operators.js";
@@ -121,20 +121,38 @@ export function showAdminArea() {
       'settings': 'Impostazioni'
     };
 
-    let html = `<span class="breadcrumb-item"><i class="fas fa-home"></i> Home</span>`;
+    // Home link - sempre cliccabile, vai a dashboard
+    let html = `<a href="#" class="breadcrumb-item breadcrumb-link" data-tab="dashboard" style="cursor: pointer; text-decoration: none;"><i class="fas fa-home"></i> Home</a>`;
 
-    // Mostra la tab corrente nei breadcrumb solo se valida
-    if (labels[tab]) {
+    // Mostra la tab corrente nei breadcrumb
+    if (labels[tab] && tab !== 'dashboard') {
       html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
-      html += `<span class="breadcrumb-item active">${labels[tab]}</span>`;
+      // Tab intermedia cliccabile se c'è subPath, altrimenti attiva
+      if (subPath) {
+        html += `<a href="#" class="breadcrumb-item breadcrumb-link" data-tab="${tab}" style="cursor: pointer; text-decoration: none;">${labels[tab]}</a>`;
+      } else {
+        html += `<span class="breadcrumb-item active">${labels[tab]}</span>`;
+      }
     }
 
     if (subPath) {
       html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
-      html += `<span class="breadcrumb-item">${subPath}</span>`;
+      html += `<span class="breadcrumb-item active">${subPath}</span>`;
     }
 
     container.innerHTML = html;
+
+    // Aggiungi event listeners per i link cliccabili
+    container.querySelectorAll('.breadcrumb-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetTab = link.dataset.tab;
+        if (targetTab) {
+          currentAdminTab = targetTab;
+          loadAdminTab(targetTab);
+        }
+      });
+    });
   }
 
 
@@ -304,12 +322,23 @@ export function showAdminArea() {
         });
         break;
       case 'vouchers':
-        if (typeof showVoucherAdminTab !== 'undefined') showVoucherAdminTab(content, headerActions);
-        else if (typeof showVoucherView !== 'undefined') showVoucherView(); // Check legacy names
-        else content.innerHTML = '<p>Modulo Voucher in caricamento...</p>';
+        showLoadingMessage(content);
+        try {
+          const { showVoucherAdminTab } = await import('./admin/vouchers_reboot.js');
+          showVoucherAdminTab(content, headerActions);
+        } catch (err) {
+          handleError(err, 'Caricamento modulo Voucher', content);
+        }
         break;
       case 'notifiche':
-        showNotificheAdmin(content);
+        // Placeholder - modulo Notifiche non ancora implementato
+        content.innerHTML = `
+          <div class="content-box" style="text-align: center; padding: 60px 20px;">
+            <i class="fas fa-bell" style="font-size: 4rem; color: var(--secondary-color); margin-bottom: 20px;"></i>
+            <h2 style="margin-bottom: 10px;">Notifiche</h2>
+            <p style="color: var(--text-secondary);">Questa funzionalità sarà disponibile prossimamente.</p>
+          </div>
+        `;
         break;
       case 'settings':
         showSettingsTab(content, headerActions);

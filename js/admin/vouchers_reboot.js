@@ -1,6 +1,6 @@
 import { supabase } from "../core/api.js";
 import { showLoadingMessage, showInfoModal, showErrorMessage, openModal, closeModal, openConfirmModal } from "../ui/ui.js";
-import { escapeHtml, formatEuro, formatDate } from "../utils/utils.js";
+import { escapeHtml, formatEuro, formatDate, debounce } from "../utils/utils.js";
 import { Toast } from "../ui/toast.js";
 
 // --- STATE ---
@@ -752,18 +752,6 @@ function handlePageSizeChange(e) {
     voucherState.pageSize = parseInt(e.target.value);
     voucherState.currentPage = 1; // Reset to first page
     renderActiveTab();
-}
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
 }
 
 // --- PRINT TAB ---

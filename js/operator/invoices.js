@@ -7,6 +7,7 @@ import { openModal, closeModal, showInfoModal } from "../ui/ui.js";
 import { createWarningMessage, createErrorMessage, createFormActions } from "./ui-components.js";
 import { checkOpeningStatus } from "./opening.js";
 import { Toast } from "../ui/toast.js";
+import { handleError } from "../shared/error-handler.js";
 
 /**
  * Mostra il menu per la richiesta fatture

@@ -303,14 +303,6 @@ export async function openExportModal(closureId) {
   try {
     const ctx = await fetchClosureExportData(closureId);
     const template = buildClosureTemplate(ctx, ctx.layout, ctx.summaryDefaults);
-
-    console.log('=== DEBUG EXPORT ===');
-    console.log('ctx.layout:', ctx.layout);
-    console.log('ctx.metricsMap:', ctx.metricsMap);
-    console.log('template:', template);
-    console.log('template.sections:', template.sections);
-    console.log('===================');
-
     await generateClosureExcel(template);
   } catch (err) {
     Toast.show('Errore export: ' + (err?.message || err), 'error');

@@ -7,6 +7,7 @@ import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeMo
 import { createContentBox } from "./ui-components.js";
 import { loggedUser } from "../core/auth.js";
 import { escapeHtml } from "../utils/utils.js";
+import { handleError } from "../shared/error-handler.js";
 
 /**
  * Mostra il form per modificare i prezzi del carburante

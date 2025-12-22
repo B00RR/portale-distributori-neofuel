@@ -8,6 +8,7 @@ import { escapeHtml, formatEuro } from "../utils/utils.js";
 import { createBackButton, createFormActions, createWarningMessage } from "./ui-components.js";
 import { checkOpeningStatus } from "./opening.js";
 import { Toast } from "../ui/toast.js";
+import { handleError } from "../shared/error-handler.js";
 
 /**
  * Mostra il menu principale per la gestione crediti

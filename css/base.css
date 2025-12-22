@@ -1,0 +1,103 @@
+/* ==========================================
+   BASE.CSS - Reset, Variabili, Typography
+   ========================================== */
+
+:root {
+  /* Palette Neofuel */
+  --primary-color: #0A2342;
+  /* Blu Navy Neofuel */
+  --primary-hover: #0d2d57;
+  --accent-color: #8DC63F;
+  /* Verde Lime Neofuel */
+  --secondary-color: #64748b;
+  --secondary-hover: #475569;
+
+  /* Backgrounds */
+  --bg-body: #F4F6F8;
+  /* Grigio ghiaccio */
+  --bg-surface: #ffffff;
+  --bg-sidebar: #0A2342;
+  --bg-sidebar-hover: #123561;
+
+  /* Text */
+  --text-main: #333333;
+  --text-secondary: #666666;
+  --text-light: #f8fafc;
+
+  /* Borders & Shadows */
+  --border-color: #e2e8f0;
+  --border-focus: #2563eb;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 4px 10px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 12px 30px rgba(15, 23, 42, 0.18);
+
+  /* Stati */
+  --success-color: #10b981;
+  --warning-color: #FFA500;
+  --danger-color: #FF4136;
+  --info-color: #3b82f6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+  color: var(--text-main);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: var(--primary-hover);
+}
+
+/* Utility Classes */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.d-flex { display: flex; }
+.d-block { display: block; }
+.d-none { display: none; }
+
+.gap-1 { gap: 8px; }
+.gap-2 { gap: 12px; }
+.gap-3 { gap: 16px; }
+.gap-4 { gap: 20px; }
+
+.mt-1 { margin-top: 8px; }
+.mt-2 { margin-top: 12px; }
+.mt-3 { margin-top: 16px; }
+.mt-4 { margin-top: 20px; }
+
+.mb-1 { margin-bottom: 8px; }
+.mb-2 { margin-bottom: 12px; }
+.mb-3 { margin-bottom: 16px; }
+.mb-4 { margin-bottom: 20px; }
