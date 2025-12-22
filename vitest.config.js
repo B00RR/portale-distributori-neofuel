@@ -27,7 +27,10 @@ export default defineConfig({
         testTimeout: 10000,
 
         // Reporter
-        reporter: ['verbose']
+        reporter: ['verbose'],
+
+        // Setup files
+        setupFiles: ['./tests/setup.js']
     },
 
     // Resolve aliases (stesso di vite.config.js)

@@ -1,0 +1,20 @@
+{
+  "name": "portale-distributori-neofuel",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
+  },
+  "devDependencies": {
+    "@lit/reactive-element": "^2.0.4",
+    "lit": "^3.2.1",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.8"
+  }
+}
