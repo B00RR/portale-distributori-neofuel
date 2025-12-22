@@ -5,11 +5,14 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
     root: '.',
     base: './',
-    publicDir: 'assets',
+    publicDir: 'public',
 
     plugins: [
         VitePWA({
             registerType: 'autoUpdate',
+            devOptions: {
+                enabled: true
+            },
             includeAssets: ['favicon.svg', 'robots.txt', 'icons/*.png'],
 
             manifest: {
@@ -34,50 +37,8 @@ export default defineConfig({
             },
 
             workbox: {
-                // Cache strategies
-                runtimeCaching: [
-                    {
-                        urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'google-fonts-cache',
-                            expiration: {
-                                maxEntries: 10,
-                                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-                            },
-                            cacheableResponse: {
-                                statuses: [0, 200]
-                            }
-                        }
-                    },
-                    {
-                        urlPattern: /^https:\/\/cdnjs\.cloudflare\.com\/.*/i,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'cdn-cache',
-                            expiration: {
-                                maxEntries: 50,
-                                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-                            }
-                        }
-                    },
-                    {
-                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'images-cache',
-                            expiration: {
-                                maxEntries: 100,
-                                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-                            }
-                        }
-                    }
-                ],
-
-                // Files to precache
+                runtimeCaching: [],
                 globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-
-                // Skip waiting and claim clients
                 skipWaiting: true,
                 clientsClaim: true
             }
@@ -96,29 +57,10 @@ export default defineConfig({
         assetsDir: 'assets',
         sourcemap: false,
 
-        rollupOptions: {
-            output: {
-                manualChunks: {
-                    'vendor-lit': ['lit'],
-                    'vendor-supabase': ['@supabase/supabase-js']
-                },
-                chunkFileNames: 'assets/js/[name]-[hash].js',
-                entryFileNames: 'assets/js/[name]-[hash].js',
-                assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
-            }
-        },
+        // rollupOptions: { ... } (Removed for debugging)
 
-        minify: 'terser',
-        terserOptions: {
-            compress: {
-                drop_console: true,
-                drop_debugger: true,
-                pure_funcs: ['console.info', 'console.debug']
-            },
-            format: {
-                comments: false
-            }
-        },
+        minify: false, // Disabled terser for debugging
+        // terserOptions: { ... }
 
         chunkSizeWarningLimit: 500,
         cssCodeSplit: true

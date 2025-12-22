@@ -2,7 +2,7 @@
 // APP ENTRY POINT
 // ==========================================
 import { supabase } from "./core/api.js";
-import { initSentry, setSentryUser, clearSentryUser } from './core/sentry.js';
+// import { initSentry, setSentryUser, clearSentryUser } from './core/sentry.js';
 import { initAnalytics, trackLogin } from './core/analytics.js';
 import {
     initLoginElements, loadSession, setLoggedUser, setOnLoginSuccess,
@@ -21,7 +21,7 @@ customWindow.requestPasswordReset = requestPasswordReset;
 
 async function initializeApp() {
     // Initialize monitoring and analytics
-    initSentry();
+    // initSentry();
     initAnalytics();
 
     initializeCalculationPresets();
@@ -31,11 +31,11 @@ async function initializeApp() {
         store.setUser(user);
 
         // Set user context for error tracking
-        setSentryUser({
-            id: user.user_id,
-            email: user.email,
-            role: user.role
-        });
+        // setSentryUser({
+        //     id: user.user_id,
+        //     email: user.email,
+        //     role: user.role
+        // });
 
         // Track login event
         trackLogin(user.role);
