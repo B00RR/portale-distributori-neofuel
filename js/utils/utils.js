@@ -2,19 +2,39 @@
 // UTILITY FUNCTIONS
 // ==========================================
 
+const escapeMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;' // Or &#x27; or &apos; depending on context, &#039; is generally safe
+};
+
 // Funzione per sanitizzare stringhe per uso in HTML (prevenzione XSS)
+/**
+ * Escapes HTML special characters to prevent XSS attacks
+ * @param {string|number|null|undefined} text - Text to escape
+ * @returns {string} Escaped HTML-safe string
+ * @example
+ * escapeHtml('<script>alert("XSS")</script>')
+ * // => '&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;'
+ */
 export function escapeHtml(text) {
     if (text == null) return '';
-    const div = document.createElement('div');
-    div.textContent = String(text);
-    return div.innerHTML;
+    return String(text).replace(/[&<>"']/g, (match) => escapeMap[match]);
 }
 
 // Funzione per sanitizzare numeri per uso in HTML
+/**
+ * Escapes a number for safe HTML attr rendering
+ * @param {number|string|null|undefined} num - Number value to  escape
+ * @returns {string} Safe string representation of the number
+ */
 export function escapeNumber(num) {
-    if (num == null || isNaN(num)) return '0';
-    return String(Number(num));
+    if (num == null || num === '') return '';
+    return String(parseFloat(String(num)));
 }
+
 
 // Formatta i litri con convenzione italiana (es. 17.153,00)
 export function formatNumberIt(value, fractionDigits = 0) {
@@ -100,6 +120,15 @@ export function formatEuro(value) {
     return `€ ${formatNumberIt(safe, 2)}`;
 }
 
+/**
+ * Debounce: delays function execution until after wait ms have elapsed since last call
+ * @param {Function} func - Function to debounce
+ * @param {number} wait - Delay in milliseconds
+ * @returns {Function} Debounced function
+ * @example
+ * const debouncedSearch = debounce((query) => search(query), 300);
+ * input.addEventListener('input', (e) => debouncedSearch(e.target.value));
+ */
 export function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -111,6 +140,7 @@ export function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
 
 export function formatDate(value) {
     if (!value) return '';

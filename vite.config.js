@@ -2,70 +2,52 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
-    // Configurazione base
-    root: '.',
-    base: './',
-    publicDir: 'assets',
-
-    // Server di sviluppo
-    server: {
-        port: 3000,
-        open: true,
-        cors: true
-    },
-
-    // Build di produzione
     build: {
+        target: 'es2022',
         outDir: 'dist',
-        emptyOutDir: true,
-        sourcemap: true,
-        minify: 'terser',
+        assetsDir: 'assets',
+        sourcemap: false,
+
         rollupOptions: {
-            input: {
-                main: resolve(__dirname, 'index.html')
-            },
             output: {
-                // Chunking per lazy loading
                 manualChunks: {
-                    'vendor-charts': ['chart.js'],
-                    'vendor-pdf': ['jspdf'],
-                    'admin': [
-                        './js/admin.js',
-                        './js/admin/dashboard.js',
-                        './js/admin/stations.js',
-                        './js/admin/operators.js',
-                        './js/admin/shifts.js',
-                        './js/admin/credits.js',
-                        './js/admin/invoices.js',
-                        './js/admin/vouchers_reboot.js'
-                    ],
-                    'operator': [
-                        './js/operator.js',
-                        './js/operator/closure.js',
-                        './js/operator/opening.js',
-                        './js/operator/credits.js',
-                        './js/operator/vouchers.js'
-                    ]
-                }
+                    'vendor-lit': ['lit'],
+                    'vendor-supabase': ['@supabase/supabase-js']
+                },
+                chunkFileNames: 'assets/js/[name]-[hash].js',
+                entryFileNames: 'assets/js/[name]-[hash].js',
+                assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
             }
-        }
+        },
+
+        minify: 'terser',
+        terserOptions: {
+            compress: {
+                drop_console: true,
+                drop_debugger: true,
+                pure_funcs: ['console.info', 'console.debug']
+            },
+            format: {
+                comments: false
+            }
+        },
+
+        chunkSizeWarningLimit: 500,
+        cssCodeSplit: true
     },
 
-    // Ottimizzazioni
-    optimizeDeps: {
-        include: ['chart.js']
-    },
-
-    // Resolve aliases
     resolve: {
         alias: {
             '@': resolve(__dirname, 'js'),
             '@core': resolve(__dirname, 'js/core'),
             '@utils': resolve(__dirname, 'js/utils'),
             '@ui': resolve(__dirname, 'js/ui'),
-            '@admin': resolve(__dirname, 'js/admin'),
-            '@operator': resolve(__dirname, 'js/operator'),
             '@shared': resolve(__dirname, 'js/shared')
         }
+    },
+
+    server: {
+        port: 5173,
+        open: true
     }
 });
