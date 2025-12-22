@@ -1,0 +1,32 @@
+[
+    {
+        "resourceSizes": [
+            {
+                "resourceType": "script",
+                "budget": 200
+            },
+            {
+                "resourceType": "total",
+                "budget": 500
+            }
+        ],
+        "timings": [
+            {
+                "metric": "first-contentful-paint",
+                "budget": 1800
+            },
+            {
+                "metric": "largest-contentful-paint",
+                "budget": 2500
+            },
+            {
+                "metric": "interactive",
+                "budget": 3800
+            },
+            {
+                "metric": "total-blocking-time",
+                "budget": 300
+            }
+        ]
+    }
+]
