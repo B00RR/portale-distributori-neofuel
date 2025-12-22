@@ -246,7 +246,8 @@ export async function showTanksAdminModal(stationId) {
     `;
 
     // Listeners per cisterne
-    target.querySelectorAll('.delete-tank').forEach(btn => {
+    target.querySelectorAll('.delete-tank').forEach(btnElement => {
+      const btn = /** @type {HTMLElement} */(btnElement);
       btn.addEventListener('click', async () => {
         const confirmed = await openConfirmModal('Eliminare questa cisterna?');
         if (!confirmed) return;
@@ -258,17 +259,18 @@ export async function showTanksAdminModal(stationId) {
     const addTankForm = document.getElementById('add-tank-form');
     addTankForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const fd = new FormData(e.target);
+      const form = /** @type {HTMLFormElement} */(e.target);
+      const fd = new FormData(form);
       const payload = {
         station_id: stationId,
-        name: fd.get('name'),
-        fuel_type: fd.get('fuel_type'),
-        capacity: parseFloat(fd.get('capacity'))
+        name: fd.get('name')?.toString() || '',
+        fuel_type: fd.get('fuel_type')?.toString() || '',
+        capacity: parseFloat(fd.get('capacity')?.toString() || '0')
       };
 
       try {
         await safeSupabaseQuery(() => supabase.from('tanks').insert([payload]));
-        e.target.reset();
+        form.reset();
         renderTanks();
       } catch (err) {
         handleError(err, 'addTank');
@@ -283,19 +285,19 @@ export async function showTanksAdminModal(stationId) {
 
     const refreshModeFields = () => {
       if (!modeSelect || !ratioGroup || !priorityGroup) return;
-      const mode = modeSelect.value;
+      const mode = (/** @type {HTMLSelectElement} */(modeSelect)).value;
       const isFormDisabled = linkForm?.classList.contains('form-disabled');
-      const ratioInput = ratioGroup.querySelector('input');
-      const priorityInput = priorityGroup.querySelector('input');
+      const ratioInput = /** @type {HTMLInputElement | null} */(ratioGroup.querySelector('input'));
+      const priorityInput = /** @type {HTMLInputElement | null} */(priorityGroup.querySelector('input'));
       if (mode === 'manual') {
-        ratioGroup.style.display = 'none';
+        (/** @type {HTMLElement} */(ratioGroup)).style.display = 'none';
         if (ratioInput) ratioInput.disabled = true;
-        priorityGroup.style.display = 'block';
+        (/** @type {HTMLElement} */(priorityGroup)).style.display = 'block';
         if (priorityInput) priorityInput.disabled = isFormDisabled ? true : false;
       } else {
-        ratioGroup.style.display = 'block';
+        (/** @type {HTMLElement} */(ratioGroup)).style.display = 'block';
         if (ratioInput) ratioInput.disabled = isFormDisabled ? true : false;
-        priorityGroup.style.display = 'none';
+        (/** @type {HTMLElement} */(priorityGroup)).style.display = 'none';
         if (priorityInput) priorityInput.disabled = true;
       }
     };
@@ -305,22 +307,23 @@ export async function showTanksAdminModal(stationId) {
 
     linkForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const fd = new FormData(e.target);
-      const mode = fd.get('mode');
+      const form = /** @type {HTMLFormElement} */(e.target);
+      const fd = new FormData(form);
+      const mode = fd.get('mode')?.toString() || 'auto';
       const payload = {
         station_id: stationId,
-        pump_id: parseInt(fd.get('pump_id'), 10),
-        tank_id: parseInt(fd.get('tank_id'), 10),
+        pump_id: parseInt(fd.get('pump_id')?.toString() || '0', 10),
+        tank_id: parseInt(fd.get('tank_id')?.toString() || '0', 10),
         mode,
-        ratio: mode === 'auto' ? (parseFloat(fd.get('ratio')) || 0) : null,
-        priority: mode === 'manual' ? (parseInt(fd.get('priority'), 10) || 1) : null,
+        ratio: mode === 'auto' ? (parseFloat(fd.get('ratio')?.toString() || '0') || 0) : null,
+        priority: mode === 'manual' ? (parseInt(fd.get('priority')?.toString() || '0', 10) || 1) : null,
         is_active: fd.get('is_active') !== null,
-        notes: fd.get('notes')?.trim() || null
+        notes: fd.get('notes')?.toString().trim() || null
       };
 
       try {
         await safeSupabaseQuery(() => supabase.from('tank_pump_links').insert([payload]));
-        e.target.reset();
+        form.reset();
         refreshModeFields();
         renderTanks();
       } catch (err) {
@@ -329,7 +332,8 @@ export async function showTanksAdminModal(stationId) {
     });
 
     // Toggle stato associazione
-    target.querySelectorAll('.tank-link-toggle').forEach(btn => {
+    target.querySelectorAll('.tank-link-toggle').forEach(btnElement => {
+      const btn = /** @type {HTMLElement} */(btnElement);
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
         const current = btn.dataset.active === 'true';
@@ -339,7 +343,8 @@ export async function showTanksAdminModal(stationId) {
     });
 
     // Elimina associazione
-    target.querySelectorAll('.tank-link-delete').forEach(btn => {
+    target.querySelectorAll('.tank-link-delete').forEach(btnElement => {
+      const btn = /** @type {HTMLElement} */(btnElement);
       btn.addEventListener('click', async () => {
         const confirmed = await openConfirmModal('Rimuovere questa associazione pistola/cisterna?');
         if (!confirmed) return;

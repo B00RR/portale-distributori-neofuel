@@ -207,7 +207,7 @@ async function showNewCreditForm(stationId, userId) {
 
     nameInput.addEventListener('input', (e) => {
         clearTimeout(debounceTimer);
-        const query = e.target.value;
+        const query = (/** @type {HTMLInputElement} */(e.target)).value;
         if (query.length < 2) {
             suggestionsDiv.style.display = 'none';
             return;
@@ -218,11 +218,11 @@ async function showNewCreditForm(stationId, userId) {
     // Form Submit
     document.getElementById('new-credit-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const customerName = formData.get('customer_name').trim();
-        const amount = parseFloat(formData.get('amount'));
-        const product = formData.get('product'); // New field
-        const notes = formData.get('notes');
+        const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
+        const customerName = formData.get('customer_name')?.toString().trim() || '';
+        const amount = parseFloat(formData.get('amount')?.toString() || '0');
+        const product = formData.get('product')?.toString() || ''; // New field
+        const notes = formData.get('notes')?.toString() || '';
 
         if (!customerName || amount <= 0) return;
 
@@ -382,7 +382,7 @@ async function showPaymentSelection(stationId, userId) {
             }
 
             listContainer.innerHTML = debtors.map(d => `
-                <div class="result-item" onclick="window.openPaymentModal('${d.id}')" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer;">
+                <div class="result-item" onclick="((/** @type {any} */(window)).openPaymentModal)('${d.id}')" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer;">
                     <div>
                         <div style="font-weight: bold; font-size: 1.1rem;">${escapeHtml(d.cliente)}</div>
                         <div style="font-size: 0.85rem; color: #64748b;">Ultimo agg: ${new Date(d.updated_at || d.created_at).toLocaleDateString()}</div>
@@ -395,7 +395,7 @@ async function showPaymentSelection(stationId, userId) {
             `).join('');
 
             // Hack per click
-            window.openPaymentModal = (id) => {
+            (/** @type {import('../types.js').CustomWindow} */(/** @type {any} */(window))).openPaymentModal = (id) => {
                 const debtor = debtors.find(x => x.id == id);
                 if (debtor) showPaymentModal(debtor, stationId, userId);
             };
@@ -408,7 +408,7 @@ async function showPaymentSelection(stationId, userId) {
     loadDebtors();
 
     searchInput.addEventListener('input', (e) => {
-        loadDebtors(e.target.value);
+        loadDebtors((/** @type {HTMLInputElement} */(e.target)).value);
     });
 }
 
@@ -465,18 +465,18 @@ function showPaymentModal(customer, stationId, userId) {
     const posInfo = document.getElementById('pos-info');
 
     methodSelect.addEventListener('change', () => {
-        if (methodSelect.value === 'contanti') {
-            cashInfo.style.display = 'block';
-            posInfo.style.display = 'none';
+        if ((/** @type {HTMLSelectElement} */(methodSelect)).value === 'contanti') {
+            (/** @type {HTMLElement} */(cashInfo)).style.display = 'block';
+            (/** @type {HTMLElement} */(posInfo)).style.display = 'none';
         } else {
-            cashInfo.style.display = 'none';
-            posInfo.style.display = 'block';
+            (/** @type {HTMLElement} */(cashInfo)).style.display = 'none';
+            (/** @type {HTMLElement} */(posInfo)).style.display = 'block';
         }
     });
 
     // Full Amount Button
     document.getElementById('btn-full-amount').addEventListener('click', () => {
-        document.getElementById('pay-amount').value = customer.saldo;
+        (/** @type {HTMLInputElement} */(document.getElementById('pay-amount'))).value = customer.saldo.toString();
     });
 
     document.getElementById('btn-cancel-pay').addEventListener('click', () => {
@@ -486,9 +486,9 @@ function showPaymentModal(customer, stationId, userId) {
     // Submit
     document.getElementById('payment-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const amount = parseFloat(formData.get('amount'));
-        const method = formData.get('method');
+        const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
+        const amount = parseFloat(formData.get('amount')?.toString() || '0');
+        const method = formData.get('method')?.toString() || '';
 
         if (amount <= 0) return;
         if (amount > customer.saldo + 0.01) { // Tolleranza centesimi

@@ -6,14 +6,16 @@ import {
     initLoginElements, loadSession, setLoggedUser, setOnLoginSuccess,
     handlePasswordReset, requestPasswordReset
 } from "./core/auth.js";
-import { showAdminArea } from "./admin.js?v=3";
+import { showAdminArea } from "./admin.js";
 import { showOperatorMenu } from "./operator.js";
 import { store } from "./shared/state.js";
 import "./utils/calculation-engine.js";
 import { initializeCalculationPresets } from "./utils/calculation-presets.js";
 
+/** @type {import('./types.js').CustomWindow} */
+const customWindow = /** @type {any} */(window);
 // Espone funzioni globali per compatibilità (es. onclick in HTML se presenti, o console debug)
-window.requestPasswordReset = requestPasswordReset;
+customWindow.requestPasswordReset = requestPasswordReset;
 
 async function initializeApp() {
     initializeCalculationPresets();

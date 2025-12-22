@@ -66,25 +66,25 @@ export async function showStationsTab(container, actionsContainer) {
     container.innerHTML = html;
 
     // Aggiorna le icone personalizzate se presenti
-    if (window.refreshUiIcons) {
-      window.refreshUiIcons();
+    if ((/** @type {import('../types.js').CustomWindow} */(/** @type {any} */(window))).refreshUiIcons) {
+      (/** @type {import('../types.js').CustomWindow} */(/** @type {any} */(window))).refreshUiIcons();
     }
 
     // Listeners
     container.querySelectorAll('.edit-station').forEach(btn => {
-      btn.addEventListener('click', () => openStationModal(btn.dataset.id));
+      btn.addEventListener('click', () => openStationModal((/** @type {HTMLElement} */(btn)).dataset.id));
     });
     container.querySelectorAll('.prices-station').forEach(btn => {
-      btn.addEventListener('click', () => showPrezziAdminModal(btn.dataset.id));
+      btn.addEventListener('click', () => showPrezziAdminModal((/** @type {HTMLElement} */(btn)).dataset.id));
     });
     container.querySelectorAll('.islands-station').forEach(btn => {
-      btn.addEventListener('click', () => showIslandsModal(btn.dataset.id));
+      btn.addEventListener('click', () => showIslandsModal(parseInt((/** @type {HTMLElement} */(btn)).dataset.id || '0')));
     });
     container.querySelectorAll('.tanks-station').forEach(btn => {
-      btn.addEventListener('click', () => showTanksAdminModal(btn.dataset.id));
+      btn.addEventListener('click', () => showTanksAdminModal((/** @type {HTMLElement} */(btn)).dataset.id));
     });
     container.querySelectorAll('.delete-station').forEach(btn => {
-      btn.addEventListener('click', () => deleteStation(btn.dataset.id));
+      btn.addEventListener('click', () => deleteStation((/** @type {HTMLElement} */(btn)).dataset.id));
     });
 
   } catch (err) {
@@ -131,13 +131,14 @@ export async function openStationModal(stationId = null) {
 
   document.getElementById('station-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
+    const form = /** @type {HTMLFormElement} */(e.target);
+    const formData = new FormData(form);
     const payload = {
-      station_name: formData.get('station_name'),
-      location: formData.get('location'),
+      station_name: formData.get('station_name')?.toString() || '',
+      location: formData.get('location')?.toString() || '',
       allow_partial_closure: formData.get('allow_partial_closure') === 'on'
     };
-    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const submitBtn = form.querySelector('button[type="submit"]');
 
     try {
       setButtonLoading(submitBtn, true, 'Salvataggio...');

@@ -140,10 +140,10 @@ export async function showChiusureTab(container, actionsContainer, defaultStatio
       dataContainer.innerHTML = html;
 
       dataContainer.querySelectorAll('.view-closure').forEach(btn => {
-        btn.addEventListener('click', () => showClosureDetails(btn.dataset.id));
+        btn.addEventListener('click', () => showClosureDetails(/** @type {HTMLElement} */(btn).dataset.id));
       });
       dataContainer.querySelectorAll('.export-closure').forEach(btn => {
-        btn.addEventListener('click', () => openExportModal(btn.dataset.id));
+        btn.addEventListener('click', () => openExportModal(/** @type {HTMLElement} */(btn).dataset.id));
       });
 
     } catch (err) {

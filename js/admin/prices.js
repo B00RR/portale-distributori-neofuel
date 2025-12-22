@@ -44,24 +44,19 @@ export async function showPrezziAdminModal(stationId) {
 
   document.getElementById('admin-prezzi-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    const validita = fd.get('validita');
+    const fd = new FormData(/** @type {HTMLFormElement} */(e.target));
+    const validita = fd.get('validita')?.toString() || 'ora';
 
     // Calcola data validità
     let dataValidita = new Date();
     if (validita === 'prossima') {
-      // Logica per prossima chiusura: prendi l'ultima chiusura e aggiungi 1 secondo, oppure usa now se non c'è
-      // Semplificazione: usiamo now + 1 ora per demo, o logica più complessa
-      // Nel codice originale non era specificato esattamente come calcolare "prossima chiusura" lato server
-      // Qui usiamo un placeholder o logica custom.
-      // Per ora salviamo con data futura fittizia o lasciamo gestire al backend se ci fosse
-      // Ma dato che è client-side, usiamo now per semplicità se non implementiamo logica turni complessa qui
+      // ... logica per prossima chiusura
     }
 
     const payload = {
       station_id: stationId,
-      prezzo_benzina: parseFloat(fd.get('benzina')) || 0,
-      prezzo_gasolio: parseFloat(fd.get('gasolio')) || 0,
+      prezzo_benzina: parseFloat(fd.get('benzina')?.toString() || '0') || 0,
+      prezzo_gasolio: parseFloat(fd.get('gasolio')?.toString() || '0') || 0,
       prezzo_gpl: null,
       prezzo_metano: null,
       data_validita: dataValidita.toISOString()

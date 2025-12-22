@@ -381,14 +381,14 @@ export function showOTPResetForm() {
 
     if (otpInput) {
         otpInput.addEventListener('input', (e) => {
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+            /** @type {HTMLInputElement} */(e.target).value = /** @type {HTMLInputElement} */(e.target).value.replace(/[^0-9]/g, '');
         });
     }
 
     otpForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         errorElement.textContent = '';
-        const otpCode = otpInput.value.trim();
+        const otpCode = (/** @type {HTMLInputElement} */(otpInput)).value.trim();
 
         if (otpCode.length !== 6) {
             errorElement.textContent = 'Il codice deve essere di 6 cifre.';
@@ -400,7 +400,7 @@ export function showOTPResetForm() {
             const savedEmail = localStorage.getItem('password_reset_email');
 
             if (!savedEmail) {
-                const email = await showPromptModal('Inserisci la tua email per verificare il codice:', 'Email Richiesta', 'email@esempio.com', 'email');
+                const email = await showPromptModal('Inserisci la tua email per verificare il codice:', 'email@esempio.com', 'Email Richiesta');
                 if (!email) {
                     errorElement.textContent = 'Email richiesta per verificare il codice.';
                     return;
@@ -479,8 +479,8 @@ export function showResetPasswordForm() {
     resetForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         errorElement.textContent = '';
-        const newPassword = newPasswordInput.value;
-        const confirmPassword = confirmPasswordInput.value;
+        const newPassword = (/** @type {HTMLInputElement} */(newPasswordInput)).value;
+        const confirmPassword = (/** @type {HTMLInputElement} */(confirmPasswordInput)).value;
 
         if (newPassword.length < 6) {
             errorElement.textContent = 'La password deve essere di almeno 6 caratteri.';

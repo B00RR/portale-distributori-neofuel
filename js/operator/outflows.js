@@ -80,10 +80,10 @@ function renderOutflowForm(container, stationId, userId, turnoId) {
 
     document.getElementById('outflow-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const amount = parseFloat(formData.get('amount'));
-        const type = formData.get('type');
-        const description = formData.get('description');
+        const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
+        const amount = parseFloat(formData.get('amount')?.toString() || '0');
+        const type = formData.get('type')?.toString() || '';
+        const description = formData.get('description')?.toString() || '';
 
         if (!amount || amount <= 0) {
             Toast.show("Inserire un importo valido.", 'warning');
@@ -95,17 +95,6 @@ function renderOutflowForm(container, stationId, userId, turnoId) {
                 .from('movimenti_cassa')
                 .insert([{
                     station_id: stationId,
-                    operator_id: userId, // Corretto da user_id a operator_id se necessario, ma controlliamo schema.
-                    // Nota: nel file originale era user_id, ma in altri file è operator_id. 
-                    // Verificando operator-credits.js usa operator_id.
-                    // Verificando operator-extra-income.js usa operator_id.
-                    // Assumo operator_id sia corretto per coerenza.
-                    // Se la tabella ha user_id, darà errore. Ma operator-extra-income usa operator_id.
-                    // Controllo operator-outflows originale: usava user_id. 
-                    // Controllo operator-extra-income originale: usava operator_id.
-                    // Controllo operator-credits originale: usava operator_id.
-                    // Probabilmente user_id era un errore o un alias. Uso operator_id per sicurezza.
-                    // Se fallisce, controlleremo. Ma operator_id è più probabile.
                     operator_id: userId,
                     tipo: 'uscita',
                     importo: amount,

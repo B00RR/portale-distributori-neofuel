@@ -92,17 +92,17 @@ export async function showIslandsModal(stationId) {
       }
 
       target.querySelectorAll('.edit-island').forEach(btn => {
-        btn.addEventListener('click', () => openIslandForm(stationId, btn.dataset.id));
+        btn.addEventListener('click', () => openIslandForm(stationId, parseInt((/** @type {HTMLElement} */(btn)).dataset.id || '0')));
       });
 
       target.querySelectorAll('.manage-guns').forEach(btn => {
         btn.addEventListener('click', () => {
-          showGunsModal(btn.dataset.id, btn.dataset.name, stationId);
+          showGunsModal(parseInt((/** @type {HTMLElement} */(btn)).dataset.id || '0'), (/** @type {HTMLElement} */(btn)).dataset.name || '', stationId);
         });
       });
 
       target.querySelectorAll('.delete-island').forEach(btn => {
-        btn.addEventListener('click', () => deleteIsland(btn.dataset.id, stationId));
+        btn.addEventListener('click', () => deleteIsland(parseInt((/** @type {HTMLElement} */(btn)).dataset.id || '0'), stationId));
       });
 
     } catch (err) {
@@ -154,10 +154,11 @@ async function openIslandForm(stationId, islandId = null) {
 
   document.getElementById('island-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
+    const fd = new FormData(/** @type {HTMLFormElement} */(e.target));
+    const nome = fd.get('nome')?.toString() || '';
     const payload = {
-      nome: fd.get('nome'),
-      island_name: fd.get('nome'),
+      nome: nome,
+      island_name: nome,
       station_id: stationId
     };
 

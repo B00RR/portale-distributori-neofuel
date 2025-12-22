@@ -129,5 +129,49 @@
  * @property {string} [modificato_da]
  */
 
+
+// ==========================================
+// GLOBAL INTERFACES & LIBRARIES
+// ==========================================
+
+/**
+ * @typedef {Object} Html5QrcodeConfig
+ * @property {number} [fps]
+ * @property {number|{width:number, height:number}} [qrbox]
+ * @property {number} [aspectRatio]
+ */
+
+/**
+ * @callback QrSuccessCallback
+ * @param {string} decodedText
+ * @param {Object} decodedResult
+ */
+
+/**
+ * @callback QrErrorCallback
+ * @param {string} errorMessage
+ */
+
+/**
+ * @typedef {Object} SortableEvent
+ * @property {HTMLElement} item
+ * @property {number} oldIndex
+ * @property {number} newIndex
+ */
+
+/**
+ * @typedef {Object} WindowExtensions
+ * @property {any} supabase - Client Supabase globale
+ * @property {any} Sortable - Libreria SortableJS
+ * @property {Object} voucherActions - Azioni globali per i voucher
+ * @property {function} requestPasswordReset - Funzione reset password
+ * @property {function} openPaymentModal - Funzione apertura modal pagamenti
+ * @property {function} showNotificheAdmin - Funzione notifiche admin
+ * @property {any} Html5Qrcode - Libreria scanner QR
+ * @property {() => void} [refreshUiIcons] - Funzione ricarica icone
+ */
+
+/** @typedef {Window & WindowExtensions} CustomWindow */
+
 // Export per uso come modulo
 export const Types = {};

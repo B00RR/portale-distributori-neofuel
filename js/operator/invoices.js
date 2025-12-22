@@ -133,12 +133,12 @@ function renderNewCustomerForm(container, stationId, userId) {
 
     document.getElementById('new-customer-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const nome = formData.get('nome')?.trim() || '';
-        const partitaIva = formData.get('partita_iva')?.trim() || '';
-        const codiceUnivoco = formData.get('codice_univoco_pec')?.trim() || '';
-        const telefono = formData.get('telefono')?.trim() || '';
-        const targa = formData.get('targa')?.trim() || '';
+        const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
+        const nome = formData.get('nome')?.toString().trim() || '';
+        const partitaIva = formData.get('partita_iva')?.toString().trim() || '';
+        const codiceUnivoco = formData.get('codice_univoco_pec')?.toString().trim() || '';
+        const telefono = formData.get('telefono')?.toString().trim() || '';
+        const targa = formData.get('targa')?.toString().trim() || '';
 
         // Validazione: se tutti i campi sono vuoti, almeno il telefono è obbligatorio
         if (!nome && !partitaIva && !codiceUnivoco && !telefono && !targa) {
@@ -232,13 +232,13 @@ function renderExistingCustomerForm(container, stationId, userId) {
     // Autocompletamento
     let searchTimeout;
     searchInput.addEventListener('input', async (e) => {
-        const query = e.target.value.trim();
+        const query = (/** @type {HTMLInputElement} */(e.target)).value.trim();
 
         clearTimeout(searchTimeout);
 
         if (query.length < 2) {
             suggestionsDiv.style.display = 'none';
-            customerIdInput.value = '';
+            (/** @type {HTMLInputElement} */(customerIdInput)).value = '';
             return;
         }
 
@@ -266,12 +266,13 @@ function renderExistingCustomerForm(container, stationId, userId) {
                     suggestionsDiv.style.display = 'block';
 
                     // Event listeners per i suggerimenti
-                    suggestionsDiv.querySelectorAll('.suggestion-item').forEach(item => {
+                    suggestionsDiv.querySelectorAll('.suggestion-item').forEach(itemElement => {
+                        const item = /** @type {HTMLElement} */(itemElement);
                         item.addEventListener('click', () => {
                             const customerId = item.dataset.id;
-                            const customerName = item.dataset.name;
-                            searchInput.value = customerName;
-                            customerIdInput.value = customerId;
+                            const customerName = item.dataset.name || '';
+                            (/** @type {HTMLInputElement} */(searchInput)).value = customerName;
+                            (/** @type {HTMLInputElement} */(customerIdInput)).value = customerId || '';
                             suggestionsDiv.style.display = 'none';
                         });
                     });
@@ -287,7 +288,7 @@ function renderExistingCustomerForm(container, stationId, userId) {
 
     // Chiudi suggerimenti quando si clicca fuori
     document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+        if (!searchInput.contains(/** @type {Node} */(e.target)) && !suggestionsDiv.contains(/** @type {Node} */(e.target))) {
             suggestionsDiv.style.display = 'none';
         }
     });
@@ -298,8 +299,8 @@ function renderExistingCustomerForm(container, stationId, userId) {
 
     document.getElementById('existing-customer-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const customerId = customerIdInput.value;
-        const customerName = searchInput.value.trim();
+        const customerId = (/** @type {HTMLInputElement} */(customerIdInput)).value;
+        const customerName = (/** @type {HTMLInputElement} */(searchInput)).value.trim();
 
         if (!customerId || !customerName) {
             Toast.show("Seleziona un cliente dalla lista.", 'warning');
@@ -385,13 +386,13 @@ function renderInvoiceForm(container, stationId, userId, clienteId, customerName
     const productNoteInput = document.getElementById('product-note');
 
     productCategorySelect.addEventListener('change', (e) => {
-        if (e.target.value === 'altro') {
-            productNoteGroup.style.display = 'block';
-            productNoteInput.required = true;
+        if ((/** @type {HTMLSelectElement} */(e.target)).value === 'altro') {
+            (/** @type {HTMLElement} */(productNoteGroup)).style.display = 'block';
+            (/** @type {HTMLInputElement} */(productNoteInput)).required = true;
         } else {
-            productNoteGroup.style.display = 'none';
-            productNoteInput.required = false;
-            productNoteInput.value = '';
+            (/** @type {HTMLElement} */(productNoteGroup)).style.display = 'none';
+            (/** @type {HTMLInputElement} */(productNoteInput)).required = false;
+            (/** @type {HTMLInputElement} */(productNoteInput)).value = '';
         }
     });
 
@@ -401,12 +402,12 @@ function renderInvoiceForm(container, stationId, userId, clienteId, customerName
 
     document.getElementById('invoice-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const amount = parseFloat(formData.get('amount'));
-        const paymentMethod = formData.get('payment_method');
-        const productCategory = formData.get('product_category');
-        const productNote = formData.get('product_note')?.trim() || '';
-        const notes = formData.get('notes')?.trim() || '';
+        const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
+        const amount = parseFloat(formData.get('amount')?.toString() || '0');
+        const paymentMethod = formData.get('payment_method')?.toString() || '';
+        const productCategory = formData.get('product_category')?.toString() || '';
+        const productNote = formData.get('product_note')?.toString().trim() || '';
+        const notes = formData.get('notes')?.toString().trim() || '';
 
         // Validazione categoria prodotto
         if (productCategory === 'altro' && !productNote) {

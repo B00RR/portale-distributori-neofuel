@@ -187,10 +187,10 @@ function renderGenerator(container) {
 async function handleGeneration(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const amount = parseFloat(formData.get('amount'));
-    const customer = formData.get('customer_name'); // Changed from customer_id to customer_name
-    const expiration = formData.get('expiration_date');
-    const quantity = parseInt(formData.get('quantity'));
+    const amount = parseFloat(formData.get('amount')?.toString() || '0');
+    const customer = formData.get('customer_name')?.toString() || ''; // Changed from customer_id to customer_name
+    const expiration = formData.get('expiration_date')?.toString() || '';
+    const quantity = parseInt(formData.get('quantity')?.toString() || '0');
 
     if (!amount || quantity < 1) return;
 
@@ -658,8 +658,10 @@ async function renderDashboard(container) {
         });
 
         // Global Actions Exposed (for backwards compatibility)
-        if (!window.voucherActions) {
-            window.voucherActions = {
+        /** @type {import('../types.js').CustomWindow} */
+        const customWindow = /** @type {any} */(window);
+        if (!customWindow.voucherActions) {
+            customWindow.voucherActions = {
                 openPrintView,
                 showBatchDetails,
                 handleDeleteBatch
@@ -724,10 +726,10 @@ function generatePageNumbers(currentPage, totalPages) {
 }
 
 function handleFilterChange() {
-    voucherState.filters.status = document.getElementById('filter-status')?.value || '';
-    voucherState.filters.dateFrom = document.getElementById('filter-date-from')?.value || '';
-    voucherState.filters.dateTo = document.getElementById('filter-date-to')?.value || '';
-    voucherState.filters.clientSearch = document.getElementById('filter-client')?.value || '';
+    voucherState.filters.status = (/** @type {HTMLSelectElement} */(document.getElementById('filter-status')))?.value || '';
+    voucherState.filters.dateFrom = (/** @type {HTMLInputElement} */(document.getElementById('filter-date-from')))?.value || '';
+    voucherState.filters.dateTo = (/** @type {HTMLInputElement} */(document.getElementById('filter-date-to')))?.value || '';
+    voucherState.filters.clientSearch = (/** @type {HTMLInputElement} */(document.getElementById('filter-client')))?.value || '';
     voucherState.currentPage = 1; // Reset to first page when filters change
     renderActiveTab();
 }

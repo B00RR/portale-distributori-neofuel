@@ -438,10 +438,10 @@ function showClosureStep1() {
   function updateUI() {
     let type = 'final';
     if (!partialAlreadyDone && allowPartial) {
-      const selected = document.querySelector('input[name="closure_type"]:checked');
+      const selected = /** @type {HTMLInputElement} */(document.querySelector('input[name="closure_type"]:checked'));
       type = selected ? selected.value : 'partial';
     }
-    const include = countersCheck ? countersCheck.checked : true;
+    const include = countersCheck ? (/** @type {HTMLInputElement} */(countersCheck)).checked : true;
     const shouldShowCounters = type === 'final' || include;
 
     // Update selection styles
@@ -457,8 +457,9 @@ function showClosureStep1() {
     const shouldDisplayGrid = shouldShowCounters || keepSectionVisible;
     pistoleSection.style.display = shouldDisplayGrid ? 'block' : 'none';
     gunInputs.forEach(i => {
-      i.required = shouldShowCounters;
-      i.disabled = !shouldShowCounters;
+      const input = /** @type {HTMLInputElement} */(i);
+      input.required = shouldShowCounters;
+      input.disabled = !shouldShowCounters;
     });
   }
 
@@ -469,7 +470,8 @@ function showClosureStep1() {
     closeModal();
   });
 
-  tankSelects.forEach(select => {
+  tankSelects.forEach(selectElement => {
+    const select = /** @type {HTMLSelectElement} */(selectElement);
     const pumpId = Number(select.dataset.pump);
     const savedValue = tankSelections[pumpId]?.tankId;
     if (!savedValue && select.options.length === 2) {
@@ -493,11 +495,11 @@ function showClosureStep1() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
+    const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
 
     // Se la chiusura parziale è disabilitata o già completata, forza 'final'
-    const type = partialCompleted || !allowPartial ? 'final' : formData.get('closure_type');
-    const include = type === 'final' ? true : (countersCheck ? countersCheck.checked : false);
+    const type = partialCompleted || !allowPartial ? 'final' : formData.get('closure_type')?.toString() || 'final';
+    const include = type === 'final' ? true : (countersCheck ? (/** @type {HTMLInputElement} */(countersCheck)).checked : false);
 
     closureState.data.closureType = type;
     closureState.data.includeCounters = include;
@@ -505,7 +507,7 @@ function showClosureStep1() {
 
     if (include) {
       pistole.forEach(p => {
-        const counterValue = formData.get(`counter_${p.id}`);
+        const counterValue = formData.get(`counter_${p.id}`)?.toString() || '';
         // Se il campo è vuoto, il numeratore non è variato (chiusura = apertura)
         if (counterValue === '' || counterValue === null) {
           closureState.data.finalCounters[p.id] = openingCounters[p.id] || 0;
@@ -517,11 +519,12 @@ function showClosureStep1() {
 
     // Valida selezioni manuali
     const selections = {};
+    /** @type {import('../types.js').Pistola | null} */
     let missingSelection = null;
     pistole.forEach(p => {
       const manualLinks = (tankLinksByPump[p.id] || []).filter(l => l.mode === 'manual');
       if (manualLinks.length > 0) {
-        const selectedTank = formData.get(`tank_select_${p.id}`);
+        const selectedTank = formData.get(`tank_select_${p.id}`)?.toString();
         if (!selectedTank) {
           missingSelection = p;
         } else {
@@ -535,7 +538,7 @@ function showClosureStep1() {
 
     if (missingSelection) {
       Toast.show(`Seleziona il serbatoio per ${missingSelection.nome || `Pistola #${missingSelection.id}`}`, 'warning');
-      const selectEl = form.querySelector(`[name="tank_select_${missingSelection.id}"]`);
+      const selectEl = /** @type {HTMLElement} */(form.querySelector(`[name="tank_select_${missingSelection.id}"]`));
       selectEl?.focus();
       return;
     }
@@ -834,18 +837,18 @@ async function showClosureStep2() {
   `;
 
   // Live calculation for Self Total AND Expected Total (if no counters)
-  const form = document.getElementById('closure-step2-form');
+  const form = /** @type {HTMLFormElement} */(document.getElementById('closure-step2-form'));
   const selfInputs = form.querySelectorAll('.self-input');
   const totalDisplay = document.getElementById('self-total-display');
   const deltaDisplay = document.getElementById('self-delta-display');
   const expectedDisplay = document.getElementById('total-expected-display');
 
   function updateTotals() {
-    const cashIn = parseFloat(form.self_cash_in.value) || 0;
-    const cashOut = parseFloat(form.self_cash_out.value) || 0;
-    const pos = parseFloat(form.self_pos.value) || 0;
-    const fleet = parseFloat(form.self_fleet.value) || 0;
-    const manager = parseFloat(form.self_manager.value) || 0;
+    const cashIn = parseFloat(/** @type {HTMLInputElement} */(form.elements.namedItem('self_cash_in')).value) || 0;
+    const cashOut = parseFloat(/** @type {HTMLInputElement} */(form.elements.namedItem('self_cash_out')).value) || 0;
+    const pos = parseFloat(/** @type {HTMLInputElement} */(form.elements.namedItem('self_pos')).value) || 0;
+    const fleet = parseFloat(/** @type {HTMLInputElement} */(form.elements.namedItem('self_fleet')).value) || 0;
+    const manager = parseFloat(/** @type {HTMLInputElement} */(form.elements.namedItem('self_manager')).value) || 0;
     const prevManager = closureState.data.allowPartialClosure ? (closureState.data.partialAggregates?.selfManager || 0) : 0;
 
     // NOTA: bancomat e UTA/DKV self NON si sommano - solo ID gestore si somma (se chiusura parziale abilitata)
@@ -872,27 +875,27 @@ async function showClosureStep2() {
 
   document.getElementById('btn-back-step2').addEventListener('click', () => {
     closureState.step = 1;
-    showClosureStep1(container);
+    showClosureStep1();
   });
 
   document.getElementById('closure-step2-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
+    const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
 
     // Save Self Data
-    closureState.data.selfCashIn = parseFloat(formData.get('self_cash_in')) || 0;
-    closureState.data.selfCashOut = parseFloat(formData.get('self_cash_out')) || 0;
-    closureState.data.selfPos = parseFloat(formData.get('self_pos')) || 0;
-    closureState.data.selfFleet = parseFloat(formData.get('self_fleet')) || 0;
-    closureState.data.selfManager = parseFloat(formData.get('self_manager')) || 0;
-    closureState.data.selfReceiptTotal = parseFloat(formData.get('self_receipt_total')) || 0;
+    closureState.data.selfCashIn = parseFloat(formData.get('self_cash_in')?.toString() || '0') || 0;
+    closureState.data.selfCashOut = parseFloat(formData.get('self_cash_out')?.toString() || '0') || 0;
+    closureState.data.selfPos = parseFloat(formData.get('self_pos')?.toString() || '0') || 0;
+    closureState.data.selfFleet = parseFloat(formData.get('self_fleet')?.toString() || '0') || 0;
+    closureState.data.selfManager = parseFloat(formData.get('self_manager')?.toString() || '0') || 0;
+    closureState.data.selfReceiptTotal = parseFloat(formData.get('self_receipt_total')?.toString() || '0') || 0;
 
     // Save Operator Data
-    closureState.data.cashReal = parseFloat(formData.get('cash_real')) || 0;
-    closureState.data.posReal = parseFloat(formData.get('pos_real')) || 0;
-    closureState.data.utaDkvReal = parseFloat(formData.get('uta_dkv_real')) || 0;
+    closureState.data.cashReal = parseFloat(formData.get('cash_real')?.toString() || '0') || 0;
+    closureState.data.posReal = parseFloat(formData.get('pos_real')?.toString() || '0') || 0;
+    closureState.data.utaDkvReal = parseFloat(formData.get('uta_dkv_real')?.toString() || '0') || 0;
 
-    closureState.data.notes = formData.get('notes') || '';
+    closureState.data.notes = formData.get('notes')?.toString() || '';
 
     closureState.step = 3;
     await showClosureStep3();

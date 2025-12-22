@@ -96,7 +96,7 @@ export function showAdminArea() {
     const filterSelect = document.getElementById('global-station-filter');
     if (filterSelect) {
       filterSelect.addEventListener('change', (e) => {
-        const val = e.target.value;
+        const val = /** @type {HTMLSelectElement} */(e.target).value;
         const newFilter = val ? parseInt(val) : null;
         store.setStationFilter(newFilter);
         // Ricarica la tab corrente con il nuovo filtro
@@ -146,7 +146,7 @@ export function showAdminArea() {
     container.querySelectorAll('.breadcrumb-link').forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
-        const targetTab = link.dataset.tab;
+        const targetTab = /** @type {HTMLElement} */(link).dataset.tab;
         if (targetTab) {
           currentAdminTab = targetTab;
           loadAdminTab(targetTab);
@@ -232,7 +232,7 @@ export function showAdminArea() {
     btn.addEventListener('click', () => {
       navBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const tab = btn.dataset.tab;
+      const tab = /** @type {HTMLElement} */(btn).dataset.tab;
       loadAdminTab(tab);
     });
   });
@@ -256,7 +256,7 @@ export function showAdminArea() {
 
     // Aggiorna navigazione
     document.querySelectorAll('.nav-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.tab === tab);
+      b.classList.toggle('active', /** @type {HTMLElement} */(b).dataset.tab === tab);
     });
 
     // Imposta titolo
@@ -361,7 +361,7 @@ export function showAdminArea() {
 
   // Event listener for dashboard configuration button (delegated)
   document.getElementById('admin-content')?.addEventListener('click', (e) => {
-    if (e.target.closest('#btn-configure-dashboard')) {
+    if (/** @type {HTMLElement} */(e.target).closest('#btn-configure-dashboard')) {
       showDashboardConfigPanel();
     }
   });

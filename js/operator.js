@@ -144,7 +144,7 @@ export async function showOperatorMenu(userId, stationId) {
   btnMovimenti.addEventListener('click', () => {
     const isOpen = movimentiContent.classList.contains('open');
     movimentiContent.classList.toggle('open');
-    btnMovimenti.querySelector('.accordion-icon').style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+    (/** @type {HTMLElement} */(btnMovimenti.querySelector('.accordion-icon'))).style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
   });
 
   // Gestione tasto turno dinamico (Apertura/Chiusura)
@@ -155,12 +155,12 @@ export async function showOperatorMenu(userId, stationId) {
   // Check dello stato apertura e update del pulsante
   checkOpeningStatus(stationId).then(opening => {
     // Rimuovi tutti gli event listener precedenti clonando e sostituendo il pulsante
-    const newBtnTurno = btnTurno.cloneNode(true);
+    const newBtnTurno = /** @type {HTMLElement} */(btnTurno.cloneNode(true));
     btnTurno.parentNode.replaceChild(newBtnTurno, btnTurno);
 
     // Aggiorna i riferimenti agli elementi interni dopo la clonazione
-    const newTurnoIcon = newBtnTurno.querySelector('#turno-icon');
-    const newTurnoText = newBtnTurno.querySelector('#turno-text');
+    const newTurnoIcon = /** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-icon'));
+    const newTurnoText = /** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-text'));
 
     if (opening) {
       newTurnoIcon.className = 'fas fa-door-closed';

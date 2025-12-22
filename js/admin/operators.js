@@ -77,13 +77,13 @@ export async function showOperatorsTab(container, actionsContainer) {
     container.innerHTML = html;
 
     container.querySelectorAll('.edit-operator').forEach(btn => {
-      btn.addEventListener('click', () => openOperatorModal(btn.dataset.id));
+      btn.addEventListener('click', () => openOperatorModal((/** @type {HTMLElement} */(btn)).dataset.id));
     });
     container.querySelectorAll('.assign-station').forEach(btn => {
-      btn.addEventListener('click', () => openAssignStationModal(btn.dataset.id));
+      btn.addEventListener('click', () => openAssignStationModal((/** @type {HTMLElement} */(btn)).dataset.id));
     });
     container.querySelectorAll('.delete-operator').forEach(btn => {
-      btn.addEventListener('click', () => deleteUser(btn.dataset.id, container, actionsContainer));
+      btn.addEventListener('click', () => deleteUser((/** @type {HTMLElement} */(btn)).dataset.id, container, actionsContainer));
     });
   } catch (err) {
     handleError(err, 'showOperatorsTab', container);
@@ -156,12 +156,13 @@ export async function openOperatorModal(userId = null) {
 
   document.getElementById('operator-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target); // Use FormData to get values
-    const email = fd.get('email');
-    const password = fd.get('password');
-    const fullName = fd.get('full_name');
-    const role = fd.get('role');
-    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const form = /** @type {HTMLFormElement} */(e.target);
+    const fd = new FormData(form); // Use FormData to get values
+    const email = fd.get('email')?.toString();
+    const password = fd.get('password')?.toString();
+    const fullName = fd.get('full_name')?.toString();
+    const role = fd.get('role')?.toString();
+    const submitBtn = form.querySelector('button[type="submit"]');
 
     const schema = {
       full_name: [Validators.required],
@@ -245,8 +246,9 @@ export async function openAssignStationModal(userId) {
 
   document.getElementById('assign-station-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const stationId = e.target.station_id.value;
-    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const form = /** @type {HTMLFormElement} */(e.target);
+    const stationId = (/** @type {HTMLSelectElement} */(form.elements.namedItem('station_id'))).value;
+    const submitBtn = form.querySelector('button[type="submit"]');
 
     try {
       setButtonLoading(submitBtn, true, 'Salvataggio...');

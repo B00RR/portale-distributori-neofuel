@@ -186,22 +186,25 @@ async function renderGuns(target, islandId, islandName, stationId) {
 
     document.querySelectorAll('.edit-gun').forEach(btn => {
       btn.addEventListener('click', () => {
-        openGunForm(islandId, islandName, stationId, btn.dataset.id);
+        const id = /** @type {HTMLElement} */(btn).dataset.id;
+        openGunForm(islandId, islandName, stationId, id ? Number(id) : null);
       });
     });
 
     document.querySelectorAll('.delete-gun').forEach(btn => {
       btn.addEventListener('click', () => {
-        deleteGun(btn.dataset.id, islandId, islandName, stationId);
+        const id = /** @type {HTMLElement} */(btn).dataset.id;
+        if (id) deleteGun(Number(id), islandId, islandName, stationId);
       });
     });
 
     document.querySelectorAll('.edit-counter').forEach(btn => {
       btn.addEventListener('click', () => {
+        const b = /** @type {HTMLElement} */(btn);
         showCounterEditModal(
-          btn.dataset.id,
-          btn.dataset.name,
-          btn.dataset.counter,
+          Number(b.dataset.id),
+          b.dataset.name || '',
+          parseFloat(b.dataset.counter || '0'),
           islandId,
           islandName,
           stationId
@@ -280,14 +283,14 @@ async function openGunForm(islandId, islandName, stationId, gunId = null) {
 
   document.getElementById('gun-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
+    const fd = new FormData(/** @type {HTMLFormElement} */(e.target));
 
-    const numeroLitriStr = fd.get('numero_litri');
+    const numeroLitriStr = fd.get('numero_litri')?.toString() || '0';
     const numeroLitri = Math.round(parseGunCounter(numeroLitriStr) * 100) / 100; // Arrotonda a 2 decimali
 
     const payload = {
-      nome: fd.get('nome'),
-      tipo_carburante: fd.get('tipo_carburante'),
+      nome: fd.get('nome')?.toString() || '',
+      tipo_carburante: fd.get('tipo_carburante')?.toString() || 'benzina',
       numero_litri: numeroLitri,
       island_id: islandId
     };
@@ -325,7 +328,7 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
   openModal(`Modifica Numeratore - ${escapeHtml(gunName)}`);
   const target = document.getElementById('modal-body');
 
-  const counterFormatted = formatGunCounter(parseFloat(currentCounter));
+  const counterFormatted = formatGunCounter(Number(currentCounter));
 
   target.innerHTML = `
     <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0284c7;">
@@ -367,9 +370,9 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
 
   document.getElementById('counter-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
+    const fd = new FormData(/** @type {HTMLFormElement} */(e.target));
 
-    const numeroLitriStr = fd.get('numero_litri');
+    const numeroLitriStr = fd.get('numero_litri')?.toString() || '0';
     const numeroLitri = Math.round(parseGunCounter(numeroLitriStr) * 100) / 100; // Arrotonda a 2 decimali
 
     if (numeroLitri < 0) {

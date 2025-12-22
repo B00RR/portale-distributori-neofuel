@@ -87,14 +87,14 @@ export async function showVoucherMenu(stationId, userId) {
   document.getElementById('stop-scan-btn').addEventListener('click', stopScanner);
   document.getElementById('manual-entry-btn').addEventListener('click', toggleManualEntry);
   document.getElementById('btn-verify-manual').addEventListener('click', () => {
-    const code = document.getElementById('manual-voucher-code').value.trim();
+    const code = (/** @type {HTMLInputElement} */(document.getElementById('manual-voucher-code'))).value.trim();
     if (code) processVoucherCode(code.toUpperCase());
   });
 
   // Also handle "Enter" key
   document.getElementById('manual-voucher-code').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-      const code = e.target.value.trim();
+      const code = (/** @type {HTMLInputElement} */(e.target)).value.trim();
       if (code) processVoucherCode(code.toUpperCase());
     }
   });
@@ -108,8 +108,10 @@ export async function showVoucherMenu(stationId, userId) {
     });
   }
 
+  /** @type {import('../types.js').CustomWindow} */
+  const customWindow = /** @type {any} */(window);
   // Dynamically load library if not present
-  if (!window.Html5Qrcode) {
+  if (!customWindow.Html5Qrcode) {
     const script = document.createElement('script');
     script.src = "https://unpkg.com/html5-qrcode";
     document.head.appendChild(script);
@@ -124,13 +126,15 @@ function startScanner() {
   actions.style.display = 'none';
   container.style.display = 'block';
 
-  if (!window.Html5Qrcode) {
+  /** @type {import('../types.js').CustomWindow} */
+  const customWindow = /** @type {any} */(window);
+  if (!customWindow.Html5Qrcode) {
     Toast.show("Libreria Scanner in caricamento... riprova tra un secondo.", 'warning');
     return;
   }
 
   // Initialize Scanner
-  const html5QrCode = new Html5Qrcode("reader");
+  const html5QrCode = new customWindow.Html5Qrcode("reader");
   voucherState.scanner = html5QrCode;
   voucherState.isScanning = true;
 

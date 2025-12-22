@@ -84,14 +84,14 @@ function renderExtraIncomeForm(container, stationId, userId, turnoId) {
     const requiredIndicator = document.getElementById('required-indicator');
 
     function updateDescriptionRequired() {
-        const selectedType = productTypeSelect.value;
+        const selectedType = (/** @type {HTMLSelectElement} */(productTypeSelect)).value;
         const requiresDescription = selectedType === 'accessori' || selectedType === 'altro_incasso';
 
-        descriptionField.required = requiresDescription;
-        requiredIndicator.style.display = requiresDescription ? 'inline' : 'none';
+        (/** @type {HTMLTextAreaElement} */(descriptionField)).required = requiresDescription;
+        (/** @type {HTMLElement} */(requiredIndicator)).style.display = requiresDescription ? 'inline' : 'none';
 
         if (!requiresDescription) {
-            descriptionField.value = ''; // Clear if not required
+            (/** @type {HTMLTextAreaElement} */(descriptionField)).value = ''; // Clear if not required
         }
     }
 
@@ -100,10 +100,10 @@ function renderExtraIncomeForm(container, stationId, userId, turnoId) {
 
     document.getElementById('extra-income-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const amount = parseFloat(formData.get('amount'));
-        const type = formData.get('type');
-        const description = formData.get('description');
+        const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
+        const amount = parseFloat(formData.get('amount')?.toString() || '0');
+        const type = formData.get('type')?.toString() || '';
+        const description = formData.get('description')?.toString() || '';
 
         if (!amount || amount <= 0) {
             Toast.show("Inserire un importo valido.", 'warning');
