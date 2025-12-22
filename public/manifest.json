@@ -1,0 +1,68 @@
+{
+    "name": "neofuel-portal",
+    "short_name": "Neofuel",
+    "description": "Portale Distributori Neofuel - Gestione stazioni di servizio",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0A2342",
+    "theme_color": "#0A2342",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "business",
+        "productivity"
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshots/desktop.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide"
+        },
+        {
+            "src": "/screenshots/mobile.png",
+            "sizes": "750x1334",
+            "type": "image/png",
+            "form_factor": "narrow"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Apertura Turno",
+            "short_name": "Apertura",
+            "description": "Avvia un nuovo turno di lavoro",
+            "url": "/operator?action=apertura",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-apertura.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "Dashboard Admin",
+            "short_name": "Dashboard",
+            "description": "Visualizza dashboard amministrativa",
+            "url": "/admin",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-admin.png",
+                    "sizes": "96x96"
+                }
+            ]
+        }
+    ]
+}

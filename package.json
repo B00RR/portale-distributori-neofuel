@@ -24,5 +24,12 @@
     "terser": "^5.44.1",
     "vite": "^6.0.5",
     "vitest": "^4.0.16"
+  },
+  "dependencies": {
+    "@percy/cli": "^1.31.5",
+    "@percy/playwright": "^1.0.10",
+    "@sentry/browser": "^10.32.1",
+    "vite-plugin-pwa": "^1.2.0",
+    "workbox-window": "^7.4.0"
   }
 }

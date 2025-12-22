@@ -2,6 +2,8 @@
 // APP ENTRY POINT
 // ==========================================
 import { supabase } from "./core/api.js";
+import { initSentry, setSentryUser, clearSentryUser } from './core/sentry.js';
+import { initAnalytics, trackLogin } from './core/analytics.js';
 import {
     initLoginElements, loadSession, setLoggedUser, setOnLoginSuccess,
     handlePasswordReset, requestPasswordReset
@@ -18,11 +20,25 @@ const customWindow = /** @type {any} */(window);
 customWindow.requestPasswordReset = requestPasswordReset;
 
 async function initializeApp() {
+    // Initialize monitoring and analytics
+    initSentry();
+    initAnalytics();
+
     initializeCalculationPresets();
 
     // Configura callback login
     setOnLoginSuccess(async (user) => {
         store.setUser(user);
+
+        // Set user context for error tracking
+        setSentryUser({
+            id: user.user_id,
+            email: user.email,
+            role: user.role
+        });
+
+        // Track login event
+        trackLogin(user.role);
 
         const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(user.role);
         if (isAdminRole) {

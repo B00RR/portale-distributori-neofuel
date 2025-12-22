@@ -1,0 +1,32 @@
+# Percy Configuration for Visual Regression Testing
+
+version: 2
+
+static:
+  # Build output directory
+  build-dir: dist
+  
+  # Base URL
+  base-url: /
+
+# Snapshot options
+snapshot:
+  widths:
+    - 375   # Mobile
+    - 768   # Tablet
+    - 1280  # Desktop
+  
+  min-height: 1024
+  
+  # Percy specific options
+  percy-css: |
+    /* Hide dynamic content */
+    .loading-spinner { display: none !important; }
+    [data-percy-hide] { display: none !important; }
+
+# Discovery options
+discovery:
+  allowed-hostnames:
+    - localhost
+  
+  network-idle-timeout: 750
