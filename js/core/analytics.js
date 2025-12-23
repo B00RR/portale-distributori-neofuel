@@ -3,8 +3,10 @@
  * Privacy-friendly analytics with Plausible
  */
 
-const PLAUSIBLE_DOMAIN = import.meta.env.VITE_ANALYTICS_DOMAIN || 'neofuel-portal.local';
-const PLAUSIBLE_ENABLED = import.meta.env.VITE_ANALYTICS_ENABLED === 'true';
+// Accesso sicuro alle variabili d'ambiente Vite
+const env = import.meta.env || {};
+const PLAUSIBLE_DOMAIN = env.VITE_ANALYTICS_DOMAIN || 'neofuel-portal.local';
+const PLAUSIBLE_ENABLED = env.VITE_ANALYTICS_ENABLED === 'true';
 
 /**
  * Initialize analytics tracking

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generatore Icone PWA - Neofuel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0A2342 0%, #1a3a5c 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: white;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            opacity: 0.8;
+            margin-bottom: 40px;
+        }
+
+        .icons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .icon-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .icon-card h3 {
+            margin-bottom: 16px;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto 16px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn {
+            display: inline-block;
+            background: #8DC63F;
+            color: #0A2342;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(141, 198, 63, 0.4);
+        }
+
+        .info {
+            background: rgba(141, 198, 63, 0.2);
+            border: 1px solid rgba(141, 198, 63, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .info h4 {
+            margin-bottom: 10px;
+            color: #8DC63F;
+        }
+
+        .info ol {
+            padding-left: 20px;
+        }
+
+        .info li {
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎨 Generatore Icone PWA</h1>
+        <p class="subtitle">Genera le icone per il manifest PWA di Neofuel</p>
+
+        <div class="icons-grid">
+            <div class="icon-card">
+                <h3>Icona 192×192</h3>
+                <canvas id="canvas192" width="192" height="192"></canvas>
+                <button class="btn" onclick="downloadIcon(192)">⬇️ Scarica PNG</button>
+            </div>
+
+            <div class="icon-card">
+                <h3>Icona 512×512</h3>
+                <canvas id="canvas512" width="512" height="512"></canvas>
+                <button class="btn" onclick="downloadIcon(512)">⬇️ Scarica PNG</button>
+            </div>
+        </div>
+
+        <div class="info">
+            <h4>📋 Istruzioni</h4>
+            <ol>
+                <li>Clicca su <strong>"Scarica PNG"</strong> per ogni dimensione</li>
+                <li>Salva i file nella cartella <code>public/icons/</code></li>
+                <li>Rinomina i file come:
+                    <ul style="margin-top: 8px;">
+                        <li><code>icon-192x192.png</code></li>
+                        <li><code>icon-512x512.png</code></li>
+                    </ul>
+                </li>
+                <li>Ricarica l'applicazione per vedere le icone aggiornate</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Colori Neofuel
+        const COLORS = {
+            background: '#0A2342',
+            primary: '#00305D',
+            accent: '#8DC63F'
+        };
+
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const scale = size / 192;
+
+            // Background con bordi arrotondati
+            ctx.fillStyle = COLORS.background;
+            ctx.beginPath();
+            const radius = 24 * scale;
+            ctx.roundRect(0, 0, size, size, radius);
+            ctx.fill();
+
+            // Parametri per il logo (goccia stilizzata)
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const dropScale = size / 100;
+
+            // Disegna le 3 gocce concentriche
+            drawDrop(ctx, centerX, centerY - 8 * dropScale, dropScale * 0.95, COLORS.primary, 0.3);
+            drawDrop(ctx, centerX, centerY - 4 * dropScale, dropScale * 0.65, COLORS.primary, 0.6);
+            drawDrop(ctx, centerX, centerY + 4 * dropScale, dropScale * 0.4, COLORS.primary, 1);
+
+            // Aggiunge un sottile bordo colorato
+            ctx.strokeStyle = COLORS.accent;
+            ctx.lineWidth = 3 * scale;
+            ctx.beginPath();
+            ctx.roundRect(1.5 * scale, 1.5 * scale, size - 3 * scale, size - 3 * scale, radius - 1);
+            ctx.stroke();
+        }
+
+        function drawDrop(ctx, x, y, scale, color, alpha) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = color;
+
+            // Forma della goccia
+            ctx.beginPath();
+            ctx.moveTo(0, -35);
+            ctx.bezierCurveTo(-25, -5, -25, 20, 0, 35);
+            ctx.bezierCurveTo(25, 20, 25, -5, 0, -35);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function downloadIcon(size) {
+            const canvas = document.getElementById('canvas' + size);
+            const link = document.createElement('a');
+            link.download = `icon-${size}x${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Inizializza le icone
+        document.addEventListener('DOMContentLoaded', () => {
+            drawIcon(document.getElementById('canvas192'), 192);
+            drawIcon(document.getElementById('canvas512'), 512);
+        });
+    </script>
+</body>
+
+</html>

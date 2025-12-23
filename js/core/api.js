@@ -6,8 +6,12 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
 import { Cache, CACHE_KEYS } from "../utils/cache.js";
 
-// Client standard (anon key) - tutte le autorizzazioni passano dalle RLS del database
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Client standard (anon key) - Singleton pattern per evitare multiple istanze durante HMR
+// @ts-ignore
+const globalSupabase = globalThis.__supabaseClient;
+export const supabase = globalSupabase || createClient(SUPABASE_URL, SUPABASE_KEY);
+// @ts-ignore
+if (!globalThis.__supabaseClient) globalThis.__supabaseClient = supabase;
 
 // Helper: Gestione errori standardizzata per query Supabase
 export async function safeSupabaseQuery(queryFn, errorMessage = 'Errore nella query') {

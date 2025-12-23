@@ -2168,12 +2168,7 @@ button:active {
   vertical-align: middle;
 }
 
-overflow-wrap: break-word;
-/* Ensure long words break */
-word-wrap: break-word;
-max-width: 300px;
-/* Prevent any single cell from expanding indefinitely */
-}
+
 
 .admin-table tr:last-child td {
   border-bottom: none;

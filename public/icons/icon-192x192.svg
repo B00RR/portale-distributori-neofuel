@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <!-- Background -->
+  <rect width="192" height="192" rx="24" fill="#0A2342"/>
+  
+  <!-- Border accent -->
+  <rect x="3" y="3" width="186" height="186" rx="21" fill="none" stroke="#8DC63F" stroke-width="3"/>
+  
+  <!-- Outer drop (largest, faintest) -->
+  <path d="M96 35 C65 75 55 105 96 145 C137 105 127 75 96 35Z" fill="#00305D" fill-opacity="0.3"/>
+  
+  <!-- Middle drop -->
+  <path d="M96 50 C75 80 68 100 96 130 C124 100 117 80 96 50Z" fill="#00305D" fill-opacity="0.6"/>
+  
+  <!-- Inner drop (smallest, solid) -->
+  <path d="M96 70 C82 90 78 105 96 120 C114 105 110 90 96 70Z" fill="#00305D"/>
+</svg>
