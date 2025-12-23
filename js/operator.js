@@ -56,7 +56,7 @@ export async function showOperatorMenu(userId, stationId) {
     <div class="operator-container">
       <header class="operator-header">
         <div class="header-left">
-          <img src="assets/images/logo svg.svg" alt="Neofuel" style="height: 40px; vertical-align: middle;">
+          <img src="/assets/images/logo-svg.svg" alt="Neofuel" style="height: 40px; vertical-align: middle;">
           <span class="station-badge" id="station-badge">Caricamento...</span>
         </div>
         <div class="header-right">

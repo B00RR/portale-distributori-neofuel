@@ -206,7 +206,7 @@ export function showAdminArea() {
       <main class="admin-main">
         <header class="admin-header">
           <div class="admin-header-center">
-            <img src="assets/images/logo svg.svg" alt="Neofuel" class="admin-header-logo" />
+            <img src="/assets/images/logo-svg.svg" alt="Neofuel" class="admin-header-logo" />
             <div class="header-titles">
               <p class="welcome-subtitle" id="page-subtitle">Dashboard</p>
               <nav id="breadcrumbs" class="breadcrumbs"></nav>

@@ -195,6 +195,52 @@
         </div>
     </div>
 
+    <!-- Pannello di controllo per download icone -->
+    <div id="controls"
+        style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 16px; z-index: 100;">
+        <button onclick="downloadIcon(192)"
+            style="padding: 12px 24px; background: #8DC63F; color: #00305D; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px;">
+            ⬇️ Scarica 192×192
+        </button>
+        <button onclick="downloadIcon(512)"
+            style="padding: 12px 24px; background: #00305D; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px;">
+            ⬇️ Scarica 512×512
+        </button>
+    </div>
+
+    <!-- html2canvas per cattura -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        async function downloadIcon(size) {
+            const container = document.getElementById('icon-container');
+
+            // Cattura l'elemento come canvas
+            const canvas = await html2canvas(container, {
+                width: 512,
+                height: 512,
+                scale: 2, // Alta qualità
+                backgroundColor: null,
+                logging: false,
+                useCORS: true
+            });
+
+            // Ridimensiona se necessario
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = size;
+            finalCanvas.height = size;
+            const ctx = finalCanvas.getContext('2d');
+            ctx.drawImage(canvas, 0, 0, size, size);
+
+            // Download
+            const link = document.createElement('a');
+            link.download = `icon-${size}x${size}.png`;
+            link.href = finalCanvas.toDataURL('image/png');
+            link.click();
+
+            console.log(`✅ Icona ${size}x${size} scaricata!`);
+        }
+    </script>
+
 </body>
 
 </html>
