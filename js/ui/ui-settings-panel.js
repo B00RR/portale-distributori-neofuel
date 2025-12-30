@@ -2151,7 +2151,7 @@ async function applyFormsSettings(overrideSettings = null) {
   const labelFontSize = settings.form_label_font_size || "0.95rem";
   const labelFontWeight = settings.form_label_font_weight || "600";
 
-  const formInputs = document.querySelectorAll(".form-group input, .form-group select, .form-group textarea, .big-input, .form-input");
+  const formInputs = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".form-group input, .form-group select, .form-group textarea, .big-input, .form-input"));
   formInputs.forEach((input) => {
     input.style.padding = inputPadding;
     input.style.borderRadius = inputRadius;
@@ -2159,7 +2159,7 @@ async function applyFormsSettings(overrideSettings = null) {
     input.style.fontSize = inputFontSize;
   });
 
-  const formLabels = document.querySelectorAll(".form-group label, .form-field label");
+  const formLabels = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".form-group label, .form-field label"));
   formLabels.forEach((label) => {
     label.style.fontSize = labelFontSize;
     label.style.fontWeight = labelFontWeight;
@@ -2169,12 +2169,12 @@ async function applyFormsSettings(overrideSettings = null) {
   const formGroupGap = settings.form_group_gap || "20px";
   const formRowGap = settings.form_row_gap || "16px";
 
-  const formGroups = document.querySelectorAll(".form-group");
+  const formGroups = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".form-group"));
   formGroups.forEach((group) => {
     group.style.marginBottom = formGroupGap;
   });
 
-  const formRows = document.querySelectorAll(".form-row");
+  const formRows = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".form-row"));
   formRows.forEach((row) => {
     row.style.gap = formRowGap;
   });
@@ -2390,7 +2390,7 @@ async function applyIconsSettings(overrideSettings = null) {
     edit: settings.station_action_icon_edit || "fas fa-edit",
     prices: settings.station_action_icon_prices || "fas fa-tag",
     islands: settings.station_action_icon_islands || "fas fa-gas-pump",
-    tanks: settings.station_action_icon_tanks || "fas fa-oil-can",
+    tanks: (settings.station_action_icon_tanks && !settings.station_action_icon_tanks.includes("oil-can")) ? settings.station_action_icon_tanks : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5" /><path d="M16 5h3a1 1 0 0 1 1 1v1h-5V6a1 1 0 0 1 1-1z" fill="currentColor" stroke="none"/><rect x="6" y="17" width="2" height="2" fill="currentColor" stroke="none"/><rect x="16" y="17" width="2" height="2" fill="currentColor" stroke="none"/><path d="M6 14.5l2-3.5 2 3.5h-4z" /></svg>`,
     delete: settings.station_action_icon_delete || "fas fa-trash"
   };
 
@@ -2441,7 +2441,7 @@ async function applyComponentsSettings(overrideSettings = null) {
   const buttonFontSize = settings.component_button_font_size || "1rem";
   const buttonFontWeight = settings.component_button_font_weight || "600";
 
-  document.querySelectorAll(".menu-button").forEach((btn) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".menu-button")).forEach((btn) => {
     btn.style.padding = buttonPadding;
     btn.style.borderRadius = buttonRadius;
     btn.style.fontSize = buttonFontSize;
@@ -2458,13 +2458,13 @@ async function applyComponentsSettings(overrideSettings = null) {
   root.style.setProperty("--table-header-color", tableHeaderColor);
   root.style.setProperty("--table-hover-bg", tableHoverBg);
 
-  document.querySelectorAll(".admin-table th").forEach((th) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".admin-table th")).forEach((th) => {
     th.style.backgroundColor = tableHeaderBg;
     th.style.color = tableHeaderColor;
     th.style.padding = tablePadding;
   });
 
-  document.querySelectorAll(".admin-table td").forEach((td) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".admin-table td")).forEach((td) => {
     td.style.padding = tablePadding;
   });
 
@@ -2494,7 +2494,7 @@ async function applyComponentsSettings(overrideSettings = null) {
     lg: "0 12px 30px rgba(15, 23, 42, 0.18)"
   };
 
-  document.querySelectorAll(".content-box, .kpi-card, .panel-card").forEach((card) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".content-box, .kpi-card, .panel-card")).forEach((card) => {
     card.style.padding = cardPadding;
     card.style.borderRadius = cardRadius;
     if (cardShadow !== "none") {
@@ -2510,16 +2510,16 @@ async function applyComponentsSettings(overrideSettings = null) {
   const modalRadius = settings.component_modal_radius || "16px";
   const modalOverlayOpacity = settings.component_modal_overlay_opacity || "0.6";
 
-  document.querySelectorAll(".modal-content").forEach((modal) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".modal-content")).forEach((modal) => {
     modal.style.maxWidth = modalMaxWidth;
     modal.style.borderRadius = modalRadius;
   });
 
-  document.querySelectorAll(".modal-body").forEach((body) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".modal-body")).forEach((body) => {
     body.style.padding = modalPadding;
   });
 
-  document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".modal-overlay")).forEach((overlay) => {
     overlay.style.backgroundColor = `rgba(15, 23, 42, ${modalOverlayOpacity})`;
   });
 }
