@@ -111,7 +111,13 @@ const updateSW = registerSW({
             action: {
                 text: 'AGGIORNA',
                 onClick: () => {
-                    updateSW(true); // Trigger update
+                    console.log('[PWA] Update button clicked');
+                    updateSW(true)
+                        .then(() => console.log('[PWA] Update accepted, waiting for reload...'))
+                        .catch(e => {
+                            console.error('[PWA] Update failed:', e);
+                            window.location.reload();
+                        });
                 }
             }
         });

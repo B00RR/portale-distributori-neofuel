@@ -51,6 +51,7 @@ export class Toast {
             if (btn) {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    console.log('[Toast] Action button clicked');
                     options.action.onClick();
                 });
             }
