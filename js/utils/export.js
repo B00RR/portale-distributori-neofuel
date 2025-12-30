@@ -480,9 +480,14 @@ export async function generateClosureExcel(templateData) {
  * Genera un Excel con più fogli
  * @param {Array} closuresData - Array di oggetti templateData già processati (es. via computeExportSummaryMetrics)
  */
+/**
+ * Genera un archivio ZIP contenente file Excel separati per ogni chiusura
+ * Bypass del problema di clonazione fogli di XlsxPopulate
+ * @param {Array} closuresData - Array di oggetti templateData
+ */
 export async function generateMultiClosureExcel(closuresData) {
-    if (!window.XlsxPopulate) {
-        Toast.show('Libreria Excel non caricata', 'error');
+    if (!window.XlsxPopulate || !window.JSZip) {
+        Toast.show('Libreria Excel o ZIP non caricata', 'error');
         return;
     }
     const templateBase64 = getClosureTemplateBase64();
@@ -492,43 +497,45 @@ export async function generateMultiClosureExcel(closuresData) {
     }
 
     try {
-        const wb = await XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
-        const templateSheet = wb.sheet(0);
-        templateSheet.name("Template");
+        const zip = new JSZip();
 
-        // Clone and populate for each closure
+        Toast.show('Generazione file in corso...', 'info');
+
+        // Iterate sequentially (to avoid memory spike)
         for (let i = 0; i < closuresData.length; i++) {
             const data = closuresData[i];
             const dateStr = data.meta?.dateSlug || `C${i + 1}`;
-            // Sheet name max 31 chars
-            const sheetName = `${dateStr}_${i + 1}`.substring(0, 31);
+            const fileName = `chiusura_${dateStr}.xlsx`;
 
-            // Clone template
-            const newSheet = templateSheet.clone(); // Clone support check needed? Usually supported in browser build.
-            newSheet.name(sheetName);
+            // Load fresh template for EACH file
+            const wb = await XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
+            const sheet = wb.sheet(0);
 
             // Populate
-            populateClosureSheet(newSheet, data);
+            populateClosureSheet(sheet, data);
 
-            // Move to end (optional, clone usually places after)
+            // Generate blob
+            const blob = await wb.outputAsync();
+            zip.file(fileName, blob);
         }
 
-        // Delete template sheet
-        templateSheet.delete();
-        // Activate first
-        if (wb.sheets().length > 0) wb.sheet(0).active(true);
+        // Generate final ZIP
+        const zipContent = await zip.generateAsync({ type: "blob" });
 
-        const blob = await wb.outputAsync();
-        const url = URL.createObjectURL(blob);
+        // Trigger download
+        const url = URL.createObjectURL(zipContent);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `export_chiusure_multi_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const today = new Date().toISOString().split('T')[0];
+        a.download = `chiusure_multi_export_${today}.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
 
+        Toast.show('Download completato!', 'success');
+
     } catch (e) {
-        console.error("Multi Excel generation error:", e);
-        Toast.show("Errore generazione Excel Multiplo (Clone non supportato?)", "error");
+        console.error("Multi Excel/ZIP generation error:", e);
+        Toast.show("Errore generazione ZIP Export", "error");
     }
 }
