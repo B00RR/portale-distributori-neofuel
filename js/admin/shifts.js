@@ -450,14 +450,7 @@ async function handleBulkExport(opts) {
     .select(`
             *,
             fuel_stations(station_name),
-            users(full_name),
-            shift_pistols (
-                *,
-                pistols (
-                    pistol_name,
-                    fuel_pumps ( pump_name, islands(island_name, island_id) )
-                )
-            )
+            users(full_name)
         `)
     .order('created_at', { ascending: false });
 
