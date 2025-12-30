@@ -48,7 +48,18 @@ export async function showOperatorMenu(userId, stationId) {
       }
       .tab-btn.active { background: #0284c7; color: white; border-color: #0284c7; }
       .voucher-amount { font-size: 2em; font-weight: bold; color: #10b981; margin: 10px 0; }
+      .sync-badge {
+        background: #f59e0b; color: white; font-size: 0.75em; padding: 2px 6px;
+        border-radius: 10px; margin-left: 5px; display: none;
+      }
+      .sync-badge.active { display: inline-block; animation: pulse 2s infinite; }
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
     `;
+
     document.head.appendChild(style);
   }
 
@@ -60,8 +71,12 @@ export async function showOperatorMenu(userId, stationId) {
           <span class="station-badge" id="station-badge">Caricamento...</span>
         </div>
         <div class="header-right">
+          <span id="sync-indicator" class="sync-badge" title="Operazioni in attesa di sincronizzazione">
+             <i class="fas fa-sync-alt"></i> <span id="sync-count">0</span>
+          </span>
           <button id="op-logout-btn" class="icon-btn"><i class="fas fa-sign-out-alt"></i></button>
         </div>
+
       </header>
       
       <div class="operator-menu">
@@ -197,4 +212,20 @@ export async function showOperatorMenu(userId, stationId) {
   document.getElementById('btn-voucher').addEventListener('click', () => showVoucherMenu(stationId, userId));
   document.getElementById('btn-uscite').addEventListener('click', () => showOutflowMenu(stationId, userId));
   document.getElementById('btn-incassi').addEventListener('click', () => showExtraIncomeMenu(stationId, userId));
+
+  // Inizializza indicatore sync
+  const updateSyncBadge = async () => {
+    const { offlineDB } = await import("./core/offline-db.js");
+    const count = await offlineDB.getQueueCount();
+    const badge = document.getElementById('sync-indicator');
+    const countSpan = document.getElementById('sync-count');
+    if (badge && countSpan) {
+      countSpan.textContent = count.toString();
+      badge.classList.toggle('active', count > 0);
+    }
+  };
+
+  updateSyncBadge();
+  document.addEventListener('sync-status-changed', updateSyncBadge);
 }
+

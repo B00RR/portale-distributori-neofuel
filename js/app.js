@@ -13,6 +13,7 @@ import { showOperatorMenu } from "./operator.js";
 import { store } from "./shared/state.js";
 import "./utils/calculation-engine.js";
 import { initializeCalculationPresets } from "./utils/calculation-presets.js";
+import { syncManager } from "./core/sync.js";
 
 /** @type {import('./types.js').CustomWindow} */
 const customWindow = /** @type {any} */(window);
