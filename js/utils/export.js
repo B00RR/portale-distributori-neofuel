@@ -132,22 +132,45 @@ export async function computeExportSummaryMetrics(adminClient, closure, stationI
             // Fix: handle primary key 'id' vs foreign key 'shift_id'
             const targetId = closure.id || closure.shift_id;
             if (targetId) {
+                // Step 1: Fetch shift_pistols only
                 const { data: sp } = await adminClient
                     .from('shift_pistols')
-                    .select(`
-                        *,
-                        pistols (
-                             pistol_name,
-                             pump_id,
-                             fuel_pumps (
+                    .select('*')
+                    .eq('shift_id', targetId);
+
+                let rawPistols = sp || [];
+
+                // Step 2: Fetch details for these pistols (if any)
+                if (rawPistols.length > 0) {
+                    const pistolIds = [...new Set(rawPistols.map(p => p.pistol_id))];
+                    const { data: pistolDetails } = await adminClient
+                        .from('pistols')
+                        .select(`
+                            pistol_id,
+                            pistol_name,
+                            pump_id,
+                            fuel_pumps (
                                 pump_name,
                                 island_id,
                                 islands ( island_name )
-                             )
-                        )
-                    `)
-                    .eq('shift_id', targetId);
-                shiftPistols = sp || [];
+                            )
+                        `)
+                        .in('pistol_id', pistolIds);
+
+                    // Create map for fast lookup
+                    const pistolsMap = new Map();
+                    if (pistolDetails) {
+                        pistolDetails.forEach(p => pistolsMap.set(p.pistol_id, p));
+                    }
+
+                    // Step 3: Merge details
+                    shiftPistols = rawPistols.map(rp => ({
+                        ...rp,
+                        pistols: pistolsMap.get(rp.pistol_id) || {}
+                    }));
+                } else {
+                    shiftPistols = [];
+                }
             } else {
                 shiftPistols = [];
             }
@@ -236,25 +259,55 @@ export async function fetchClosureExportData(closureId) {
     // ma qui sto sovrascrivendo, quindi devo includerla).
 
     // Per evitare di cancellare logica utile, ripristino una versione funzionante:
+    // Step A: Fetch Closure
     const { data: closure, error } = await supabase
         .from('shifts')
-        .select(`
-            *,
-            shift_pistols (
-                *,
-                pistols (
-                    pistol_name,
-                    fuel_pumps (
-                        pump_name,
-                        islands ( island_name, island_id )
-                    )
-                )
-            )
-        `)
-        .eq('shift_id', closureId)
+        .select('*')
+        .eq('id', closureId)
         .single();
 
     if (error) throw error;
+    if (!closure) throw new Error('Chiusura non trovata');
+
+    // Step B: Fetch Shift Pistols
+    const { data: sp } = await supabase
+        .from('shift_pistols')
+        .select('*')
+        .eq('shift_id', closureId);
+
+    let rawPistols = sp || [];
+    let enrichedPistols = [];
+
+    // Step C: Fetch Details
+    if (rawPistols.length > 0) {
+        const pistolIds = [...new Set(rawPistols.map(p => p.pistol_id))];
+        const { data: pistolDetails } = await supabase
+            .from('pistols')
+            .select(`
+                pistol_id,
+                pistol_name,
+                pump_id,
+                fuel_pumps (
+                    pump_name,
+                    island_id,
+                    islands ( island_name, island_id )
+                )
+            `)
+            .in('pistol_id', pistolIds);
+
+        const pxMap = new Map();
+        if (pistolDetails) {
+            pistolDetails.forEach(p => pxMap.set(p.pistol_id, p));
+        }
+
+        enrichedPistols = rawPistols.map(rp => ({
+            ...rp,
+            pistols: pxMap.get(rp.pistol_id) || {}
+        }));
+    }
+
+    // Merge structure
+    closure.shift_pistols = enrichedPistols;
     return closure;
 }
 
