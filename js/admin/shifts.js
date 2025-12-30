@@ -1,5 +1,5 @@
 import { supabase, safeSupabaseQuery } from "../core/api.js";
-import { showLoadingMessage, openModal, closeModal, setButtonLoading } from "../ui/ui.js";
+import { showLoadingMessage, openModal, closeModal, openConfirmModal, setButtonLoading } from "../ui/ui.js";
 import { handleError } from "../shared/error-handler.js";
 import { escapeHtml, formatEuro, formatNumberIt, formatLitri } from "../utils/utils.js";
 import { FilterBar } from "./components/FilterBar.js";
@@ -131,6 +131,7 @@ export async function showChiusureTab(container, actionsContainer, defaultStatio
                   <td>
                     <button class="icon-btn view-closure" data-id="${c.id}" title="Dettagli"><i class="fas fa-eye"></i></button>
                     <button class="icon-btn export-closure" data-id="${c.id}" title="Export"><i class="fas fa-file-export"></i></button>
+                    <button class="icon-btn delete-closure" data-id="${c.id}" title="Elimina" style="color: #dc2626;"><i class="fas fa-trash-alt"></i></button>
                   </td>
                 </tr>
               `;
@@ -144,6 +145,9 @@ export async function showChiusureTab(container, actionsContainer, defaultStatio
       });
       dataContainer.querySelectorAll('.export-closure').forEach(btn => {
         btn.addEventListener('click', () => openExportModal(/** @type {HTMLElement} */(btn).dataset.id));
+      });
+      dataContainer.querySelectorAll('.delete-closure').forEach(btn => {
+        btn.addEventListener('click', () => deleteClosure(/** @type {HTMLElement} */(btn).dataset.id, renderTable));
       });
 
     } catch (err) {
@@ -307,5 +311,34 @@ export async function openExportModal(closureId) {
   } catch (err) {
     Toast.show('Errore export: ' + (err?.message || err), 'error');
     console.error('Errore export:', err);
+  }
+}
+
+/**
+ * Elimina una chiusura e i dati correlati
+ * @param {string} closureId 
+ * @param {Function} onSuccessCallback 
+ */
+export async function deleteClosure(closureId, onSuccessCallback) {
+  const confirmed = await openConfirmModal('Sei sicuro di voler eliminare questa chiusura? L\'operazione è irreversibile e cancellerà anche i dettagli dei contatori e lo scarico serbatoi.');
+  if (!confirmed) return;
+
+  try {
+    // 1. Elimina dati correlati
+    // Note: cascade handles some, but let's be explicit and safe for non-linked tables
+    await Promise.all([
+      supabase.from('shift_pistols').delete().eq('shift_id', closureId),
+      supabase.from('tank_pump_usages').delete().eq('shift_id', closureId)
+    ]);
+
+    // 2. Elimina il record principale
+    const { error } = await supabase.from('shifts').delete().eq('id', closureId);
+    if (error) throw error;
+
+    Toast.show('Chiusura eliminata con successo', 'success');
+    if (onSuccessCallback) onSuccessCallback();
+
+  } catch (err) {
+    handleError(err, 'deleteClosure');
   }
 }
