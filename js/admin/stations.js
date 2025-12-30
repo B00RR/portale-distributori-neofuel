@@ -55,7 +55,7 @@ export async function showStationsTab(container, actionsContainer) {
             <button class="icon-btn edit-station" data-id="${st.station_id}" title="Modifica"><i class="fas fa-edit"></i></button>
             <button class="icon-btn prices-station" data-id="${st.station_id}" title="Prezzi"><i class="fas fa-tag"></i></button>
             <button class="icon-btn islands-station" data-id="${st.station_id}" title="Isole e Pistole"><i class="fas fa-gas-pump"></i></button>
-            <button class="icon-btn tanks-station" data-id="${st.station_id}" title="Cisterne"><i class="fas fa-oil-can"></i></button>
+            <button class="icon-btn tanks-station" data-id="${st.station_id}" title="Cisterne"><span class="icon-svg-wrapper" style="display: inline-block; width: 16px; height: 16px; vertical-align: middle;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5" /><path d="M16 5h3a1 1 0 0 1 1 1v1h-5V6a1 1 0 0 1 1-1z" fill="currentColor" stroke="none"/><rect x="6" y="17" width="2" height="2" fill="currentColor" stroke="none"/><rect x="16" y="17" width="2" height="2" fill="currentColor" stroke="none"/><path d="M6 14.5l2-3.5 2 3.5h-4z" /></svg></span></button>
             <button class="icon-btn delete-station" data-id="${st.station_id}" title="Elimina"><i class="fas fa-trash"></i></button>
           </td>
         </tr>
