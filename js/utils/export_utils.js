@@ -185,9 +185,12 @@ export async function computeExportSummaryMetrics(adminClient, closure, stationI
 
                     // Step 3: Deep Merge in JS
                     shiftPistols = rawPistols.map(rp => {
-                        // Ensure ID is string for lookup
-                        const pId = String(rp.pistol_id);
-                        const pistolBase = pistolsMap.get(pId);
+                        // Ensure ID is string for lookup (maps keyed by string)
+                        // BUT IDs from pistolsFlat (DB) are integers. 
+                        // Let's use flexible string comparison.
+
+                        const pId = parseInt(rp.pistol_id, 10); // Ensure pistol_id is an integer for consistent lookup
+                        const pistolBase = pistolsMap.get(String(pId)); // Convert back to string for map lookup
 
                         let constructedPistol = {};
                         if (pistolBase) {
@@ -552,39 +555,36 @@ export async function generateMultiClosureExcel(closuresData) {
         return;
     }
 
+    // --- STRATEGIA 1: UNICO FILE (CLONE) ---
     try {
+        // Tentiamo la strada maestra (Unico File con Clone)
+        // Se XlsxPopulate è aggiornato, `sheet.clone()` funziona.
+        // Se fallisce, catturiamo l'errore e saltiamo alla Strategia 2 (ZIP).
+
         Toast.show('Generazione Excel Unico in corso...', 'info');
 
-        // 1. Load Template
         const wb = await XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
         const templateSheet = wb.sheet(0);
         templateSheet.name("Template");
 
-        // 2. Iterate and Clone
+        // Test preventivo Clone
+        if (typeof templateSheet.clone !== 'function') {
+            throw new Error("Funzione clone() non supportata dal browser.");
+        }
+
         for (let i = 0; i < closuresData.length; i++) {
             const data = closuresData[i];
             const dateStr = data.meta?.dateSlug || `C${i + 1}`;
             const sheetName = `${dateStr}_${i + 1}`.substring(0, 31);
 
-            // CLONE STRATEGY: 
-            // clone() is supported in v1.21.0. 
-            // If it fails, catch block catches it.
             const newSheet = templateSheet.clone();
             newSheet.name(sheetName);
-
-            // Populate
             populateClosureSheet(newSheet, data);
-
-            // Move sheet to end or keep order
-            // xlsx-populate clones usually appear after the source
-            // We can move it if needed but not strictly necessary for viewing
         }
 
-        // 3. Cleanup
         templateSheet.delete();
         if (wb.sheets().length > 0) wb.sheet(0).active(true);
 
-        // 4. Download
         const blob = await wb.outputAsync();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -596,9 +596,51 @@ export async function generateMultiClosureExcel(closuresData) {
         document.body.removeChild(a);
 
         Toast.show('Export completato!', 'success');
+        return; // Successo
 
     } catch (e) {
-        console.error("Multi Excel generation error:", e);
-        Toast.show(`Errore generazione Excel: ${e.message}`, "error");
+        console.warn("Clone failed, falling back to ZIP strategy:", e);
+        Toast.show("Export unico non supportato dal browser. Generazione ZIP...", "warning");
+    }
+
+    // --- STRATEGIA 2: FALLBACK ZIP (ROBUSTA) ---
+    // Se siamo qui, il clone è fallito. Usiamo ZIP + File Multipli.
+    if (!window.JSZip) {
+        Toast.show('Libreria ZIP mancante, impossibile procedere.', 'error');
+        return;
+    }
+
+    try {
+        const zip = new JSZip();
+
+        for (let i = 0; i < closuresData.length; i++) {
+            const data = closuresData[i];
+            const dateStr = data.meta?.dateSlug || `C${i + 1}`;
+            const fileName = `chiusura_${dateStr}_${i + 1}.xlsx`;
+
+            // Load fresh template for EACH file
+            const wb = await XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
+            const sheet = wb.sheet(0);
+            populateClosureSheet(sheet, data);
+
+            const blob = await wb.outputAsync();
+            zip.file(fileName, blob);
+        }
+
+        const zipContent = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(zipContent);
+        const a = document.createElement('a');
+        a.href = url;
+        const today = new Date().toISOString().split('T')[0];
+        a.download = `chiusure_multi_export_${today}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        Toast.show('Download ZIP completato!', 'success');
+
+    } catch (e) {
+        console.error("ZIP Fallback error:", e);
+        Toast.show("Errore fatale export: " + e.message, "error");
     }
 }

@@ -433,7 +433,7 @@ async function openBulkExportModal() {
         dateTo
       });
       closeModal();
-      Toast.show('Download avviato!', 'success');
+      // Toast.show('Download avviato!', 'success'); // Spostato internamente a generateMultiClosureExcel
     } catch (err) {
       console.error(err);
       Toast.show('Errore durante export multiplo: ' + err.message, 'error');
