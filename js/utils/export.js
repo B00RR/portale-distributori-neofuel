@@ -140,44 +140,79 @@ export async function computeExportSummaryMetrics(adminClient, closure, stationI
 
                 let rawPistols = sp || [];
 
-                // Step 2: Fetch details for these pistols (if any)
+                // Step 2: Fetch details for these pistols (Flat Fetch Strategy)
                 if (rawPistols.length > 0) {
                     const pistolIds = [...new Set(rawPistols.map(p => p.pistol_id))];
-                    console.log("[Export] Fetching details for pistol IDs:", pistolIds);
 
-                    const { data: pistolDetails, error: pistolError } = await adminClient
+                    // 2a. Fetch Pistols (Flat)
+                    const { data: pistolsFlat } = await adminClient
                         .from('pistols')
-                        .select(`
-                            pistol_id,
-                            pistol_name,
-                            pump_id,
-                            fuel_pumps (
-                                pump_name,
-                                island_id,
-                                islands ( island_name )
-                            )
-                        `)
+                        .select('pistol_id, pistol_name, pump_id')
                         .in('pistol_id', pistolIds);
 
-                    if (pistolError) console.error("[Export] Error fetching pistol details:", pistolError);
-
-                    // Create map for fast lookup
                     const pistolsMap = new Map();
-                    if (pistolDetails) {
-                        pistolDetails.forEach(p => pistolsMap.set(String(p.pistol_id), p));
-                    }
-                    console.log("[Export] Pistols Map Size:", pistolsMap.size);
+                    const pumpIds = new Set();
+                    (pistolsFlat || []).forEach(p => {
+                        pistolsMap.set(String(p.pistol_id), { ...p }); // Init with basic info
+                        if (p.pump_id) pumpIds.add(p.pump_id);
+                    });
 
-                    // Step 3: Merge details
+                    // 2b. Fetch Pumps (Flat)
+                    const pumpsMap = new Map();
+                    const islandIds = new Set();
+                    if (pumpIds.size > 0) {
+                        const { data: pumpsFlat } = await adminClient
+                            .from('fuel_pumps')
+                            .select('pump_id, pump_name, island_id')
+                            .in('pump_id', [...pumpIds]);
+
+                        (pumpsFlat || []).forEach(p => {
+                            pumpsMap.set(String(p.pump_id), p);
+                            if (p.island_id) islandIds.add(p.island_id);
+                        });
+                    }
+
+                    // 2c. Fetch Islands (Flat)
+                    const islandsMapRef = new Map();
+                    if (islandIds.size > 0) {
+                        const { data: islandsFlat } = await adminClient
+                            .from('islands')
+                            .select('island_id, island_name')
+                            .in('island_id', [...islandIds]);
+
+                        (islandsFlat || []).forEach(i => islandsMapRef.set(String(i.island_id), i));
+                    }
+
+                    // Step 3: Deep Merge in JS
                     shiftPistols = rawPistols.map(rp => {
-                        const details = pistolsMap.get(String(rp.pistol_id)) || {};
-                        // Debug missing match
-                        if (!details.pistol_name && pistolsMap.size > 0) {
-                            console.warn(`[Export] No details found for pistol_id: ${rp.pistol_id}`);
+                        const pistolBase = pistolsMap.get(String(rp.pistol_id));
+
+                        // Construct the nested object expected by the rest of the code
+                        let constructedPistol = {};
+                        if (pistolBase) {
+                            const pump = pumpsMap.get(String(pistolBase.pump_id));
+                            const island = pump ? islandsMapRef.get(String(pump.island_id)) : null;
+
+                            constructedPistol = {
+                                pistol_name: pistolBase.pistol_name,
+                                pump_id: pistolBase.pump_id,
+                                fuel_pumps: pump ? {
+                                    pump_name: pump.pump_name,
+                                    island_id: pump.island_id,
+                                    islands: island ? { island_name: island.island_name } : null
+                                } : null
+                            };
+                        } else {
+                            // Fallback if pistol not found in DB
+                            constructedPistol = {
+                                pistol_name: `Minion ${rp.pistol_id}`, // Debug fallback
+                                fuel_pumps: { islands: { island_name: 'Isola ?' } }
+                            };
                         }
+
                         return {
                             ...rp,
-                            pistols: details
+                            pistols: constructedPistol
                         };
                     });
                 } else {
@@ -497,9 +532,13 @@ export async function generateClosureExcel(templateData) {
  * Bypass del problema di clonazione fogli di XlsxPopulate
  * @param {Array} closuresData - Array di oggetti templateData
  */
+/**
+ * Genera un Excel con più fogli
+ * @param {Array} closuresData - Array di oggetti templateData già processati
+ */
 export async function generateMultiClosureExcel(closuresData) {
-    if (!window.XlsxPopulate || !window.JSZip) {
-        Toast.show('Libreria Excel o ZIP non caricata', 'error');
+    if (!window.XlsxPopulate) {
+        Toast.show('Libreria Excel non caricata', 'error');
         return;
     }
     const templateBase64 = getClosureTemplateBase64();
@@ -509,46 +548,52 @@ export async function generateMultiClosureExcel(closuresData) {
     }
 
     try {
-        const zip = new JSZip();
+        Toast.show('Generazione Excel Unico in corso...', 'info');
 
-        Toast.show('Generazione file in corso...', 'info');
+        // 1. Load Template
+        const wb = await XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
+        const templateSheet = wb.sheet(0);
+        templateSheet.name("Template");
 
-        // Iterate sequentially (to avoid memory spike)
+        // 2. Iterate and Clone
         for (let i = 0; i < closuresData.length; i++) {
             const data = closuresData[i];
             const dateStr = data.meta?.dateSlug || `C${i + 1}`;
-            // Fix: Add index to filename to prevent overwrite if same date
-            const fileName = `chiusura_${dateStr}_${i + 1}.xlsx`;
+            const sheetName = `${dateStr}_${i + 1}`.substring(0, 31);
 
-            // Load fresh template for EACH file
-            const wb = await XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
-            const sheet = wb.sheet(0);
+            // CLONE STRATEGY: 
+            // clone() is supported in v1.21.0. 
+            // If it fails, catch block catches it.
+            const newSheet = templateSheet.clone();
+            newSheet.name(sheetName);
 
             // Populate
-            populateClosureSheet(sheet, data);
+            populateClosureSheet(newSheet, data);
 
-            // Generate blob
-            const blob = await wb.outputAsync();
-            zip.file(fileName, blob);
+            // Move sheet to end or keep order
+            // xlsx-populate clones usually appear after the source
+            // We can move it if needed but not strictly necessary for viewing
         }
 
-        // Generate final ZIP
-        const zipContent = await zip.generateAsync({ type: "blob" });
+        // 3. Cleanup
+        templateSheet.delete();
+        if (wb.sheets().length > 0) wb.sheet(0).active(true);
 
-        // Trigger download
-        const url = URL.createObjectURL(zipContent);
+        // 4. Download
+        const blob = await wb.outputAsync();
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         const today = new Date().toISOString().split('T')[0];
-        a.download = `chiusure_multi_export_${today}.zip`;
+        a.download = `chiusure_multi_${today}_completo.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
 
-        Toast.show('Download completato!', 'success');
+        Toast.show('Export completato!', 'success');
 
     } catch (e) {
-        console.error("Multi Excel/ZIP generation error:", e);
-        Toast.show("Errore generazione ZIP Export", "error");
+        console.error("Multi Excel generation error:", e);
+        Toast.show(`Errore generazione Excel: ${e.message}`, "error");
     }
 }
