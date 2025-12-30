@@ -14,6 +14,9 @@ import { store } from "./shared/state.js";
 import "./utils/calculation-engine.js";
 import { initializeCalculationPresets } from "./utils/calculation-presets.js";
 import { syncManager } from "./core/sync.js";
+// PWA Update Logic
+import { registerSW } from 'virtual:pwa-register';
+import { Toast } from "./ui/toast.js";
 
 /** @type {import('./types.js').CustomWindow} */
 const customWindow = /** @type {any} */(window);
@@ -101,3 +104,19 @@ if (document.readyState === 'loading') {
 } else {
     initializeApp();
 }
+// PWA Update Handler
+const updateSW = registerSW({
+    onNeedRefresh() {
+        Toast.show('Nuova versione disponibile!', 'info', 0, {
+            action: {
+                text: 'AGGIORNA',
+                onClick: () => {
+                    updateSW(true); // Trigger update
+                }
+            }
+        });
+    },
+    onOfflineReady() {
+        Toast.show('App pronta per l\'uso offline', 'success');
+    },
+});

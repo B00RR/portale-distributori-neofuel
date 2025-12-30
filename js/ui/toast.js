@@ -12,7 +12,7 @@ export class Toast {
      * @param {string} type - Tipo di toast: 'success', 'error', 'warning', 'info'
      * @param {number} duration - Durata in millisecondi (default: 3000)
      */
-    static show(message, type = 'info', duration = 3000) {
+    static show(message, type = 'info', duration = 3000, options = {}) {
         // Crea container se non esiste
         let container = document.getElementById('toast-container');
         if (!container) {
@@ -28,10 +28,33 @@ export class Toast {
         // Icona basata sul tipo
         const icon = this._getIcon(type);
 
-        toast.innerHTML = `
-      <i class="fas fa-${icon}"></i>
-      <span class="toast-message">${this._escapeHtml(message)}</span>
-    `;
+        let contentHtml = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-${icon}"></i>
+                <span class="toast-message">${this._escapeHtml(message)}</span>
+            </div>
+        `;
+
+        if (options.action) {
+            contentHtml += `
+            <button class="toast-action-btn" style="margin-left: 15px; padding: 4px 10px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                ${this._escapeHtml(options.action.text)}
+            </button>
+            `;
+        }
+
+        toast.innerHTML = contentHtml;
+
+        // Bind custom action
+        if (options.action && options.action.onClick) {
+            const btn = toast.querySelector('.toast-action-btn');
+            if (btn) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    options.action.onClick();
+                });
+            }
+        }
 
         // Aggiungi al container
         container.appendChild(toast);
@@ -42,19 +65,27 @@ export class Toast {
         // Mostra con animazione
         setTimeout(() => toast.classList.add('show'), 10);
 
-        // Rimuovi dopo durata specificata
-        setTimeout(() => {
-            toast.classList.remove('show');
+        // Rimuovi dopo durata specificata (se > 0)
+        if (duration > 0) {
             setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
-                }
-                // Rimuovi container se vuoto
-                if (container.children.length === 0 && container.parentNode) {
-                    container.parentNode.removeChild(container);
-                }
-            }, 300); // Tempo animazione fade-out
-        }, duration);
+                this.dismiss(toast, container);
+            }, duration);
+        }
+    }
+
+    static dismiss(toast, container) {
+        if (!toast.classList.contains('show')) return;
+
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+            // Rimuovi container se vuoto
+            if (container.children.length === 0 && container.parentNode) {
+                container.parentNode.removeChild(container);
+            }
+        }, 300);
     }
 
     /**
