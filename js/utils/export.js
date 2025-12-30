@@ -4,6 +4,7 @@
 import { supabase, safeSupabaseQuery } from "../core/api.js";
 import { formatNumberIt, formatEuro, slugifyLabel, base64ToArrayBuffer, parseNumberFlexible, escapeHtml } from "./utils.js";
 import { Toast } from "../ui/toast.js";
+import { closureTemplateXlsxBase64 } from "./template_chiusura_base64.js";
 
 // Costanti per export
 const SUMMARY_TEMPLATE_START_ROW = 42;
@@ -87,8 +88,7 @@ function fuelTypeSigla(tipo) {
 }
 
 function getClosureTemplateBase64() {
-    if (typeof window === 'undefined') return null;
-    return window.closureTemplateXlsxBase64 || null;
+    return closureTemplateXlsxBase64 || null;
 }
 
 async function computeExportSummaryMetrics(adminClient, closure, stationId) {
