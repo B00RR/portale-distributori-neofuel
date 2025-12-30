@@ -12,6 +12,8 @@ import {
 } from "../utils/export_utils.js";
 
 
+console.log("%c SHIFTS MODULE LOADED (v112 - Fix Export)", "background: #22c55e; color: #fff; padding: 4px; font-weight: bold;");
+
 export async function showChiusureTab(container, actionsContainer, defaultStationId = null) {
   // Basic structure
   container.innerHTML = `
