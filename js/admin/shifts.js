@@ -8,7 +8,7 @@ import { store } from "../shared/state.js";
 import { Toast } from "../ui/toast.js";
 import {
   fetchClosureExportData, buildClosureTemplate,
-  generateClosureExcel
+  generateClosureExcel, generateMultiClosureExcel, computeExportSummaryMetrics
 } from "../utils/export.js";
 
 
@@ -26,7 +26,18 @@ export async function showChiusureTab(container, actionsContainer, defaultStatio
 
   const pagination = new Pagination('pagination-container');
 
-  if (actionsContainer) actionsContainer.innerHTML = '';
+  if (actionsContainer) {
+    // Clear and rebuild to avoid duplicates if re-called (though usually called once)
+    actionsContainer.innerHTML = '';
+
+    const btnBulk = document.createElement('button');
+    btnBulk.id = 'btn-bulk-export';
+    btnBulk.className = 'menu-button secondary';
+    btnBulk.innerHTML = '<i class="fas fa-file-export"></i> Export Multiplo';
+    btnBulk.onclick = openBulkExportModal;
+
+    actionsContainer.appendChild(btnBulk);
+  }
 
   // Track params to prevent loop
   let lastParams = { page: -1, filtersJson: '' };
@@ -306,12 +317,177 @@ export async function showClosureDetails(closureId) {
 export async function openExportModal(closureId) {
   try {
     const ctx = await fetchClosureExportData(closureId);
-    const template = buildClosureTemplate(ctx, ctx.layout, ctx.summaryDefaults);
-    await generateClosureExcel(template);
+    // Use new computation for consistency
+    // const template = buildClosureTemplate(ctx, ctx.layout, ctx.summaryDefaults);
+    const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id);
+    await generateClosureExcel(metrics);
   } catch (err) {
     Toast.show('Errore export: ' + (err?.message || err), 'error');
     console.error('Errore export:', err);
   }
+}
+
+// ==========================================
+// BULK EXPORT LOGIC
+// ==========================================
+
+async function openBulkExportModal() {
+  openModal('Export Multiplo Chiusure');
+  const target = document.getElementById('modal-body');
+
+  // Fetch stations for dropdown
+  let stationsHtml = '<option value="all">Tutte le stazioni</option>';
+  try {
+    const { data: stations } = await supabase.from('fuel_stations').select('station_id, station_name');
+    if (stations) {
+      stations.forEach(s => {
+        stationsHtml += `<option value="${s.station_id}">${escapeHtml(s.station_name)}</option>`;
+      });
+    }
+  } catch (e) { console.error(e); }
+
+  target.innerHTML = `
+        <div style="padding: 10px;">
+            <p style="margin-bottom: 15px; color: #64748b;">Seleziona i criteri per scaricare più chiusure in un unico file Excel.</p>
+            
+            <div class="form-group">
+                <label>Stazione</label>
+                <select id="bulk-station" class="form-control">
+                    ${stationsHtml}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Tipo di Export</label>
+                <div style="display: flex; gap: 15px; margin-top: 5px;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="radio" name="bulk-type" value="last_n" checked onchange="document.getElementById('range-options').style.display='none'; document.getElementById('last-n-options').style.display='block';">
+                        Ultime Chiusure
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="radio" name="bulk-type" value="date_range" onchange="document.getElementById('range-options').style.display='block'; document.getElementById('last-n-options').style.display='none';">
+                        Intervallo Date
+                    </label>
+                </div>
+            </div>
+
+            <!-- OPZIONI LAST N -->
+            <div id="last-n-options" style="margin-top: 15px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <label>Numero di chiusure da scaricare:</label>
+                <input type="number" id="bulk-limit" class="form-control" value="10" min="1" max="50" style="width: 100px; margin-top: 5px;">
+                <small style="display: block; color: #94a3b8; margin-top: 4px;">Es. 3 per le ultime 3, 10 per le ultime 10.</small>
+            </div>
+
+            <!-- OPZIONI DATE RANGE -->
+            <div id="range-options" style="display: none; margin-top: 15px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label>Da:</label>
+                        <input type="date" id="bulk-from" class="form-control">
+                    </div>
+                    <div>
+                        <label>A:</label>
+                        <input type="date" id="bulk-to" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 25px; text-align: right;">
+                <button id="btn-start-bulk" class="menu-button primary">
+                    <i class="fas fa-download"></i> Scarica Excel
+                </button>
+            </div>
+            
+            <div id="bulk-loading" style="display: none; margin-top: 15px; color: #3b82f6; text-align: center;">
+                <i class="fas fa-spinner fa-spin"></i> Generazione in corso...
+            </div>
+        </div>
+    `;
+
+  const btn = document.getElementById('btn-start-bulk');
+  btn.addEventListener('click', async () => {
+    const stationId = /** @type {HTMLSelectElement} */ (document.getElementById('bulk-station')).value;
+    const type = /** @type {HTMLInputElement} */ (document.querySelector('input[name="bulk-type"]:checked')).value;
+    const limit = parseInt(/** @type {HTMLInputElement} */(document.getElementById('bulk-limit')).value) || 10;
+    const dateFrom = /** @type {HTMLInputElement} */ (document.getElementById('bulk-from')).value;
+    const dateTo = /** @type {HTMLInputElement} */ (document.getElementById('bulk-to')).value;
+
+    // Validation
+    if (type === 'date_range' && (!dateFrom || !dateTo)) {
+      Toast.show('Seleziona entrambe le date.', 'error');
+      return;
+    }
+
+    const loadingDiv = document.getElementById('bulk-loading');
+    loadingDiv.style.display = 'block';
+
+    const btnElement = /** @type {HTMLButtonElement} */ (btn);
+    btnElement.disabled = true;
+
+    try {
+      await handleBulkExport({
+        stationId: stationId === 'all' ? null : stationId,
+        type,
+        limit,
+        dateFrom,
+        dateTo
+      });
+      closeModal();
+      Toast.show('Download avviato!', 'success');
+    } catch (err) {
+      console.error(err);
+      Toast.show('Errore durante export multiplo: ' + err.message, 'error');
+    } finally {
+      loadingDiv.style.display = 'none';
+      /** @type {HTMLButtonElement} */ (btn).disabled = false;
+    }
+  });
+}
+
+async function handleBulkExport(opts) {
+  // 1. Fetch Data
+  let query = supabase.from('shifts')
+    .select(`
+            *,
+            fuel_stations(station_name),
+            users(full_name),
+            shift_pistols (
+                *,
+                pistols (
+                    pistol_name,
+                    fuel_pumps ( pump_name, islands(island_name, island_id) )
+                )
+            )
+        `)
+    .order('created_at', { ascending: false });
+
+  if (opts.stationId) query = query.eq('station_id', opts.stationId);
+
+  if (opts.type === 'last_n') {
+    query = query.limit(opts.limit);
+  } else {
+    query = query.gte('created_at', opts.dateFrom)
+      .lte('created_at', opts.dateTo + 'T23:59:59');
+  }
+
+  const { data: closures, error } = await query;
+  if (error) throw error;
+  if (!closures || closures.length === 0) {
+    throw new Error("Nessuna chiusura trovata con i criteri selezionati.");
+  }
+
+  // 2. Process Data for Template
+  // Converte ogni chiusura nel formato metriche atteso dal template
+  const processedClosures = [];
+  for (const c of closures) {
+    // computeExportSummaryMetrics(client, closureObject, stationId)
+    // Passiamo l'oggetto c intero, stationId preso da c
+    const metrics = await computeExportSummaryMetrics(supabase, c, c.station_id);
+    processedClosures.push(metrics);
+  }
+
+  // 3. Generate Excel
+  await generateMultiClosureExcel(processedClosures);
 }
 
 /**
