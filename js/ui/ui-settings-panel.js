@@ -267,7 +267,7 @@ const UI_FIELDS = [
     key: "station_action_icon_tanks",
     label: "Cisterne",
     type: "text",
-    defaultValue: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5" /><path d="M16 5h3a1 1 0 0 1 1 1v1h-5V6a1 1 0 0 1 1-1z" fill="currentColor" stroke="none"/><rect x="6" y="17" width="2" height="2" fill="currentColor" stroke="none"/><rect x="16" y="17" width="2" height="2" fill="currentColor" stroke="none"/><path d="M6 14.5l2-3.5 2 3.5h-4z" /></svg>`,
+    defaultValue: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="7" width="22" height="11" rx="5.5" /><rect x="14" y="3" width="7" height="4" rx="1" /><rect x="4" y="18" width="3" height="3" rx="1" /><rect x="17" y="18" width="3" height="3" rx="1" /><path d="M9 15.5l2-3.5 2 3.5H9z" fill="white" /></svg>`,
     description: "Icona azione Cisterne distributore",
     category: "icon_station_actions"
   },
@@ -2390,7 +2390,7 @@ async function applyIconsSettings(overrideSettings = null) {
     edit: settings.station_action_icon_edit || "fas fa-edit",
     prices: settings.station_action_icon_prices || "fas fa-tag",
     islands: settings.station_action_icon_islands || "fas fa-gas-pump",
-    tanks: (settings.station_action_icon_tanks && !settings.station_action_icon_tanks.includes("oil-can")) ? settings.station_action_icon_tanks : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5" /><path d="M16 5h3a1 1 0 0 1 1 1v1h-5V6a1 1 0 0 1 1-1z" fill="currentColor" stroke="none"/><rect x="6" y="17" width="2" height="2" fill="currentColor" stroke="none"/><rect x="16" y="17" width="2" height="2" fill="currentColor" stroke="none"/><path d="M6 14.5l2-3.5 2 3.5h-4z" /></svg>`,
+    tanks: (settings.station_action_icon_tanks && !settings.station_action_icon_tanks.includes("oil-can")) ? settings.station_action_icon_tanks : `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="7" width="22" height="11" rx="5.5" /><rect x="14" y="3" width="7" height="4" rx="1" /><rect x="4" y="18" width="3" height="3" rx="1" /><rect x="17" y="18" width="3" height="3" rx="1" /><path d="M9 15.5l2-3.5 2 3.5H9z" fill="white" /></svg>`,
     delete: settings.station_action_icon_delete || "fas fa-trash"
   };
 
