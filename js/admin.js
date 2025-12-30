@@ -13,9 +13,8 @@ import {
 import {
   fetchClosureExportData, buildClosureTemplate,
   generateClosureExcel,
-  applyCustomExportSchema,
   readExportSummaryValues
-} from "./utils/export.js";
+} from "./utils/export_utils.js";
 import { loggedUser, clearSession } from "./core/auth.js";
 import { showIslandsModal } from "./admin/islands.js";
 import { showSettingsTab } from "./admin/logic.js";

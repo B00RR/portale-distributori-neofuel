@@ -185,9 +185,10 @@ export async function computeExportSummaryMetrics(adminClient, closure, stationI
 
                     // Step 3: Deep Merge in JS
                     shiftPistols = rawPistols.map(rp => {
-                        const pistolBase = pistolsMap.get(String(rp.pistol_id));
+                        // Ensure ID is string for lookup
+                        const pId = String(rp.pistol_id);
+                        const pistolBase = pistolsMap.get(pId);
 
-                        // Construct the nested object expected by the rest of the code
                         let constructedPistol = {};
                         if (pistolBase) {
                             const pump = pumpsMap.get(String(pistolBase.pump_id));
@@ -204,11 +205,15 @@ export async function computeExportSummaryMetrics(adminClient, closure, stationI
                             };
                         } else {
                             // Fallback if pistol not found in DB
+                            console.warn(`[Export] Pistol ID ${pId} not found in fetched pistols map. Available:`, Array.from(pistolsMap.keys()));
                             constructedPistol = {
-                                pistol_name: `Minion ${rp.pistol_id}`, // Debug fallback
+                                pistol_name: `[Pistola ${pId} non trovata]`,
                                 fuel_pumps: { islands: { island_name: 'Isola ?' } }
                             };
                         }
+
+                        // Debug logging only for first pistol to reduce noise
+                        // if (rp === rawPistols[0]) console.log("[Export] Merged Pistol 0:", constructedPistol);
 
                         return {
                             ...rp,
