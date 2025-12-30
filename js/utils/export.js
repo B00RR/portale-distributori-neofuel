@@ -129,22 +129,28 @@ export async function computeExportSummaryMetrics(adminClient, closure, stationI
         // Facciamo una query per sicurezza se mancano.
         let shiftPistols = closure.shift_pistols;
         if (!shiftPistols) {
-            const { data: sp } = await adminClient
-                .from('shift_pistols')
-                .select(`
-                    *,
-                    pistols (
-                         pistol_name,
-                         pump_id,
-                         fuel_pumps (
-                            pump_name,
-                            island_id,
-                            islands ( island_name )
-                         )
-                    )
-                `)
-                .eq('shift_id', closure.shift_id);
-            shiftPistols = sp || [];
+            // Fix: handle primary key 'id' vs foreign key 'shift_id'
+            const targetId = closure.id || closure.shift_id;
+            if (targetId) {
+                const { data: sp } = await adminClient
+                    .from('shift_pistols')
+                    .select(`
+                        *,
+                        pistols (
+                             pistol_name,
+                             pump_id,
+                             fuel_pumps (
+                                pump_name,
+                                island_id,
+                                islands ( island_name )
+                             )
+                        )
+                    `)
+                    .eq('shift_id', targetId);
+                shiftPistols = sp || [];
+            } else {
+                shiftPistols = [];
+            }
         }
 
         // Apply filters or groupings
