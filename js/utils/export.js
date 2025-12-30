@@ -143,7 +143,9 @@ export async function computeExportSummaryMetrics(adminClient, closure, stationI
                 // Step 2: Fetch details for these pistols (if any)
                 if (rawPistols.length > 0) {
                     const pistolIds = [...new Set(rawPistols.map(p => p.pistol_id))];
-                    const { data: pistolDetails } = await adminClient
+                    console.log("[Export] Fetching details for pistol IDs:", pistolIds);
+
+                    const { data: pistolDetails, error: pistolError } = await adminClient
                         .from('pistols')
                         .select(`
                             pistol_id,
@@ -157,17 +159,27 @@ export async function computeExportSummaryMetrics(adminClient, closure, stationI
                         `)
                         .in('pistol_id', pistolIds);
 
+                    if (pistolError) console.error("[Export] Error fetching pistol details:", pistolError);
+
                     // Create map for fast lookup
                     const pistolsMap = new Map();
                     if (pistolDetails) {
-                        pistolDetails.forEach(p => pistolsMap.set(p.pistol_id, p));
+                        pistolDetails.forEach(p => pistolsMap.set(String(p.pistol_id), p));
                     }
+                    console.log("[Export] Pistols Map Size:", pistolsMap.size);
 
                     // Step 3: Merge details
-                    shiftPistols = rawPistols.map(rp => ({
-                        ...rp,
-                        pistols: pistolsMap.get(rp.pistol_id) || {}
-                    }));
+                    shiftPistols = rawPistols.map(rp => {
+                        const details = pistolsMap.get(String(rp.pistol_id)) || {};
+                        // Debug missing match
+                        if (!details.pistol_name && pistolsMap.size > 0) {
+                            console.warn(`[Export] No details found for pistol_id: ${rp.pistol_id}`);
+                        }
+                        return {
+                            ...rp,
+                            pistols: details
+                        };
+                    });
                 } else {
                     shiftPistols = [];
                 }
@@ -505,7 +517,8 @@ export async function generateMultiClosureExcel(closuresData) {
         for (let i = 0; i < closuresData.length; i++) {
             const data = closuresData[i];
             const dateStr = data.meta?.dateSlug || `C${i + 1}`;
-            const fileName = `chiusura_${dateStr}.xlsx`;
+            // Fix: Add index to filename to prevent overwrite if same date
+            const fileName = `chiusura_${dateStr}_${i + 1}.xlsx`;
 
             // Load fresh template for EACH file
             const wb = await XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
