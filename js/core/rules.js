@@ -49,3 +49,74 @@ export function validateVoucher(voucher) {
     // 3. Success
     return { valid: true };
 }
+
+/**
+ * Summarizes movements by type
+ * @param {Array} movimenti 
+ * @returns {Object}
+ */
+export function summarizeMovimenti(movimenti = []) {
+    const normalize = value => Number(value) || 0;
+    const toLower = value => (value || "").toString().toLowerCase();
+
+    const sumBy = filterFn => movimenti.reduce((sum, m) => sum + (filterFn(m) ? normalize(m.importo) : 0), 0);
+
+    return {
+        credits: sumBy(m => (m.tipo === "credito" || (toLower(m.descrizione).includes("credito") && m.tipo !== "incasso"))),
+        vouchers: sumBy(m => (m.tipo === "voucher" || m.tipo === "punti" || toLower(m.descrizione).includes("voucher") || toLower(m.descrizione).includes("punti"))),
+        refunds: sumBy(m => (m.tipo === "pagamento" || m.tipo === "uscita" || toLower(m.descrizione).includes("rimborso"))),
+        extra_cash: sumBy(m => m.tipo === "incasso")
+    };
+}
+
+/**
+ * Calculates theoretic revenue for a shift
+ */
+export function calculateTheoreticRevenue({ litersB, litersG, priceB, priceG }) {
+    const round = (val) => Math.round((val || 0) * 100) / 100;
+    return round((litersB * priceB) + (litersG * priceG));
+}
+
+/**
+ * Calculates expected cash for a shift
+ */
+export function calculateExpectedCash(params) {
+    const {
+        carburanteAtteso,
+        totalPosOperatore,
+        totalUtaOperatore,
+        selfPos,
+        creditsSum,
+        vouchersSum,
+        selfCashIn,
+        selfCashOut,
+        refundsSum,
+        extraCashSum,
+        cashReal,
+        tolerance = 5
+    } = params;
+
+    const round = (val) => Math.round((val || 0) * 100) / 100;
+    const deltaSelf = (Number(selfCashIn) || 0) - (Number(selfCashOut) || 0);
+
+    const expectedCash = (Number(carburanteAtteso) || 0)
+        - (Number(totalPosOperatore) || 0)
+        - (Number(totalUtaOperatore) || 0)
+        - (Number(selfPos) || 0)
+        - (Number(creditsSum) || 0)
+        - (Number(vouchersSum) || 0)
+        + deltaSelf
+        - (Number(refundsSum) || 0)
+        + (Number(extraCashSum) || 0);
+
+    const roundedExpected = round(expectedCash);
+    const cashRealNum = Number(cashReal) || 0;
+    const cashDiff = round(cashRealNum - roundedExpected);
+    const isValid = Math.abs(cashDiff) <= tolerance;
+
+    return {
+        expected_cash: roundedExpected,
+        cash_diff: cashDiff,
+        is_valid: isValid
+    };
+}

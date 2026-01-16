@@ -96,6 +96,11 @@ test.describe('Critical User Flows - E2E', () => {
         test('should create and redeem a voucher', async ({ page, browser }) => {
             // ADMIN SIDE
             await page.goto('/');
+            await page.fill('#email', 'lorenzo96barra@outlook.com');
+            await page.fill('#password', '123na123');
+            await page.click('button[type="submit"]');
+            await expect(page.locator('.admin-sidebar')).toBeVisible();
+
             await page.click('[data-tab="vouchers"]');
             await page.waitForSelector('#voucher-generator-form');
 
@@ -123,9 +128,18 @@ test.describe('Critical User Flows - E2E', () => {
             await expect(operatorPage.locator('.operator-container')).toBeVisible();
 
             // Search and redeem (logic from vouchers.js)
-            await operatorPage.click('.redeem-btn'); // Assuming there is a button to scan/enter code
-            // ... (Rest of voucher redemption logic)
-            // For now, let's just verify the operator dashboard is visible
+            // 1. Open Accordion
+            await operatorPage.click('#btn-movimenti');
+
+            // 2. Click Voucher sub-menu
+            await operatorPage.click('#btn-voucher');
+
+            // 3. Verify Modal is open
+            await expect(operatorPage.locator('.voucher-modal-content')).toBeVisible();
+
+            // 4. Try Manual Entry (easier for E2E than camera)
+            await operatorPage.click('#manual-entry-btn');
+            await expect(operatorPage.locator('#manual-entry-form')).toBeVisible();
 
             await operatorContext.close();
         });

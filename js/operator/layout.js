@@ -1,0 +1,262 @@
+/**
+ * Operator Layout Module
+ * Handles rendering of operator shell and shared UI components
+ */
+
+import { escapeHtml } from '../utils/utils.js';
+import { clearSession } from '../core/auth.js';
+import { store } from '../shared/state.js';
+import { openConfirmModal } from '../ui/ui.js';
+import { getStationName } from '../core/api.js';
+import { checkOpeningStatus } from './opening.js';
+
+/**
+ * Render the operator shell layout
+ */
+export async function renderOperatorShell(container, handlers) {
+    const user = store.getUser();
+    const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
+
+    if (!document.getElementById('operator-custom-styles')) {
+        injectStyles();
+    }
+
+    container.innerHTML = `
+        <div class="operator-container">
+            <header class="operator-header">
+                <div class="header-left">
+                    <img src="/assets/images/logo-svg.svg" alt="Neofuel" style="height: 40px; vertical-align: middle;">
+                    <span class="station-badge" id="station-badge">Caricamento...</span>
+                </div>
+                <div class="header-right">
+                    <span id="sync-indicator" class="sync-badge" title="Operazioni in attesa di sincronizzazione">
+                        <i class="fas fa-sync-alt"></i> <span id="sync-count">0</span>
+                    </span>
+                    <button id="op-logout-btn" class="icon-btn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+            
+            <div class="operator-menu">
+                <!-- Apertura/Chiusura (dinamico) -->
+                <button class="op-menu-item primary" id="btn-turno">
+                    <i class="fas fa-door-open" id="turno-icon"></i>
+                    <span id="turno-text">Apertura</span>
+                    <span class="status-badge" id="opening-status"></span>
+                </button>
+
+                <!-- Movimenti (accordion) -->
+                <div class="op-menu-accordion">
+                    <button class="op-menu-item accordion-trigger" id="btn-movimenti">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>Movimenti</span>
+                        <i class="fas fa-chevron-down accordion-icon"></i>
+                    </button>
+                    <div class="accordion-content" id="movimenti-content">
+                        <button class="op-submenu-item" id="btn-crediti">
+                            <i class="fas fa-credit-card"></i>
+                            <span>Crediti</span>
+                        </button>
+                        <button class="op-submenu-item" id="btn-voucher">
+                            <i class="fas fa-ticket-alt"></i>
+                            <span>Voucher</span>
+                        </button>
+                        <button class="op-submenu-item" id="btn-uscite">
+                            <i class="fas fa-hand-holding-usd"></i>
+                            <span>Uscite</span>
+                        </button>
+                        <button class="op-submenu-item" id="btn-incassi">
+                            <i class="fas fa-cash-register"></i>
+                            <span>Incassi</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Fatture -->
+                <button class="op-menu-item" id="btn-fatture">
+                    <i class="fas fa-file-invoice"></i>
+                    <span>Fatture</span>
+                </button>
+
+                <!-- Prezzi -->
+                <button class="op-menu-item" id="btn-prezzi">
+                    <i class="fas fa-tags"></i>
+                    <span>Prezzi</span>
+                </button>
+            </div>
+            
+            <div id="operator-content" class="operator-content">
+                <div class="welcome-message">
+                    <p>Seleziona un'attività dal menu in alto.</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Initialize dynamic components
+    if (stationId) {
+        updateStationBadge(stationId);
+        updateTurnoButton(stationId, user.id, handlers);
+    }
+
+    attachEventListeners(handlers);
+    updateSyncBadge();
+
+    // Listen for sync changes
+    document.addEventListener('sync-status-changed', updateSyncBadge);
+}
+
+/**
+ * Update the station badge with the real name
+ */
+async function updateStationBadge(stationId) {
+    try {
+        const name = await getStationName(stationId);
+        const badge = document.getElementById('station-badge');
+        if (badge) badge.textContent = name;
+    } catch (err) {
+        console.error('Error updating station badge:', err);
+    }
+}
+
+/**
+ * Update the dynamic "Turno" button state
+ */
+export async function updateTurnoButton(stationId, userId, handlers) {
+    const btnTurno = document.getElementById('btn-turno');
+    const badge = document.getElementById('opening-status');
+    if (!btnTurno) return;
+
+    const opening = await checkOpeningStatus(stationId);
+
+    // Update icons and text
+    const turnoIcon = btnTurno.querySelector('#turno-icon');
+    const turnoText = btnTurno.querySelector('#turno-text');
+
+    // Clone and replace to clean listeners
+    const newBtnTurno = /** @type {HTMLElement} */(btnTurno.cloneNode(true));
+    btnTurno.parentNode.replaceChild(newBtnTurno, btnTurno);
+
+    if (opening) {
+        (/** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-icon'))).className = 'fas fa-door-closed';
+        (/** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-text'))).textContent = 'Chiusura';
+        newBtnTurno.addEventListener('click', () => handlers.onClosure(stationId, userId));
+
+        if (badge) {
+            const hasPartial = opening.closing_data?.closure_stage === 'partial';
+            badge.textContent = hasPartial ? 'Parziale' : 'Aperto';
+            badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
+            badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
+        }
+    } else {
+        (/** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-icon'))).className = 'fas fa-door-open';
+        (/** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-text'))).textContent = 'Apertura';
+        newBtnTurno.addEventListener('click', () => handlers.onOpening(stationId, userId));
+
+        if (badge) {
+            badge.textContent = 'Chiuso';
+            badge.className = 'status-badge status-closed';
+            badge.title = 'Nessuna apertura attiva';
+        }
+    }
+}
+
+/**
+ * Update the sync indicator badge
+ */
+async function updateSyncBadge() {
+    try {
+        const { offlineDB } = await import("../core/offline-db.js");
+        const count = await offlineDB.getQueueCount();
+        const badge = document.getElementById('sync-indicator');
+        const countSpan = document.getElementById('sync-count');
+        if (badge && countSpan) {
+            countSpan.textContent = count.toString();
+            badge.classList.toggle('active', count > 0);
+        }
+    } catch (err) {
+        console.warn('Sync indicator failed:', err);
+    }
+}
+
+/**
+ * Attach global event listeners
+ */
+function attachEventListeners(handlers) {
+    // Logout
+    document.getElementById('op-logout-btn').addEventListener('click', async () => {
+        const confirmed = await openConfirmModal('Vuoi uscire dal portale operatore?');
+        if (confirmed) {
+            await clearSession();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            window.location.href = window.location.pathname;
+        }
+    });
+
+    // Accordion
+    const btnMovimenti = document.getElementById('btn-movimenti');
+    const movimentiContent = document.getElementById('movimenti-content');
+    if (btnMovimenti && movimentiContent) {
+        btnMovimenti.addEventListener('click', () => {
+            const isOpen = movimentiContent.classList.contains('open');
+            movimentiContent.classList.toggle('open');
+            const icon = /** @type {HTMLElement} */(btnMovimenti.querySelector('.accordion-icon'));
+            if (icon) {
+                icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+            }
+        });
+    }
+
+    // Menu Items
+    const map = {
+        'btn-crediti': 'crediti',
+        'btn-voucher': 'voucher',
+        'btn-uscite': 'uscite',
+        'btn-incassi': 'incassi',
+        'btn-fatture': 'fatture',
+        'btn-prezzi': 'prezzi'
+    };
+
+    Object.entries(map).forEach(([id, view]) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.addEventListener('click', () => handlers.onNavigate(view));
+        }
+    });
+}
+
+/**
+ * Inject local styles (extracted from operator.js)
+ */
+function injectStyles() {
+    const style = document.createElement('style');
+    style.id = 'operator-custom-styles';
+    style.innerHTML = `
+      .result-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;
+      }
+      .result-item:hover { background: #f9f9f9; }
+      .customer-header {
+        background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+        border-left: 4px solid #0284c7;
+      }
+      .balance-display { font-size: 1.2em; color: #0284c7; margin-top: 5px; }
+      .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+      .tab-btn {
+        flex: 1; padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer;
+      }
+      .tab-btn.active { background: #0284c7; color: white; border-color: #0284c7; }
+      .voucher-amount { font-size: 2em; font-weight: bold; color: #10b981; margin: 10px 0; }
+      .sync-badge {
+        background: #f59e0b; color: white; font-size: 0.75em; padding: 2px 6px;
+        border-radius: 10px; margin-left: 5px; display: none;
+      }
+      .sync-badge.active { display: inline-block; animation: pulse 2s infinite; }
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
+}
