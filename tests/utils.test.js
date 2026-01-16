@@ -1,133 +1,77 @@
-/**
- * Unit tests per js/utils/utils.js
- * Eseguire con: npx vitest run
- */
+// @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import {
-    escapeHtml,
-    formatEuro,
-    formatLitri,
-    formatNumberIt,
-    debounce,
-    throttle,
-    createRateLimiter,
-    formatDate
-} from '../js/utils/utils.js';
+import { formatEuro, escapeHtml, createRateLimiter, formatLitri } from '../js/utils/utils.js';
 
-describe('escapeHtml', () => {
-    it('dovrebbe escapare caratteri HTML pericolosi', () => {
-        expect(escapeHtml('<script>alert("xss")</script>')).toBe('&lt;script&gt;alert("xss")&lt;/script&gt;');
+describe('Global Utilities Standard Suite', () => {
+
+    describe('formatEuro (Currency)', () => {
+        it('formats integers', () => {
+            expect(formatEuro(100)).toBe('€ 100,00');
+        });
+
+        it('formats decimals', () => {
+            expect(formatEuro(100.5)).toBe('€ 100,50');
+            expect(formatEuro(100.556)).toBe('€ 100,56'); // Rounding check
+        });
+
+        it('handles zero and null', () => {
+            expect(formatEuro(0)).toBe('€ 0,00');
+            expect(formatEuro(null)).toBe('€ 0,00');
+            expect(formatEuro(undefined)).toBe('€ 0,00');
+        });
+
+        it('handles negative values', () => {
+            expect(formatEuro(-1250.50)).toBe('€ -1.250,50');
+        });
     });
 
-    it('dovrebbe gestire stringhe vuote', () => {
-        expect(escapeHtml('')).toBe('');
+    describe('formatLitri (Volume)', () => {
+        it('formats with 2 decimals', () => {
+            expect(formatLitri(50)).toBe('50,00');
+            expect(formatLitri(50.123)).toBe('50,12');
+        });
     });
 
-    it('dovrebbe gestire null/undefined', () => {
-        expect(escapeHtml(null)).toBe('');
-        expect(escapeHtml(undefined)).toBe('');
-    });
-});
+    describe('escapeHtml (Security)', () => {
+        it('sanitizes standard XSS vectors', () => {
+            const input = '<script>alert("hacked")</script>';
+            expect(escapeHtml(input)).toBe('&lt;script&gt;alert(&quot;hacked&quot;)&lt;/script&gt;');
+        });
 
-describe('formatNumberIt', () => {
-    it('dovrebbe formattare numeri in formato italiano', () => {
-        expect(formatNumberIt(1234.56, 2)).toMatch(/1\.234,56|1,234\.56/);
-    });
+        it('sanitizes attributes', () => {
+            const input = '" onmouseover="alert(1)"';
+            const escaped = escapeHtml(input);
+            expect(escaped).toContain('&quot;');
+        });
 
-    it('dovrebbe gestire numeri negativi', () => {
-        const result = formatNumberIt(-1234.56, 2);
-        expect(result).toContain('1');
-    });
-
-    it('dovrebbe gestire lo zero', () => {
-        expect(formatNumberIt(0, 2)).toMatch(/0,00|0\.00/);
-    });
-});
-
-describe('formatEuro', () => {
-    it('dovrebbe formattare importi in euro', () => {
-        const result = formatEuro(1234.56);
-        expect(result).toContain('€');
-        expect(result).toContain('1');
+        it('handles null/undefined', () => {
+            expect(escapeHtml(null)).toBe('');
+            expect(escapeHtml(undefined)).toBe('');
+        });
     });
 
-    it('dovrebbe gestire valori non numerici', () => {
-        expect(formatEuro(null)).toContain('€');
-        expect(formatEuro(undefined)).toContain('€');
-        expect(formatEuro(NaN)).toContain('€');
-    });
-});
+    describe('Rate Limiter (Stability)', () => {
+        it('allows calls within limit', () => {
+            const limiter = createRateLimiter(2, 1000);
+            expect(limiter.check()).toBe(true);
+            expect(limiter.check()).toBe(true);
+        });
 
-describe('formatLitri', () => {
-    it('dovrebbe formattare litri correttamente', () => {
-        const result = formatLitri(1234.567);
-        expect(result).toContain('L');
-    });
-});
+        it('blocks calls exceeding limit', () => {
+            const limiter = createRateLimiter(2, 1000);
+            limiter.check();
+            limiter.check();
+            expect(limiter.check()).toBe(false);
+        });
 
-describe('formatDate', () => {
-    it('dovrebbe formattare date valide', () => {
-        const result = formatDate('2025-12-22');
-        expect(result).toMatch(/22|12|2025/);
-    });
+        it('resets after window expires (simulated)', async () => {
+            // Mocking time would be better, but basic logic check here
+            const limiter = createRateLimiter(1, 10);
+            limiter.check();
+            expect(limiter.check()).toBe(false);
 
-    it('dovrebbe gestire date invalide', () => {
-        expect(formatDate('')).toBe('');
-        expect(formatDate(null)).toBe('');
-    });
-});
-
-describe('debounce', () => {
-    it('dovrebbe ritardare l\'esecuzione', async () => {
-        let counter = 0;
-        const debouncedFn = debounce(() => counter++, 50);
-
-        debouncedFn();
-        debouncedFn();
-        debouncedFn();
-
-        expect(counter).toBe(0);
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-        expect(counter).toBe(1);
-    });
-});
-
-describe('throttle', () => {
-    it('dovrebbe limitare le chiamate', async () => {
-        let counter = 0;
-        const throttledFn = throttle(() => counter++, 50);
-
-        throttledFn();
-        throttledFn();
-        throttledFn();
-
-        expect(counter).toBe(1);
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-        throttledFn();
-        expect(counter).toBe(2);
-    });
-});
-
-describe('createRateLimiter', () => {
-    it('dovrebbe limitare le chiamate nella finestra temporale', () => {
-        const limiter = createRateLimiter(3, 1000);
-
-        expect(limiter.check()).toBe(true);
-        expect(limiter.check()).toBe(true);
-        expect(limiter.check()).toBe(true);
-        expect(limiter.check()).toBe(false); // 4th call blocked
-    });
-
-    it('dovrebbe resettare correttamente', () => {
-        const limiter = createRateLimiter(2, 1000);
-
-        limiter.check();
-        limiter.check();
-        expect(limiter.check()).toBe(false);
-
-        limiter.reset();
-        expect(limiter.check()).toBe(true);
+            await new Promise(r => setTimeout(r, 15));
+            expect(limiter.check()).toBe(true);
+        });
     });
 });

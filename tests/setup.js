@@ -34,24 +34,41 @@ export const createSupabaseMock = () => {
 
 // Setup global mocks
 export function setupGlobalMocks() {
-    // Mock window.supabase
-    global.window = global.window || {};
-    global.window.supabase = createSupabaseMock();
+    // 1. Basic Node Environment Polyfills
+    if (typeof window === 'undefined') {
+        global.window = {};
+        global.window.console = console;
+    }
 
-    // Mock Html5Qrcode
-    global.window.Html5Qrcode = vi.fn().mockImplementation(() => ({
+    if (typeof document === 'undefined') {
+        global.document = {
+            getElementById: vi.fn().mockReturnValue(null),
+            createElement: vi.fn().mockReturnValue({}),
+            querySelector: vi.fn().mockReturnValue(null),
+        };
+    }
+
+    if (typeof navigator === 'undefined') {
+        global.navigator = {
+            onLine: true,
+            userAgent: 'node',
+        };
+    }
+
+    if (typeof HTMLElement === 'undefined') {
+        global.HTMLElement = class HTMLElement { };
+    }
+
+    // 2. Application Specific Mocks
+    window.supabase = window.supabase || createSupabaseMock();
+
+    window.Html5Qrcode = vi.fn().mockImplementation(() => ({
         start: vi.fn(),
         stop: vi.fn(),
         clear: vi.fn(),
     }));
 
-    // Mock Chart.js
-    global.window.Chart = vi.fn();
-
-    // Mock document methods if needed
-    if (!global.document.getElementById) {
-        global.document.getElementById = vi.fn().mockReturnValue(null);
-    }
+    window.Chart = vi.fn();
 }
 
 // Eseguito prima di tutti i test

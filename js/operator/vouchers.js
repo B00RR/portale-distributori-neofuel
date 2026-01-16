@@ -4,6 +4,7 @@ import { formatEuro, formatDate, escapeHtml } from "../utils/utils.js";
 import { checkOpeningStatus } from "./opening.js";
 import { Toast } from "../ui/toast.js";
 import { handleError } from "../shared/error-handler.js";
+import { validateVoucher } from "../core/rules.js";
 
 // We assume Html5QrcodeScanner is loaded globally via script tag in index.html
 // If not, we should dynamically load it, but for now let's assume existence or load it here.
@@ -231,22 +232,27 @@ async function processVoucherCode(code) {
     // However, usually these codes are designed to be unique enough or we take the first active one.
     const voucher = vouchers[0];
 
-    // 2. Check Status
-    if (voucher.status === 'redeemed') {
-      resultContainer.innerHTML = `
-                <div class="alert alert-danger" style="background:#fee2e2; color:#b91c1c; padding:25px; border-radius:12px; border:2px solid #fecaca; text-align:center;">
-                    <h2 style="margin:0 0 10px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Voucher Già Riscattato</h2>
-                    <p style="font-size:1.1em; margin:0;">Questo buono è stato usato il <strong>${formatDate(voucher.redeemed_at)}</strong>.</p>
-                </div>
-            `;
-      return;
-    }
+    // 2. Check Status (Refactored using Core Rules)
+    const validation = validateVoucher(voucher);
+    if (!validation.valid) {
+      let icon = 'fa-times-circle';
+      let detailText = '';
 
-    if (voucher.status === 'expired' || (voucher.expiration_date && new Date(voucher.expiration_date) < new Date())) {
+      if (validation.reason === 'redeemed') {
+        icon = 'fa-exclamation-triangle';
+        detailText = `Questo buono è stato usato il <strong>${formatDate(validation.details.date)}</strong>.`;
+      } else if (validation.reason === 'expired') {
+        if (validation.details?.date) {
+          detailText = `Il buono è scaduto il <strong>${formatDate(validation.details.date)}</strong>`;
+        } else {
+          detailText = `Il buono risulta scaduto.`;
+        }
+      }
+
       resultContainer.innerHTML = `
                 <div class="alert alert-danger" style="background:#fee2e2; color:#b91c1c; padding:25px; border-radius:12px; border:2px solid #fecaca; text-align:center;">
-                    <h2 style="margin:0 0 10px 0; color:#b91c1c;"><i class="fas fa-times-circle"></i> Voucher Scaduto</h2>
-                    <p style="font-size:1.1em; margin:0;">Il buono è scaduto il <strong>${formatDate(voucher.expiration_date)}</strong></p>
+                    <h2 style="margin:0 0 10px 0; color:#b91c1c;"><i class="fas ${icon}"></i> ${validation.error}</h2>
+                    <p style="font-size:1.1em; margin:0;">${detailText}</p>
                 </div>
             `;
       return;
