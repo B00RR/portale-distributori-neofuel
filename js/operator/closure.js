@@ -1305,69 +1305,19 @@ async function showClosureStep3() {
         tank_usage: tankUsageRecords
       };
 
-      // Salva chiusura: aggiorna il record esistente in shifts
-      const updatePayload = {
-        closing_data: dataJson,
-        status: isFinal ? 'closed' : 'open'
-      };
+      // Salva chiusura: USARE RPC SICURA
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('submit_shift_closure', {
+        p_shift_id: turnoId,
+        p_station_id: stationId,
+        p_closing_data: dataJson,
+        p_is_final: isFinal,
+        p_final_counters: closureState.data.includeCounters ? finalCounters : null,
+        p_tank_usage: tankUsageRecords
+      });
 
-      if (isFinal) {
-        updatePayload.closed_at = new Date().toISOString();
-      }
-
-      const { data: closure, error: closureError } = await supabase
-        .from('shifts')
-        .update(updatePayload)
-        .eq('id', turnoId)
-        .select()
-        .single();
-
-      if (closureError) throw closureError;
-
-      // Aggiorna contatori finali pistole SOLO se sono stati inseriti
-      if (closureState.data.includeCounters) {
-        // Aggiorna i record esistenti in shift_pistols con i contatori finali
-        for (const p of pistole) {
-          const { error: counterError } = await supabase
-            .from('shift_pistols')
-            .update({
-              closed_at_counter: finalCounters[p.id]
-            })
-            .eq('shift_id', turnoId)
-            .eq('pistola_id', p.id);
-
-          if (counterError) {
-            console.error(`Errore aggiornamento contatore pistola ${p.id}:`, counterError);
-          }
-        }
-      }
-
-      // Aggiorna contatori pistole nella tabella 'pistole' se è chiusura finale
-      if (isFinal) {
-        for (const p of pistole) {
-          await supabase
-            .from('pistole')
-            .update({ numero_litri: finalCounters[p.id] })
-            .eq('id', p.id);
-        }
-      }
-
-      if (tankUsageRecords.length) {
-        const usagePayload = tankUsageRecords.map(record => ({
-          shift_id: turnoId,
-          station_id: stationId,
-          pump_id: record.pump_id,
-          tank_id: record.tank_id,
-          liters: record.liters,
-          mode: record.mode,
-          ratio: record.ratio
-        }));
-        const { error: tankUsageError } = await supabase
-          .from('tank_pump_usages')
-          .insert(usagePayload);
-        if (tankUsageError) {
-          console.warn('Errore salvataggio distribuzione serbatoi:', tankUsageError);
-        }
+      if (rpcError) throw rpcError;
+      if (rpcResult && !rpcResult.success) {
+        throw new Error(rpcResult.error || 'Errore durante il salvataggio della chiusura.');
       }
 
       // Mostra successo

@@ -4,6 +4,10 @@
 import { supabase } from "./api.js";
 import { Toast } from "../ui/toast.js";
 import { showFullScreenLoader, hideFullScreenLoader, setButtonLoading, showPromptModal } from "../ui/ui.js";
+import { createRateLimiter } from "../utils/utils.js";
+
+// Rate Limiter per Login (5 tentativi al minuto)
+const loginRateLimiter = createRateLimiter(5, 60000);
 
 let loginForm = null;
 let loginContainer = null;
@@ -132,7 +136,7 @@ export function setupLoginForm() {
                             authError.message.includes('Invalid') ||
                             authError.message.includes('invalid')
                             ? "Email o password errati."
-                            : `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message}`;
+                            : `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message} `;
                     }
                     return;
                 }
@@ -147,12 +151,12 @@ export function setupLoginForm() {
             let { data: userData, error: userError } = await supabase
                 .from('users')
                 .select(`
-                    *,
-                    user_stations (
-                        station_id,
-                        fuel_stations ( station_name )
-                    )
-                `)
+    *,
+    user_stations(
+        station_id,
+        fuel_stations(station_name)
+    )
+        `)
                 .eq('email', email)
                 .maybeSingle();
 
@@ -218,7 +222,7 @@ export function setupLoginForm() {
         } catch (err) {
             console.error('Errore durante il login (catch):', err);
             if (errorElement) {
-                errorElement.textContent = `Errore durante il login: ${err.message || 'Errore sconosciuto'}`;
+                errorElement.textContent = `Errore durante il login: ${err.message || 'Errore sconosciuto'} `;
             }
         } finally {
             hideFullScreenLoader();
@@ -242,12 +246,12 @@ export async function loadSession() {
         let { data: userData } = await supabase
             .from('users')
             .select(`
-                *,
-                user_stations (
-                    station_id,
-                    fuel_stations ( station_name )
-                )
-            `)
+    *,
+    user_stations(
+        station_id,
+        fuel_stations(station_name)
+    )
+        `)
             .eq('email', email)
             .maybeSingle();
 
@@ -327,8 +331,8 @@ export async function requestPasswordReset(email) {
             window.location.hostname === '';
 
         const redirectUrl = isLocalhost
-            ? `${window.location.origin}${window.location.pathname}`
-            : `${window.location.origin}${window.location.pathname}`;
+            ? `${window.location.origin}${window.location.pathname} `
+            : `${window.location.origin}${window.location.pathname} `;
 
         localStorage.setItem('password_reset_email', email);
 
@@ -357,7 +361,7 @@ export function showOTPResetForm() {
 
     const mainContent = document.getElementById('main-content') || document.body;
     mainContent.innerHTML = `
-    <div id="otp-reset-container" style="max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    < div id = "otp-reset-container" style = "max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);" >
       <h2 style="text-align: center; margin-bottom: 20px;">Reimposta Password</h2>
       <p style="text-align: center; color: #666; margin-bottom: 20px;">Inserisci il codice a 6 cifre ricevuto via email</p>
       <form id="otp-reset-form">
@@ -371,8 +375,8 @@ export function showOTPResetForm() {
         <button type="submit" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold;">Verifica Codice</button>
         <button type="button" id="back-to-login-otp" style="width: 100%; padding: 10px; margin-top: 10px; background: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 14px;">Torna al Login</button>
       </form>
-    </div>
-  `;
+    </div >
+    `;
 
     const otpForm = document.getElementById('otp-reset-form');
     const otpInput = document.getElementById('otp-code');
@@ -445,7 +449,7 @@ export function showResetPasswordForm() {
 
     const mainContent = document.getElementById('main-content') || document.body;
     mainContent.innerHTML = `
-    <div id="reset-password-container" style="max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    < div id = "reset-password-container" style = "max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);" >
       <h2 style="text-align: center; margin-bottom: 20px;">Reimposta Password</h2>
       <p style="text-align: center; color: #666; margin-bottom: 20px;">Inserisci la tua nuova password</p>
       <form id="reset-password-form">
@@ -466,8 +470,8 @@ export function showResetPasswordForm() {
         <div id="reset-password-error" style="color: red; margin-bottom: 15px; text-align: center; min-height: 20px;"></div>
         <button type="submit" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold;">Aggiorna Password</button>
       </form>
-    </div>
-  `;
+    </div >
+    `;
 
     const resetForm = document.getElementById('reset-password-form');
     const newPasswordInput = document.getElementById('new-password');

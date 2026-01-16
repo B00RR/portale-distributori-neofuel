@@ -1,6 +1,6 @@
 import { supabase } from "../core/api.js";
 import { showInfoModal, showErrorMessage, showLoadingMessage, openModal, closeModal } from "../ui/ui.js";
-import { formatEuro, formatDate } from "../utils/utils.js";
+import { formatEuro, formatDate, escapeHtml } from "../utils/utils.js";
 import { checkOpeningStatus } from "./opening.js";
 import { Toast } from "../ui/toast.js";
 import { handleError } from "../shared/error-handler.js";
@@ -196,7 +196,16 @@ function toggleManualEntry() {
   }
 }
 
+import { createRateLimiter } from "../utils/utils.js";
+
+const voucherRateLimiter = createRateLimiter(5, 60000); // 5 tentativi al minuto
+
 async function processVoucherCode(code) {
+  if (!voucherRateLimiter.check()) {
+    Toast.show("Troppi tentativi. Riprova tra un minuto.", "error");
+    return;
+  }
+
   const resultContainer = document.getElementById('voucher-result');
   resultContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Verifica in corso...</div>';
 
@@ -249,8 +258,8 @@ async function processVoucherCode(code) {
                 <div style="color: #22c55e; font-size: 3rem; margin-bottom: 10px;"><i class="fas fa-check-circle"></i></div>
                 <h3 style="margin:0;">Voucher Valido!</h3>
                 <div style="font-size: 2rem; font-weight: bold; margin: 10px 0;">${formatEuro(voucher.amount)}</div>
-                <p><strong>Codice:</strong> ${voucher.code}</p>
-                ${voucher.voucher_batches?.customer_name ? `<p><strong>Cliente:</strong> ${voucher.voucher_batches.customer_name}</p>` : ''}
+                <p><strong>Codice:</strong> ${escapeHtml(voucher.code)}</p>
+                ${voucher.voucher_batches?.customer_name ? `<p><strong>Cliente:</strong> ${escapeHtml(voucher.voucher_batches.customer_name)}</p>` : ''}
                 
                 <div class="form-actions" style="margin-top: 20px;">
                     <button class="menu-button btn-danger" id="cancel-redeem">Annulla</button>
@@ -282,33 +291,19 @@ async function redeemVoucher(voucher) {
   resultContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Registrazione incasso...</div>';
 
   try {
-    // 1. Update Voucher Status
-    const { error: updateError } = await supabase
-      .from('vouchers')
-      .update({
-        status: 'redeemed',
-        redeemed_at: new Date().toISOString()
-      })
-      .eq('id', voucher.id);
+    // 1. Call Secure RPC for Redemption
+    // This atomic transaction verifies validity, updates status, and inserts cash movement
+    const { data: result, error: rpcError } = await supabase.rpc('redeem_voucher_validated', {
+      p_voucher_code: voucher.code,
+      p_station_id: voucherState.stationId,
+      p_operator_id: voucherState.userId
+    });
 
-    if (updateError) throw updateError;
+    if (rpcError) throw rpcError;
 
-    // 2. Insert Movimento Cassa (So it appears in Closure)
-    const { error: moveError } = await supabase
-      .from('movimenti_cassa')
-      .insert([{
-        station_id: voucherState.stationId,
-        operator_id: voucherState.userId,
-        tipo: 'voucher',
-        importo: voucher.amount,
-        descrizione: `Riscatto Voucher ${voucher.code}`,
-        created_at: new Date().toISOString()
-      }]);
-
-    if (moveError) {
-      // Rollback voucher (crudely)
-      await supabase.from('vouchers').update({ status: 'active', redeemed_at: null }).eq('id', voucher.id);
-      throw moveError;
+    // Check strict success from RPC logic
+    if (result && !result.success) {
+      throw new Error(result.error || 'Errore durante il riscatto del voucher');
     }
 
     Toast.show("Voucher Riscattato con Successo!", 'success');
@@ -326,7 +321,7 @@ async function redeemVoucher(voucher) {
 
   } catch (err) {
     console.error(err);
-    showErrorMessage("Errore Riscatto", "Impossibile completare l'operazione. Riprova: " + err.message);
+    showErrorMessage("Errore Riscatto", "Impossibile completare l'operazione. Riprova: " + (err.message || err.toString()));
     resultContainer.innerHTML = ''; // Reset to allow retry
   }
 }
