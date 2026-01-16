@@ -4,7 +4,8 @@
  */
 
 import { escapeHtml } from '../utils/utils.js';
-import { loggedUser, clearSession } from '../core/auth.js';
+import { clearSession } from '../core/auth.js';
+import { store } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
 import { router } from './router.js';
 
@@ -12,10 +13,11 @@ import { router } from './router.js';
  * Render the admin shell layout
  */
 export function renderAdminShell(container, onTabChange) {
-    const userRole = loggedUser?.role || 'operator';
+    const user = store.getUser();
+    const userRole = user?.role || 'operator';
     const isFullAdmin = userRole === 'admin' || userRole === 'super_admin' || userRole === 'full_admin';
 
-    console.log('[Layout] Rendering shell for role:', userRole, 'isFullAdmin:', isFullAdmin);
+    console.log('[Layout] Rendering shell for role:', userRole, 'isFullAdmin:', isFullAdmin, 'userObj:', user);
 
     container.innerHTML = `
         <div class="admin-container">
@@ -56,7 +58,7 @@ export function renderAdminShell(container, onTabChange) {
                     </div>
                     <div class="sidebar-footer-meta">
                         <span class="sidebar-footer-role">${escapeHtml(getRoleLabel(userRole))}</span>
-                        <span class="sidebar-footer-name">${escapeHtml(loggedUser?.full_name || 'Utente')}</span>
+                        <span class="sidebar-footer-name">${escapeHtml(user?.full_name || 'Utente')}</span>
                     </div>
                 </div>
             </aside>

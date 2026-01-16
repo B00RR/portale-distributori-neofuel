@@ -160,6 +160,8 @@ export function setupLoginForm() {
                 .eq('email', email)
                 .maybeSingle();
 
+            console.log('[Auth] User lookup for', email, 'result:', userData, 'error:', userError);
+
             if (!userData) {
                 console.warn('User not found via standard SELECT. Attempting Secure RPC lookup...');
                 // Fallback: Prova a recuperare l'ID tramite la funzione sicura (Security Definer)
@@ -187,7 +189,7 @@ export function setupLoginForm() {
                 }
             }
 
-            if (userData.role) {
+            if (userData?.role) {
                 loggedUser = userData;
             } else {
                 loggedUser = {
@@ -195,6 +197,7 @@ export function setupLoginForm() {
                     role: authData.user.user_metadata?.role || 'operator'
                 };
             }
+            console.log('[Auth] Final LoggedUser:', loggedUser);
 
             if (loginContainer) loginContainer.style.display = 'none';
             if (appContainer) appContainer.style.display = 'block';

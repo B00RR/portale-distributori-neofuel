@@ -18,8 +18,11 @@ export function showAdminArea() {
   const mainContent = document.getElementById('main-content');
   if (!mainContent) return;
 
-  const userRole = loggedUser?.role || 'operator';
-  const isFullAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const user = store.getUser();
+  const userRole = user?.role || 'operator';
+  const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
+
+  console.log('[Admin] showAdminArea role:', userRole, 'isFullAdmin:', isFullAdmin, 'userObj:', user);
 
   // Initialize router with user role
   router.init(userRole);
@@ -48,7 +51,7 @@ export function showAdminArea() {
       }
     }
 
-    const assignedStations = loggedUser?.assignedStations || [];
+    const assignedStations = user?.assignedStations || [];
     let options = stations || [];
 
     if (!isFullAdmin) {
@@ -85,9 +88,9 @@ export function showAdminArea() {
   }
 
   // Pre-initialize filter for restricted users
-  if (!isFullAdmin && loggedUser?.assignedStations?.length > 0) {
+  if (!isFullAdmin && user?.assignedStations?.length > 0) {
     if (store.getFilter() === null) {
-      store.setStationFilter(loggedUser.assignedStations[0].id);
+      store.setStationFilter(user.assignedStations[0].id);
     }
   }
 
