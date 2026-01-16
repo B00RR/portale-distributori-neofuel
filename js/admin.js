@@ -177,6 +177,7 @@ export function showAdminArea() {
           ${(isFullAdmin || userRole === 'accounting') ? `
             <button class="nav-btn" data-tab="vouchers"><i class="fas fa-ticket-alt"></i> Gestione Voucher</button>
             <button class="nav-btn" data-tab="shifts"><i class="fas fa-clock"></i> Turni e Chiusure</button>
+            <button class="nav-btn" data-tab="analytics"><i class="fas fa-chart-pie"></i> Analytics</button>
             <button class="nav-btn" data-tab="crediti"><i class="fas fa-credit-card"></i> Crediti</button>
           ` : ''}
 
@@ -309,6 +310,15 @@ export function showAdminArea() {
         break;
       case 'shifts':
         showChiusureTab(content, headerActions, filter);
+        break;
+      case 'analytics':
+        showLoadingMessage(content);
+        try {
+          const { showAnalyticsTab } = await import('./admin/analytics.js');
+          showAnalyticsTab(content, headerActions, filter);
+        } catch (err) {
+          handleError(err, 'Caricamento modulo Analytics', content);
+        }
         break;
       case 'crediti':
 
