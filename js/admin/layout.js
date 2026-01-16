@@ -13,7 +13,9 @@ import { router } from './router.js';
  */
 export function renderAdminShell(container, onTabChange) {
     const userRole = loggedUser?.role || 'operator';
-    const isFullAdmin = userRole === 'admin' || userRole === 'super_admin';
+    const isFullAdmin = userRole === 'admin' || userRole === 'super_admin' || userRole === 'full_admin';
+
+    console.log('[Layout] Rendering shell for role:', userRole, 'isFullAdmin:', isFullAdmin);
 
     container.innerHTML = `
         <div class="admin-container">

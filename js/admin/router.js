@@ -29,7 +29,8 @@ class AdminRouter {
      */
     init(userRole) {
         this.userRole = userRole || 'operator';
-        this.isFullAdmin = this.userRole === 'admin' || this.userRole === 'super_admin';
+        this.isFullAdmin = this.userRole === 'admin' || this.userRole === 'super_admin' || this.userRole === 'full_admin';
+        console.log('[Router] Initialized for role:', this.userRole, 'isFullAdmin:', this.isFullAdmin);
     }
 
     /**
