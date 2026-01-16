@@ -2,6 +2,9 @@ import { supabase } from "../core/api.js";
 import { showLoadingMessage, showErrorMessage } from "../ui/ui.js";
 import { formatEuro, formatLitri, getISODate } from "../utils/utils.js";
 
+// Hack: Cast window to 'any' to silence the editor error about 'Chart' missing
+const Chart = /** @type {any} */ (window).Chart;
+
 /**
  * Main entry point for the Analytics Tab
  * @param {HTMLElement} container 
@@ -126,7 +129,7 @@ async function updateCharts(container, stationId, dateRange) {
         const aggregated = processAnalyticsData(shifts, startDate, endDate);
 
         // 4. Render Charts (Lazy load Chart.js logic if needed, but assuming global Chart)
-        if (window.Chart) {
+        if (Chart) {
             renderRevenueChart(aggregated);
             renderVolumeChart(aggregated);
             renderPaymentChart(aggregated);
@@ -218,7 +221,7 @@ function renderRevenueChart(data) {
     const ctx = getChartContext('revenue-chart');
     if (!ctx) return;
 
-    charts['revenue-chart'] = new window.Chart(ctx, {
+    charts['revenue-chart'] = new Chart(ctx, {
         type: 'line',
         data: {
             labels: data.daily.map(d => new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
@@ -245,7 +248,7 @@ function renderVolumeChart(data) {
     const ctx = getChartContext('volume-chart');
     if (!ctx) return;
 
-    charts['volume-chart'] = new window.Chart(ctx, {
+    charts['volume-chart'] = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: data.daily.map(d => new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
@@ -281,7 +284,7 @@ function renderPaymentChart(data) {
     const ctx = getChartContext('payments-chart');
     if (!ctx) return;
 
-    charts['payments-chart'] = new window.Chart(ctx, {
+    charts['payments-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: ['Contanti', 'POS', 'Crediti', 'Voucher'],
@@ -304,7 +307,7 @@ function renderFuelMixChart(data) {
     const ctx = getChartContext('fuels-chart');
     if (!ctx) return;
 
-    charts['fuels-chart'] = new window.Chart(ctx, {
+    charts['fuels-chart'] = new Chart(ctx, {
         type: 'pie',
         data: {
             labels: ['Benzina', 'Gasolio'],
