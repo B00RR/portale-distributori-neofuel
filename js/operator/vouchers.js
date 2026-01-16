@@ -13,7 +13,8 @@ let voucherState = {
   scanner: null,
   isScanning: false,
   stationId: null,
-  userId: null
+  userId: null,
+  isRedeeming: false  // Previene riscatti multipli simultanei
 };
 
 // --- INITIALIZATION ---
@@ -293,7 +294,28 @@ async function processVoucherCode(code) {
 }
 
 async function redeemVoucher(voucher) {
+  // Previeni riscatti multipli - Guardia critica
+  if (voucherState.isRedeeming) {
+    console.warn('Riscatto già in corso, richiesta ignorata');
+    return;
+  }
+
+  voucherState.isRedeeming = true;
+
   const resultContainer = document.getElementById('voucher-result');
+
+  // Disabilita immediatamente tutti i pulsanti di azione
+  const confirmBtn = /** @type {HTMLButtonElement} */(document.getElementById('confirm-redeem'));
+  const cancelBtn = /** @type {HTMLButtonElement} */(document.getElementById('cancel-redeem'));
+
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Riscatto in corso...';
+  }
+  if (cancelBtn) {
+    cancelBtn.disabled = true;
+  }
+
   resultContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Registrazione incasso...</div>';
 
   try {
@@ -323,11 +345,15 @@ async function redeemVoucher(voucher) {
 
     document.getElementById('btn-done-redeem').addEventListener('click', () => {
       closeModal();
+      voucherState.isRedeeming = false;  // Reset flag
     });
 
   } catch (err) {
     console.error(err);
     showErrorMessage("Errore Riscatto", "Impossibile completare l'operazione. Riprova: " + (err.message || err.toString()));
     resultContainer.innerHTML = ''; // Reset to allow retry
+
+    // CRITICO: Reset flag anche in caso di errore per permettere retry
+    voucherState.isRedeeming = false;
   }
 }

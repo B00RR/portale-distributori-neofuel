@@ -71,10 +71,11 @@ RETURNS JSONB AS $$
 DECLARE
     v_voucher RECORD;
 BEGIN
-    -- Trova voucher
+    -- Trova voucher con lock pessimistico per prevenire race conditions
     SELECT * INTO v_voucher
     FROM vouchers
     WHERE code = upper(trim(p_voucher_code)) OR code LIKE upper(trim(p_voucher_code)) || '%'
+    FOR UPDATE  -- Lock pessimistico: blocca la riga fino alla fine della transazione
     LIMIT 1;
     
     IF v_voucher IS NULL THEN

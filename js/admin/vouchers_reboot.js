@@ -579,6 +579,9 @@ async function renderDashboard(container) {
         container.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 1rem;">
                 <h3 style="margin: 0; font-size: 1.25rem; color: #0f172a;">Gestione Voucher</h3>
+                <button id="refresh-dashboard-btn" class="menu-button primary" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: 0.95rem;">
+                    <i class="fas fa-sync-alt"></i> Aggiorna
+                </button>
             </div>
 
             <section class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; width: 100%; max-width: 100%;">
@@ -670,6 +673,27 @@ async function renderDashboard(container) {
 
         // Initialize Column Resizing
         setupColumnResizing(container.querySelector('.voucher-list-container'));
+
+        // Bind Refresh Button
+        const refreshBtn = /** @type {HTMLButtonElement} */(document.getElementById('refresh-dashboard-btn'));
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async () => {
+                const icon = refreshBtn.querySelector('i');
+                icon.classList.add('fa-spin');
+                refreshBtn.disabled = true;
+
+                try {
+                    await renderDashboard(container);
+                    Toast.show('Dashboard aggiornata', 'success');
+                } catch (error) {
+                    Toast.show('Errore durante l\'aggiornamento', 'error');
+                    console.error(error);
+                } finally {
+                    icon.classList.remove('fa-spin');
+                    refreshBtn.disabled = false;
+                }
+            });
+        }
 
     } catch (err) {
         container.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
