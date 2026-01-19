@@ -1,35 +1,30 @@
 /**
  * DataTable Component
  * Tabella riusabile con sorting e selezione
- * 
- * @example
- * <data-table
- *   .columns=${[
- *     { key: 'id', label: 'ID', sortable: true },
- *     { key: 'name', label: 'Nome', sortable: true },
- *     { key: 'actions', label: 'Azioni', render: (row) => html`<button>Edit</button>` }
- *   ]}
- *   .data=${rows}>
- * </data-table>
  */
 
-import { html, css } from 'lit';
-
+import { html, css, CSSResultGroup, TemplateResult } from 'lit';
+import { property } from 'lit/decorators.js';
 import { BaseComponent } from './BaseComponent.js';
 
-export class DataTable extends BaseComponent {
-  static properties = {
-    columns: { type: Array },
-    data: { type: Array },
-    sortColumn: { type: String },
-    sortDirection: { type: String },
-    loading: { type: Boolean },
-    emptyMessage: { type: String }
-  };
+export interface DataTableColumn {
+    key: string;
+    label: string;
+    sortable?: boolean;
+    render?: (row: any) => TemplateResult | typeof html | any;
+}
 
-  static styles = [
-    BaseComponent.styles,
-    css`
+export class DataTable extends BaseComponent {
+    @property({ type: Array }) columns: DataTableColumn[] = [];
+    @property({ type: Array }) data: any[] = [];
+    @property({ type: String }) sortColumn: string = '';
+    @property({ type: String }) sortDirection: 'asc' | 'desc' = 'asc';
+    @property({ type: Boolean }) loading: boolean = false;
+    @property({ type: String }) emptyMessage: string = 'Nessun dato disponibile';
+
+    static styles: CSSResultGroup = [
+        BaseComponent.styles,
+        css`
       table {
         width: 100%;
         border-collapse: collapse;
@@ -89,38 +84,32 @@ export class DataTable extends BaseComponent {
         color: var(--primary-color, #007bff);
       }
     `
-  ];
+    ];
 
-  constructor() {
-    super();
-    this.columns = [];
-    this.data = [];
-    this.sortColumn = '';
-    this.sortDirection = 'asc';
-    this.loading = false;
-    this.emptyMessage = 'Nessun dato disponibile';
-  }
+    constructor() {
+        super();
+    }
 
-  render() {
-    if (this.loading) {
-      return html`
+    render(): TemplateResult {
+        if (this.loading) {
+            return html`
         <div class="loading-state">
           <i class="fas fa-spinner fa-spin loading-spinner"></i>
           <p>Caricamento...</p>
         </div>
       `;
-    }
+        }
 
-    if (!this.data || this.data.length === 0) {
-      return html`
+        if (!this.data || this.data.length === 0) {
+            return html`
         <div class="empty-state">
           <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
           <p>${this.emptyMessage}</p>
         </div>
       `;
-    }
+        }
 
-    return html`
+        return html`
       <table>
         <thead>
           <tr>
@@ -145,51 +134,53 @@ export class DataTable extends BaseComponent {
         </tbody>
       </table>
     `;
-  }
-
-  _renderSortIcon(columnKey) {
-    if (this.sortColumn !== columnKey) {
-      return html`<i class="fas fa-sort sort-icon"></i>`;
     }
-    return this.sortDirection === 'asc'
-      ? html`<i class="fas fa-sort-up sort-icon"></i>`
-      : html`<i class="fas fa-sort-down sort-icon"></i>`;
-  }
 
-  _renderCell(row, column) {
-    if (column.render) {
-      return column.render(row);
+    private _renderSortIcon(columnKey: string): TemplateResult {
+        if (this.sortColumn !== columnKey) {
+            return html`<i class="fas fa-sort sort-icon"></i>`;
+        }
+        return this.sortDirection === 'asc'
+            ? html`<i class="fas fa-sort-up sort-icon"></i>`
+            : html`<i class="fas fa-sort-down sort-icon"></i>`;
     }
-    return row[column.key] || '-';
-  }
 
-  _handleSort(columnKey) {
-    if (this.sortColumn === columnKey) {
-      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      this.sortColumn = columnKey;
-      this.sortDirection = 'asc';
+    private _renderCell(row: any, column: DataTableColumn): any {
+        if (column.render) {
+            return column.render(row);
+        }
+        return row[column.key] || '-';
     }
-    this.emit('sort', { column: this.sortColumn, direction: this.sortDirection });
-  }
 
-  _handleRowClick(row) {
-    this.emit('row-click', { row });
-  }
+    private _handleSort(columnKey: string): void {
+        if (this.sortColumn === columnKey) {
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortColumn = columnKey;
+            this.sortDirection = 'asc';
+        }
+        this.emit('sort', { column: this.sortColumn, direction: this.sortDirection });
+    }
 
-  _getSortedData() {
-    if (!this.sortColumn) {return this.data;}
+    private _handleRowClick(row: any): void {
+        this.emit('row-click', { row });
+    }
 
-    return [...this.data].sort((a, b) => {
-      const aVal = a[this.sortColumn];
-      const bVal = b[this.sortColumn];
+    private _getSortedData(): any[] {
+        if (!this.sortColumn) { return this.data; }
 
-      if (aVal === bVal) {return 0;}
+        return [...this.data].sort((a, b) => {
+            const aVal = a[this.sortColumn];
+            const bVal = b[this.sortColumn];
 
-      const comparison = aVal < bVal ? -1 : 1;
-      return this.sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }
+            if (aVal === bVal) { return 0; }
+
+            const comparison = aVal < bVal ? -1 : 1;
+            return this.sortDirection === 'asc' ? comparison : -comparison;
+        });
+    }
 }
 
-customElements.define('data-table', DataTable);
+if (!customElements.get('data-table')) {
+    customElements.define('data-table', DataTable);
+}

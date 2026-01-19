@@ -6,19 +6,17 @@
  * <loading-state message="Caricamento dati..."></loading-state>
  */
 
-import { html, css } from 'lit';
-
+import { html, css, CSSResultGroup, TemplateResult } from 'lit';
+import { property } from 'lit/decorators.js';
 import { BaseComponent } from './BaseComponent.js';
 
 export class LoadingState extends BaseComponent {
-  static properties = {
-    message: { type: String },
-    size: { type: String } // small, medium, large
-  };
+    @property({ type: String }) message: string = 'Caricamento...';
+    @property({ type: String }) size: 'small' | 'medium' | 'large' = 'medium';
 
-  static styles = [
-    BaseComponent.styles,
-    css`
+    static styles: CSSResultGroup = [
+        BaseComponent.styles,
+        css`
       .loading-container {
         display: flex;
         flex-direction: column;
@@ -61,22 +59,22 @@ export class LoadingState extends BaseComponent {
         }
       }
     `
-  ];
+    ];
 
-  constructor() {
-    super();
-    this.message = 'Caricamento...';
-    this.size = 'medium';
-  }
+    constructor() {
+        super();
+    }
 
-  render() {
-    return html`
+    render(): TemplateResult {
+        return html`
       <div class="loading-container">
         <i class="fas fa-spinner spinner ${this.size}"></i>
         ${this.message ? html`<div class="message">${this.message}</div>` : ''}
       </div>
     `;
-  }
+    }
 }
 
-customElements.define('loading-state', LoadingState);
+if (!customElements.get('loading-state')) {
+    customElements.define('loading-state', LoadingState);
+}

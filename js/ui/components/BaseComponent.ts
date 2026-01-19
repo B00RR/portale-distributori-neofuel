@@ -3,13 +3,13 @@
  * Classe base per tutti i componenti Lit dell'applicazione
  */
 
-import { LitElement, css } from 'lit';
+import { LitElement, CSSResultGroup, css } from 'lit';
 
 export class BaseComponent extends LitElement {
-  /**
+    /**
      * Stili comuni a tutti i componenti
      */
-  static styles = css`
+    static styles: CSSResultGroup = css`
     * {
       box-sizing: border-box;
     }
@@ -36,26 +36,26 @@ export class BaseComponent extends LitElement {
     }
   `;
 
-  /**
+    /**
      * Emette un evento personalizzato
      * @param {string} eventName - Nome dell'evento
      * @param {any} detail - Dettagli dell'evento
      */
-  emit(eventName, detail = {}) {
-    this.dispatchEvent(new CustomEvent(eventName, {
-      detail,
-      bubbles: true,
-      composed: true
-    }));
-  }
+    public emit(eventName: string, detail: any = {}): void {
+        this.dispatchEvent(new CustomEvent(eventName, {
+            detail,
+            bubbles: true,
+            composed: true
+        }));
+    }
 
-  /**
+    /**
      * Helper per gestire errori nei componenti
      * @param {Error} error - Errore catturato
      * @param {string} context - Contesto dell'errore
      */
-  handleComponentError(error, context = '') {
-    console.error(`[${this.constructor.name}${context ? ':' + context : ''}]`, error);
-    this.emit('component-error', { error, context });
-  }
+    public handleComponentError(error: Error | unknown, context: string = ''): void {
+        console.error(`[${(this.constructor as any).name}${context ? ':' + context : ''}]`, error);
+        this.emit('component-error', { error, context });
+    }
 }

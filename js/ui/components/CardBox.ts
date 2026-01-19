@@ -9,20 +9,18 @@
  * </card-box>
  */
 
-import { html, css } from 'lit';
-
+import { html, css, CSSResultGroup, TemplateResult } from 'lit';
+import { property } from 'lit/decorators.js';
 import { BaseComponent } from './BaseComponent.js';
 
 export class CardBox extends BaseComponent {
-  static properties = {
-    title: { type: String },
-    subtitle: { type: String },
-    variant: { type: String } // default, primary, success, warning, danger
-  };
+    @property({ type: String }) title: string = '';
+    @property({ type: String }) subtitle: string = '';
+    @property({ type: String }) variant: 'default' | 'primary' | 'success' | 'warning' | 'danger' = 'default';
 
-  static styles = [
-    BaseComponent.styles,
-    css`
+    static styles: CSSResultGroup = [
+        BaseComponent.styles,
+        css`
       .card {
         background: white;
         border-radius: 8px;
@@ -100,17 +98,14 @@ export class CardBox extends BaseComponent {
         color: white;
       }
     `
-  ];
+    ];
 
-  constructor() {
-    super();
-    this.title = '';
-    this.subtitle = '';
-    this.variant = 'default';
-  }
+    constructor() {
+        super();
+    }
 
-  render() {
-    return html`
+    render(): TemplateResult {
+        return html`
       <div class="card ${this.variant}">
         ${this.title || this._hasHeaderSlot() ? html`
           <div class="card-header">
@@ -134,15 +129,17 @@ export class CardBox extends BaseComponent {
         ` : ''}
       </div>
     `;
-  }
+    }
 
-  _hasHeaderSlot() {
-    return this.querySelector('[slot="header"]') !== null;
-  }
+    private _hasHeaderSlot(): boolean {
+        return this.querySelector('[slot="header"]') !== null;
+    }
 
-  _hasFooterSlot() {
-    return this.querySelector('[slot="footer"]') !== null;
-  }
+    private _hasFooterSlot(): boolean {
+        return this.querySelector('[slot="footer"]') !== null;
+    }
 }
 
-customElements.define('card-box', CardBox);
+if (!customElements.get('card-box')) {
+    customElements.define('card-box', CardBox);
+}

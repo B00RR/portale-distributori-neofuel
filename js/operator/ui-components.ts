@@ -2,16 +2,13 @@
 // OPERATOR UI COMPONENTS
 // Componenti riutilizzabili per eliminare duplicazione codice
 // ==========================================
-import { escapeHtml, formatLitri, formatEuro } from '../utils/utils.js';
+import { escapeHtml, formatLitri } from '../utils/utils.js';
+import { Pistola } from '../types.js';
 
 /**
  * Crea un messaggio di warning standardizzato
- * @param {string} title - Titolo del messaggio
- * @param {string} message - Messaggio principale
- * @param {string} [details] - Dettagli aggiuntivi (opzionale)
- * @returns {string} HTML del messaggio warning
  */
-export function createWarningMessage(title, message, details = '') {
+export function createWarningMessage(title: string, message: string, details: string = ''): string {
   return `
     <div class="warning-message">
       <i class="fas fa-exclamation-triangle"></i>
@@ -24,12 +21,8 @@ export function createWarningMessage(title, message, details = '') {
 
 /**
  * Crea un messaggio di successo standardizzato
- * @param {string} title - Titolo del messaggio
- * @param {string} message - Messaggio principale
- * @param {string} [details] - Dettagli aggiuntivi (opzionale)
- * @returns {string} HTML del messaggio successo
  */
-export function createSuccessMessage(title, message, details = '') {
+export function createSuccessMessage(title: string, message: string, details: string = ''): string {
   return `
     <div class="success-message">
       <i class="fas fa-check-circle" style="font-size: 48px; color: #10b981; margin-bottom: 20px;"></i>
@@ -42,11 +35,8 @@ export function createSuccessMessage(title, message, details = '') {
 
 /**
  * Crea un messaggio di errore standardizzato
- * @param {string} title - Titolo dell'errore
- * @param {Object} error - Oggetto errore
- * @returns {string} HTML del messaggio errore
  */
-export function createErrorMessage(title, error) {
+export function createErrorMessage(title: string, error: any): string {
   return `
     <div class="warning-message">
       <i class="fas fa-exclamation-triangle"></i>
@@ -61,10 +51,8 @@ export function createErrorMessage(title, error) {
 
 /**
  * Crea un pulsante "Torna al Menu"
- * @param {string} [id='btn-back-menu'] - ID del pulsante
- * @returns {string} HTML del pulsante
  */
-export function createBackButton(id = 'btn-back-menu') {
+export function createBackButton(id: string = 'btn-back-menu'): string {
   return `
     <button class="menu-button secondary full-width" id="${id}">
       <i class="fas fa-arrow-left"></i> Torna al Menu
@@ -72,17 +60,18 @@ export function createBackButton(id = 'btn-back-menu') {
   `;
 }
 
+interface FormActionsOptions {
+  cancelId?: string;
+  confirmId?: string;
+  cancelText?: string;
+  confirmText?: string;
+  confirmClass?: string;
+}
+
 /**
  * Crea pulsanti azione standard (Annulla/Conferma)
- * @param {Object} options - Opzioni per i pulsanti
- * @param {string} [options.cancelId='btn-cancel'] - ID pulsante annulla
- * @param {string} [options.confirmId='btn-confirm'] - ID pulsante conferma
- * @param {string} [options.cancelText='Annulla'] - Testo pulsante annulla
- * @param {string} [options.confirmText='Conferma'] - Testo pulsante conferma
- * @param {string} [options.confirmClass='success'] - Classe CSS pulsante conferma
- * @returns {string} HTML dei pulsanti azione
  */
-export function createFormActions(options = {}) {
+export function createFormActions(options: FormActionsOptions = {}): string {
   const {
     cancelId = 'btn-cancel',
     confirmId = 'btn-confirm',
@@ -105,16 +94,13 @@ export function createFormActions(options = {}) {
 
 /**
  * Crea una card per visualizzare una pistola con contatori
- * @param {Object} pistola - Dati della pistola
- * @param {number} pistola.id - ID pistola
- * @param {string} pistola.nome - Nome pistola
- * @param {Object} pistola.islands - Dati isola
- * @param {number} openingCounter - Contatore apertura
- * @param {number} [closingCounter] - Contatore chiusura (opzionale)
- * @param {boolean} [readonly=false] - Se true, mostra solo lettura
- * @returns {string} HTML della card pistola
  */
-export function createPistolaCard(pistola, openingCounter, closingCounter = null, readonly = false) {
+export function createPistolaCard(
+  pistola: Pistola,
+  openingCounter: number,
+  closingCounter: number | null = null,
+  readonly: boolean = false
+): string {
   const islandName = pistola.islands?.nome || 'Isola';
   const pistolaName = pistola.nome || `Pistola #${pistola.id}`;
 
@@ -127,9 +113,9 @@ export function createPistolaCard(pistola, openingCounter, closingCounter = null
       <div class="form-group ${readonly ? 'readonly-field' : ''}">
         <label>Contatore ${closingCounter !== null ? 'Apertura' : 'Iniziale'} (litri)</label>
         ${readonly
-    ? `<div class="readonly-value">${formatLitri(openingCounter)}</div>`
-    : `<input type="number" value="${openingCounter}" class="big-input" disabled>`
-}
+      ? `<div class="readonly-value">${formatLitri(openingCounter)}</div>`
+      : `<input type="number" value="${openingCounter}" class="big-input" disabled>`
+    }
       </div>
       ${closingCounter !== null ? `
         <div class="form-group">
@@ -149,13 +135,16 @@ export function createPistolaCard(pistola, openingCounter, closingCounter = null
   `;
 }
 
+interface SummaryRow {
+  label: string;
+  value: string;
+  class?: string;
+}
+
 /**
  * Crea un box riepilogo con righe di dati
- * @param {string} title - Titolo del box
- * @param {Array<Object>} rows - Array di righe {label, value, class}
- * @returns {string} HTML del summary box
  */
-export function createSummaryBox(title, rows) {
+export function createSummaryBox(title: string, rows: SummaryRow[]): string {
   return `
     <div class="summary-box">
       <h4>${escapeHtml(title)}</h4>
@@ -171,38 +160,29 @@ export function createSummaryBox(title, rows) {
 
 /**
  * Crea una riga di riepilogo
- * @param {string} label - Etichetta
- * @param {string} value - Valore
- * @param {string} [className=''] - Classe CSS aggiuntiva
- * @returns {Object} Oggetto riga per createSummaryBox
  */
-export function createSummaryRow(label, value, className = '') {
+export function createSummaryRow(label: string, value: string, className: string = ''): SummaryRow {
   return { label, value, class: className };
 }
 
 /**
  * Crea un contenitore con content-box
- * @param {string} content - Contenuto HTML interno
- * @returns {string} HTML del contenitore
  */
-export function createContentBox(content) {
+export function createContentBox(content: string): string {
   return `<div class="content-box">${content}</div>`;
 }
 
 /**
  * Crea un divider per separare sezioni
- * @returns {string} HTML del divider
  */
-export function createDivider() {
+export function createDivider(): string {
   return '<div class="section-divider"></div>';
 }
 
 /**
  * Attacca event listener per pulsante "Torna al Menu"
- * @param {string} [buttonId='btn-back-menu'] - ID del pulsante
- * @param {HTMLElement} container - Container da resettare
  */
-export function attachBackButtonListener(buttonId = 'btn-back-menu', container) {
+export function attachBackButtonListener(buttonId: string = 'btn-back-menu', container: HTMLElement): void {
   const button = document.getElementById(buttonId);
   if (button) {
     button.addEventListener('click', () => {
@@ -213,10 +193,8 @@ export function attachBackButtonListener(buttonId = 'btn-back-menu', container) 
 
 /**
  * Attacca event listener per pulsante annulla
- * @param {string} buttonId - ID del pulsante
- * @param {HTMLElement} container - Container da resettare
  */
-export function attachCancelButtonListener(buttonId, container) {
+export function attachCancelButtonListener(buttonId: string, container: HTMLElement): void {
   const button = document.getElementById(buttonId);
   if (button) {
     button.addEventListener('click', () => {

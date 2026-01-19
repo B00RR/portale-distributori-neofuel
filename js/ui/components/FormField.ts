@@ -1,41 +1,35 @@
 /**
  * FormField Component
  * Componente riusabile per campi form con label e validazione
- * 
- * @example
- * <form-field 
- *   label="Nome" 
- *   name="nome" 
- *   type="text"
- *   required
- *   value="Mario">
- * </form-field>
  */
 
-import { html, css } from 'lit';
-
+import { html, css, CSSResultGroup, TemplateResult } from 'lit';
+import { property } from 'lit/decorators.js';
 import { BaseComponent } from './BaseComponent.js';
 
-export class FormField extends BaseComponent {
-  static properties = {
-    label: { type: String },
-    name: { type: String },
-    type: { type: String },
-    value: { type: String },
-    placeholder: { type: String },
-    required: { type: Boolean },
-    disabled: { type: Boolean },
-    error: { type: String },
-    options: { type: Array },
-    rows: { type: Number },
-    step: { type: String },
-    min: { type: String },
-    max: { type: String }
-  };
+export interface FormFieldOption {
+    value: string | number;
+    label: string;
+}
 
-  static styles = [
-    BaseComponent.styles,
-    css`
+export class FormField extends BaseComponent {
+    @property({ type: String }) label: string = '';
+    @property({ type: String }) name: string = '';
+    @property({ type: String }) type: string = 'text';
+    @property({ type: String }) value: any = '';
+    @property({ type: String }) placeholder: string = '';
+    @property({ type: Boolean }) required: boolean = false;
+    @property({ type: Boolean }) disabled: boolean = false;
+    @property({ type: String }) error: string = '';
+    @property({ type: Array }) options: (FormFieldOption | string)[] = [];
+    @property({ type: Number }) rows: number = 3;
+    @property({ type: String }) step: string = 'any';
+    @property({ type: String }) min: string = '';
+    @property({ type: String }) max: string = '';
+
+    static styles: CSSResultGroup = [
+        BaseComponent.styles,
+        css`
       .form-group {
         margin-bottom: 1rem;
       }
@@ -91,27 +85,14 @@ export class FormField extends BaseComponent {
         color: var(--danger-color, #dc3545);
       }
     `
-  ];
+    ];
 
-  constructor() {
-    super();
-    this.label = '';
-    this.name = '';
-    this.type = 'text';
-    this.value = '';
-    this.placeholder = '';
-    this.required = false;
-    this.disabled = false;
-    this.error = '';
-    this.options = [];
-    this.rows = 3;
-    this.step = 'any';
-    this.min = '';
-    this.max = '';
-  }
+    constructor() {
+        super();
+    }
 
-  render() {
-    return html`
+    render(): TemplateResult {
+        return html`
       <div class="form-group">
         ${this.label ? html`
           <label class="${this.required ? 'required' : ''}">
@@ -126,14 +107,14 @@ export class FormField extends BaseComponent {
         ` : ''}
       </div>
     `;
-  }
+    }
 
-  _renderInput() {
-    const errorClass = this.error ? 'error' : '';
+    private _renderInput(): TemplateResult {
+        const errorClass = this.error ? 'error' : '';
 
-    switch (this.type) {
-      case 'select':
-        return html`
+        switch (this.type) {
+            case 'select':
+                return html`
           <select
             name="${this.name}"
             class="${errorClass}"
@@ -144,16 +125,20 @@ export class FormField extends BaseComponent {
             @change="${this._handleChange}"
           >
             ${!this.required ? html`<option value="">Seleziona...</option>` : ''}
-            ${this.options.map(opt => html`
-              <option value="${opt.value || opt}" ?selected="${this.value === (opt.value || opt)}">
-                ${opt.label || opt}
-              </option>
-            `)}
+            ${this.options.map((opt: any) => {
+                    const val = typeof opt === 'object' ? opt.value : opt;
+                    const label = typeof opt === 'object' ? opt.label : opt;
+                    return html`
+                <option value="${val}" ?selected="${this.value === val}">
+                  ${label}
+                </option>
+              `;
+                })}
           </select>
         `;
 
-      case 'textarea':
-        return html`
+            case 'textarea':
+                return html`
           <textarea
             name="${this.name}"
             class="${errorClass}"
@@ -167,8 +152,8 @@ export class FormField extends BaseComponent {
           ></textarea>
         `;
 
-      case 'number':
-        return html`
+            case 'number':
+                return html`
           <input
             type="number"
             name="${this.name}"
@@ -185,8 +170,8 @@ export class FormField extends BaseComponent {
           />
         `;
 
-      case 'checkbox':
-        return html`
+            case 'checkbox':
+                return html`
           <label class="checkbox-label">
             <input
               type="checkbox"
@@ -201,8 +186,8 @@ export class FormField extends BaseComponent {
           </label>
         `;
 
-      default:
-        return html`
+            default:
+                return html`
           <input
             type="${this.type}"
             name="${this.name}"
@@ -215,32 +200,35 @@ export class FormField extends BaseComponent {
             @change="${this._handleChange}"
           />
         `;
+        }
     }
-  }
 
-  _handleInput(e) {
-    this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    this.emit('input', { name: this.name, value: this.value });
-  }
+    private _handleInput(e: any): void {
+        this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.emit('input', { name: this.name, value: this.value });
+    }
 
-  _handleChange(e) {
-    this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    this.emit('change', { name: this.name, value: this.value });
-  }
+    private _handleChange(e: any): void {
+        this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.emit('change', { name: this.name, value: this.value });
+    }
 
-  getValue() {
-    const input = this.shadowRoot.querySelector('input, select, textarea');
-    if (input.type === 'checkbox') {return input.checked;}
-    return input.value;
-  }
+    public getValue(): any {
+        const input = this.shadowRoot?.querySelector('input, select, textarea') as any;
+        if (!input) { return this.value; }
+        if (input.type === 'checkbox') { return input.checked; }
+        return input.value;
+    }
 
-  setError(message) {
-    this.error = message;
-  }
+    public setError(message: string): void {
+        this.error = message;
+    }
 
-  clearError() {
-    this.error = '';
-  }
+    public clearError(): void {
+        this.error = '';
+    }
 }
 
-customElements.define('form-field', FormField);
+if (!customElements.get('form-field')) {
+    customElements.define('form-field', FormField);
+}

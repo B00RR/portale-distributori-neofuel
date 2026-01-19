@@ -22,15 +22,35 @@ export interface User {
     assignedStations?: { id: number; name: string }[];
 }
 
+export interface ShiftOpeningData {
+    cash_in: number;
+    cash_out: number;
+    pos_amount: number;
+    total_amount: number;
+    uta_dkv_iscard: number;
+    cash_in_minus_out: number;
+}
+
+export interface ShiftClosingData {
+    closure_stage: 'partial' | 'final';
+    cash_collected: number;
+    pos_declared: number;
+    discrepancy?: number;
+    // ... add more if needed later ...
+}
+
 export interface Shift {
     id: string; // UUID
     station_id: number;
     operator_id: string; // UUID
     opened_at: string;
-    closed_at?: string;
+    closed_at?: string | null;
     status: 'open' | 'partial' | 'closed';
-    opening_data: any;
-    closing_data?: any;
+    opening_data: ShiftOpeningData;
+    closing_data?: ShiftClosingData | null;
+    users?: {
+        full_name: string;
+    };
 }
 
 export interface Island {
@@ -88,6 +108,17 @@ export interface CreditoCliente {
     saldo: number;
     telefono?: string;
     created_at: string;
+}
+
+export interface Customer {
+    id: number;
+    nome?: string;
+    partita_iva?: string;
+    codice_univoco_pec?: string;
+    telefono?: string;
+    targa?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface MovimentoCassa {
@@ -149,6 +180,10 @@ export interface CustomWindow extends Window {
     openPaymentModal: any;
     showNotificheAdmin: any;
     Html5Qrcode: any;
+    plausible: any;
+    XlsxPopulate: any;
+    JSZip: any;
+    calculationEngine: any;
     refreshUiIcons?: () => void;
 }
 
