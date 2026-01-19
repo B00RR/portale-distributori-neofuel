@@ -19,13 +19,13 @@ Sistema di gestione per distributori di carburante Neofuel con focus su sicurezz
 
 ```
 js/
-├── core/       # API layer, Supabase client
-├── admin/      # Moduli amministrativi
-├── operator/   # Moduli operatore
-├── ui/         
-│   └── components/  # Lit components riusabili
-├── utils/      # Utilities, calculation engine
-└── shared/     # Error handling, state management
+├── core/       # Core services, API layer (TS)
+├── admin/      # Admin modules (TS/JS migration)
+├── operator/   # Operator modules (TS/JS migration)
+├── shared/     # State management, types, state (TS)
+├── ui/         # UI logic and core components (TS)
+├── utils/      # Utilities and calculation engine (TS)
+└── types.ts    # Global type definitions
 ```
 
 ## 🧪 Testing
@@ -73,12 +73,12 @@ npm run preview
 
 ## 📦 Stack Tecnologico
 
-- **Frontend**: Vanilla JS (ES6+), Lit Components
-- **Build**: Vite
+- **Frontend**: TypeScript, Vanilla JS, Lit Components
+- **Build**: Vite + PWA Support
 - **Database**: Supabase (PostgreSQL + RLS)
 - **Testing**: Vitest (unit), Playwright (E2E)
 - **CI/CD**: GitHub Actions
-- **Code Quality**: ESLint, Prettier, JSDoc
+- **Type Safety**: Strict TypeScript configuration
 
 ## 🎨 UI Components
 
@@ -163,4 +163,4 @@ Sviluppato con ❤️ dal team Neofuel
 
 ---
 
-**Status**: Production Ready ✅
+**Status**: TypeScript Migration (Phase 10) - In Progress ⚙️

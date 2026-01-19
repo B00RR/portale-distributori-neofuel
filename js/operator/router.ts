@@ -60,10 +60,10 @@ class OperatorRouter {
                 (showAperturaForm as any)(stationId, userId);
                 break;
             case 'chiusura':
-                (startClosureWizard as any)(stationId, userId);
+                startClosureWizard(stationId, userId);
                 break;
             case 'prezzi':
-                (showPrezziEditForm as any)(stationId);
+                showPrezziEditForm(Number(stationId));
                 break;
             case 'crediti':
                 (showCreditsMenu as any)(stationId, userId);
@@ -75,7 +75,7 @@ class OperatorRouter {
                 (showExtraIncomeMenu as any)(stationId, userId);
                 break;
             case 'voucher':
-                (showVoucherMenu as any)(stationId, userId);
+                showVoucherMenu(stationId, userId);
                 break;
             case 'fatture':
                 (showInvoiceMenu as any)(stationId, userId);

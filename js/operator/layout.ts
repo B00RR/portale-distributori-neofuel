@@ -114,8 +114,8 @@ export async function renderOperatorShell(container: HTMLElement, handlers: Oper
     `;
 
     if (stationId && user?.id) {
-        updateStationBadge(stationId);
-        updateTurnoButton(stationId, user.id, handlers);
+        updateStationBadge(String(stationId));
+        updateTurnoButton(String(stationId), String(user.id), handlers);
     }
 
     attachEventListeners(handlers);
@@ -127,7 +127,7 @@ export async function renderOperatorShell(container: HTMLElement, handlers: Oper
 /**
  * Update the station badge with the real name
  */
-async function updateStationBadge(stationId: string): Promise<void> {
+async function updateStationBadge(stationId: string | number): Promise<void> {
     try {
         const name = await getStationName(stationId);
         const badge = document.getElementById('station-badge');
@@ -141,8 +141,8 @@ async function updateStationBadge(stationId: string): Promise<void> {
  * Update the dynamic "Turno" button state
  */
 export async function updateTurnoButton(
-    stationId: string,
-    userId: string,
+    stationId: string | number,
+    userId: string | number,
     handlers: OperatorHandlers
 ): Promise<void> {
     const btnTurno = document.getElementById('btn-turno');

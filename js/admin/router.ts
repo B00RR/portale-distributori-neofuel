@@ -152,15 +152,15 @@ class AdminRouter {
                 break;
 
             case 'stations':
-                (showStationsTab as any)(content, headerActions);
+                (showStationsTab)(content, headerActions);
                 break;
 
             case 'operators':
-                (showOperatorsTab as any)(content, headerActions);
+                showOperatorsTab(content, headerActions);
                 break;
 
             case 'shifts':
-                (showChiusureTab as any)(content, headerActions, filter);
+                showChiusureTab(content, headerActions, filter);
                 break;
 
             case 'analytics':
@@ -175,17 +175,14 @@ class AdminRouter {
                 break;
 
             case 'crediti':
-                if (typeof showCreditsTab !== 'undefined') {
-                    (showCreditsTab as any)(content, headerActions);
-                } else {
-                    content.innerHTML = '<p>Modulo Crediti in caricamento...</p>';
-                }
+                showCreditsTab(content, headerActions);
                 break;
 
             case 'invoices':
                 try {
-                    const module = await import('./invoices.js') as any;
-                    module.showFattureTab(content, headerActions, filter);
+                    const module = await import('./invoices.js');
+                    const stationId = filter ? parseInt(filter, 10) : null;
+                    module.showFattureTab(content, headerActions, stationId);
                 } catch (err) {
                     handleError(err, 'Caricamento modulo Fatture', content);
                 }
@@ -216,7 +213,7 @@ class AdminRouter {
                 break;
 
             default:
-                (showDashboard as any)(content, filter);
+                showDashboard(content, filter);
         }
     }
 

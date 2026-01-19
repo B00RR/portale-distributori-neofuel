@@ -6,11 +6,13 @@
 // ========== TYPE DEFINITIONS ==========
 
 export interface User {
-    id: string;
+    id?: string;
+    user_id: string;
     email: string;
-    role: 'admin' | 'operator' | 'super_admin' | 'accounting' | 'full_admin';
-    station_id?: string | null;
+    role: 'admin' | 'operator' | 'super_admin' | 'accounting' | 'full_admin' | 'billing';
+    station_id?: string | number | null;
     full_name?: string;
+    assignedStations?: { id: number | string; name?: string }[];
     user_metadata?: {
         full_name?: string;
         station_id?: string;
@@ -19,8 +21,10 @@ export interface User {
 }
 
 export interface Station {
-    id: string;
-    name: string;
+    id?: number | string;
+    station_id: number;
+    name?: string;
+    station_name: string;
     location?: string;
     address?: string;
 }
