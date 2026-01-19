@@ -30,17 +30,17 @@ export default defineConfig({
         reporter: ['verbose'],
 
         // Setup files
-        setupFiles: ['./tests/setup.js']
+        setupFiles: [resolve(__dirname, '../tests/setup.js')]
     },
 
     // Resolve aliases (stesso di vite.config.js)
     resolve: {
         alias: {
-            '@': resolve(__dirname, 'js'),
-            '@core': resolve(__dirname, 'js/core'),
-            '@utils': resolve(__dirname, 'js/utils'),
-            '@ui': resolve(__dirname, 'js/ui'),
-            '@shared': resolve(__dirname, 'js/shared')
+            '@': resolve(__dirname, '../js'),
+            '@core': resolve(__dirname, '../js/core'),
+            '@utils': resolve(__dirname, '../js/utils'),
+            '@ui': resolve(__dirname, '../js/ui'),
+            '@shared': resolve(__dirname, '../js/shared')
         }
     }
 });

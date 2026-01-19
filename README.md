@@ -113,7 +113,7 @@ Vedi [Component Migration Guide](./docs/COMPONENT_MIGRATION.md) per dettagli.
 ## 📚 Documentazione
 
 - [Component Migration Guide](./docs/COMPONENT_MIGRATION.md) - Migrazione da HTML hardcodato a componenti
-- [ROADMAP](./ROADMAP_MIGLIORAMENTI.md) - Roadmap miglioramenti
+- [ROADMAP](./docs/ROADMAP_MIGLIORAMENTI.md) - Roadmap miglioramenti
 - [SQL Schema](./sql/) - Schema database e migrations
 
 ## 🔒 Sicurezza
