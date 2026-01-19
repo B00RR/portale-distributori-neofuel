@@ -2,12 +2,13 @@
 // OPERATOR PRICES MANAGEMENT
 // Gestione modifica prezzi carburante
 // ==========================================
-import { supabase, safeSupabaseQuery } from "../core/api.js";
-import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from "../ui/ui.js";
-import { createContentBox } from "./ui-components.js";
-import { loggedUser } from "../core/auth.js";
-import { escapeHtml } from "../utils/utils.js";
-import { handleError } from "../shared/error-handler.js";
+import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { loggedUser } from '../core/auth.js';
+import { handleError } from '../shared/error-handler.js';
+import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from '../ui/ui.js';
+import { escapeHtml } from '../utils/utils.js';
+
+import { createContentBox } from './ui-components.js';
 
 /**
  * Mostra il form per modificare i prezzi del carburante
@@ -85,7 +86,7 @@ export async function showPrezziEditForm(stationId) {
       input.addEventListener('change', () => {
         radioCards.forEach(card => card.classList.remove('selected'));
         const selectedCard = input.closest('.radio-card');
-        if (selectedCard) selectedCard.classList.add('selected');
+        if (selectedCard) {selectedCard.classList.add('selected');}
       });
     });
 
@@ -136,8 +137,8 @@ export async function showPrezziEditForm(stationId) {
           }
         });
 
-        if (error) throw new Error(error.message || 'Errore durante l\'aggiornamento prezzi');
-        if (data && !data.success) throw new Error(data.error || 'Errore sconosciuto dal server');
+        if (error) {throw new Error(error.message || 'Errore durante l\'aggiornamento prezzi');}
+        if (data && !data.success) {throw new Error(data.error || 'Errore sconosciuto dal server');}
 
         const validitaMsg = validita === 'next_day'
           ? 'I prezzi saranno validi a partire da domani alle 00:00.'
@@ -145,7 +146,7 @@ export async function showPrezziEditForm(stationId) {
         closeModal();
         showInfoModal(`Prezzi aggiornati con successo! ${validitaMsg}`);
       } catch (err) {
-        console.error("Errore update-prices:", err);
+        console.error('Errore update-prices:', err);
         showInfoModal('Errore: ' + err.message);
       }
     });

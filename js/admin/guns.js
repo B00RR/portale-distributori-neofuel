@@ -5,9 +5,9 @@
 
 import { supabase } from '../core/api.js';
 import { safeSupabaseQuery } from '../core/api.js';
+import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal, openConfirmModal, showLoadingMessage } from '../ui/ui.js';
 import { escapeHtml, formatNumberIt, parseNumberFlexible, formatGunCounter, parseGunCounter } from '../utils/utils.js';
-import { Toast } from '../ui/toast.js';
 
 /**
  * Mostra modal con lista pistole per un'isola
@@ -194,7 +194,7 @@ async function renderGuns(target, islandId, islandName, stationId) {
     document.querySelectorAll('.delete-gun').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = /** @type {HTMLElement} */(btn).dataset.id;
-        if (id) deleteGun(Number(id), islandId, islandName, stationId);
+        if (id) {deleteGun(Number(id), islandId, islandName, stationId);}
       });
     });
 
@@ -459,7 +459,7 @@ async function showCounterEditModal(gunId, gunName, currentCounter, islandId, is
  */
 async function deleteGun(gunId, islandId, islandName, stationId) {
   try {
-    if (!await openConfirmModal('Sei sicuro di voler eliminare questa pistola?')) return;
+    if (!await openConfirmModal('Sei sicuro di voler eliminare questa pistola?')) {return;}
 
     await safeSupabaseQuery(() =>
       supabase.from('pistole').delete().eq('id', gunId)

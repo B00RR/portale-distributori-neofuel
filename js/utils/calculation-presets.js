@@ -1,5 +1,6 @@
-import { supabase, safeSupabaseQuery } from "../core/api.js";
-import { calculationEngine, CALCULATION_SCOPES } from "./calculation-engine.js";
+import { supabase, safeSupabaseQuery } from '../core/api.js';
+
+import { calculationEngine, CALCULATION_SCOPES } from './calculation-engine.js';
 
 const presetState = {
   functionsRegistered: false,
@@ -9,47 +10,47 @@ const presetState = {
 const CALCULATION_PRESETS = [
   {
     scope: CALCULATION_SCOPES.KPI_VENDUTO,
-    name: "Dashboard KPI Venduto",
-    description: "Calcolo dinamico del venduto giornaliero dalle chiusure",
+    name: 'Dashboard KPI Venduto',
+    description: 'Calcolo dinamico del venduto giornaliero dalle chiusure',
     dsl: {
-      op: "input",
-      path: "salesEuro"
+      op: 'input',
+      path: 'salesEuro'
     }
   },
   {
     scope: CALCULATION_SCOPES.KPI_EROGATO,
-    name: "Dashboard KPI Erogato",
-    description: "Calcolo dinamico dei litri erogati (benzina e gasolio) dalle chiusure",
+    name: 'Dashboard KPI Erogato',
+    description: 'Calcolo dinamico dei litri erogati (benzina e gasolio) dalle chiusure',
     dsl: {
-      op: "input",
-      path: "erogatoData"
+      op: 'input',
+      path: 'erogatoData'
     }
   },
   {
     scope: CALCULATION_SCOPES.CHIUSURE_MOVIMENTI,
-    name: "Chiusure - Somme movimenti",
-    description: "Aggrega crediti, voucher, rimborsi e incassi extra",
+    name: 'Chiusure - Somme movimenti',
+    description: 'Aggrega crediti, voucher, rimborsi e incassi extra',
     dsl: {
-      op: "function",
-      name: "closure_movimenti_summary"
+      op: 'function',
+      name: 'closure_movimenti_summary'
     }
   },
   {
     scope: CALCULATION_SCOPES.CHIUSURE_TOTALE_ATTESO,
-    name: "Chiusure - Totale teorico carburante",
-    description: "Calcola ricavo teorico e totale atteso",
+    name: 'Chiusure - Totale teorico carburante',
+    description: 'Calcola ricavo teorico e totale atteso',
     dsl: {
-      op: "function",
-      name: "closure_totale_atteso"
+      op: 'function',
+      name: 'closure_totale_atteso'
     }
   },
   {
     scope: CALCULATION_SCOPES.CHIUSURE_CASH_METRICS,
-    name: "Chiusure - Contanti attesi",
-    description: "Determina i contanti attesi e la discrepanza",
+    name: 'Chiusure - Contanti attesi',
+    description: 'Determina i contanti attesi e la discrepanza',
     dsl: {
-      op: "function",
-      name: "closure_expected_cash"
+      op: 'function',
+      name: 'closure_expected_cash'
     }
   }
 ];
@@ -60,48 +61,48 @@ function round(value, precision = 2) {
 }
 
 function registerPresetFunctions() {
-  if (presetState.functionsRegistered) return;
+  if (presetState.functionsRegistered) {return;}
   presetState.functionsRegistered = true;
 
-  calculationEngine.registerFunction("dashboard_kpi_venduto", (args = {}, ctx = {}) => {
+  calculationEngine.registerFunction('dashboard_kpi_venduto', (args = {}, ctx = {}) => {
     const source = { ...ctx, ...args };
     const manual = Number(source.salesEuro ?? source.manualValue ?? source.value ?? 0);
-    if (Number.isFinite(manual) && manual !== 0) return manual;
+    if (Number.isFinite(manual) && manual !== 0) {return manual;}
 
     const litersB = Number(source.totalLitriBenzina ?? 0);
     const litersG = Number(source.totalLitriGasolio ?? 0);
     const priceB = Number(source.prezzoBenzina ?? 0);
     const priceG = Number(source.prezzoGasolio ?? 0);
     const computed = litersB * priceB + litersG * priceG;
-    if (computed > 0) return round(computed);
+    if (computed > 0) {return round(computed);}
 
     const fallback = Number(source.fallback ?? 0);
     return round(fallback);
   });
 
-  calculationEngine.registerFunction("closure_movimenti_summary", (args = {}, ctx = {}) => {
+  calculationEngine.registerFunction('closure_movimenti_summary', (args = {}, ctx = {}) => {
     const movimenti = Array.isArray(ctx.movimenti || args.movimenti) ? (ctx.movimenti || args.movimenti) : [];
     const normalize = value => Number(value) || 0;
-    const toLower = value => (value || "").toString().toLowerCase();
+    const toLower = value => (value || '').toString().toLowerCase();
 
     const sumBy = filterFn => movimenti.reduce((sum, m) => sum + (filterFn(m) ? normalize(m.importo) : 0), 0);
 
     const credits = sumBy(m => {
       const descr = toLower(m.descrizione);
-      return m.tipo === "credito" || (descr.includes("credito") && m.tipo !== "incasso");
+      return m.tipo === 'credito' || (descr.includes('credito') && m.tipo !== 'incasso');
     });
 
     const vouchers = sumBy(m => {
       const descr = toLower(m.descrizione);
-      return m.tipo === "voucher" || m.tipo === "punti" || descr.includes("voucher") || descr.includes("punti");
+      return m.tipo === 'voucher' || m.tipo === 'punti' || descr.includes('voucher') || descr.includes('punti');
     });
 
     const refunds = sumBy(m => {
       const descr = toLower(m.descrizione);
-      return m.tipo === "pagamento" || m.tipo === "uscita" || descr.includes("rimborso");
+      return m.tipo === 'pagamento' || m.tipo === 'uscita' || descr.includes('rimborso');
     });
 
-    const extraCash = sumBy(m => m.tipo === "incasso");
+    const extraCash = sumBy(m => m.tipo === 'incasso');
 
     return {
       credits,
@@ -111,7 +112,7 @@ function registerPresetFunctions() {
     };
   });
 
-  calculationEngine.registerFunction("closure_totale_atteso", (args = {}, ctx = {}) => {
+  calculationEngine.registerFunction('closure_totale_atteso', (args = {}, ctx = {}) => {
     const source = { ...ctx, ...args };
     const includeCounters = Boolean(source.includeCounters ?? source.include_counters ?? true);
     const litersB = Number(source.totalLitriBenzina ?? source.litri_benzina ?? 0);
@@ -129,7 +130,7 @@ function registerPresetFunctions() {
     };
   });
 
-  calculationEngine.registerFunction("closure_expected_cash", (args = {}, ctx = {}) => {
+  calculationEngine.registerFunction('closure_expected_cash', (args = {}, ctx = {}) => {
     const source = { tolerance: 5, ...ctx, ...args };
     const carburante = Number(source.carburanteAtteso ?? source.carburante_atteso ?? 0);
     const totalPosOperatore = Number(source.totalPosOperatore ?? source.pos_operatore ?? 0);
@@ -171,11 +172,11 @@ function registerPresetFunctions() {
 async function syncCalculationPreset(preset) {
   const existingModule = await safeSupabaseQuery(
     () => supabase
-      .from("calculation_modules")
-      .select("id, active_version_id")
-      .eq("scope", preset.scope)
+      .from('calculation_modules')
+      .select('id, active_version_id')
+      .eq('scope', preset.scope)
       .maybeSingle(),
-    "Errore caricamento modulo calcoli"
+    'Errore caricamento modulo calcoli'
   );
 
   let moduleId = existingModule?.data?.id;
@@ -183,55 +184,55 @@ async function syncCalculationPreset(preset) {
   if (!moduleId) {
     const insertResult = await safeSupabaseQuery(
       () => supabase
-        .from("calculation_modules")
+        .from('calculation_modules')
         .insert([{
           name: preset.name,
           scope: preset.scope,
           description: preset.description,
           created_by: null
         }])
-        .select("id")
+        .select('id')
         .single(),
-      "Errore creazione modulo calcoli"
+      'Errore creazione modulo calcoli'
     );
     moduleId = insertResult.data.id;
   }
 
   const existingPublished = await safeSupabaseQuery(
     () => supabase
-      .from("calculation_versions")
-      .select("id")
-      .eq("module_id", moduleId)
-      .eq("status", "published")
-      .order("version", { ascending: false })
+      .from('calculation_versions')
+      .select('id')
+      .eq('module_id', moduleId)
+      .eq('status', 'published')
+      .order('version', { ascending: false })
       .limit(1)
       .maybeSingle(),
-    "Errore ricerca versioni calcoli"
+    'Errore ricerca versioni calcoli'
   );
 
   if (!existingPublished?.data?.id) {
     const versionResult = await safeSupabaseQuery(
       () => supabase
-        .from("calculation_versions")
+        .from('calculation_versions')
         .insert([{
           module_id: moduleId,
           version: 1,
-          status: "published",
+          status: 'published',
           dsl: preset.dsl,
-          notes: "Preset automatico",
+          notes: 'Preset automatico',
           published_at: new Date().toISOString()
         }])
-        .select("id")
+        .select('id')
         .single(),
-      "Errore creazione versione calcoli"
+      'Errore creazione versione calcoli'
     );
 
     await safeSupabaseQuery(
       () => supabase
-        .from("calculation_modules")
+        .from('calculation_modules')
         .update({ active_version_id: versionResult.data.id })
-        .eq("id", moduleId),
-      "Errore aggiornamento modulo attivo"
+        .eq('id', moduleId),
+      'Errore aggiornamento modulo attivo'
     );
   }
 }
@@ -254,7 +255,7 @@ export async function ensureCalculationPresetsSynced() {
   registerPresetFunctions();
   if (!presetState.syncPromise) {
     presetState.syncPromise = syncAllPresets().catch((err) => {
-      console.warn("Impossibile sincronizzare i preset del motore di calcolo:", err);
+      console.warn('Impossibile sincronizzare i preset del motore di calcolo:', err);
     });
   }
   return presetState.syncPromise;

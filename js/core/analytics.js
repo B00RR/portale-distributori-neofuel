@@ -12,15 +12,15 @@ const PLAUSIBLE_ENABLED = env.VITE_ANALYTICS_ENABLED === 'true';
  * Initialize analytics tracking
  */
 export function initAnalytics() {
-    if (!PLAUSIBLE_ENABLED) {
-        console.info('[Analytics] Disabled');
-        return;
-    }
+  if (!PLAUSIBLE_ENABLED) {
+    console.info('[Analytics] Disabled');
+    return;
+  }
 
-    // Plausible script is loaded via CDN in index.html
-    // This module provides helper functions for custom events
+  // Plausible script is loaded via CDN in index.html
+  // This module provides helper functions for custom events
 
-    console.info('[Analytics] Initialized for domain:', PLAUSIBLE_DOMAIN);
+  console.info('[Analytics] Initialized for domain:', PLAUSIBLE_DOMAIN);
 }
 
 /**
@@ -29,12 +29,12 @@ export function initAnalytics() {
  * @param {Object} props - Event properties (optional)
  */
 export function trackEvent(eventName, props = {}) {
-    if (!PLAUSIBLE_ENABLED || !window.plausible) {
-        console.debug('[Analytics] Event:', eventName, props);
-        return;
-    }
+  if (!PLAUSIBLE_ENABLED || !window.plausible) {
+    console.debug('[Analytics] Event:', eventName, props);
+    return;
+  }
 
-    window.plausible(eventName, { props });
+  window.plausible(eventName, { props });
 }
 
 /**
@@ -42,11 +42,11 @@ export function trackEvent(eventName, props = {}) {
  * @param {string} path - Page path
  */
 export function trackPageView(path) {
-    if (!PLAUSIBLE_ENABLED || !window.plausible) {
-        return;
-    }
+  if (!PLAUSIBLE_ENABLED || !window.plausible) {
+    return;
+  }
 
-    window.plausible('pageview', { u: path });
+  window.plausible('pageview', { u: path });
 }
 
 // Predefined event tracking functions
@@ -56,7 +56,7 @@ export function trackPageView(path) {
  * @param {string} role - User role (admin, operator, etc.)
  */
 export function trackLogin(role) {
-    trackEvent('Login', { role });
+  trackEvent('Login', { role });
 }
 
 /**
@@ -64,7 +64,7 @@ export function trackLogin(role) {
  * @param {string} stationId - Station ID
  */
 export function trackShiftOpen(stationId) {
-    trackEvent('Shift:Open', { station: stationId });
+  trackEvent('Shift:Open', { station: stationId });
 }
 
 /**
@@ -73,7 +73,7 @@ export function trackShiftOpen(stationId) {
  * @param {number} duration - Shift duration in minutes
  */
 export function trackShiftClose(stationId, duration) {
-    trackEvent('Shift:Close', { station: stationId, duration: Math.round(duration) });
+  trackEvent('Shift:Close', { station: stationId, duration: Math.round(duration) });
 }
 
 /**
@@ -81,7 +81,7 @@ export function trackShiftClose(stationId, duration) {
  * @param {number} amount - Voucher amount
  */
 export function trackVoucherRedeem(amount) {
-    trackEvent('Voucher:Redeem', { amount: Math.round(amount) });
+  trackEvent('Voucher:Redeem', { amount: Math.round(amount) });
 }
 
 /**
@@ -90,7 +90,7 @@ export function trackVoucherRedeem(amount) {
  * @param {string} section - What was exported (closure, vouchers, etc.)
  */
 export function trackExport(type, section) {
-    trackEvent('Export', { type, section });
+  trackEvent('Export', { type, section });
 }
 
 /**
@@ -98,7 +98,7 @@ export function trackExport(type, section) {
  * @param {string} section - Where search was performed
  */
 export function trackSearch(section) {
-    trackEvent('Search', { section });
+  trackEvent('Search', { section });
 }
 
 /**
@@ -107,5 +107,5 @@ export function trackSearch(section) {
  * @param {string} context - Where error occurred
  */
 export function trackError(type, context) {
-    trackEvent('Error', { type, context });
+  trackEvent('Error', { type, context });
 }

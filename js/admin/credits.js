@@ -1,9 +1,9 @@
-import { supabase, safeSupabaseQuery } from "../core/api.js";
-import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from "../ui/ui.js";
-import { handleError } from "../shared/error-handler.js";
-import { escapeHtml, formatEuro } from "../utils/utils.js";
-import { Validators, validateForm, formatErrorMessages } from "../shared/validators.js";
-import { Toast } from "../ui/toast.js";
+import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
+import { Validators, validateForm, formatErrorMessages } from '../shared/validators.js';
+import { Toast } from '../ui/toast.js';
+import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from '../ui/ui.js';
+import { escapeHtml, formatEuro } from '../utils/utils.js';
 
 // Context to allow refreshing the view
 let creditsContext = { container: null, actions: null, stationId: null };
@@ -13,9 +13,9 @@ export async function showCreditiOverview(container, actionsContainer, stationId
   showLoadingMessage(container);
 
   if (actionsContainer) {
-    actionsContainer.innerHTML = `<button class="action-btn primary" id="add-customer-btn"><i class="fas fa-plus"></i> Nuovo Cliente</button>`;
+    actionsContainer.innerHTML = '<button class="action-btn primary" id="add-customer-btn"><i class="fas fa-plus"></i> Nuovo Cliente</button>';
     const addBtn = document.getElementById('add-customer-btn');
-    if (addBtn) addBtn.addEventListener('click', () => openCustomerModal());
+    if (addBtn) {addBtn.addEventListener('click', () => openCustomerModal());}
   }
 
   try {
@@ -25,13 +25,13 @@ export async function showCreditiOverview(container, actionsContainer, stationId
         fuel_stations(station_name)
       `);
 
-    if (stationId) query = query.eq('station_id', stationId);
+    if (stationId) {query = query.eq('station_id', stationId);}
 
     query = query.order('cliente');
 
     const { data: customers, error } = await query;
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     if (!customers || customers.length === 0) {
       container.innerHTML = '<p>Nessun cliente trovato.</p>';
@@ -69,7 +69,7 @@ export async function showCreditiOverview(container, actionsContainer, stationId
       `;
     });
 
-    html += `</tbody></table></div>`;
+    html += '</tbody></table></div>';
     container.innerHTML = html;
 
     container.querySelectorAll('.edit-customer').forEach(btn => {
@@ -153,7 +153,7 @@ async function openCustomerModal(customerId = null) {
 }
 
 async function deleteCustomer(customerId) {
-  if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) return;
+  if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) {return;}
   try {
     await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
     Toast.show('Cliente eliminato', 'success');

@@ -1,15 +1,17 @@
-import { supabase } from "../core/api.js";
-import { showInfoModal, showErrorMessage, showLoadingMessage, openModal, closeModal } from "../ui/ui.js";
-import { formatEuro, formatDate, escapeHtml } from "../utils/utils.js";
-import { checkOpeningStatus } from "./opening.js";
-import { Toast } from "../ui/toast.js";
-import { handleError } from "../shared/error-handler.js";
-import { validateVoucher } from "../core/rules.js";
+import { supabase } from '../core/api.js';
+import { validateVoucher } from '../core/rules.js';
+import { handleError } from '../shared/error-handler.js';
+import { Toast } from '../ui/toast.js';
+import { showInfoModal, showErrorMessage, showLoadingMessage, openModal, closeModal } from '../ui/ui.js';
+import { formatEuro, formatDate, escapeHtml } from '../utils/utils.js';
+import { createRateLimiter } from '../utils/utils.js';
+
+import { checkOpeningStatus } from './opening.js';
 
 // We assume Html5QrcodeScanner is loaded globally via script tag in index.html
 // If not, we should dynamically load it, but for now let's assume existence or load it here.
 
-let voucherState = {
+const voucherState = {
   scanner: null,
   isScanning: false,
   stationId: null,
@@ -22,7 +24,7 @@ export async function showVoucherMenu(stationId, userId) {
   voucherState.stationId = stationId;
   voucherState.userId = userId;
 
-  openModal("Riscatto Voucher");
+  openModal('Riscatto Voucher');
   const container = document.getElementById('modal-body');
   container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
 
@@ -79,7 +81,7 @@ export async function showVoucherMenu(stationId, userId) {
     container.innerHTML = `
             <div class="alert alert-danger" style="margin: 20px;">
                 <h4><i class="fas fa-times-circle"></i> Errore Caricamento</h4>
-                <p>${err.message}</p>
+                <p>${escapeHtml(err.message)}</p>
             </div>
         `;
     return;
@@ -90,14 +92,14 @@ export async function showVoucherMenu(stationId, userId) {
   document.getElementById('manual-entry-btn').addEventListener('click', toggleManualEntry);
   document.getElementById('btn-verify-manual').addEventListener('click', () => {
     const code = (/** @type {HTMLInputElement} */(document.getElementById('manual-voucher-code'))).value.trim();
-    if (code) processVoucherCode(code.toUpperCase());
+    if (code) {processVoucherCode(code.toUpperCase());}
   });
 
   // Also handle "Enter" key
   document.getElementById('manual-voucher-code').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       const code = (/** @type {HTMLInputElement} */(e.target)).value.trim();
-      if (code) processVoucherCode(code.toUpperCase());
+      if (code) {processVoucherCode(code.toUpperCase());}
     }
   });
 
@@ -115,7 +117,7 @@ export async function showVoucherMenu(stationId, userId) {
   // Dynamically load library if not present
   if (!customWindow.Html5Qrcode) {
     const script = document.createElement('script');
-    script.src = "https://unpkg.com/html5-qrcode";
+    script.src = 'https://unpkg.com/html5-qrcode';
     document.head.appendChild(script);
   }
 }
@@ -131,25 +133,25 @@ function startScanner() {
   /** @type {import('../types.js').CustomWindow} */
   const customWindow = /** @type {any} */(window);
   if (!customWindow.Html5Qrcode) {
-    Toast.show("Libreria Scanner in caricamento... riprova tra un secondo.", 'warning');
+    Toast.show('Libreria Scanner in caricamento... riprova tra un secondo.', 'warning');
     return;
   }
 
   // Initialize Scanner
-  const html5QrCode = new customWindow.Html5Qrcode("reader");
+  const html5QrCode = new customWindow.Html5Qrcode('reader');
   voucherState.scanner = html5QrCode;
   voucherState.isScanning = true;
 
   const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
   html5QrCode.start(
-    { facingMode: "environment" }, // Prefer back camera
+    { facingMode: 'environment' }, // Prefer back camera
     config,
     onScanSuccess,
     onScanFailure
   ).catch(err => {
-    console.error("Error starting scanner", err);
-    showErrorMessage("Errore Fotocamera", "Impossibile avviare la fotocamera. Assicurati di aver dato i permessi.");
+    console.error('Error starting scanner', err);
+    showErrorMessage('Errore Fotocamera', 'Impossibile avviare la fotocamera. Assicurati di aver dato i permessi.');
     stopScanner();
   });
 }
@@ -161,7 +163,7 @@ function stopScanner() {
       voucherState.scanner = null;
       document.getElementById('scanner-container').style.display = 'none';
       document.getElementById('scan-actions').style.display = 'flex';
-    }).catch(err => console.error("Failed to stop scanner", err));
+    }).catch(err => console.error('Failed to stop scanner', err));
   }
 }
 
@@ -174,7 +176,7 @@ function onScanSuccess(decodedText, decodedResult) {
   // Audit: Stop scanning immediately
   stopScanner();
   // Play explicit beep or vibration
-  if (navigator.vibrate) navigator.vibrate(200);
+  if (navigator.vibrate) {navigator.vibrate(200);}
 
   // Process Code
   processVoucherCode(decodedText);
@@ -189,22 +191,21 @@ function toggleManualEntry() {
   if (form.style.display === 'none') {
     form.style.display = 'block';
     actions.style.display = 'none';
-    subtitle.textContent = "Inserisci il numero del voucher";
+    subtitle.textContent = 'Inserisci il numero del voucher';
     input.focus();
   } else {
     form.style.display = 'none';
     actions.style.display = 'flex';
-    subtitle.textContent = "Inquadra il QR code del cliente o inserisci il codice manualmente.";
+    subtitle.textContent = 'Inquadra il QR code del cliente o inserisci il codice manualmente.';
   }
 }
 
-import { createRateLimiter } from "../utils/utils.js";
 
 const voucherRateLimiter = createRateLimiter(5, 60000); // 5 tentativi al minuto
 
 async function processVoucherCode(code) {
   if (!voucherRateLimiter.check()) {
-    Toast.show("Troppi tentativi. Riprova tra un minuto.", "error");
+    Toast.show('Troppi tentativi. Riprova tra un minuto.', 'error');
     return;
   }
 
@@ -226,7 +227,7 @@ async function processVoucherCode(code) {
     const { data: vouchers, error } = await query;
 
     if (error || !vouchers || vouchers.length === 0) {
-      throw new Error("Codice non trovato o inesistente.");
+      throw new Error('Codice non trovato o inesistente.');
     }
 
     // If multiple vouchers start with the same 4 chars, we might need logic to pick one.
@@ -246,7 +247,7 @@ async function processVoucherCode(code) {
         if (validation.details?.date) {
           detailText = `Il buono è scaduto il <strong>${formatDate(validation.details.date)}</strong>`;
         } else {
-          detailText = `Il buono risulta scaduto.`;
+          detailText = 'Il buono risulta scaduto.';
         }
       }
 
@@ -287,7 +288,7 @@ async function processVoucherCode(code) {
     resultContainer.innerHTML = `
             <div class="alert alert-danger">
                 <h4><i class="fas fa-times-circle"></i> Errore</h4>
-                <p>${err.message}</p>
+                <p>${escapeHtml(err.message)}</p>
             </div>
         `;
   }
@@ -327,14 +328,14 @@ async function redeemVoucher(voucher) {
       p_operator_id: voucherState.userId
     });
 
-    if (rpcError) throw rpcError;
+    if (rpcError) {throw rpcError;}
 
     // Check strict success from RPC logic
     if (result && !result.success) {
       throw new Error(result.error || 'Errore durante il riscatto del voucher');
     }
 
-    Toast.show("Voucher Riscattato con Successo!", 'success');
+    Toast.show('Voucher Riscattato con Successo!', 'success');
     resultContainer.innerHTML = `
             <div class="alert alert-success" style="background:#d4edda; color:#155724; padding:20px; border-radius:8px; border:1px solid #c3e6cb; text-align: center;">
                 <h2><i class="fas fa-check"></i> Completato</h2>
@@ -350,7 +351,7 @@ async function redeemVoucher(voucher) {
 
   } catch (err) {
     console.error(err);
-    showErrorMessage("Errore Riscatto", "Impossibile completare l'operazione. Riprova: " + (err.message || err.toString()));
+    showErrorMessage('Errore Riscatto', "Impossibile completare l'operazione. Riprova: " + (err.message || err.toString()));
     resultContainer.innerHTML = ''; // Reset to allow retry
 
     // CRITICO: Reset flag anche in caso di errore per permettere retry

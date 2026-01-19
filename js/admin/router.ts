@@ -3,6 +3,7 @@
  * Handles navigation between admin tabs with lazy loading
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { showLoadingMessage } from '../ui/ui.js';
 import { handleError } from '../shared/error-handler.js';
 import { store } from '../shared/state.js';
@@ -11,32 +12,69 @@ import { showStationsTab } from './stations.js';
 import { showOperatorsTab } from './operators.js';
 import { showChiusureTab } from './shifts.js';
 import { showCreditiOverview as showCreditsTab } from './credits.js';
-import { showFattureTab } from './invoices.js';
 import { showSettingsTab } from './logic.js';
 
-/**
- * Admin Router Class
- */
+// ========== TYPE DEFINITIONS ==========
+
+export type AdminTab =
+    | 'dashboard'
+    | 'stations'
+    | 'operators'
+    | 'shifts'
+    | 'crediti'
+    | 'invoices'
+    | 'vouchers'
+    | 'notifiche'
+    | 'analytics'
+    | 'settings';
+
+export type UserRole =
+    | 'admin'
+    | 'super_admin'
+    | 'full_admin'
+    | 'operator'
+    | 'accounting'
+    | 'billing';
+
+const TAB_TITLES: Record<AdminTab, string> = {
+    'dashboard': 'Dashboard',
+    'stations': 'Gestione Distributori',
+    'operators': 'Gestione Operatori',
+    'shifts': 'Registro Chiusure',
+    'crediti': 'Gestione Crediti',
+    'invoices': 'Richieste Fatture',
+    'vouchers': 'Gestione Voucher',
+    'notifiche': 'Notifiche',
+    'analytics': 'Analytics',
+    'settings': 'Impostazioni'
+};
+
+// ========== ROUTER CLASS ==========
+
 class AdminRouter {
+    private currentTab: AdminTab;
+    private userRole: UserRole;
+    private isFullAdmin: boolean;
+
     constructor() {
         this.currentTab = 'dashboard';
-        this.userRole = null;
+        this.userRole = 'operator';
         this.isFullAdmin = false;
     }
 
     /**
      * Initialize router with user permissions
      */
-    init(userRole) {
-        this.userRole = userRole || 'operator';
-        this.isFullAdmin = this.userRole === 'admin' || this.userRole === 'super_admin' || this.userRole === 'full_admin';
+    init(userRole: string | null | undefined): void {
+        this.userRole = (userRole as UserRole) || 'operator';
+        this.isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(this.userRole);
         console.log('[Router] Initialized for role:', this.userRole, 'isFullAdmin:', this.isFullAdmin);
     }
 
     /**
      * Navigate to a specific tab
      */
-    async navigateTo(tab) {
+    async navigateTo(tab: AdminTab): Promise<void> {
         this.currentTab = tab;
 
         const content = document.getElementById('admin-content');
@@ -45,33 +83,17 @@ class AdminRouter {
 
         if (!content) return;
 
-        // Update active navigation button
-        document.querySelectorAll('.nav-btn').forEach(b => {
-            b.classList.toggle('active', /** @type {HTMLElement} */(b).dataset.tab === tab);
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            const element = btn as HTMLElement;
+            element.classList.toggle('active', element.dataset.tab === tab);
         });
 
-        // Update page title
-        const titles = {
-            'dashboard': 'Dashboard',
-            'stations': 'Gestione Distributori',
-            'operators': 'Gestione Operatori',
-            'shifts': 'Registro Chiusure',
-            'crediti': 'Gestione Crediti',
-            'invoices': 'Richieste Fatture',
-            'vouchers': 'Gestione Voucher',
-            'notifiche': 'Notifiche',
-            'analytics': 'Analytics',
-            'settings': 'Impostazioni'
-        };
-
         if (pageSubtitle) {
-            pageSubtitle.textContent = titles[tab] || 'Control Center';
+            pageSubtitle.textContent = TAB_TITLES[tab] || 'Control Center';
         }
 
-        // Get current filter from store
         const filter = store.getFilter();
 
-        // Check permissions
         if (!this.checkPermission(tab)) {
             content.innerHTML = `
                 <div class="error-container">
@@ -84,22 +106,33 @@ class AdminRouter {
             return;
         }
 
-        // Route to appropriate handler
         await this.loadTab(tab, content, headerActions, filter);
     }
 
     /**
      * Check if user has permission for a tab
      */
-    checkPermission(tab) {
+    private checkPermission(tab: AdminTab): boolean {
         const { userRole, isFullAdmin } = this;
 
-        if (['stations', 'operators', 'settings'].includes(tab) && !isFullAdmin) return false;
-        if (tab === 'shifts' && !isFullAdmin && userRole !== 'accounting') return false;
-        if (tab === 'crediti' && !isFullAdmin && userRole !== 'accounting') return false;
-        if (tab === 'analytics' && !isFullAdmin && userRole !== 'accounting') return false;
-        if (tab === 'invoices' && !isFullAdmin && userRole !== 'billing' && userRole !== 'accounting') return false;
-        if (tab === 'vouchers' && !isFullAdmin && userRole !== 'accounting') return false;
+        if (['stations', 'operators', 'settings'].includes(tab) && !isFullAdmin) {
+            return false;
+        }
+        if (tab === 'shifts' && !isFullAdmin && userRole !== 'accounting') {
+            return false;
+        }
+        if (tab === 'crediti' && !isFullAdmin && userRole !== 'accounting') {
+            return false;
+        }
+        if (tab === 'analytics' && !isFullAdmin && userRole !== 'accounting') {
+            return false;
+        }
+        if (tab === 'invoices' && !isFullAdmin && userRole !== 'billing' && userRole !== 'accounting') {
+            return false;
+        }
+        if (tab === 'vouchers' && !isFullAdmin && userRole !== 'accounting') {
+            return false;
+        }
 
         return true;
     }
@@ -107,29 +140,35 @@ class AdminRouter {
     /**
      * Load the appropriate tab module
      */
-    async loadTab(tab, content, headerActions, filter) {
+    private async loadTab(
+        tab: AdminTab,
+        content: HTMLElement,
+        headerActions: HTMLElement | null,
+        filter: string | null
+    ): Promise<void> {
         switch (tab) {
             case 'dashboard':
                 showDashboard(content, filter);
                 break;
 
             case 'stations':
-                showStationsTab(content, headerActions);
+                (showStationsTab as any)(content, headerActions);
                 break;
 
             case 'operators':
-                showOperatorsTab(content, headerActions);
+                (showOperatorsTab as any)(content, headerActions);
                 break;
 
             case 'shifts':
-                showChiusureTab(content, headerActions, filter);
+                (showChiusureTab as any)(content, headerActions, filter);
                 break;
 
             case 'analytics':
                 showLoadingMessage(content);
                 try {
                     const { showAnalyticsTab } = await import('./analytics.js');
-                    showAnalyticsTab(content, headerActions, filter);
+                    const stationId = filter ? parseInt(filter, 10) : null;
+                    showAnalyticsTab(content, headerActions, stationId);
                 } catch (err) {
                     handleError(err, 'Caricamento modulo Analytics', content);
                 }
@@ -137,16 +176,19 @@ class AdminRouter {
 
             case 'crediti':
                 if (typeof showCreditsTab !== 'undefined') {
-                    showCreditsTab(content, headerActions);
+                    (showCreditsTab as any)(content, headerActions);
                 } else {
                     content.innerHTML = '<p>Modulo Crediti in caricamento...</p>';
                 }
                 break;
 
             case 'invoices':
-                await import('./invoices.js').then(module => {
+                try {
+                    const module = await import('./invoices.js') as any;
                     module.showFattureTab(content, headerActions, filter);
-                });
+                } catch (err) {
+                    handleError(err, 'Caricamento modulo Fatture', content);
+                }
                 break;
 
             case 'vouchers':
@@ -174,14 +216,14 @@ class AdminRouter {
                 break;
 
             default:
-                showDashboard(content, filter);
+                (showDashboard as any)(content, filter);
         }
     }
 
     /**
      * Get current tab
      */
-    getCurrentTab() {
+    getCurrentTab(): AdminTab {
         return this.currentTab;
     }
 }

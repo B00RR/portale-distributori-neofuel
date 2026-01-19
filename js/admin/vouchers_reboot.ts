@@ -1,15 +1,79 @@
-import { supabase } from "../core/api.js";
-import { showLoadingMessage, showInfoModal, showErrorMessage, openModal, closeModal, openConfirmModal } from "../ui/ui.js";
-import { escapeHtml, formatEuro, formatDate, debounce } from "../utils/utils.js";
-import { Toast } from "../ui/toast.js";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { supabase } from '../core/api.js';
+import { Toast } from '../ui/toast.js';
+import { showLoadingMessage, showInfoModal, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
+import { escapeHtml, formatEuro, formatDate } from '../utils/utils.js';
+
+// --- INTERFACES ---
+
+interface VoucherBatch {
+    id: string;
+    description: string;
+    customer_name: string | null;
+    expiration_date: string | null;
+    created_at: string;
+}
+
+interface Voucher {
+    id: number | string;
+    batch_id: string;
+    code: string;
+    amount: number;
+    status: 'active' | 'redeemed' | 'expired' | 'void';
+    expiration_date: string | null;
+    created_at: string;
+    redeemed_at: string | null;
+    serial_number: number;
+}
+
+interface Customer {
+    id: number;
+    cliente: string;
+}
+
+interface VoucherFilters {
+    status: string;
+    dateFrom: string;
+    dateTo: string;
+    clientSearch: string;
+}
+
+interface VoucherState {
+    batches: VoucherBatch[];
+    customers: Customer[];
+    activeTab: 'generator' | 'dashboard';
+    dashboardView: 'batches' | 'vouchers';
+    currentPage: number;
+    pageSize: number;
+    totalCount: number;
+    filters: VoucherFilters;
+}
+
+interface BatchStats {
+    totalCount: number;
+    redeemedCount: number;
+    activeCount: number;
+    voidCount: number;
+    totalAmount: number;
+    redeemedAmount: number;
+}
+
+interface CustomWindow extends Window {
+    voucherActions?: {
+        openPrintView: (batchId: string) => void;
+        showBatchDetails: (batchId: string) => void;
+        handleDeleteBatch: (batchId: string) => void;
+    };
+}
+
+declare const window: CustomWindow;
 
 // --- STATE ---
-let voucherState = {
+const voucherState: VoucherState = {
     batches: [],
     customers: [],
-    activeTab: 'generator', // 'generator', 'dashboard'
-    dashboardView: 'batches', // 'batches' (default), 'vouchers'
-    // Pagination and filters for Dashboard
+    activeTab: 'generator',
+    dashboardView: 'batches',
     currentPage: 1,
     pageSize: 25,
     totalCount: 0,
@@ -22,7 +86,7 @@ let voucherState = {
 };
 
 // --- INITIALIZATION ---
-export async function showVoucherAdminTab(container, headerActions) {
+export async function showVoucherAdminTab(container: HTMLElement, _headerActions?: HTMLElement | null): Promise<void> {
     // V3 REBOOT: Clean Flexbox Structure
     container.innerHTML = `
         <div class="app-container" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
@@ -85,7 +149,7 @@ export async function showVoucherAdminTab(container, headerActions) {
     const tabButtons = container.querySelectorAll('.tab-btn-large');
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            const tabId = btn.dataset.tab;
+            const tabId = (btn as HTMLElement).dataset.tab as 'generator' | 'dashboard';
             voucherState.activeTab = tabId;
             // Re-render the tab structure to update styles
             showVoucherAdminTab(container);
@@ -97,7 +161,7 @@ export async function showVoucherAdminTab(container, headerActions) {
     renderActiveTab();
 }
 
-async function loadCustomers() {
+async function loadCustomers(): Promise<void> {
     try {
         // Fetch active customers for the dropdown
         const { data, error } = await supabase
@@ -105,17 +169,17 @@ async function loadCustomers() {
             .select('id, cliente')
             .order('cliente');
 
-        if (error) throw error;
-        voucherState.customers = data || [];
+        if (error) { throw error; }
+        voucherState.customers = (data as Customer[]) || [];
     } catch (err) {
-        console.error("Error loading customers:", err);
-        Toast.show("Errore caricamento clienti", 'error');
+        console.error('Error loading customers:', err);
+        (Toast as any).show('Errore caricamento clienti', 'error');
     }
 }
 
-async function renderActiveTab() {
+async function renderActiveTab(): Promise<void> {
     const content = document.getElementById('voucher-content');
-    if (!content) return;
+    if (!content) { return; }
 
     switch (voucherState.activeTab) {
         case 'generator':
@@ -128,7 +192,7 @@ async function renderActiveTab() {
 }
 
 // --- GENERATOR TAB ---
-function renderGenerator(container) {
+function renderGenerator(container: HTMLElement): void {
     const today = new Date().toISOString().split('T')[0];
     const nextYear = new Date();
     nextYear.setFullYear(nextYear.getFullYear() + 1);
@@ -181,25 +245,27 @@ function renderGenerator(container) {
         </div>
     `;
 
-    document.getElementById('voucher-generator-form').addEventListener('submit', handleGeneration);
+    document.getElementById('voucher-generator-form')?.addEventListener('submit', handleGeneration);
 }
 
-async function handleGeneration(e) {
+async function handleGeneration(e: Event): Promise<void> {
     e.preventDefault();
-    const formData = new FormData(e.target);
+    const target = e.target as HTMLFormElement;
+    const formData = new FormData(target);
     const amount = parseFloat(formData.get('amount')?.toString() || '0');
-    const customer = formData.get('customer_name')?.toString() || ''; // Changed from customer_id to customer_name
+    const customer = formData.get('customer_name')?.toString() || '';
     const expiration = formData.get('expiration_date')?.toString() || '';
     const quantity = parseInt(formData.get('quantity')?.toString() || '0');
 
-    if (!amount || quantity < 1) return;
+    if (!amount || quantity < 1) { return; }
 
     const confirmed = await openConfirmModal(`Confermi la generazione di ${quantity} voucher da ${formatEuro(amount)} ciascuno?\nTotale Valore Nominale: ${formatEuro(amount * quantity)}`);
     if (!confirmed) {
         return;
     }
 
-    showLoadingMessage(document.getElementById('voucher-content'));
+    const content = document.getElementById('voucher-content');
+    if (content) showLoadingMessage(content);
 
     try {
         // 1. Create Batch
@@ -214,7 +280,7 @@ async function handleGeneration(e) {
             .select()
             .single();
 
-        if (batchError) throw batchError;
+        if (batchError || !batch) { throw batchError || new Error("Failed to create batch"); }
 
         // 2. Generate Vouchers
         const vouchersPayload = [];
@@ -237,34 +303,35 @@ async function handleGeneration(e) {
             .from('vouchers')
             .insert(vouchersPayload);
 
-        if (vouchersError) throw vouchersError;
+        if (vouchersError) { throw vouchersError; }
 
-        Toast.show("Voucher generati con successo!", 'success');
+        (Toast as any).show('Voucher generati con successo!', 'success');
 
         // Redirect to Print Tab
-        voucherState.activeTab = 'dashboard'; // Changed to dashboard
-        voucherState.dashboardView = 'batches'; // Show batches view
+        voucherState.activeTab = 'dashboard';
+        voucherState.dashboardView = 'batches';
         renderActiveTab();
 
-    } catch (err) {
+    } catch (err: any) {
         console.error(err);
-        renderGenerator(document.getElementById('voucher-content')); // Reset UI
-        showErrorMessage("Errore Generazione", err.message);
+        const content = document.getElementById('voucher-content');
+        if (content) renderGenerator(content); // Reset UI
+        (Toast as any).show('Errore Generazione: ' + (err.message || ''), 'error');
     }
 }
 
-function generateVoucherCode() {
+function generateVoucherCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I, O, 0, 1 to avoid confusion
     let result = '';
     for (let i = 0; i < 12; i++) {
-        if (i === 4 || i === 8) result += '-';
+        if (i === 4 || i === 8) { result += '-'; }
         result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result; // e.g. A4K9-XP3M-9L2N
 }
 
 // --- DASHBOARD TAB ---
-async function renderDashboard(container) {
+async function renderDashboard(container: HTMLElement): Promise<void> {
     container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento Dashboard...</div>';
 
     try {
@@ -279,43 +346,41 @@ async function renderDashboard(container) {
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (batchError) throw batchError;
+        if (batchError) { throw batchError; }
 
         // Fetch aggregation data (all vouchers) needed for stats
         const { data: allVouchers, error: vouchersError } = await supabase
             .from('vouchers')
             .select('batch_id, status, amount');
 
-        if (vouchersError) throw vouchersError;
+        if (vouchersError) { throw vouchersError; }
 
         // Calculate stats per batch AND global monetary stats
-        const batchStats = {};
+        const batchStats: Record<string, BatchStats> = {};
         let globalRedeemedValue = 0;
         let globalCirculatingValue = 0;
 
-        allVouchers.forEach(v => {
-            if (!batchStats[v.batch_id]) {
-                batchStats[v.batch_id] = { totalAmount: 0, redeemedAmount: 0, totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0 };
+        (allVouchers as Voucher[]).forEach(v => {
+            let stats = batchStats[v.batch_id];
+            if (!stats) {
+                stats = { totalAmount: 0, redeemedAmount: 0, totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0 };
+                batchStats[v.batch_id] = stats;
             }
-            batchStats[v.batch_id].totalAmount += v.amount;
-            batchStats[v.batch_id].totalCount++;
+            stats.totalAmount += v.amount;
+            stats.totalCount++;
 
             if (v.status === 'redeemed') {
-                batchStats[v.batch_id].redeemedCount++;
-                batchStats[v.batch_id].redeemedAmount += v.amount;
+                stats.redeemedCount++;
+                stats.redeemedAmount += v.amount;
                 globalRedeemedValue += v.amount;
             } else if (v.status === 'active') {
-                batchStats[v.batch_id].activeCount++;
+                stats.activeCount++;
                 globalCirculatingValue += v.amount;
             } else if (v.status === 'void') {
-                batchStats[v.batch_id].voidCount++;
+                stats.voidCount++;
             }
         });
 
-        // V3 REBOOT: CSS ISOLATION STRATEGY
-        // We inject local styles to override ANY global table settings that might be breaking the layout.
-        // NUCLEAR OPTION V2: CSS GRID LAYOUT
-        // Bypassing table mechanics entirely
         const styleId = 'voucher-grid-styles';
         if (!document.getElementById(styleId)) {
             const style = document.createElement('style');
@@ -496,8 +561,8 @@ async function renderDashboard(container) {
                         </div>
 
                         <!-- ROWS -->
-                        ${batches.map(b => {
-            const stats = batchStats[b.id] || { totalVouchers: 0, redeemedCount: 0, activeCount: 0, voidCount: 0, totalAmount: 0, redeemedAmount: 0 };
+                        ${(batches as VoucherBatch[]).map(b => {
+            const stats = batchStats[b.id] || { totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0, totalAmount: 0, redeemedAmount: 0 };
             const residualAmount = stats.totalAmount - stats.redeemedAmount;
             const isExpired = b.expiration_date && new Date(b.expiration_date) < new Date();
 
@@ -514,22 +579,17 @@ async function renderDashboard(container) {
                 statusLabel = 'Scaduto';
                 statusClass = 'badge-danger';
             } else if (stats.activeCount === 0 && stats.totalCount > 0) {
-                // Fallback likely not needed if logic is correct, but effectively exhausted/redeemed
                 statusLabel = 'Riscattato';
                 statusClass = 'badge-secondary';
             }
 
-            // Lotto Column Content: e.g. "10 / 50€"
-            // We need to infer single voucher amount. 
-            // Assumption: All vouchers in batch have same amount.
-            // stats.totalAmount / stats.totalCount = single amount
             const singleAmount = stats.totalCount > 0 ? (stats.totalAmount / stats.totalCount) : 0;
             const lottoStr = `${stats.totalCount} / ${formatEuro(singleAmount)}`;
 
             return `
                             <div class="voucher-grid-row">
                                 <div class="voucher-cell">
-                                    <div style="color: #334155; font-weight: 500;">${b.customer_name || '-'}</div>
+                                    <div style="color: #334155; font-weight: 500;">${escapeHtml(b.customer_name || '-')}</div>
                                 </div>
                                 <div class="voucher-cell">
                                     <div style="width:100%">
@@ -576,6 +636,7 @@ async function renderDashboard(container) {
                     </div>
                 </div>
             </div>`;
+
         container.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 1rem;">
                 <h3 style="margin: 0; font-size: 1.25rem; color: #0f172a;">Gestione Voucher</h3>
@@ -636,16 +697,15 @@ async function renderDashboard(container) {
         `;
 
 
-
         // Bind action buttons with event delegation
         container.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-action]');
-            if (!btn) return;
+            const btn = (e.target as HTMLElement).closest('[data-action]');
+            if (!btn) { return; }
 
-            const action = btn.dataset.action;
-            const batchId = btn.dataset.batchId;
+            const action = (btn as HTMLElement).dataset.action;
+            const batchId = (btn as HTMLElement).dataset.batchId;
 
-            if (!batchId) return;
+            if (!batchId) { return; }
 
             switch (action) {
                 case 'print':
@@ -660,11 +720,9 @@ async function renderDashboard(container) {
             }
         });
 
-        // Global Actions Exposed (for backwards compatibility)
-        /** @type {import('../types.js').CustomWindow} */
-        const customWindow = /** @type {any} */(window);
-        if (!customWindow.voucherActions) {
-            customWindow.voucherActions = {
+        // Global Actions Exposed
+        if (!window.voucherActions) {
+            window.voucherActions = {
                 openPrintView,
                 showBatchDetails,
                 handleDeleteBatch
@@ -672,216 +730,38 @@ async function renderDashboard(container) {
         }
 
         // Initialize Column Resizing
-        setupColumnResizing(container.querySelector('.voucher-list-container'));
+        setupColumnResizing(container.querySelector('.voucher-list-container') as HTMLElement);
 
         // Bind Refresh Button
-        const refreshBtn = /** @type {HTMLButtonElement} */(document.getElementById('refresh-dashboard-btn'));
+        const refreshBtn = document.getElementById('refresh-dashboard-btn') as HTMLButtonElement | null;
         if (refreshBtn) {
             refreshBtn.addEventListener('click', async () => {
                 const icon = refreshBtn.querySelector('i');
-                icon.classList.add('fa-spin');
+                if (icon) icon.classList.add('fa-spin');
                 refreshBtn.disabled = true;
 
                 try {
                     await renderDashboard(container);
-                    Toast.show('Dashboard aggiornata', 'success');
+                    (Toast as any).show('Dashboard aggiornata', 'success');
                 } catch (error) {
-                    Toast.show('Errore durante l\'aggiornamento', 'error');
+                    (Toast as any).show('Errore durante l\'aggiornamento', 'error');
                     console.error(error);
                 } finally {
-                    icon.classList.remove('fa-spin');
+                    if (icon) icon.classList.remove('fa-spin');
                     refreshBtn.disabled = false;
                 }
             });
         }
 
-    } catch (err) {
+    } catch (err: any) {
         container.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
         console.error(err);
-    }
-}
-
-function getStatusBadge(status) {
-    switch (status) {
-        case 'active': return '<span class="badge badge-success">Attivo</span>';
-        case 'redeemed': return '<span class="badge badge-secondary">Riscattato</span>';
-        case 'expired': return '<span class="badge badge-danger">Scaduto</span>';
-        case 'void': return '<span class="badge badge-danger">Annullato</span>';
-        default: return status;
-    }
-}
-
-// --- HELPER FUNCTIONS FOR PAGINATION AND FILTERS ---
-function generatePageNumbers(currentPage, totalPages) {
-    const pages = [];
-    const maxVisible = 5;
-
-    if (totalPages <= maxVisible) {
-        for (let i = 1; i <= totalPages; i++) {
-            pages.push(i);
-        }
-    } else {
-        if (currentPage <= 3) {
-            for (let i = 1; i <= 4; i++) pages.push(i);
-            pages.push('...');
-            pages.push(totalPages);
-        } else if (currentPage >= totalPages - 2) {
-            pages.push(1);
-            pages.push('...');
-            for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-        } else {
-            pages.push(1);
-            pages.push('...');
-            pages.push(currentPage - 1);
-            pages.push(currentPage);
-            pages.push(currentPage + 1);
-            pages.push('...');
-            pages.push(totalPages);
-        }
-    }
-
-    return pages.map(page => {
-        if (page === '...') {
-            return '<span style="padding: 6px 10px;">...</span>';
-        }
-        const isActive = page === currentPage;
-        return `<button class="page-number ${isActive ? 'active' : ''}" data-page="${page}" style="padding: 6px 10px; border: 1px solid #e2e8f0; background: ${isActive ? '#3b82f6' : 'white'}; color: ${isActive ? 'white' : '#333'}; border-radius: 6px; cursor: pointer; min-width: 36px;">${page}</button>`;
-    }).join('');
-}
-
-function handleFilterChange() {
-    voucherState.filters.status = (/** @type {HTMLSelectElement} */(document.getElementById('filter-status')))?.value || '';
-    voucherState.filters.dateFrom = (/** @type {HTMLInputElement} */(document.getElementById('filter-date-from')))?.value || '';
-    voucherState.filters.dateTo = (/** @type {HTMLInputElement} */(document.getElementById('filter-date-to')))?.value || '';
-    voucherState.filters.clientSearch = (/** @type {HTMLInputElement} */(document.getElementById('filter-client')))?.value || '';
-    voucherState.currentPage = 1; // Reset to first page when filters change
-    renderActiveTab();
-}
-
-function handleFilterReset() {
-    voucherState.filters = {
-        status: '',
-        dateFrom: '',
-        dateTo: '',
-        clientSearch: ''
-    };
-    voucherState.currentPage = 1;
-    renderActiveTab();
-}
-
-function handlePageChange(newPage) {
-    voucherState.currentPage = newPage;
-    renderActiveTab();
-}
-
-function handlePageSizeChange(e) {
-    voucherState.pageSize = parseInt(e.target.value);
-    voucherState.currentPage = 1; // Reset to first page
-    renderActiveTab();
-}
-
-// --- PRINT TAB ---
-async function renderPrintList(container) {
-    container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento Lotti...</div>';
-
-    try {
-        const { data: batches, error } = await supabase
-            .from('voucher_batches')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        container.innerHTML = `
-            <div class="app-container">
-                <div class="page-header" style="text-align: center; margin-bottom: 30px;">
-                    <h2 class="page-title" style="font-size: 1.8rem; color: #0f172a; margin-bottom: 10px;">
-                        <i class="fas fa-ticket-alt" style="color: #3b82f6; margin-right: 10px;"></i>
-                        Gestione Voucher V4 [DEBUG]
-                    </h2>
-                </div>
-                
-                <div class="table-responsive" style="overflow-x: auto; width: 100%;">
-                    <table class="admin-table" style="width: 100%; min-width: 1000px; table-layout: fixed !important;">
-                        <thead>
-                            <tr>
-                                <th style="width: 25%">Descrizione Lotto</th>
-                                <th style="width: 20%">Data Creazione</th>
-                                <th style="width: 20%">Scadenza</th>
-                                <th style="width: 20%">Cliente</th>
-                                <th style="width: 15%; text-align: right;">Comandi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${batches.length === 0 ? '<tr><td colspan="5" style="text-align:center;">Nessun lotto trovato.</td></tr>' : ''}
-                            ${batches.map(b => `
-                                <tr>
-                                    <td><strong>${escapeHtml(b.description)}</strong></td>
-                                    <td>${formatDate(b.created_at)}</td>
-                                    <td>${b.expiration_date ? formatDate(b.expiration_date) : '<span style="color:#9ca3af;">Illimitata</span>'}</td>
-                                    <td>${b.customer_name ? `<span class="status-badge" style="background:#eff6ff; color:#1d4ed8; border:none;">${escapeHtml(b.customer_name)}</span>` : '-'}</td>
-                                    <td style="text-align: right;">
-                                        <div style="display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
-                                            <button class="action-btn primary btn-print-batch" data-id="${b.id}" title="Stampa Voucher" style="display: inline-flex; align-items: center; justify-content: center; width:32px; height:32px; padding:0; border:none; border-radius:8px; background:#3b82f6; color:white; cursor:pointer; transition:all 0.2s;">
-                                                <i class="fas fa-print" style="font-size:14px;"></i>
-                                            </button>
-                                            <button class="action-btn warning btn-void-batch" data-id="${b.id}" title="Annulla/Blocca Lotto" style="display: inline-flex; align-items: center; justify-content: center; width:32px; height:32px; padding:0; border:none; border-radius:8px; background:#f59e0b; color:white; cursor:pointer; transition:all 0.2s;">
-                                                <i class="fas fa-ban" style="font-size:14px;"></i>
-                                            </button>
-                                            <button class="action-btn danger btn-delete-batch" data-id="${b.id}" title="Elimina Lotto" style="display: inline-flex; align-items: center; justify-content: center; width:32px; height:32px; padding:0; border:none; border-radius:8px; background:#ef4444; color:white; cursor:pointer; transition:all 0.2s;">
-                                                <i class="fas fa-trash" style="font-size:14px;"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div >
-            `;
-
-        // Bind Events
-        container.querySelectorAll('.btn-print-batch').forEach(btn => {
-            btn.addEventListener('click', () => openPrintView(btn.dataset.id));
-        });
-
-        container.querySelectorAll('.btn-void-batch').forEach(btn => {
-            btn.addEventListener('click', () => handleVoidBatch(btn.dataset.id));
-        });
-
-        container.querySelectorAll('.btn-delete-batch').forEach(btn => {
-            btn.addEventListener('click', () => handleDeleteBatch(btn.dataset.id));
-        });
-
-    } catch (err) {
-        container.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
-    }
-}
-
-async function handleVoidBatch(batchId) {
-    const confirmed = await openConfirmModal("ATTENZIONE: Sei sicuro di voler annullare TUTTI i voucher di questo lotto? L'operazione renderà i buoni inutilizzabili.");
-    if (!confirmed) return;
-
-    try {
-        const { error } = await supabase
-            .from('vouchers')
-            .update({ status: 'void' })
-            .eq('batch_id', batchId)
-            .eq('status', 'active'); // Only void active ones
-
-        if (error) throw error;
-        Toast.show("Tutti i voucher del lotto sono stati annullati.", 'success');
-        renderActiveTab();
-    } catch (err) {
-        console.error(err);
-        Toast.show("Errore annullamento: " + err.message, 'error');
     }
 }
 
 // --- COLUMN RESIZING UTILS ---
-function setupColumnResizing(table) {
-    if (!table) return;
+function setupColumnResizing(table: HTMLElement | null): void {
+    if (!table) { return; }
 
     // LOAD SAVED WIDTHS
     try {
@@ -893,38 +773,53 @@ function setupColumnResizing(table) {
             });
         }
     } catch (e) {
-        console.error("Failed to load column widths", e);
+        console.error('Failed to load column widths', e);
     }
 
     const headers = table.querySelectorAll('.voucher-grid-header .voucher-header-cell');
 
-    // We only attach resizers to columns 1 through N-1.
-    // Index is 0-based.
     headers.forEach((header, index) => {
-        if (index === headers.length - 1) return; // No resizer on last col
+        if (index === headers.length - 1) { return; }
 
         const resizer = document.createElement('div');
         resizer.classList.add('resizer');
         header.appendChild(resizer);
-        createResizableColumn(header, resizer, index + 1, table);
+        createResizableColumn(header as HTMLElement, resizer, index + 1, table);
     });
 }
 
-function createResizableColumn(col, resizer, colIndex, table) {
+function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex: number, table: HTMLElement): void {
     let x = 0;
     let w = 0;
 
-    const mouseDownHandler = function (e) {
+    const mouseMoveHandler = function (e: MouseEvent): void {
+        const dx = e.clientX - x;
+        const newWidth = w + dx;
+        if (newWidth > 50) {
+            table.style.setProperty(`--col-${colIndex}`, `${newWidth}px`);
+        }
+    };
+
+    const mouseUpHandler = function (): void {
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+        resizer.classList.remove('resizing');
+
+        // SAVE WIDTHS
+        try {
+            const widths: Record<string, string> = {};
+            for (let i = 1; i <= 6; i++) {
+                const val = table.style.getPropertyValue(`--col-${i}`);
+                if (val) { widths[i] = val; }
+            }
+            localStorage.setItem('voucher_table_widths', JSON.stringify(widths));
+        } catch (e) {
+            console.error('Failed to save column widths', e);
+        }
+    };
+
+    const mouseDownHandler = function (e: MouseEvent): void {
         x = e.clientX;
-
-        // Get current computed width
-        // Careful: minmax(200px, 1fr) computes to pixel value in getComputedStyle, but we need to set explicit px to override it effectively during resize.
-        const styles = window.getComputedStyle(table);
-        // Try getting variable directly first? No, get variable string.
-        // We need computed pixel width of the *grid cell*? 
-        // No, we are setting property on container.
-
-        // Better approach: Get current width of the HEADER CELL itself.
         w = col.getBoundingClientRect().width;
 
         document.addEventListener('mousemove', mouseMoveHandler);
@@ -932,41 +827,14 @@ function createResizableColumn(col, resizer, colIndex, table) {
         resizer.classList.add('resizing');
     };
 
-    const mouseMoveHandler = function (e) {
-        const dx = e.clientX - x;
-        const newWidth = w + dx;
-        if (newWidth > 50) { // Minimum width constraint
-            table.style.setProperty(`--col-${colIndex}`, `${newWidth}px`);
-        }
-    };
-
-    const mouseUpHandler = function () {
-        document.removeEventListener('mousemove', mouseMoveHandler);
-        document.removeEventListener('mouseup', mouseUpHandler);
-        resizer.classList.remove('resizing');
-
-        // SAVE WIDTHS
-        try {
-            const widths = {};
-            // Iterate cols 1 to 7 (or however many we have resizable)
-            // Just scan inline styles.
-            // Or better: Iterate known columns 1 to 6.
-            for (let i = 1; i <= 6; i++) {
-                const val = table.style.getPropertyValue(`--col-${i}`);
-                if (val) widths[i] = val;
-            }
-            localStorage.setItem('voucher_table_widths', JSON.stringify(widths));
-        } catch (e) {
-            console.error("Failed to save column widths", e);
-        }
-    };
-
     resizer.addEventListener('mousedown', mouseDownHandler);
 }
 
-async function showBatchDetails(batchId) {
+async function showBatchDetails(batchId: string): Promise<void> {
     openModal('Dettaglio Lotto Voucher');
     const modalBody = document.getElementById('modal-body');
+    if (!modalBody) return;
+
     modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento dettagli...</div>';
 
     try {
@@ -976,7 +844,7 @@ async function showBatchDetails(batchId) {
             .eq('batch_id', batchId)
             .order('serial_number');
 
-        if (error) throw error;
+        if (error) { throw error; }
 
         const { data: batch } = await supabase
             .from('voucher_batches')
@@ -998,7 +866,7 @@ async function showBatchDetails(batchId) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${vouchers.map(v => {
+                            ${(vouchers as Voucher[]).map(v => {
             const isRedeemed = v.status === 'redeemed';
             return `
                                     <tr style="background: ${isRedeemed ? '#f1f5f9' : 'white'}; border-bottom: 1px solid #f1f5f9;">
@@ -1024,17 +892,17 @@ async function showBatchDetails(batchId) {
             </div>
         `;
 
-        document.getElementById('btn-close-details').addEventListener('click', () => closeModal());
+        document.getElementById('btn-close-details')?.addEventListener('click', () => closeModal());
 
-    } catch (err) {
+    } catch (err: any) {
         console.error(err);
         modalBody.innerHTML = `<div class="alert alert-danger">Errore caricamento: ${err.message}</div>`;
     }
 }
 
-async function handleDeleteBatch(batchId) {
-    const confirmed = await openConfirmModal("PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.");
-    if (!confirmed) return;
+async function handleDeleteBatch(batchId: string): Promise<void> {
+    const confirmed = await openConfirmModal('PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.');
+    if (!confirmed) { return; }
 
     try {
         const { error } = await supabase
@@ -1042,18 +910,19 @@ async function handleDeleteBatch(batchId) {
             .delete()
             .eq('id', batchId);
 
-        if (error) throw error;
-        Toast.show("Lotto eliminato correttamente.", 'success');
+        if (error) { throw error; }
+        (Toast as any).show('Lotto eliminato correttamente.', 'success');
         renderActiveTab();
-    } catch (err) {
+    } catch (err: any) {
         console.error(err);
-        Toast.show("Errore eliminazione: " + err.message, 'error');
+        (Toast as any).show('Errore eliminazione: ' + err.message, 'error');
     }
 }
 
-async function openPrintView(batchId) {
+export async function openPrintView(batchId: string | undefined): Promise<void> {
+    if (!batchId) return;
     const container = document.getElementById('voucher-content');
-    showLoadingMessage(container);
+    if (container) showLoadingMessage(container);
 
     try {
         const { data: vouchers, error } = await supabase
@@ -1062,12 +931,10 @@ async function openPrintView(batchId) {
             .eq('batch_id', batchId)
             .order('serial_number');
 
-        if (error) throw error;
+        if (error) { throw error; }
 
-        // Restore list view
         renderActiveTab();
 
-        // Open Print Window
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
             showInfoModal('Attenzione: Il browser ha bloccato il popup. Autorizza i popup per stampare.', 'Stampa Bloccata');
@@ -1075,17 +942,16 @@ async function openPrintView(batchId) {
         }
 
         // Call Pure CSS Generator
-        generatePrintHtmlCSS(printWindow, vouchers);
+        generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
 
-    } catch (err) {
+    } catch (err: any) {
         console.error(err);
-        Toast.show("Errore recupero voucher: " + err.message, 'error');
-        renderPrintList(container);
+        (Toast as any).show('Errore recupero voucher: ' + err.message, 'error');
+        if (container) renderDashboard(container); // Fallback to Dashboard
     }
 }
 
-async function generatePrintHtmlCSS(win, vouchers) {
-    // Paths to user templates
+async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<void> {
     const frontBg = 'assets/templates/template_voucher_pagina 1.jpg';
     const backBg = 'assets/templates/template_voucher_pagina 2.jpg';
 
@@ -1203,7 +1069,6 @@ async function generatePrintHtmlCSS(win, vouchers) {
                             font-weight: bold;
                             color: #333;
                         }
-
                     </style>
                 </head>
                 <body>
@@ -1226,7 +1091,6 @@ async function generatePrintHtmlCSS(win, vouchers) {
                                 // Format amount: No decimals, "euro" suffix
                                 const amount = Math.floor(v.amount) + ' euro';
                                 const visibleCode = v.code.substring(0, 4); 
-
                                 const content = document.createElement('div');
                                 content.className = 'voucher-front';
                                 content.innerHTML = \`
@@ -1262,6 +1126,7 @@ async function generatePrintHtmlCSS(win, vouchers) {
                 </body>
             </html>`;
 
-    win.document.write(html);
+    win.document.open();
+    win.document.documentElement.innerHTML = html;
     win.document.close();
 }

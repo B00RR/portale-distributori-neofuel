@@ -2,19 +2,21 @@
 // OPERATOR CLOSURE WIZARD
 // Gestione chiusura turno con wizard a 3 step
 // ==========================================
-import { supabase } from "../core/api.js";
-import { showLoadingMessage, showErrorMessage, openModal, closeModal, openConfirmModal } from "../ui/ui.js";
-import { checkOpeningStatus, updateOpeningStatus } from "./opening.js";
+import { supabase } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
+import { Toast } from '../ui/toast.js';
+import { showLoadingMessage, showErrorMessage, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
+import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
+import { escapeHtml, formatLitri, formatEuro } from '../utils/utils.js';
+
+import { checkOpeningStatus, updateOpeningStatus } from './opening.js';
 import {
   createWarningMessage,
   createBackButton,
   createContentBox,
   attachBackButtonListener
-} from "./ui-components.js";
-import { escapeHtml, formatLitri, formatEuro } from "../utils/utils.js";
-import { calculationEngine, CALCULATION_SCOPES } from "../utils/calculation-engine.js";
-import { Toast } from "../ui/toast.js";
-import { handleError } from "../shared/error-handler.js";
+} from './ui-components.js';
+
 let closureState = {
   step: 1,
   data: {}
@@ -40,14 +42,14 @@ export async function startClosureWizard(stationId, userId) {
         'Nessuna Apertura Attiva',
         'Devi prima aprire il turno prima di poterlo chiudere.',
         'Clicca su <strong>Apertura</strong> per iniziare un nuovo turno.'
-      ) + `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>`;
+      ) + '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>';
       document.getElementById('btn-close-warning').addEventListener('click', () => closeModal());
       return;
     }
 
     // Carica tutti i dati in parallelo
     // 5. Prepara query movimenti cassa
-    let movimentiQuery = supabase
+    const movimentiQuery = supabase
       .from('movimenti_cassa')
       .select('*')
       .eq('station_id', stationId)
@@ -136,7 +138,7 @@ export async function startClosureWizard(stationId, userId) {
         'Nessuna Pistola Configurata',
         'Non ci sono pistole configurate per questa stazione.',
         ''
-      ) + `<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning2" class="menu-button primary">Chiudi</button></div>`;
+      ) + '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning2" class="menu-button primary">Chiudi</button></div>';
       document.getElementById('btn-close-warning2').addEventListener('click', () => closeModal());
       return;
     }
@@ -179,7 +181,7 @@ export async function startClosureWizard(stationId, userId) {
     }
     const tankLinksByPump = {};
     (tankLinksData || []).forEach(link => {
-      if (!link?.pump_id || !link?.tank_id) return;
+      if (!link?.pump_id || !link?.tank_id) {return;}
       const normalized = {
         id: link.id,
         pump_id: link.pump_id,
@@ -200,7 +202,7 @@ export async function startClosureWizard(stationId, userId) {
 
     Object.values(tankLinksByPump).forEach(list => {
       list.sort((a, b) => {
-        if (a.mode !== b.mode) return a.mode === 'manual' ? -1 : 1;
+        if (a.mode !== b.mode) {return a.mode === 'manual' ? -1 : 1;}
         if (a.mode === 'manual') {
           return (a.priority || 999) - (b.priority || 999);
         }
@@ -353,11 +355,11 @@ function showClosureStep1() {
         <select name="tank_select_${p.id}" data-pump="${p.id}" class="big-input tank-select" ${manualLinks.length ? 'required' : ''}>
           <option value="">Seleziona serbatoio...</option>
           ${manualLinks.map((link, idx) => {
-      const isSelected = savedSelection
-        ? savedSelection === link.tank_id
-        : (manualLinks.length === 1 && idx === 0);
-      return `<option value="${link.tank_id}" ${isSelected ? 'selected' : ''}>${escapeHtml(link.tankName)}${link.priority ? ` (prio ${link.priority})` : ''}</option>`;
-    }).join('')}
+    const isSelected = savedSelection
+      ? savedSelection === link.tank_id
+      : (manualLinks.length === 1 && idx === 0);
+    return `<option value="${link.tank_id}" ${isSelected ? 'selected' : ''}>${escapeHtml(link.tankName)}${link.priority ? ` (prio ${link.priority})` : ''}</option>`;
+  }).join('')}
         </select>
       </div>
     ` : '';
@@ -793,9 +795,9 @@ async function showClosureStep2() {
                 <strong>Dettaglio Uscite:</strong>
                 <ul style="margin: 5px 0 0 0; padding-left: 20px;">
                     ${movimenti
-        .filter(m => m.tipo === 'pagamento' || m.tipo === 'uscita' || (m.descrizione && m.descrizione.toLowerCase().includes('rimborso')))
-        .map(m => `<li>${new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}: ${escapeHtml(m.descrizione || 'Uscita')} (${formatEuro(m.importo)})</li>`)
-        .join('')}
+    .filter(m => m.tipo === 'pagamento' || m.tipo === 'uscita' || (m.descrizione && m.descrizione.toLowerCase().includes('rimborso')))
+    .map(m => `<li>${new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}: ${escapeHtml(m.descrizione || 'Uscita')} (${formatEuro(m.importo)})</li>`)
+    .join('')}
                 </ul>
             </div>
           </div>
@@ -809,9 +811,9 @@ async function showClosureStep2() {
                 <strong>Dettaglio Incassi:</strong>
                 <ul style="margin: 5px 0 0 0; padding-left: 20px;">
                     ${movimenti
-        .filter(m => m.tipo === 'incasso')
-        .map(m => `<li>${new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}: ${escapeHtml(m.descrizione || 'Incasso')} (${formatEuro(m.importo)})</li>`)
-        .join('')}
+    .filter(m => m.tipo === 'incasso')
+    .map(m => `<li>${new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}: ${escapeHtml(m.descrizione || 'Incasso')} (${formatEuro(m.importo)})</li>`)
+    .join('')}
                 </ul>
             </div>
           </div>
@@ -984,8 +986,8 @@ async function showClosureStep3() {
       body: payload
     });
 
-    if (error) throw new Error(error.message);
-    if (data && !data.success) throw new Error(data.error);
+    if (error) {throw new Error(error.message);}
+    if (data && !data.success) {throw new Error(data.error);}
 
     serverResult = data.data;
 
@@ -1020,7 +1022,7 @@ async function showClosureStep3() {
     // But if network fails, user is stuck.
     // Let's alert error and try fallback logic just for display, or block.
     // I will show alert and use basic fallback.
-    Toast.show("Attenzione: Impossibile contattare il server per il calcolo sicuro. Uso calcolo locale di emergenza.", 'warning');
+    Toast.show('Attenzione: Impossibile contattare il server per il calcolo sicuro. Uso calcolo locale di emergenza.', 'warning');
 
     // Fallback Replica
     const selfDelta = selfCashIn - selfCashOut;
@@ -1182,11 +1184,11 @@ async function showClosureStep3() {
 
     if (!isCashValid) {
       const confirmProceed = await openConfirmModal('ATTENZIONE: C\'è una discrepanza significativa nei contanti (> 5€). Sei sicuro di voler procedere?');
-      if (!confirmProceed) return;
+      if (!confirmProceed) {return;}
     }
 
     const confirmClosure = await openConfirmModal(`Confermi la chiusura ${isFinal ? 'FINALE' : 'PARZIALE'} del turno?`);
-    if (!confirmClosure) return;
+    if (!confirmClosure) {return;}
 
     showLoadingMessage(container);
 
@@ -1205,7 +1207,7 @@ async function showClosureStep3() {
 
       const tankUsageRecords = [];
       Object.entries(tankLinksByPump).forEach(([pumpId, links]) => {
-        if (!Array.isArray(links) || links.length === 0) return;
+        if (!Array.isArray(links) || links.length === 0) {return;}
         const manualLinks = links.filter(l => l.mode === 'manual');
         const autoLinks = links.filter(l => l.mode !== 'manual');
         const litersValue = Number.isFinite(litersPerPump[pumpId]) ? litersPerPump[pumpId] : null;
@@ -1315,7 +1317,7 @@ async function showClosureStep3() {
         p_tank_usage: tankUsageRecords
       });
 
-      if (rpcError) throw rpcError;
+      if (rpcError) {throw rpcError;}
       if (rpcResult && !rpcResult.success) {
         throw new Error(rpcResult.error || 'Errore durante il salvataggio della chiusura.');
       }

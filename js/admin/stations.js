@@ -1,13 +1,15 @@
 
-import { supabase, safeSupabaseQuery, getStationName } from "../core/api.js";
-import { showLoadingMessage, showErrorMessage, openModal, closeModal, openConfirmModal, setButtonLoading } from "../ui/ui.js";
-import { Validators, validateForm, formatErrorMessages } from "../shared/validators.js";
-import { escapeHtml } from "../utils/utils.js";
-import { showPrezziAdminModal } from "./prices.js";
-import { showIslandsModal } from "./islands.js";
-import { showTanksAdminModal } from "./tanks.js";
-import { Toast } from "../ui/toast.js";
-import { handleError } from "../shared/error-handler.js";
+import { supabase, safeSupabaseQuery, getStationName } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
+import { Validators, validateForm, formatErrorMessages } from '../shared/validators.js';
+import { Toast } from '../ui/toast.js';
+import { showLoadingMessage, showErrorMessage, openModal, closeModal, openConfirmModal, setButtonLoading } from '../ui/ui.js';
+import { escapeHtml } from '../utils/utils.js';
+
+import { showIslandsModal } from './islands.js';
+import { showPrezziAdminModal } from './prices.js';
+import { showTanksAdminModal } from './tanks.js';
+
 
 // ==========================================
 // STATIONS (Distributori)
@@ -16,7 +18,7 @@ export async function showStationsTab(container, actionsContainer) {
   showLoadingMessage(container);
 
   if (actionsContainer) {
-    actionsContainer.innerHTML = `<button class="action-btn primary" id="add-station-btn"><i class="fas fa-plus"></i> Nuovo Distributore</button>`;
+    actionsContainer.innerHTML = '<button class="action-btn primary" id="add-station-btn"><i class="fas fa-plus"></i> Nuovo Distributore</button>';
     document.getElementById('add-station-btn').addEventListener('click', () => openStationModal());
   }
 
@@ -26,7 +28,7 @@ export async function showStationsTab(container, actionsContainer) {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     if (!stations || stations.length === 0) {
       container.innerHTML = '<p>Nessun distributore trovato.</p>';
@@ -62,7 +64,7 @@ export async function showStationsTab(container, actionsContainer) {
       `;
     });
 
-    html += `</tbody></table></div>`;
+    html += '</tbody></table></div>';
     container.innerHTML = html;
 
     // Aggiorna le icone personalizzate se presenti
@@ -161,7 +163,7 @@ export async function openStationModal(stationId = null) {
 }
 
 export async function deleteStation(stationId) {
-  if (!await openConfirmModal('Sei sicuro di voler eliminare questo distributore?')) return;
+  if (!await openConfirmModal('Sei sicuro di voler eliminare questo distributore?')) {return;}
   try {
     await safeSupabaseQuery(() => supabase.from('fuel_stations').delete().eq('station_id', stationId));
     const event = new CustomEvent('stations-updated');

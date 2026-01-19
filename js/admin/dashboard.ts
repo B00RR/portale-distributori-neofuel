@@ -1,13 +1,33 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
-import { escapeHtml, formatEuro } from '../utils/utils.js';
+// @ts-ignore
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
-import { loadDashboardConfig, saveDashboardConfig, KPI_CATALOG } from './dashboard-config.js';
+import { escapeHtml, formatEuro } from '../utils/utils.js';
+
+import { loadDashboardConfig, saveDashboardConfig } from './dashboard-config.js';
+import { renderKpiCards, KPIData } from './dashboard-helpers.js';
+
+// Global libraries types (assumed loaded via CDN or scripts)
+declare global {
+    interface Window {
+        Sortable: any;
+        Chart: any;
+        dashboardResizeTimeout: any;
+    }
+}
 
 // ------------------------------------------------------------------
 // DASHBOARD MAIN FUNCTION
 // ------------------------------------------------------------------
-export async function showDashboard(container, stationId = null, checkActiveFn = null) {
+
+export type CheckActiveFunction = () => boolean;
+
+export async function showDashboard(
+    container: HTMLElement,
+    stationId: string | number | null = null,
+    checkActiveFn: CheckActiveFunction | null = null
+): Promise<void> {
     showLoadingMessage(container);
 
     try {
@@ -44,7 +64,7 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
             // 4. Tanks List
             (async () => {
                 let q = supabase.from('tanks').select('id, name, fuel_type, capacity, station_id, fuel_stations(station_name)');
-                if (stationId) q = q.eq('station_id', stationId);
+                if (stationId) { q = q.eq('station_id', stationId); }
                 return q.order('name');
             })(),
 
@@ -56,7 +76,7 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
                     .gte('closed_at', startOfDay.toISOString())
                     .lte('closed_at', endOfDay.toISOString())
                     .eq('status', 'closed');
-                if (stationId) q = q.eq('station_id', stationId);
+                if (stationId) { q = q.eq('station_id', stationId); }
                 return q;
             })()
         ]);
@@ -69,14 +89,14 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
         const todayClosures = todayClosuresRes.data || [];
 
         // RACE CONDITION CHECK (Early)
-        if (checkActiveFn && !checkActiveFn()) return;
+        if (checkActiveFn && !checkActiveFn()) { return; }
 
         // ------------------------------------------------------------------
         // PROCESS TANKS (Parallel Readings Fetch)
         // ------------------------------------------------------------------
         let tanksHtmlRows = '';
         if (tanks.length > 0) {
-            const tankIds = tanks.map(t => t.id);
+            const tankIds = tanks.map((t: any) => t.id);
 
             // Fetch last 7 days of readings for these tanks to limit data size.
             const sevenDaysAgo = new Date();
@@ -89,7 +109,7 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
                 .gte('created_at', sevenDaysAgo.toISOString()) // LIMIT HISTORY
                 .order('created_at', { ascending: false });
 
-            const latestByTank = {};
+            const latestByTank: Record<string, any> = {};
             if (tankReadings) {
                 for (const r of tankReadings) {
                     if (!latestByTank[r.tank_id]) {
@@ -98,7 +118,7 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
                 }
             }
 
-            tanks.forEach(t => {
+            tanks.forEach((t: any) => {
                 const latest = latestByTank[t.id];
                 const liters = latest?.liters ?? 0;
                 const capacity = t.capacity || 0;
@@ -131,7 +151,7 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
         `;
             });
         } else {
-            tanksHtmlRows = `<tr><td colspan="4">Nessuna cisterna configurata o trovata per questo filtro.</td></tr>`;
+            tanksHtmlRows = '<tr><td colspan="4">Nessuna cisterna configurata o trovata per questo filtro.</td></tr>';
         }
 
         // ------------------------------------------------------------------
@@ -142,7 +162,7 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
         let totalLitriGasolio = 0;
 
         if (Array.isArray(todayClosures)) {
-            todayClosures.forEach(item => {
+            todayClosures.forEach((item: any) => {
                 const closingData = item?.closing_data || {};
                 // Sales
                 vendutoDataValue += Number(closingData.ricavo_teorico || 0);
@@ -208,7 +228,7 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
         const dashboardConfig = await loadDashboardConfig();
 
         // Build KPI data object
-        const kpiData = {
+        const kpiData: KPIData = {
             venduto: {
                 value: vendutoKpiValue ? formatEuro(vendutoKpiValue) : '€ 0',
                 subtitle: '+0% vs ieri'
@@ -231,7 +251,7 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
         const kpiHtml = renderKpiCards(dashboardConfig, kpiData);
 
         // RACE CONDITION CHECK: Stop if user switched tab
-        if (checkActiveFn && !checkActiveFn()) return;
+        if (checkActiveFn && !checkActiveFn()) { return; }
 
 
         container.innerHTML = `
@@ -273,11 +293,11 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
         // Initialize Sortable for dashboard grid
         const gridEl = document.getElementById('dashboard-kpi-grid');
         if (gridEl && window.Sortable) {
-            new Sortable(gridEl, {
+            new window.Sortable(gridEl, {
                 animation: 200,
                 ghostClass: 'kpi-card-ghost',
                 onEnd: async function () {
-                    const newOrderIds = Array.from(gridEl.children).map(el => el.dataset.kpiId);
+                    const newOrderIds = Array.from(gridEl.children).map(el => (el as HTMLElement).dataset.kpiId);
 
                     // Get all items in current config
                     const allItems = [...dashboardConfig.kpiLayout];
@@ -285,8 +305,8 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
                     // Update order for visible items found in DOM
                     newOrderIds.forEach((id, index) => {
                         const itemIndex = allItems.findIndex(k => k.id === id);
-                        if (itemIndex !== -1) {
-                            allItems[itemIndex].order = index;
+                        if (itemIndex !== -1 && allItems[itemIndex]) {
+                            allItems[itemIndex]!.order = index;
                         }
                     });
 
@@ -316,7 +336,7 @@ export async function showDashboard(container, stationId = null, checkActiveFn =
 // HELPERS (Internal)
 // ------------------------------------------------------------------
 
-async function renderSalesChart(stationId) {
+async function renderSalesChart(stationId: string | number | null): Promise<void> {
     // Recupera le chiusure degli ultimi 30 giorni
     const daysBack = 30;
     const startDate = new Date();
@@ -329,7 +349,7 @@ async function renderSalesChart(stationId) {
         .gte('closed_at', startDate.toISOString())
         .eq('status', 'closed');
 
-    if (stationId) closuresQuery = closuresQuery.eq('station_id', stationId);
+    if (stationId) { closuresQuery = closuresQuery.eq('station_id', stationId); }
 
     closuresQuery = closuresQuery.order('closed_at', { ascending: true });
 
@@ -341,33 +361,33 @@ async function renderSalesChart(stationId) {
         .select('station_id, station_name')
         .order('station_name');
 
-    if (stationId) stationsQuery = stationsQuery.eq('station_id', stationId);
+    if (stationId) { stationsQuery = stationsQuery.eq('station_id', stationId); }
 
     const { data: allStations } = await stationsQuery;
 
     // Raggruppa vendite per data e distributore
-    const salesByDateAndStation = {};
-    const allDates = new Set();
+    const salesByDateAndStation: Record<string, Record<string | number, number>> = {};
+    const allDates = new Set<string>();
 
     if (closuresData) {
-        closuresData.forEach(closure => {
-            if (!closure.closed_at || !closure.closing_data) return;
+        closuresData.forEach((closure: any) => {
+            if (!closure.closed_at || !closure.closing_data) { return; }
 
             const day = new Date(closure.closed_at).toISOString().substring(0, 10);
             allDates.add(day);
 
-            const stationId = closure.station_id;
+            const sId = closure.station_id;
             const ricavo = Number(closure.closing_data?.ricavo_teorico || 0);
 
             if (!salesByDateAndStation[day]) {
                 salesByDateAndStation[day] = {};
             }
 
-            if (!salesByDateAndStation[day][stationId]) {
-                salesByDateAndStation[day][stationId] = 0;
+            if (!salesByDateAndStation[day][sId]) {
+                salesByDateAndStation[day][sId] = 0;
             }
 
-            salesByDateAndStation[day][stationId] += ricavo;
+            salesByDateAndStation[day][sId] += ricavo;
         });
     }
 
@@ -381,15 +401,15 @@ async function renderSalesChart(stationId) {
     ];
 
     // Crea un dataset per ogni distributore
-    const datasets = [];
+    const datasets: any[] = [];
     if (allStations) {
-        allStations.forEach((station, index) => {
-            const stationId = station.station_id;
-            const stationName = station.station_name || `Distributore ${stationId}`;
+        allStations.forEach((station: any, index: number) => {
+            const sId = station.station_id;
+            const stationName = station.station_name || `Distributore ${sId}`;
 
             // Crea array di vendite per questo distributore per ogni data
             const salesData = sortedDates.map(date => {
-                return salesByDateAndStation[date]?.[stationId] || 0;
+                return salesByDateAndStation[date]?.[sId] || 0;
             });
 
             // Aggiungi solo se ci sono vendite (almeno un valore > 0)
@@ -408,12 +428,8 @@ async function renderSalesChart(stationId) {
         });
     }
 
-    const ctx = document.getElementById('sales-trend-chart');
+    const ctx = document.getElementById('sales-trend-chart') as HTMLCanvasElement;
     if (ctx) {
-        // Destroy existing chart if needed? (Usually new Chart() handles or overwrites, but better to check)
-        // Chart.js 2.x/3.x: Reuse canvas?
-        // Since we re-rendered the container innerHTML, the canvas is fresh.
-
         new window.Chart(ctx, {
             type: 'line',
             data: {
@@ -435,7 +451,7 @@ async function renderSalesChart(stationId) {
                     },
                     tooltip: {
                         callbacks: {
-                            label: function (context) {
+                            label: function (context: any) {
                                 return context.dataset.label + ': € ' + context.parsed.y.toFixed(2);
                             }
                         }
@@ -450,7 +466,7 @@ async function renderSalesChart(stationId) {
                         grid: { color: 'rgba(148, 163, 184, 0.2)' },
                         ticks: {
                             font: { size: 10 },
-                            callback: function (value) {
+                            callback: function (value: number) {
                                 return '€ ' + value.toFixed(0);
                             }
                         }
@@ -462,58 +478,28 @@ async function renderSalesChart(stationId) {
 }
 
 
-function renderKpiCards(config, kpiData) {
-    if (!config || !config.kpiLayout || !Array.isArray(config.kpiLayout)) {
-        return '';
-    }
-
-    return config.kpiLayout
-        .filter(kpi => kpi.visible !== false) // Only show visible KPIs
-        .sort((a, b) => (a.order || 0) - (b.order || 0)) // Sort by order
-        .map(kpi => {
-            const kpiMeta = KPI_CATALOG[kpi.id];
-            const kpiValue = kpiData[kpi.id];
-
-            if (!kpiMeta || !kpiValue) return '';
-
-            const sizeClass = `kpi-size-${kpi.size || '1x1'}`;
-
-            return `
-        <article class="kpi-card ${sizeClass}" data-kpi-id="${kpi.id}">
-          <div class="kpi-row">
-            <div class="kpi-icon"><i class="fas ${kpiMeta.icon}"></i></div>
-          </div>
-          <p class="kpi-title">${kpiMeta.title}</p>
-          <p class="kpi-value">${kpiValue.value}</p>
-          <p class="kpi-sub">${kpiValue.subtitle}</p>
-        </article>
-      `;
-        })
-        .join('');
-}
-
 // ------------------------------------------------------------------
 // DRAG & DROP FOR PANELS (Replaces Split.js)
 // ------------------------------------------------------------------
 function initDashboardPanelsDrag() {
     const container = document.getElementById('dashboard-container');
-    if (!container || !window.Sortable) return;
+    if (!container || !window.Sortable) { return; }
 
     // 1. Initialize Sortable (Drag & Drop)
-    new Sortable(container, {
+    new window.Sortable(container, {
         animation: 250,
         handle: '.panel-title', // Drag only by title
         ghostClass: 'panel-ghost',
-        onEnd: function (evt) {
+        onEnd: function () {
             saveDashboardState();
         }
     });
 
     // 2. Initialize Resize Saving
     // Use ResizeObserver to save size changes
-    const resizeObserver = new ResizeObserver(entries => {
+    const resizeObserver = new ResizeObserver(() => {
         // Debounce saving
-        if (window.dashboardResizeTimeout) clearTimeout(window.dashboardResizeTimeout);
+        if (window.dashboardResizeTimeout) { clearTimeout(window.dashboardResizeTimeout); }
         window.dashboardResizeTimeout = setTimeout(() => {
             saveDashboardState();
         }, 500);
@@ -528,13 +514,13 @@ function initDashboardPanelsDrag() {
 
 function saveDashboardState() {
     const container = document.getElementById('dashboard-container');
-    if (!container) return;
+    if (!container) { return; }
 
     const state = Array.from(container.children).map(el => ({
         id: el.id,
-        width: el.style.width,
-        height: el.style.height,
-        flex: el.style.flex // Save flex state if native resize alters it or if we switched to absolute sizes
+        width: (el as HTMLElement).style.width,
+        height: (el as HTMLElement).style.height,
+        flex: (el as HTMLElement).style.flex // Save flex state if native resize alters it or if we switched to absolute sizes
     }));
 
     localStorage.setItem('dashboard_panels_state', JSON.stringify(state));
@@ -542,18 +528,19 @@ function saveDashboardState() {
 
 function restoreDashboardState() {
     const container = document.getElementById('dashboard-container');
-    const savedState = JSON.parse(localStorage.getItem('dashboard_panels_state'));
+    const savedStateStr = localStorage.getItem('dashboard_panels_state');
+    const savedState = savedStateStr ? JSON.parse(savedStateStr) : null;
 
-    if (savedState && Array.isArray(savedState)) {
+    if (container && savedState && Array.isArray(savedState)) {
         // Restore Order
-        savedState.forEach(item => {
+        savedState.forEach((item: any) => {
             const el = document.getElementById(item.id);
             if (el) {
                 container.appendChild(el); // Appending moves to end -> restore order
 
                 // Restore Size
-                if (item.width) el.style.width = item.width;
-                if (item.height) el.style.height = item.height;
+                if (item.width) { el.style.width = item.width; }
+                if (item.height) { el.style.height = item.height; }
                 // If native resize was used, it sets inline width/height.
                 // We might need to reset flex if it conflicts.
                 if (item.width || item.height) {

@@ -1,19 +1,37 @@
 /**
  * Toast Notifications System
- * 
- * Sistema moderno di notifiche non bloccanti per sostituire alert()
- * Supporta 4 tipi: success, error, warning, info
+ * Modern non-blocking notifications replacing alert()
  */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { escapeHtml } from "../utils/utils.js";
+
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface ToastAction {
+    text: string;
+    onClick: () => void;
+}
+
+export interface ToastOptions {
+    action?: ToastAction;
+}
 
 export class Toast {
     /**
-     * Mostra una notifica toast
-     * @param {string} message - Il messaggio da mostrare
-     * @param {string} type - Tipo di toast: 'success', 'error', 'warning', 'info'
-     * @param {number} duration - Durata in millisecondi (default: 3000)
+     * Show a toast notification
+     * @param message - The message to display
+     * @param type - Type of toast: 'success', 'error', 'warning', 'info'
+     * @param duration - Duration in ms (default: 3000)
+     * @param options - Additional options (e.g. action button)
      */
-    static show(message, type = 'info', duration = 3000, options = {}) {
-        // Crea container se non esiste
+    static show(
+        message: string,
+        type: ToastType = 'info',
+        duration: number = 3000,
+        options: ToastOptions = {}
+    ): void {
+        // Create container if not exists
         let container = document.getElementById('toast-container');
         if (!container) {
             container = document.createElement('div');
@@ -21,24 +39,24 @@ export class Toast {
             document.body.appendChild(container);
         }
 
-        // Crea elemento toast
+        // Create toast element
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
 
-        // Icona basata sul tipo
+        // Icon based on type
         const icon = this._getIcon(type);
 
         let contentHtml = `
             <div style="display: flex; align-items: center; gap: 10px;">
                 <i class="fas fa-${icon}"></i>
-                <span class="toast-message">${this._escapeHtml(message)}</span>
+                <span class="toast-message">${escapeHtml(message)}</span>
             </div>
         `;
 
         if (options.action) {
             contentHtml += `
             <button class="toast-action-btn" style="margin-left: 15px; padding: 4px 10px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; border-radius: 4px; cursor: pointer; font-weight: 600;">
-                ${this._escapeHtml(options.action.text)}
+                ${escapeHtml(options.action.text)}
             </button>
             `;
         }
@@ -49,40 +67,40 @@ export class Toast {
         if (options.action && options.action.onClick) {
             const btn = toast.querySelector('.toast-action-btn');
             if (btn) {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', (e: Event) => {
                     e.stopPropagation();
                     console.log('[Toast] Action button clicked');
-                    options.action.onClick();
+                    if (options.action) options.action.onClick();
                 });
             }
         }
 
-        // Aggiungi al container
+        // Add to container
         container.appendChild(toast);
 
-        // Trigger reflow per animazione
+        // Trigger reflow for animation
         void toast.offsetWidth;
 
-        // Mostra con animazione
+        // Show with animation
         setTimeout(() => toast.classList.add('show'), 10);
 
-        // Rimuovi dopo durata specificata (se > 0)
+        // Remove after duration (if > 0)
         if (duration > 0) {
             setTimeout(() => {
-                this.dismiss(toast, container);
+                this.dismiss(toast, container as HTMLElement);
             }, duration);
         }
     }
 
-    static dismiss(toast, container) {
-        if (!toast.classList.contains('show')) return;
+    static dismiss(toast: HTMLElement, container: HTMLElement): void {
+        if (!toast.classList.contains('show')) { return; }
 
         toast.classList.remove('show');
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
             }
-            // Rimuovi container se vuoto
+            // Remove container if empty
             if (container.children.length === 0 && container.parentNode) {
                 container.parentNode.removeChild(container);
             }
@@ -90,11 +108,10 @@ export class Toast {
     }
 
     /**
-     * Ottiene l'icona FontAwesome appropriata per il tipo
-     * @private
+     * Get FontAwesome icon for type
      */
-    static _getIcon(type) {
-        const icons = {
+    private static _getIcon(type: ToastType): string {
+        const icons: Record<ToastType, string> = {
             success: 'check-circle',
             error: 'exclamation-circle',
             warning: 'exclamation-triangle',
@@ -102,17 +119,7 @@ export class Toast {
         };
         return icons[type] || 'info-circle';
     }
-
-    /**
-     * Escape HTML per prevenire XSS
-     * @private
-     */
-    static _escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 }
 
-// Export anche come default per compatibilità
+// Export also as default for compatibility
 export default Toast;

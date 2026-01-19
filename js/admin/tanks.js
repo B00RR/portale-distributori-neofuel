@@ -1,9 +1,9 @@
 
-import { supabase, safeSupabaseQuery, getStationName } from "../core/api.js";
-import { openModal, closeModal, openConfirmModal } from "../ui/ui.js";
-import { escapeHtml, formatNumberIt } from "../utils/utils.js";
-import { Toast } from "../ui/toast.js";
-import { handleError } from "../shared/error-handler.js";
+import { supabase, safeSupabaseQuery, getStationName } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
+import { Toast } from '../ui/toast.js';
+import { openModal, closeModal, openConfirmModal } from '../ui/ui.js';
+import { escapeHtml, formatNumberIt } from '../utils/utils.js';
 
 export async function showTanksAdminModal(stationId) {
   const stationName = await getStationName(stationId);
@@ -250,7 +250,7 @@ export async function showTanksAdminModal(stationId) {
       const btn = /** @type {HTMLElement} */(btnElement);
       btn.addEventListener('click', async () => {
         const confirmed = await openConfirmModal('Eliminare questa cisterna?');
-        if (!confirmed) return;
+        if (!confirmed) {return;}
         await safeSupabaseQuery(() => supabase.from('tanks').delete().eq('id', btn.dataset.id));
         renderTanks();
       });
@@ -284,21 +284,21 @@ export async function showTanksAdminModal(stationId) {
     const priorityGroup = linkForm?.querySelector('[data-role="priority-group"]');
 
     const refreshModeFields = () => {
-      if (!modeSelect || !ratioGroup || !priorityGroup) return;
+      if (!modeSelect || !ratioGroup || !priorityGroup) {return;}
       const mode = (/** @type {HTMLSelectElement} */(modeSelect)).value;
       const isFormDisabled = linkForm?.classList.contains('form-disabled');
       const ratioInput = /** @type {HTMLInputElement | null} */(ratioGroup.querySelector('input'));
       const priorityInput = /** @type {HTMLInputElement | null} */(priorityGroup.querySelector('input'));
       if (mode === 'manual') {
         (/** @type {HTMLElement} */(ratioGroup)).style.display = 'none';
-        if (ratioInput) ratioInput.disabled = true;
+        if (ratioInput) {ratioInput.disabled = true;}
         (/** @type {HTMLElement} */(priorityGroup)).style.display = 'block';
-        if (priorityInput) priorityInput.disabled = isFormDisabled ? true : false;
+        if (priorityInput) {priorityInput.disabled = isFormDisabled ? true : false;}
       } else {
         (/** @type {HTMLElement} */(ratioGroup)).style.display = 'block';
-        if (ratioInput) ratioInput.disabled = isFormDisabled ? true : false;
+        if (ratioInput) {ratioInput.disabled = isFormDisabled ? true : false;}
         (/** @type {HTMLElement} */(priorityGroup)).style.display = 'none';
-        if (priorityInput) priorityInput.disabled = true;
+        if (priorityInput) {priorityInput.disabled = true;}
       }
     };
 
@@ -347,7 +347,7 @@ export async function showTanksAdminModal(stationId) {
       const btn = /** @type {HTMLElement} */(btnElement);
       btn.addEventListener('click', async () => {
         const confirmed = await openConfirmModal('Rimuovere questa associazione pistola/cisterna?');
-        if (!confirmed) return;
+        if (!confirmed) {return;}
         await safeSupabaseQuery(() => supabase.from('tank_pump_links').delete().eq('id', btn.dataset.id));
         renderTanks();
       });
@@ -358,7 +358,7 @@ export async function showTanksAdminModal(stationId) {
 }
 
 export async function showTanksTab(container, headerActions) {
-  if (headerActions) headerActions.innerHTML = '';
+  if (headerActions) {headerActions.innerHTML = '';}
   container.innerHTML = `
         <div class="content-box">
             <h3>Gestione Cisterne</h3>

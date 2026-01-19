@@ -3,12 +3,70 @@
  * Pure functions only. No side effects.
  */
 
+// ========== TYPES ==========
+export interface Voucher {
+    id?: string;
+    code: string;
+    amount: number;
+    status: 'active' | 'redeemed' | 'expired' | 'void';
+    expiration_date?: string | null;
+    redeemed_at?: string | null;
+}
+
+export interface ValidationResult {
+    valid: boolean;
+    error?: string;
+    reason?: 'not_found' | 'redeemed' | 'expired';
+    details?: { date?: string | null };
+}
+
+export interface Movement {
+    tipo: string;
+    importo: number;
+    descrizione?: string;
+}
+
+export interface MovimentiSummary {
+    credits: number;
+    vouchers: number;
+    refunds: number;
+    extra_cash: number;
+}
+
+export interface RevenueParams {
+    litersB: number;
+    litersG: number;
+    priceB: number;
+    priceG: number;
+}
+
+export interface CashParams {
+    carburanteAtteso: number;
+    totalPosOperatore: number;
+    totalUtaOperatore: number;
+    selfPos: number;
+    creditsSum: number;
+    vouchersSum: number;
+    selfCashIn: number;
+    selfCashOut: number;
+    refundsSum: number;
+    extraCashSum: number;
+    cashReal: number;
+    tolerance?: number;
+}
+
+export interface CashResult {
+    expected_cash: number;
+    cash_diff: number;
+    is_valid: boolean;
+}
+
+// ========== FUNCTIONS ==========
+
 /**
  * Validates a voucher object against business rules.
- * @param {Object} voucher - The voucher database object
- * @returns {{ valid: boolean, error?: string, reason?: string, details?: any }}
  */
-export function validateVoucher(voucher) {
+export function validateVoucher(voucher: Voucher | null | undefined): ValidationResult {
     if (!voucher) {
         return { valid: false, error: 'Voucher inesistente', reason: 'not_found' };
     }
@@ -19,17 +77,14 @@ export function validateVoucher(voucher) {
             valid: false,
             error: 'Voucher Già Riscattato',
             reason: 'redeemed',
-            details: { date: voucher.redeemed_at }
+            details: { date: voucher.redeemed_at || null }
         };
     }
 
     // 2. Check expiration
     const now = new Date();
-    // Normalize now to midnight if expiration is inclusive of the day, 
-    // but usually expiration is a specific timestamp or end of day. 
-    // Assuming strict comparison for now.
-
     let isExpired = voucher.status === 'expired';
+
     if (voucher.expiration_date) {
         const expDate = new Date(voucher.expiration_date);
         if (expDate < now) {
@@ -42,7 +97,7 @@ export function validateVoucher(voucher) {
             valid: false,
             error: 'Voucher Scaduto',
             reason: 'expired',
-            details: { date: voucher.expiration_date }
+            details: { date: voucher.expiration_date || null }
         };
     }
 
@@ -52,14 +107,13 @@ export function validateVoucher(voucher) {
 
 /**
  * Summarizes movements by type
- * @param {Array} movimenti 
- * @returns {Object}
  */
-export function summarizeMovimenti(movimenti = []) {
-    const normalize = value => Number(value) || 0;
-    const toLower = value => (value || "").toString().toLowerCase();
+export function summarizeMovimenti(movimenti: Movement[] = []): MovimentiSummary {
+    const normalize = (value: number | string | undefined): number => Number(value) || 0;
+    const toLower = (value: string | undefined): string => (value || "").toString().toLowerCase();
 
-    const sumBy = filterFn => movimenti.reduce((sum, m) => sum + (filterFn(m) ? normalize(m.importo) : 0), 0);
+    const sumBy = (filterFn: (m: Movement) => boolean): number =>
+        movimenti.reduce((sum, m) => sum + (filterFn(m) ? normalize(m.importo) : 0), 0);
 
     return {
         credits: sumBy(m => (m.tipo === "credito" || (toLower(m.descrizione).includes("credito") && m.tipo !== "incasso"))),
@@ -72,15 +126,15 @@ export function summarizeMovimenti(movimenti = []) {
 /**
  * Calculates theoretic revenue for a shift
  */
-export function calculateTheoreticRevenue({ litersB, litersG, priceB, priceG }) {
-    const round = (val) => Math.round((val || 0) * 100) / 100;
+export function calculateTheoreticRevenue({ litersB, litersG, priceB, priceG }: RevenueParams): number {
+    const round = (val: number): number => Math.round((val || 0) * 100) / 100;
     return round((litersB * priceB) + (litersG * priceG));
 }
 
 /**
  * Calculates expected cash for a shift
  */
-export function calculateExpectedCash(params) {
+export function calculateExpectedCash(params: CashParams): CashResult {
     const {
         carburanteAtteso,
         totalPosOperatore,
@@ -96,7 +150,7 @@ export function calculateExpectedCash(params) {
         tolerance = 5
     } = params;
 
-    const round = (val) => Math.round((val || 0) * 100) / 100;
+    const round = (val: number): number => Math.round((val || 0) * 100) / 100;
     const deltaSelf = (Number(selfCashIn) || 0) - (Number(selfCashOut) || 0);
 
     const expectedCash = (Number(carburanteAtteso) || 0)

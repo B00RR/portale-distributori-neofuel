@@ -1,10 +1,10 @@
 // ==========================================
 // MOTORE DINAMICO DI CALCOLO (SCAFFOLDING)
 // ==========================================
-import { supabase, safeSupabaseQuery } from "../core/api.js";
+import { supabase, safeSupabaseQuery } from '../core/api.js';
 
-const MODULE_TABLE = "calculation_modules";
-const VERSION_TABLE = "calculation_versions";
+const MODULE_TABLE = 'calculation_modules';
+const VERSION_TABLE = 'calculation_versions';
 
 // Limitiamo le operazioni consentite per sicurezza.
 const DEFAULT_OPERATIONS = {
@@ -12,7 +12,7 @@ const DEFAULT_OPERATIONS = {
   input: ({ path }, ctx) => path ? getByPath(ctx, path) : ctx,
   sum: ({ source, selector }, ctx) => {
     const data = source ? getByPath(ctx, source) : ctx;
-    if (!Array.isArray(data)) return 0;
+    if (!Array.isArray(data)) { return 0; }
     return data.reduce((acc, item) => {
       if (selector) {
         return acc + (Number(getByPath(item, selector)) || 0);
@@ -33,9 +33,9 @@ const DEFAULT_OPERATIONS = {
   divide: ({ dividend, divisor, precision = 2 }, ctx, evaluate) => {
     const a = Number(evaluate(dividend, ctx) || 0);
     const b = Number(evaluate(divisor, ctx) || 1);
-    if (b === 0) return 0;
+    if (b === 0) { return 0; }
     const result = a / b;
-    return typeof precision === "number" ? Number(result.toFixed(precision)) : result;
+    return typeof precision === 'number' ? Number(result.toFixed(precision)) : result;
   },
   condition: ({ test, then, else: elseNode }, ctx, evaluate) => {
     const outcome = evaluate(test, ctx);
@@ -49,7 +49,7 @@ const DEFAULT_OPERATIONS = {
   },
   map: ({ source, iteratee }, ctx, evaluate) => {
     const data = source ? getByPath(ctx, source) : ctx;
-    if (!Array.isArray(data)) return [];
+    if (!Array.isArray(data)) { return []; }
     return data.map(item => evaluate(iteratee, item));
   },
   function: ({ name, args = {} }, ctx, evaluate, engine) => {
@@ -67,14 +67,14 @@ const DEFAULT_OPERATIONS = {
 };
 
 export const CALCULATION_SCOPES = {
-  CHIUSURE_TOTALE: "chiusure.totale_teorico",
-  CHIUSURE_CONTANTI: "chiusure.incassi_contanti",
-  KPI_VENDUTO: "dashboard.kpi_venduto",
-  KPI_EROGATO: "dashboard.kpi_erogato",
-  CHIUSURE_MOVIMENTI: "chiusure.movimenti",
-  CHIUSURE_TOTALE_ATTESO: "chiusure.totale_atteso",
-  CHIUSURE_CASH_METRICS: "chiusure.cash_metrics",
-  DEFAULT: "generic"
+  CHIUSURE_TOTALE: 'chiusure.totale_teorico',
+  CHIUSURE_CONTANTI: 'chiusure.incassi_contanti',
+  KPI_VENDUTO: 'dashboard.kpi_venduto',
+  KPI_EROGATO: 'dashboard.kpi_erogato',
+  CHIUSURE_MOVIMENTI: 'chiusure.movimenti',
+  CHIUSURE_TOTALE_ATTESO: 'chiusure.totale_atteso',
+  CHIUSURE_CASH_METRICS: 'chiusure.cash_metrics',
+  DEFAULT: 'generic'
 };
 
 class CalculationEngine {
@@ -100,6 +100,10 @@ class CalculationEngine {
     this.operations.set(name, handler);
   }
 
+  /**
+   * Invalidate cache for a scope or all
+   * @param {string|null} scope 
+   */
   invalidate(scope = null) {
     if (scope) {
       this.cache.delete(scope);
@@ -116,7 +120,7 @@ class CalculationEngine {
     const compiled = await this.loadScope(scope, options.forceRefresh);
     if (!compiled) {
       const fallback = this.fallbacks.get(scope) || this.fallbacks.get(CALCULATION_SCOPES.DEFAULT);
-      if (fallback) return fallback(context);
+      if (fallback) { return fallback(context); }
       console.warn(`Nessun motore disponibile per lo scope "${scope}"`);
       return null;
     }
@@ -167,11 +171,11 @@ class CalculationEngine {
               created_at
             )
           `)
-          .eq("scope", scope)
+          .eq('scope', scope)
           .maybeSingle()
       );
 
-      if (error) throw error;
+      if (error) { throw error; }
       if (!data || !data.active_version_id) {
         console.info(`Nessuna versione attiva per scope "${scope}"`);
         return null;
@@ -180,7 +184,7 @@ class CalculationEngine {
       // Accedi alle versioni usando il nome corretto della relazione
       const versions = data.calculation_versions || data[VERSION_TABLE] || [];
       const activeVersion = Array.isArray(versions)
-        ? versions.find(v => v.id === data.active_version_id && v.status === "published")
+        ? versions.find(v => v.id === data.active_version_id && v.status === 'published')
         : null;
 
       if (!activeVersion || !activeVersion.dsl) {
@@ -188,7 +192,7 @@ class CalculationEngine {
         return null;
       }
 
-      const parsedDsl = typeof activeVersion.dsl === "string"
+      const parsedDsl = typeof activeVersion.dsl === 'string'
         ? JSON.parse(activeVersion.dsl)
         : activeVersion.dsl;
 
@@ -202,8 +206,8 @@ class CalculationEngine {
 
   compile(dsl) {
     const evaluator = (node, ctx) => {
-      if (node === null || node === undefined) return node;
-      if (typeof node !== "object") return node;
+      if (node === null || node === undefined) { return node; }
+      if (typeof node !== 'object') { return node; }
 
       const { op } = node;
       if (!op) {
@@ -225,25 +229,25 @@ class CalculationEngine {
 
 // Helpers ------------------------------------------------------------
 function getByPath(obj, path) {
-  if (!path) return obj;
-  const segments = path.split(".");
+  if (!path) { return obj; }
+  const segments = path.split('.');
   let current = obj;
   for (const segment of segments) {
-    if (current === null || current === undefined) return undefined;
+    if (current === null || current === undefined) { return undefined; }
     current = current[segment];
   }
   return current;
 }
 
 function truthy(value) {
-  if (Array.isArray(value)) return value.length > 0;
+  if (Array.isArray(value)) { return value.length > 0; }
   return !!value;
 }
 
 function validateDsl(dsl) {
-  if (!dsl || typeof dsl !== "object") throw new Error("DSL non valido");
-  if (!dsl.op) throw new Error("Ogni DSL deve avere la proprietà 'op'");
-  if (!DEFAULT_OPERATIONS[dsl.op] && dsl.op !== "function") {
+  if (!dsl || typeof dsl !== 'object') { throw new Error('DSL non valido'); }
+  if (!dsl.op) { throw new Error("Ogni DSL deve avere la proprietà 'op'"); }
+  if (!DEFAULT_OPERATIONS[dsl.op] && dsl.op !== 'function') {
     console.warn(`Opzione "${dsl.op}" non predefinita: assicurarsi di registrare l'operazione custom prima dell'uso.`);
   }
 }

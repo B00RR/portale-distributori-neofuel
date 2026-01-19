@@ -3,6 +3,7 @@
  * Handles navigation between different operator views
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { showAperturaForm } from './opening.js';
 import { startClosureWizard } from './closure.js';
 import { showPrezziEditForm } from './prices.js';
@@ -11,19 +12,38 @@ import { showOutflowMenu } from './outflows.js';
 import { showExtraIncomeMenu } from './extra-income.js';
 import { showVoucherMenu } from './vouchers.js';
 import { showInvoiceMenu } from './invoices.js';
-import { store } from '../shared/state.js';
+import { store, User } from '../shared/state.js';
+
+// ========== TYPE DEFINITIONS ==========
+
+export type OperatorView =
+    | 'apertura'
+    | 'chiusura'
+    | 'prezzi'
+    | 'crediti'
+    | 'uscite'
+    | 'incassi'
+    | 'voucher'
+    | 'fatture';
+
+interface ExtendedUser extends User {
+    assignedStations?: Array<{ id: string }>;
+}
+
+// ========== ROUTER CLASS ==========
 
 class OperatorRouter {
+    private currentView: OperatorView | null;
+
     constructor() {
         this.currentView = null;
     }
 
     /**
      * Navigate to a view
-     * @param {string} view - View name
      */
-    async navigateTo(view) {
-        const user = store.getUser();
+    async navigateTo(view: OperatorView): Promise<void> {
+        const user = store.getUser() as ExtendedUser | null;
         const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
         const userId = user?.id;
 
@@ -32,36 +52,44 @@ class OperatorRouter {
             return;
         }
 
+        this.currentView = view;
         console.log('[Router] Navigating to:', view);
 
         switch (view) {
             case 'apertura':
-                showAperturaForm(stationId, userId);
+                (showAperturaForm as any)(stationId, userId);
                 break;
             case 'chiusura':
-                startClosureWizard(stationId, userId);
+                (startClosureWizard as any)(stationId, userId);
                 break;
             case 'prezzi':
-                showPrezziEditForm(stationId);
+                (showPrezziEditForm as any)(stationId);
                 break;
             case 'crediti':
-                showCreditsMenu(stationId, userId);
+                (showCreditsMenu as any)(stationId, userId);
                 break;
             case 'uscite':
-                showOutflowMenu(stationId, userId);
+                (showOutflowMenu as any)(stationId, userId);
                 break;
             case 'incassi':
-                showExtraIncomeMenu(stationId, userId);
+                (showExtraIncomeMenu as any)(stationId, userId);
                 break;
             case 'voucher':
-                showVoucherMenu(stationId, userId);
+                (showVoucherMenu as any)(stationId, userId);
                 break;
             case 'fatture':
-                showInvoiceMenu(stationId, userId);
+                (showInvoiceMenu as any)(stationId, userId);
                 break;
             default:
                 console.warn('[Router] Unknown view:', view);
         }
+    }
+
+    /**
+     * Get current view
+     */
+    getCurrentView(): OperatorView | null {
+        return this.currentView;
     }
 }
 

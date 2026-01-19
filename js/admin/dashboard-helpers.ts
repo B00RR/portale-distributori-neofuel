@@ -1,10 +1,23 @@
 /**
  * Render KPI cards based on user configuration
- * @param {Object} config - Dashboard configuration {kpiLayout, gridColumns}
- * @param {Object} kpiData - KPI data values {venduto: {value, subtitle}, erogato:  {...}, ...}
- * @returns {string} HTML for KPI cards
  */
-function renderKpiCards(config, kpiData) {
+
+import { DashboardConfig, KPI_CATALOG } from './dashboard-config.js';
+
+export interface KPIDataValue {
+    value: string | number;
+    subtitle: string;
+}
+
+export type KPIData = Record<string, KPIDataValue>;
+
+/**
+ * Render KPI cards based on user configuration
+ * @param config - Dashboard configuration {kpiLayout, gridColumns}
+ * @param kpiData - KPI data values {venduto: {value, subtitle}, erogato:  {...}, ...}
+ * @returns HTML for KPI cards
+ */
+export function renderKpiCards(config: DashboardConfig, kpiData: KPIData): string {
     if (!config || !config.kpiLayout || !Array.isArray(config.kpiLayout)) {
         return '';
     }
@@ -16,7 +29,7 @@ function renderKpiCards(config, kpiData) {
             const kpiMeta = KPI_CATALOG[kpi.id];
             const kpiValue = kpiData[kpi.id];
 
-            if (!kpiMeta || !kpiValue) return '';
+            if (!kpiMeta || !kpiValue) { return ''; }
 
             const sizeClass = `kpi-size-${kpi.size || '1x1'}`;
 

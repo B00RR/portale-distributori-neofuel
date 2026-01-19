@@ -14,21 +14,22 @@
  */
 
 import { html, css } from 'lit';
+
 import { BaseComponent } from './BaseComponent.js';
 
 export class DataTable extends BaseComponent {
-    static properties = {
-        columns: { type: Array },
-        data: { type: Array },
-        sortColumn: { type: String },
-        sortDirection: { type: String },
-        loading: { type: Boolean },
-        emptyMessage: { type: String },
-    };
+  static properties = {
+    columns: { type: Array },
+    data: { type: Array },
+    sortColumn: { type: String },
+    sortDirection: { type: String },
+    loading: { type: Boolean },
+    emptyMessage: { type: String }
+  };
 
-    static styles = [
-        BaseComponent.styles,
-        css`
+  static styles = [
+    BaseComponent.styles,
+    css`
       table {
         width: 100%;
         border-collapse: collapse;
@@ -88,38 +89,38 @@ export class DataTable extends BaseComponent {
         color: var(--primary-color, #007bff);
       }
     `
-    ];
+  ];
 
-    constructor() {
-        super();
-        this.columns = [];
-        this.data = [];
-        this.sortColumn = '';
-        this.sortDirection = 'asc';
-        this.loading = false;
-        this.emptyMessage = 'Nessun dato disponibile';
-    }
+  constructor() {
+    super();
+    this.columns = [];
+    this.data = [];
+    this.sortColumn = '';
+    this.sortDirection = 'asc';
+    this.loading = false;
+    this.emptyMessage = 'Nessun dato disponibile';
+  }
 
-    render() {
-        if (this.loading) {
-            return html`
+  render() {
+    if (this.loading) {
+      return html`
         <div class="loading-state">
           <i class="fas fa-spinner fa-spin loading-spinner"></i>
           <p>Caricamento...</p>
         </div>
       `;
-        }
+    }
 
-        if (!this.data || this.data.length === 0) {
-            return html`
+    if (!this.data || this.data.length === 0) {
+      return html`
         <div class="empty-state">
           <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
           <p>${this.emptyMessage}</p>
         </div>
       `;
-        }
+    }
 
-        return html`
+    return html`
       <table>
         <thead>
           <tr>
@@ -144,51 +145,51 @@ export class DataTable extends BaseComponent {
         </tbody>
       </table>
     `;
+  }
+
+  _renderSortIcon(columnKey) {
+    if (this.sortColumn !== columnKey) {
+      return html`<i class="fas fa-sort sort-icon"></i>`;
     }
+    return this.sortDirection === 'asc'
+      ? html`<i class="fas fa-sort-up sort-icon"></i>`
+      : html`<i class="fas fa-sort-down sort-icon"></i>`;
+  }
 
-    _renderSortIcon(columnKey) {
-        if (this.sortColumn !== columnKey) {
-            return html`<i class="fas fa-sort sort-icon"></i>`;
-        }
-        return this.sortDirection === 'asc'
-            ? html`<i class="fas fa-sort-up sort-icon"></i>`
-            : html`<i class="fas fa-sort-down sort-icon"></i>`;
+  _renderCell(row, column) {
+    if (column.render) {
+      return column.render(row);
     }
+    return row[column.key] || '-';
+  }
 
-    _renderCell(row, column) {
-        if (column.render) {
-            return column.render(row);
-        }
-        return row[column.key] || '-';
+  _handleSort(columnKey) {
+    if (this.sortColumn === columnKey) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortColumn = columnKey;
+      this.sortDirection = 'asc';
     }
+    this.emit('sort', { column: this.sortColumn, direction: this.sortDirection });
+  }
 
-    _handleSort(columnKey) {
-        if (this.sortColumn === columnKey) {
-            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            this.sortColumn = columnKey;
-            this.sortDirection = 'asc';
-        }
-        this.emit('sort', { column: this.sortColumn, direction: this.sortDirection });
-    }
+  _handleRowClick(row) {
+    this.emit('row-click', { row });
+  }
 
-    _handleRowClick(row) {
-        this.emit('row-click', { row });
-    }
+  _getSortedData() {
+    if (!this.sortColumn) {return this.data;}
 
-    _getSortedData() {
-        if (!this.sortColumn) return this.data;
+    return [...this.data].sort((a, b) => {
+      const aVal = a[this.sortColumn];
+      const bVal = b[this.sortColumn];
 
-        return [...this.data].sort((a, b) => {
-            const aVal = a[this.sortColumn];
-            const bVal = b[this.sortColumn];
+      if (aVal === bVal) {return 0;}
 
-            if (aVal === bVal) return 0;
-
-            const comparison = aVal < bVal ? -1 : 1;
-            return this.sortDirection === 'asc' ? comparison : -comparison;
-        });
-    }
+      const comparison = aVal < bVal ? -1 : 1;
+      return this.sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }
 }
 
 customElements.define('data-table', DataTable);

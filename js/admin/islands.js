@@ -1,11 +1,12 @@
 // ==========================================
 // ADMIN - ISLANDS MANAGEMENT
 // ==========================================
-import { supabase, safeSupabaseQuery, getStationName } from "../core/api.js";
-import { openModal, closeModal, showLoadingMessage, showErrorMessage, showInfoModal, openConfirmModal } from "../ui/ui.js";
-import { escapeHtml, formatNumberIt } from "../utils/utils.js";
-import { showGunsModal } from "./guns.js";
-import { Toast } from "../ui/toast.js";
+import { supabase, safeSupabaseQuery, getStationName } from '../core/api.js';
+import { Toast } from '../ui/toast.js';
+import { openModal, closeModal, showLoadingMessage, showErrorMessage, showInfoModal, openConfirmModal } from '../ui/ui.js';
+import { escapeHtml, formatNumberIt } from '../utils/utils.js';
+
+import { showGunsModal } from './guns.js';
 
 /**
  * Mostra modal gestione isole per un distributore
@@ -37,7 +38,7 @@ export async function showIslandsModal(stationId) {
         .eq('station_id', stationId)
         .order('island_id', { ascending: true });
 
-      if (error) throw error;
+      if (error) {throw error;}
 
       let html = `
         <div class="islands-list" style="margin-bottom: 20px;">
@@ -200,7 +201,7 @@ async function deleteIsland(islandId, stationId) {
       return;
     }
 
-    if (!await openConfirmModal('Sei sicuro di voler eliminare questa isola?')) return;
+    if (!await openConfirmModal('Sei sicuro di voler eliminare questa isola?')) {return;}
 
     await safeSupabaseQuery(() =>
       supabase.from('islands').delete().eq('island_id', islandId)

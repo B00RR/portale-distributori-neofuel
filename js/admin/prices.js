@@ -1,9 +1,9 @@
 
-import { supabase, safeSupabaseQuery, getStationName } from "../core/api.js";
-import { openModal, closeModal } from "../ui/ui.js";
-import { escapeHtml, escapeNumber } from "../utils/utils.js";
-import { Toast } from "../ui/toast.js";
-import { handleError } from "../shared/error-handler.js";
+import { supabase, safeSupabaseQuery, getStationName } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
+import { Toast } from '../ui/toast.js';
+import { openModal, closeModal } from '../ui/ui.js';
+import { escapeHtml, escapeNumber } from '../utils/utils.js';
 
 export async function showPrezziAdminModal(stationId) {
   const stationName = await getStationName(stationId);
@@ -48,7 +48,7 @@ export async function showPrezziAdminModal(stationId) {
     const validita = fd.get('validita')?.toString() || 'ora';
 
     // Calcola data validità
-    let dataValidita = new Date();
+    const dataValidita = new Date();
     if (validita === 'prossima') {
       // ... logica per prossima chiusura
     }
@@ -75,7 +75,7 @@ export async function showPrezziAdminModal(stationId) {
   // However, there IS a 'prices' tab in admin.js switch
 }
 export async function showPricesTab(container, headerActions) {
-  if (headerActions) headerActions.innerHTML = '';
+  if (headerActions) {headerActions.innerHTML = '';}
   container.innerHTML = `
         <div class="content-box">
             <h3>Gestione Prezzi</h3>

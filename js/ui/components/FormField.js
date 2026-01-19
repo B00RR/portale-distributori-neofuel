@@ -13,28 +13,29 @@
  */
 
 import { html, css } from 'lit';
+
 import { BaseComponent } from './BaseComponent.js';
 
 export class FormField extends BaseComponent {
-    static properties = {
-        label: { type: String },
-        name: { type: String },
-        type: { type: String },
-        value: { type: String },
-        placeholder: { type: String },
-        required: { type: Boolean },
-        disabled: { type: Boolean },
-        error: { type: String },
-        options: { type: Array }, // Per select
-        rows: { type: Number }, // Per textarea
-        step: { type: String }, // Per input number
-        min: { type: String },
-        max: { type: String },
-    };
+  static properties = {
+    label: { type: String },
+    name: { type: String },
+    type: { type: String },
+    value: { type: String },
+    placeholder: { type: String },
+    required: { type: Boolean },
+    disabled: { type: Boolean },
+    error: { type: String },
+    options: { type: Array },
+    rows: { type: Number },
+    step: { type: String },
+    min: { type: String },
+    max: { type: String }
+  };
 
-    static styles = [
-        BaseComponent.styles,
-        css`
+  static styles = [
+    BaseComponent.styles,
+    css`
       .form-group {
         margin-bottom: 1rem;
       }
@@ -90,27 +91,27 @@ export class FormField extends BaseComponent {
         color: var(--danger-color, #dc3545);
       }
     `
-    ];
+  ];
 
-    constructor() {
-        super();
-        this.label = '';
-        this.name = '';
-        this.type = 'text';
-        this.value = '';
-        this.placeholder = '';
-        this.required = false;
-        this.disabled = false;
-        this.error = '';
-        this.options = [];
-        this.rows = 3;
-        this.step = 'any';
-        this.min = '';
-        this.max = '';
-    }
+  constructor() {
+    super();
+    this.label = '';
+    this.name = '';
+    this.type = 'text';
+    this.value = '';
+    this.placeholder = '';
+    this.required = false;
+    this.disabled = false;
+    this.error = '';
+    this.options = [];
+    this.rows = 3;
+    this.step = 'any';
+    this.min = '';
+    this.max = '';
+  }
 
-    render() {
-        return html`
+  render() {
+    return html`
       <div class="form-group">
         ${this.label ? html`
           <label class="${this.required ? 'required' : ''}">
@@ -125,22 +126,23 @@ export class FormField extends BaseComponent {
         ` : ''}
       </div>
     `;
-    }
+  }
 
-    _renderInput() {
-        const commonAttrs = {
-            name: this.name,
-      ? required : this.required,
-      ?disabled: this.disabled,
-            class: this.error ? 'error' : '',
-                @input: this._handleInput,
-                    @change: this._handleChange,
-    };
+  _renderInput() {
+    const errorClass = this.error ? 'error' : '';
 
-    switch(this.type) {
+    switch (this.type) {
       case 'select':
         return html`
-          <select .value=${this.value} ...${commonAttrs}>
+          <select
+            name="${this.name}"
+            class="${errorClass}"
+            ?required="${this.required}"
+            ?disabled="${this.disabled}"
+            .value="${this.value}"
+            @input="${this._handleInput}"
+            @change="${this._handleChange}"
+          >
             ${!this.required ? html`<option value="">Seleziona...</option>` : ''}
             ${this.options.map(opt => html`
               <option value="${opt.value || opt}" ?selected="${this.value === (opt.value || opt)}">
@@ -153,10 +155,15 @@ export class FormField extends BaseComponent {
       case 'textarea':
         return html`
           <textarea
-            .value=${this.value}
+            name="${this.name}"
+            class="${errorClass}"
+            ?required="${this.required}"
+            ?disabled="${this.disabled}"
+            .value="${this.value}"
             placeholder="${this.placeholder}"
             rows="${this.rows}"
-            ...${commonAttrs}
+            @input="${this._handleInput}"
+            @change="${this._handleChange}"
           ></textarea>
         `;
 
@@ -164,12 +171,17 @@ export class FormField extends BaseComponent {
         return html`
           <input
             type="number"
-            .value=${this.value}
+            name="${this.name}"
+            class="${errorClass}"
+            ?required="${this.required}"
+            ?disabled="${this.disabled}"
+            .value="${this.value}"
             placeholder="${this.placeholder}"
             step="${this.step}"
             min="${this.min}"
             max="${this.max}"
-            ...${commonAttrs}
+            @input="${this._handleInput}"
+            @change="${this._handleChange}"
           />
         `;
 
@@ -178,8 +190,12 @@ export class FormField extends BaseComponent {
           <label class="checkbox-label">
             <input
               type="checkbox"
-              ?checked=${this.value === 'true' || this.value === true}
-              ...${commonAttrs}
+              name="${this.name}"
+              ?required="${this.required}"
+              ?disabled="${this.disabled}"
+              ?checked="${this.value === 'true' || this.value === true}"
+              @input="${this._handleInput}"
+              @change="${this._handleChange}"
             />
             ${this.placeholder}
           </label>
@@ -189,46 +205,42 @@ export class FormField extends BaseComponent {
         return html`
           <input
             type="${this.type}"
-            .value=${this.value}
+            name="${this.name}"
+            class="${errorClass}"
+            ?required="${this.required}"
+            ?disabled="${this.disabled}"
+            .value="${this.value}"
             placeholder="${this.placeholder}"
-            ...${commonAttrs}
+            @input="${this._handleInput}"
+            @change="${this._handleChange}"
           />
         `;
     }
   }
 
-_handleInput(e) {
+  _handleInput(e) {
     this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     this.emit('input', { name: this.name, value: this.value });
-}
+  }
 
-_handleChange(e) {
+  _handleChange(e) {
     this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     this.emit('change', { name: this.name, value: this.value });
-}
+  }
 
-/**
- * Ottiene il valore corrente del campo
- */
-getValue() {
+  getValue() {
     const input = this.shadowRoot.querySelector('input, select, textarea');
-    if (input.type === 'checkbox') return input.checked;
+    if (input.type === 'checkbox') {return input.checked;}
     return input.value;
-}
+  }
 
-/**
- * Imposta un errore di validazione
- */
-setError(message) {
+  setError(message) {
     this.error = message;
-}
+  }
 
-/**
- * Rimuove l'errore di validazione
- */
-clearError() {
+  clearError() {
     this.error = '';
-}
+  }
 }
 
 customElements.define('form-field', FormField);

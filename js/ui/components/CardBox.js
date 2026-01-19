@@ -10,18 +10,19 @@
  */
 
 import { html, css } from 'lit';
+
 import { BaseComponent } from './BaseComponent.js';
 
 export class CardBox extends BaseComponent {
-    static properties = {
-        title: { type: String },
-        subtitle: { type: String },
-        variant: { type: String }, // default, primary, success, warning, danger
-    };
+  static properties = {
+    title: { type: String },
+    subtitle: { type: String },
+    variant: { type: String } // default, primary, success, warning, danger
+  };
 
-    static styles = [
-        BaseComponent.styles,
-        css`
+  static styles = [
+    BaseComponent.styles,
+    css`
       .card {
         background: white;
         border-radius: 8px;
@@ -99,17 +100,17 @@ export class CardBox extends BaseComponent {
         color: white;
       }
     `
-    ];
+  ];
 
-    constructor() {
-        super();
-        this.title = '';
-        this.subtitle = '';
-        this.variant = 'default';
-    }
+  constructor() {
+    super();
+    this.title = '';
+    this.subtitle = '';
+    this.variant = 'default';
+  }
 
-    render() {
-        return html`
+  render() {
+    return html`
       <div class="card ${this.variant}">
         ${this.title || this._hasHeaderSlot() ? html`
           <div class="card-header">
@@ -133,15 +134,15 @@ export class CardBox extends BaseComponent {
         ` : ''}
       </div>
     `;
-    }
+  }
 
-    _hasHeaderSlot() {
-        return this.querySelector('[slot="header"]') !== null;
-    }
+  _hasHeaderSlot() {
+    return this.querySelector('[slot="header"]') !== null;
+  }
 
-    _hasFooterSlot() {
-        return this.querySelector('[slot="footer"]') !== null;
-    }
+  _hasFooterSlot() {
+    return this.querySelector('[slot="footer"]') !== null;
+  }
 }
 
 customElements.define('card-box', CardBox);

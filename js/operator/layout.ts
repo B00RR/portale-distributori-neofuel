@@ -3,18 +3,43 @@
  * Handles rendering of operator shell and shared UI components
  */
 
-import { escapeHtml } from '../utils/utils.js';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { clearSession } from '../core/auth.js';
-import { store } from '../shared/state.js';
+import { store, User } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
 import { getStationName } from '../core/api.js';
 import { checkOpeningStatus } from './opening.js';
+import { OperatorView } from './router.js';
+
+// ========== TYPE DEFINITIONS ==========
+
+export interface OperatorHandlers {
+    onNavigate: (view: OperatorView) => void;
+    onOpening: (stationId: string, userId: string) => void;
+    onClosure: (stationId: string, userId: string) => void;
+}
+
+interface ExtendedUser extends User {
+    assignedStations?: Array<{ id: string }>;
+}
+
+interface OpeningData {
+    closing_data?: {
+        closure_stage?: string;
+    };
+    date_time: string;
+    users?: {
+        full_name?: string;
+    };
+}
+
+// ========== FUNCTIONS ==========
 
 /**
  * Render the operator shell layout
  */
-export async function renderOperatorShell(container, handlers) {
-    const user = store.getUser();
+export async function renderOperatorShell(container: HTMLElement, handlers: OperatorHandlers): Promise<void> {
+    const user = store.getUser() as ExtendedUser | null;
     const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
 
     if (!document.getElementById('operator-custom-styles')) {
@@ -37,14 +62,12 @@ export async function renderOperatorShell(container, handlers) {
             </header>
             
             <div class="operator-menu">
-                <!-- Apertura/Chiusura (dinamico) -->
                 <button class="op-menu-item primary" id="btn-turno">
                     <i class="fas fa-door-open" id="turno-icon"></i>
                     <span id="turno-text">Apertura</span>
                     <span class="status-badge" id="opening-status"></span>
                 </button>
 
-                <!-- Movimenti (accordion) -->
                 <div class="op-menu-accordion">
                     <button class="op-menu-item accordion-trigger" id="btn-movimenti">
                         <i class="fas fa-exchange-alt"></i>
@@ -71,13 +94,11 @@ export async function renderOperatorShell(container, handlers) {
                     </div>
                 </div>
 
-                <!-- Fatture -->
                 <button class="op-menu-item" id="btn-fatture">
                     <i class="fas fa-file-invoice"></i>
                     <span>Fatture</span>
                 </button>
 
-                <!-- Prezzi -->
                 <button class="op-menu-item" id="btn-prezzi">
                     <i class="fas fa-tags"></i>
                     <span>Prezzi</span>
@@ -92,8 +113,7 @@ export async function renderOperatorShell(container, handlers) {
         </div>
     `;
 
-    // Initialize dynamic components
-    if (stationId) {
+    if (stationId && user?.id) {
         updateStationBadge(stationId);
         updateTurnoButton(stationId, user.id, handlers);
     }
@@ -101,14 +121,13 @@ export async function renderOperatorShell(container, handlers) {
     attachEventListeners(handlers);
     updateSyncBadge();
 
-    // Listen for sync changes
     document.addEventListener('sync-status-changed', updateSyncBadge);
 }
 
 /**
  * Update the station badge with the real name
  */
-async function updateStationBadge(stationId) {
+async function updateStationBadge(stationId: string): Promise<void> {
     try {
         const name = await getStationName(stationId);
         const badge = document.getElementById('station-badge');
@@ -121,24 +140,26 @@ async function updateStationBadge(stationId) {
 /**
  * Update the dynamic "Turno" button state
  */
-export async function updateTurnoButton(stationId, userId, handlers) {
+export async function updateTurnoButton(
+    stationId: string,
+    userId: string,
+    handlers: OperatorHandlers
+): Promise<void> {
     const btnTurno = document.getElementById('btn-turno');
     const badge = document.getElementById('opening-status');
     if (!btnTurno) return;
 
-    const opening = await checkOpeningStatus(stationId);
+    const opening = await (checkOpeningStatus as any)(stationId) as OpeningData | null;
 
-    // Update icons and text
-    const turnoIcon = btnTurno.querySelector('#turno-icon');
-    const turnoText = btnTurno.querySelector('#turno-text');
+    const newBtnTurno = btnTurno.cloneNode(true) as HTMLElement;
+    btnTurno.parentNode?.replaceChild(newBtnTurno, btnTurno);
 
-    // Clone and replace to clean listeners
-    const newBtnTurno = /** @type {HTMLElement} */(btnTurno.cloneNode(true));
-    btnTurno.parentNode.replaceChild(newBtnTurno, btnTurno);
+    const turnoIcon = newBtnTurno.querySelector('#turno-icon') as HTMLElement | null;
+    const turnoText = newBtnTurno.querySelector('#turno-text') as HTMLElement | null;
 
     if (opening) {
-        (/** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-icon'))).className = 'fas fa-door-closed';
-        (/** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-text'))).textContent = 'Chiusura';
+        if (turnoIcon) turnoIcon.className = 'fas fa-door-closed';
+        if (turnoText) turnoText.textContent = 'Chiusura';
         newBtnTurno.addEventListener('click', () => handlers.onClosure(stationId, userId));
 
         if (badge) {
@@ -148,8 +169,8 @@ export async function updateTurnoButton(stationId, userId, handlers) {
             badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
         }
     } else {
-        (/** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-icon'))).className = 'fas fa-door-open';
-        (/** @type {HTMLElement} */(newBtnTurno.querySelector('#turno-text'))).textContent = 'Apertura';
+        if (turnoIcon) turnoIcon.className = 'fas fa-door-open';
+        if (turnoText) turnoText.textContent = 'Apertura';
         newBtnTurno.addEventListener('click', () => handlers.onOpening(stationId, userId));
 
         if (badge) {
@@ -163,9 +184,9 @@ export async function updateTurnoButton(stationId, userId, handlers) {
 /**
  * Update the sync indicator badge
  */
-async function updateSyncBadge() {
+async function updateSyncBadge(): Promise<void> {
     try {
-        const { offlineDB } = await import("../core/offline-db.js");
+        const { offlineDB } = await import("../core/offline-db.js") as any;
         const count = await offlineDB.getQueueCount();
         const badge = document.getElementById('sync-indicator');
         const countSpan = document.getElementById('sync-count');
@@ -181,33 +202,33 @@ async function updateSyncBadge() {
 /**
  * Attach global event listeners
  */
-function attachEventListeners(handlers) {
-    // Logout
-    document.getElementById('op-logout-btn').addEventListener('click', async () => {
-        const confirmed = await openConfirmModal('Vuoi uscire dal portale operatore?');
-        if (confirmed) {
-            await clearSession();
-            await new Promise(resolve => setTimeout(resolve, 100));
-            window.location.href = window.location.pathname;
-        }
-    });
+function attachEventListeners(handlers: OperatorHandlers): void {
+    const logoutBtn = document.getElementById('op-logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            const confirmed = await openConfirmModal('Vuoi uscire dal portale operatore?');
+            if (confirmed) {
+                await clearSession();
+                await new Promise(resolve => setTimeout(resolve, 100));
+                window.location.href = window.location.pathname;
+            }
+        });
+    }
 
-    // Accordion
     const btnMovimenti = document.getElementById('btn-movimenti');
     const movimentiContent = document.getElementById('movimenti-content');
     if (btnMovimenti && movimentiContent) {
         btnMovimenti.addEventListener('click', () => {
             const isOpen = movimentiContent.classList.contains('open');
             movimentiContent.classList.toggle('open');
-            const icon = /** @type {HTMLElement} */(btnMovimenti.querySelector('.accordion-icon'));
+            const icon = btnMovimenti.querySelector('.accordion-icon') as HTMLElement | null;
             if (icon) {
                 icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
             }
         });
     }
 
-    // Menu Items
-    const map = {
+    const menuMap: Record<string, OperatorView> = {
         'btn-crediti': 'crediti',
         'btn-voucher': 'voucher',
         'btn-uscite': 'uscite',
@@ -216,7 +237,7 @@ function attachEventListeners(handlers) {
         'btn-prezzi': 'prezzi'
     };
 
-    Object.entries(map).forEach(([id, view]) => {
+    Object.entries(menuMap).forEach(([id, view]) => {
         const btn = document.getElementById(id);
         if (btn) {
             btn.addEventListener('click', () => handlers.onNavigate(view));
@@ -225,9 +246,9 @@ function attachEventListeners(handlers) {
 }
 
 /**
- * Inject local styles (extracted from operator.js)
+ * Inject local styles
  */
-function injectStyles() {
+function injectStyles(): void {
     const style = document.createElement('style');
     style.id = 'operator-custom-styles';
     style.innerHTML = `

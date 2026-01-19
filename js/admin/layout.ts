@@ -3,21 +3,52 @@
  * Handles rendering of admin shell (sidebar, header, breadcrumbs)
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { escapeHtml } from '../utils/utils.js';
 import { clearSession } from '../core/auth.js';
 import { store } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
-import { router } from './router.js';
+import { router, AdminTab } from './router.js';
+
+// ========== TYPE DEFINITIONS ==========
+
+type UserRole = 'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accounting' | 'billing';
+
+type TabChangeCallback = (tab: AdminTab) => void;
+
+const TAB_LABELS: Record<AdminTab, string> = {
+    'dashboard': 'Dashboard',
+    'stations': 'Distributori',
+    'operators': 'Operatori',
+    'shifts': 'Chiusure',
+    'crediti': 'Crediti',
+    'invoices': 'Fatture',
+    'vouchers': 'Voucher',
+    'notifiche': 'Notifiche',
+    'analytics': 'Analytics',
+    'settings': 'Impostazioni'
+};
+
+const ROLE_LABELS: Record<string, string> = {
+    'admin': 'Amministratore',
+    'super_admin': 'Amministratore',
+    'full_admin': 'Amministratore',
+    'accounting': 'Contabilità',
+    'billing': 'Fatturazione',
+    'operator': 'Operatore'
+};
+
+// ========== FUNCTIONS ==========
 
 /**
  * Render the admin shell layout
  */
-export function renderAdminShell(container, onTabChange) {
+export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeCallback): void {
     const user = store.getUser();
-    const userRole = user?.role || 'operator';
-    const isFullAdmin = userRole === 'admin' || userRole === 'super_admin' || userRole === 'full_admin';
+    const userRole = (user?.role || 'operator') as UserRole;
+    const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
 
-    console.log('[Layout] Rendering shell for role:', userRole, 'isFullAdmin:', isFullAdmin, 'userObj:', user);
+    console.log('[Layout] Rendering shell for role:', userRole, 'isFullAdmin:', isFullAdmin);
 
     container.innerHTML = `
         <div class="admin-container">
@@ -85,7 +116,6 @@ export function renderAdminShell(container, onTabChange) {
         </div>
     `;
 
-    // Attach event listeners
     attachNavigationListeners(onTabChange);
     attachLogoutListener();
 }
@@ -93,31 +123,18 @@ export function renderAdminShell(container, onTabChange) {
 /**
  * Render breadcrumbs navigation
  */
-export function renderBreadcrumbs(tab, subPath = '') {
+export function renderBreadcrumbs(tab: AdminTab, subPath: string = ''): void {
     const container = document.getElementById('breadcrumbs');
     if (!container) return;
 
-    const labels = {
-        'dashboard': 'Dashboard',
-        'stations': 'Distributori',
-        'operators': 'Operatori',
-        'shifts': 'Chiusure',
-        'crediti': 'Crediti',
-        'invoices': 'Fatture',
-        'vouchers': 'Voucher',
-        'notifiche': 'Notifiche',
-        'analytics': 'Analytics',
-        'settings': 'Impostazioni'
-    };
-
     let html = `<a href="#" class="breadcrumb-item breadcrumb-link" data-tab="dashboard" style="cursor: pointer; text-decoration: none;"><i class="fas fa-home"></i> Home</a>`;
 
-    if (labels[tab] && tab !== 'dashboard') {
+    if (TAB_LABELS[tab] && tab !== 'dashboard') {
         html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
         if (subPath) {
-            html += `<a href="#" class="breadcrumb-item breadcrumb-link" data-tab="${tab}" style="cursor: pointer; text-decoration: none;">${labels[tab]}</a>`;
+            html += `<a href="#" class="breadcrumb-item breadcrumb-link" data-tab="${tab}" style="cursor: pointer; text-decoration: none;">${TAB_LABELS[tab]}</a>`;
         } else {
-            html += `<span class="breadcrumb-item active">${labels[tab]}</span>`;
+            html += `<span class="breadcrumb-item active">${TAB_LABELS[tab]}</span>`;
         }
     }
 
@@ -128,11 +145,10 @@ export function renderBreadcrumbs(tab, subPath = '') {
 
     container.innerHTML = html;
 
-    // Attach breadcrumb click listeners
     container.querySelectorAll('.breadcrumb-link').forEach(link => {
-        link.addEventListener('click', (e) => {
+        link.addEventListener('click', (e: Event) => {
             e.preventDefault();
-            const targetTab = /** @type {HTMLElement} */(link).dataset.tab;
+            const targetTab = (link as HTMLElement).dataset.tab as AdminTab;
             if (targetTab) {
                 router.navigateTo(targetTab);
                 renderBreadcrumbs(targetTab);
@@ -144,11 +160,11 @@ export function renderBreadcrumbs(tab, subPath = '') {
 /**
  * Attach navigation event listeners
  */
-function attachNavigationListeners(onTabChange) {
+function attachNavigationListeners(onTabChange: TabChangeCallback): void {
     const navBtns = document.querySelectorAll('.nav-btn[data-tab]');
     navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            const tab = /** @type {HTMLElement} */(btn).dataset.tab;
+            const tab = (btn as HTMLElement).dataset.tab as AdminTab;
             if (tab && onTabChange) {
                 onTabChange(tab);
             }
@@ -159,7 +175,7 @@ function attachNavigationListeners(onTabChange) {
 /**
  * Attach logout listener
  */
-function attachLogoutListener() {
+function attachLogoutListener(): void {
     const logoutBtn = document.getElementById('admin-logout');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
@@ -176,13 +192,6 @@ function attachLogoutListener() {
 /**
  * Get human-readable role label
  */
-function getRoleLabel(role) {
-    const labels = {
-        'admin': 'Amministratore',
-        'super_admin': 'Amministratore',
-        'accounting': 'Contabilità',
-        'billing': 'Fatturazione',
-        'operator': 'Operatore'
-    };
-    return labels[role] || 'Utente';
+function getRoleLabel(role: string): string {
+    return ROLE_LABELS[role] || 'Utente';
 }

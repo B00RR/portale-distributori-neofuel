@@ -13,55 +13,55 @@ const ENVIRONMENT = import.meta.env.MODE || 'development';
  * Only active in production if DSN is configured
  */
 export function initSentry() {
-    // Only initialize if DSN is provided and not in development
-    if (!SENTRY_DSN || ENVIRONMENT === 'development') {
-        console.info('[Sentry] Skipped initialization (dev mode or missing DSN)');
-        return;
-    }
+  // Only initialize if DSN is provided and not in development
+  if (!SENTRY_DSN || ENVIRONMENT === 'development') {
+    console.info('[Sentry] Skipped initialization (dev mode or missing DSN)');
+    return;
+  }
 
-    Sentry.init({
-        dsn: SENTRY_DSN,
-        environment: ENVIRONMENT,
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: ENVIRONMENT,
 
-        // Performance monitoring
-        tracesSampleRate: 0.1, // 10% of transactions
+    // Performance monitoring
+    tracesSampleRate: 0.1, // 10% of transactions
 
-        // Error filtering
-        beforeSend(event, hint) {
-            // Don't send errors in development
-            if (ENVIRONMENT === 'development') {
-                return null;
-            }
+    // Error filtering
+    beforeSend(event, hint) {
+      // Don't send errors in development
+      if (ENVIRONMENT === 'development') {
+        return null;
+      }
 
-            // Filter out network errors from ad blockers
-            const error = hint.originalException;
-            if (error && error.message && error.message.includes('adsbygoogle')) {
-                return null;
-            }
+      // Filter out network errors from ad blockers
+      const error = hint.originalException;
+      if (error && error.message && error.message.includes('adsbygoogle')) {
+        return null;
+      }
 
-            return event;
-        },
+      return event;
+    },
 
-        // Ignore specific errors
-        ignoreErrors: [
-            // Browser extensions
-            'top.GLOBALS',
-            'chrome-extension://',
-            'moz-extension://',
+    // Ignore specific errors
+    ignoreErrors: [
+      // Browser extensions
+      'top.GLOBALS',
+      'chrome-extension://',
+      'moz-extension://',
 
-            // Network errors
-            'NetworkError',
-            'Failed to fetch',
+      // Network errors
+      'NetworkError',
+      'Failed to fetch',
 
-            // Random plugins/extensions
-            'Non-Error promise rejection captured'
-        ],
+      // Random plugins/extensions
+      'Non-Error promise rejection captured'
+    ],
 
-        // Release tracking
-        release: `neofuel-portal@${import.meta.env.VITE_APP_VERSION || '1.0.0'}`,
-    });
+    // Release tracking
+    release: `neofuel-portal@${import.meta.env.VITE_APP_VERSION || '1.0.0'}`
+  });
 
-    console.info('[Sentry] Initialized successfully');
+  console.info('[Sentry] Initialized successfully');
 }
 
 /**
@@ -72,21 +72,21 @@ export function initSentry() {
  * @param {string} user.role - User role
  */
 export function setSentryUser(user) {
-    if (!SENTRY_DSN) return;
+  if (!SENTRY_DSN) {return;}
 
-    Sentry.setUser({
-        id: user.id,
-        email: user.email,
-        role: user.role
-    });
+  Sentry.setUser({
+    id: user.id,
+    email: user.email,
+    role: user.role
+  });
 }
 
 /**
  * Clear user context (on logout)
  */
 export function clearSentryUser() {
-    if (!SENTRY_DSN) return;
-    Sentry.setUser(null);
+  if (!SENTRY_DSN) {return;}
+  Sentry.setUser(null);
 }
 
 /**
@@ -95,14 +95,14 @@ export function clearSentryUser() {
  * @param {Object} context - Additional context
  */
 export function captureException(error, context = {}) {
-    if (!SENTRY_DSN) {
-        console.error('[Sentry Debug]', error, context);
-        return;
-    }
+  if (!SENTRY_DSN) {
+    console.error('[Sentry Debug]', error, context);
+    return;
+  }
 
-    Sentry.captureException(error, {
-        extra: context
-    });
+  Sentry.captureException(error, {
+    extra: context
+  });
 }
 
 /**
@@ -111,12 +111,12 @@ export function captureException(error, context = {}) {
  * @param {string} level - Log level (info, warning, error)
  */
 export function captureMessage(message, level = 'info') {
-    if (!SENTRY_DSN) {
-        console.log(`[Sentry Debug] ${level}:`, message);
-        return;
-    }
+  if (!SENTRY_DSN) {
+    console.log(`[Sentry Debug] ${level}:`, message);
+    return;
+  }
 
-    Sentry.captureMessage(message, level);
+  Sentry.captureMessage(message, level);
 }
 
 /**
@@ -124,7 +124,7 @@ export function captureMessage(message, level = 'info') {
  * @param {Object} breadcrumb - Breadcrumb data
  */
 export function addBreadcrumb(breadcrumb) {
-    if (!SENTRY_DSN) return;
+  if (!SENTRY_DSN) {return;}
 
-    Sentry.addBreadcrumb(breadcrumb);
+  Sentry.addBreadcrumb(breadcrumb);
 }

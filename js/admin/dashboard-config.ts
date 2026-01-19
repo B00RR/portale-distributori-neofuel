@@ -5,28 +5,58 @@
  * 
  * Provides visual configuration interface for customizing dashboard KPI layout
  * 
- * Features:
- * - Drag-and-drop KPI reordering
- * - Toggle KPI visibility
- * - Resize KPI cards (1x1, 1x2, 2x1, 2x2)
- * - Save/load per-user configuration
- * - Reset to default layout
- * 
  * @module admin-dashboard-config
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
-import { openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import { loggedUser } from '../core/auth.js';
 import { Toast } from '../ui/toast.js';
+import { openModal, openConfirmModal } from '../ui/ui.js';
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+export type CardSize = '1x1' | '1x2' | '2x1' | '2x2';
+
+export interface KPIMetadata {
+    id: string;
+    title: string;
+    icon: string;
+    description: string;
+    defaultSize: CardSize;
+    defaultVisible: boolean;
+}
+
+export interface KPIConfigItem {
+    id: string;
+    visible: boolean;
+    order: number;
+    size: CardSize;
+    position: {
+        row: number;
+        col: number;
+    };
+}
+
+export interface DashboardConfig {
+    kpiLayout: KPIConfigItem[];
+    gridColumns: number;
+}
+
+export interface CardSizeDefinition {
+    value: CardSize;
+    label: string;
+    cols: number;
+    rows: number;
+}
 
 // ============================================================================
 // KPI CATALOG
 // ============================================================================
-// Define all available KPIs with their metadata
-// To add a new KPI: Add entry here and implement data fetching in admin.js
 
-export const KPI_CATALOG = {
+export const KPI_CATALOG: Record<string, KPIMetadata> = {
     venduto: {
         id: 'venduto',
         title: 'Venduto Oggi',
@@ -59,14 +89,10 @@ export const KPI_CATALOG = {
         defaultSize: '1x1',
         defaultVisible: true
     }
-    // Future KPIs can be added here:
-    // operatori: { ... },
-    // fatture: { ... },
-    // crediti: { ... }
 };
 
 // Available card sizes
-export const CARD_SIZES = [
+export const CARD_SIZES: CardSizeDefinition[] = [
     { value: '1x1', label: 'Piccola (1x1)', cols: 1, rows: 1 },
     { value: '1x2', label: 'Larga (1x2)', cols: 2, rows: 1 },
     { value: '2x1', label: 'Alta (2x1)', cols: 1, rows: 2 },
@@ -80,11 +106,11 @@ export const CARD_SIZES = [
 /**
  * Helper to get current user id reliably
  */
-async function getCurrentUserId() {
-    if (loggedUser?.id) return loggedUser.id;
+async function getCurrentUserId(): Promise<string | number | null> {
+    if (loggedUser?.user_id) { return loggedUser.user_id; }
 
     // Fallback: check supabase session
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await (supabase as any).auth.getSession();
     return session?.user?.id || null;
 }
 
@@ -92,7 +118,7 @@ async function getCurrentUserId() {
  * Load dashboard configuration for current user
  * Creates default config if none exists
  */
-export async function loadDashboardConfig() {
+export async function loadDashboardConfig(): Promise<DashboardConfig> {
     const userId = await getCurrentUserId();
 
     if (!userId) {
@@ -102,7 +128,7 @@ export async function loadDashboardConfig() {
 
     try {
         // Try to fetch existing config
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
             .from('user_dashboard_config')
             .select('kpi_layout, grid_columns')
             .eq('user_id', userId)
@@ -123,9 +149,9 @@ export async function loadDashboardConfig() {
             kpiLayout: data.kpi_layout || [],
             gridColumns: data.grid_columns || 4
         };
-    } catch (err) {
+    } catch (err: any) {
         console.error('[Dashboard Config] Error loading:', err);
-        Toast.show('Errore caricamento configurazione dashboard', 'error');
+        (Toast as any).show('Errore caricamento configurazione dashboard', 'error');
         return getDefaultConfig();
     }
 }
@@ -133,16 +159,16 @@ export async function loadDashboardConfig() {
 /**
  * Save dashboard configuration for current user
  */
-export async function saveDashboardConfig(config) {
+export async function saveDashboardConfig(config: DashboardConfig): Promise<boolean> {
     const userId = await getCurrentUserId();
 
     if (!userId) {
-        Toast.show('Utente non autenticato', 'error');
+        (Toast as any).show('Utente non autenticato', 'error');
         return false;
     }
 
     try {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
             .from('user_dashboard_config')
             .upsert({
                 user_id: userId,
@@ -153,13 +179,13 @@ export async function saveDashboardConfig(config) {
                 onConflict: 'user_id'
             });
 
-        if (error) throw error;
+        if (error) { throw error; }
 
-        Toast.show('Configurazione dashboard salvata!', 'success');
+        (Toast as any).show('Configurazione dashboard salvata!', 'success');
         return true;
-    } catch (err) {
+    } catch (err: any) {
         console.error('[Dashboard Config] Error saving:', err);
-        Toast.show('Errore salvataggio configurazione: ' + err.message, 'error');
+        (Toast as any).show('Errore salvataggio configurazione: ' + err.message, 'error');
         return false;
     }
 }
@@ -167,17 +193,17 @@ export async function saveDashboardConfig(config) {
 /**
  * Reset dashboard configuration to default
  */
-export async function resetDashboardConfig() {
+export async function resetDashboardConfig(): Promise<boolean> {
     const userId = await getCurrentUserId();
 
     if (!userId) {
-        Toast.show('Utente non autenticato', 'error');
+        (Toast as any).show('Utente non autenticato', 'error');
         return false;
     }
 
     try {
         const defaultConfig = getDefaultConfig();
-        const { error } = await supabase
+        const { error } = await (supabase as any)
             .from('user_dashboard_config')
             .upsert({
                 user_id: userId,
@@ -188,13 +214,13 @@ export async function resetDashboardConfig() {
                 onConflict: 'user_id'
             });
 
-        if (error) throw error;
+        if (error) { throw error; }
 
-        Toast.show('Configurazione ripristinata ai valori predefiniti', 'success');
+        (Toast as any).show('Configurazione ripristinata ai valori predefiniti', 'success');
         return true;
-    } catch (err) {
+    } catch (err: any) {
         console.error('[Dashboard Config] Error resetting:', err);
-        Toast.show('Errore ripristino configurazione: ' + err.message, 'error');
+        (Toast as any).show('Errore ripristino configurazione: ' + err.message, 'error');
         return false;
     }
 }
@@ -202,20 +228,20 @@ export async function resetDashboardConfig() {
 /**
  * Ensure default config exists for user (called on first load)
  */
-async function ensureDefaultConfig() {
+async function ensureDefaultConfig(): Promise<void> {
     const userId = await getCurrentUserId();
-    if (!userId) return;
+    if (!userId) { return; }
 
     try {
         const defaultConfig = getDefaultConfig();
-        await supabase
+        await (supabase as any)
             .from('user_dashboard_config')
             .insert({
                 user_id: userId,
                 kpi_layout: defaultConfig.kpiLayout,
                 grid_columns: defaultConfig.gridColumns
             });
-    } catch (err) {
+    } catch (err: any) {
         // Ignore duplicate key errors
         if (!err.message?.includes('duplicate') && !err.code?.includes('23505')) {
             console.error('[Dashboard Config] Error creating default:', err);
@@ -226,7 +252,7 @@ async function ensureDefaultConfig() {
 /**
  * Get default dashboard configuration
  */
-function getDefaultConfig() {
+function getDefaultConfig(): DashboardConfig {
     return {
         kpiLayout: Object.values(KPI_CATALOG).map((kpi, index) => ({
             id: kpi.id,
@@ -247,16 +273,19 @@ function getDefaultConfig() {
  * Open dashboard configuration modal
  * Allows visual customization of KPI layout
  */
-export function showDashboardConfigPanel() {
+export function showDashboardConfigPanel(): void {
     openModal('Configura Dashboard');
-    renderConfigPanel();
+    const modalContent = document.getElementById('modal-content');
+    if (modalContent) {
+        renderConfigPanel(modalContent);
+    }
 }
 
 /**
  * Render configuration panel content
- * @param {HTMLElement} container - Target container to render into
+ * @param container - Target container to render into
  */
-export async function renderConfigPanel(container) {
+export async function renderConfigPanel(container: HTMLElement): Promise<void> {
     if (!container) {
         console.error('No container provided for renderConfigPanel');
         return;
@@ -306,11 +335,9 @@ export async function renderConfigPanel(container) {
       </div>
     `;
 
-        // Initialize event handlers - we need to pass the container context if possible, 
-        // or ensure handlers search within container or document (ids are unique so document is fine)
         initializeConfigHandlers(config, container);
 
-    } catch (err) {
+    } catch (err: any) {
         container.innerHTML = `
       <div class="error-message">
         <i class="fas fa-exclamation-circle"></i>
@@ -323,12 +350,12 @@ export async function renderConfigPanel(container) {
 /**
  * Render individual KPI configuration items
  */
-function renderKpiConfigItems(kpiLayout) {
+function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
     return kpiLayout
         .sort((a, b) => a.order - b.order)
         .map(kpi => {
             const kpiMeta = KPI_CATALOG[kpi.id];
-            if (!kpiMeta) return '';
+            if (!kpiMeta) { return ''; }
 
             return `
         <div class="kpi-config-item ${!kpi.visible ? 'hidden' : ''}" data-kpi-id="${kpi.id}">
@@ -380,63 +407,68 @@ function renderKpiConfigItems(kpiLayout) {
 /**
  * Initialize all event handlers for configuration panel
  */
-function initializeConfigHandlers(initialConfig, container) {
-    let currentConfig = JSON.parse(JSON.stringify(initialConfig)); // Deep clone
+function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTMLElement): void {
+    const currentConfig: DashboardConfig = JSON.parse(JSON.stringify(initialConfig)); // Deep clone
 
-    // Helper to find within container
-    const $ = (selector) => container ? container.querySelector(selector) : document.querySelector(selector);
-    const $$ = (selector) => container ? container.querySelectorAll(selector) : document.querySelectorAll(selector);
+    const $$ = (selector: string) => container ? container.querySelectorAll(selector) : document.querySelectorAll(selector);
 
     // Grid columns selector
     $$('.grid-col-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             $$('.grid-col-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            currentConfig.gridColumns = parseInt(btn.dataset.columns);
+            currentConfig.gridColumns = parseInt((btn as HTMLElement).dataset.columns || '4', 10);
         });
     });
 
     // KPI visibility toggle
     $$('[data-action="toggle-visibility"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const item = e.target.closest('.kpi-config-item');
+        btn.addEventListener('click', (e: Event) => {
+            const target = e.target as HTMLElement;
+            const item = target.closest('.kpi-config-item') as HTMLElement;
             const kpiId = item.dataset.kpiId;
             const kpiIndex = currentConfig.kpiLayout.findIndex(k => k.id === kpiId);
 
-            if (kpiIndex !== -1) {
-                currentConfig.kpiLayout[kpiIndex].visible = !currentConfig.kpiLayout[kpiIndex].visible;
+            if (kpiIndex !== -1 && currentConfig.kpiLayout[kpiIndex]) {
+                currentConfig.kpiLayout[kpiIndex]!.visible = !currentConfig.kpiLayout[kpiIndex]!.visible;
                 item.classList.toggle('hidden');
                 btn.classList.toggle('active');
-                btn.querySelector('i').className = currentConfig.kpiLayout[kpiIndex].visible ? 'fas fa-eye' : 'fas fa-eye-slash';
-                btn.title = currentConfig.kpiLayout[kpiIndex].visible ? 'Nascondi' : 'Mostra';
+                const i = btn.querySelector('i');
+                if (i) {
+                    i.className = currentConfig.kpiLayout[kpiIndex]!.visible ? 'fas fa-eye' : 'fas fa-eye-slash';
+                }
+                (btn as HTMLElement).title = currentConfig.kpiLayout[kpiIndex]!.visible ? 'Nascondi' : 'Mostra';
             }
         });
     });
 
     // KPI resize dropdown
     $$('[data-action="resize"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', (e: Event) => {
             e.stopPropagation();
             const dropdown = btn.nextElementSibling;
-            dropdown.classList.toggle('show');
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
         });
     });
 
     // Size selection
     $$('.size-option').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', (e: Event) => {
             e.stopPropagation();
-            const item = e.target.closest('.kpi-config-item');
+            const target = e.target as HTMLElement;
+            const item = target.closest('.kpi-config-item') as HTMLElement;
             const kpiId = item.dataset.kpiId;
-            const newSize = btn.dataset.size;
+            const newSize = (btn as HTMLElement).dataset.size as CardSize;
             const kpiIndex = currentConfig.kpiLayout.findIndex(k => k.id === kpiId);
 
-            if (kpiIndex !== -1) {
-                currentConfig.kpiLayout[kpiIndex].size = newSize;
+            if (kpiIndex !== -1 && currentConfig.kpiLayout[kpiIndex]) {
+                currentConfig.kpiLayout[kpiIndex]!.size = newSize;
 
                 // Update UI
                 const sizeLabel = item.querySelector('.size-label');
-                sizeLabel.textContent = newSize;
+                if (sizeLabel) sizeLabel.textContent = newSize;
 
                 // Update active state
                 item.querySelectorAll('.size-option').forEach(o => o.classList.remove('active'));
@@ -444,12 +476,12 @@ function initializeConfigHandlers(initialConfig, container) {
             }
 
             // Close dropdown
-            btn.closest('.size-dropdown-menu').classList.remove('show');
+            const menu = btn.closest('.size-dropdown-menu');
+            if (menu) menu.classList.remove('show');
         });
     });
 
-    // Close dropdowns when clicking outside - attach to container or document?
-    // Document is safer for "outside", but we can keep it global or scoped.
+    // Close dropdowns when clicking outside
     document.addEventListener('click', () => {
         $$('.size-dropdown-menu').forEach(menu => {
             menu.classList.remove('show');
@@ -457,11 +489,10 @@ function initializeConfigHandlers(initialConfig, container) {
     });
 
     // Initialize Sortable for drag-and-drop
-    // Pass container to find the list inside it
     initializeSortable(currentConfig, container);
 
     // Action buttons
-    const saveBtn = $('#btn-config-save');
+    const saveBtn = container.querySelector('#btn-config-save');
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
             // Update order based on DOM
@@ -469,26 +500,21 @@ function initializeConfigHandlers(initialConfig, container) {
 
             const success = await saveDashboardConfig(currentConfig);
             if (success) {
-                // Do NOT close modal, just notify
-                // closeModal(); 
-                // Reload dashboard to show new config
                 const event = new CustomEvent('dashboard-config-changed');
                 document.dispatchEvent(event);
             }
         });
     }
 
+    const resetBtn = container.querySelector('#btn-config-reset');
     if (resetBtn) {
         resetBtn.addEventListener('click', async () => {
             const confirmed = await openConfirmModal('Sei sicuro di voler ripristinare la configurazione predefinita? Tutte le personalizzazioni andranno perse.');
             if (confirmed) {
                 const success = await resetDashboardConfig();
                 if (success) {
-                    // Do NOT close modal
-                    // closeModal();
                     const event = new CustomEvent('dashboard-config-changed');
                     document.dispatchEvent(event);
-                    // Re-render panel to show reset state
                     renderConfigPanel(container);
                 }
             }
@@ -498,25 +524,24 @@ function initializeConfigHandlers(initialConfig, container) {
 
 /**
  * Initialize SortableJS for drag-and-drop reordering
- * Requires SortableJS library to be loaded
  */
-function initializeSortable(config, container) {
+function initializeSortable(config: DashboardConfig, container: HTMLElement): void {
     const list = container ? container.querySelector('#kpi-config-list') : document.getElementById('kpi-config-list');
-    if (!list) return;
+    if (!list) { return; }
 
     // Check if Sortable library is available
-    if (typeof Sortable === 'undefined') {
+    if (typeof (window as any).Sortable === 'undefined') {
         console.warn('[Dashboard Config] SortableJS library not loaded. Drag-and-drop disabled.');
         return;
     }
 
-    new Sortable(list, {
+    new (window as any).Sortable(list, {
         animation: 150,
         ghostClass: 'kpi-item-ghost',
         chosenClass: 'kpi-item-chosen',
         dragClass: 'kpi-item-drag',
-        handle: '.kpi-drag-handle', // Keep original handle class
-        onEnd: function (evt) {
+        handle: '.kpi-drag-handle',
+        onEnd: function () {
             updateKpiOrder(config, container);
         }
     });
@@ -525,24 +550,17 @@ function initializeSortable(config, container) {
 /**
  * Update configuration order based on DOM elements
  */
-function updateKpiOrder(config, container) {
+function updateKpiOrder(config: DashboardConfig, container: HTMLElement): void {
     const list = container ? container.querySelector('#kpi-config-list') : document.getElementById('kpi-config-list');
-    if (!list) return;
+    if (!list) { return; }
 
-    const items = Array.from(list.children);
-    const newOrder = [];
+    const items = Array.from(list.children) as HTMLElement[];
 
     items.forEach((item, index) => {
         const kpiId = item.dataset.kpiId;
         const configItem = config.kpiLayout.find(k => k.id === kpiId);
         if (configItem) {
             configItem.order = index;
-            // The original updateKpiOrder also updated position.col and position.row.
-            // This new version does not. If that logic is still needed, it should be re-added.
-            // For now, I'm following the provided snippet exactly.
-            // configItem.position.col = index % config.gridColumns;
-            // configItem.position.row = Math.floor(index / config.gridColumns);
-            newOrder.push(configItem);
         }
     });
 

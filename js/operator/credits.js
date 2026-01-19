@@ -2,13 +2,14 @@
 // OPERATOR CREDITS MANAGEMENT
 // Gestione crediti clienti (Nuovo Credito vs Pagamento)
 // ==========================================
-import { supabase } from "../core/api.js";
-import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from "../ui/ui.js";
-import { escapeHtml, formatEuro } from "../utils/utils.js";
-import { createBackButton, createFormActions, createWarningMessage } from "./ui-components.js";
-import { checkOpeningStatus } from "./opening.js";
-import { Toast } from "../ui/toast.js";
-import { handleError } from "../shared/error-handler.js";
+import { supabase } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
+import { Toast } from '../ui/toast.js';
+import { showLoadingMessage, showErrorMessage, showInfoModal, openModal, closeModal } from '../ui/ui.js';
+import { escapeHtml, formatEuro } from '../utils/utils.js';
+
+import { checkOpeningStatus } from './opening.js';
+import { createBackButton, createFormActions, createWarningMessage } from './ui-components.js';
 
 /**
  * Mostra il menu principale per la gestione crediti
@@ -17,14 +18,14 @@ import { handleError } from "../shared/error-handler.js";
  * @param {number} userId - ID dell'operatore
  */
 export async function showCreditsMenu(stationId, userId) {
-    openModal('Gestione Crediti');
-    const modalBody = document.getElementById('modal-body');
-    modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
+  openModal('Gestione Crediti');
+  const modalBody = document.getElementById('modal-body');
+  modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
 
-    // Verifica apertura turno
-    const activeOpening = await checkOpeningStatus(stationId);
-    if (!activeOpening) {
-        modalBody.innerHTML = `
+  // Verifica apertura turno
+  const activeOpening = await checkOpeningStatus(stationId);
+  if (!activeOpening) {
+    modalBody.innerHTML = `
             <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
                 <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
                 <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter gestire i crediti.</p>
@@ -32,11 +33,11 @@ export async function showCreditsMenu(stationId, userId) {
             </div>
         `;
 
-        document.getElementById('btn-close-warning').addEventListener('click', () => closeModal());
-        return;
-    }
+    document.getElementById('btn-close-warning').addEventListener('click', () => closeModal());
+    return;
+  }
 
-    modalBody.innerHTML = `
+  modalBody.innerHTML = `
         <div class="credits-menu-container">
             <p class="section-subtitle" style="text-align: center; margin-bottom: 20px;">Seleziona un'operazione</p>
             
@@ -113,8 +114,8 @@ export async function showCreditsMenu(stationId, userId) {
       </div>
     `;
 
-    document.getElementById('btn-new-credit').addEventListener('click', () => showNewCreditForm(stationId, userId));
-    document.getElementById('btn-payment-credit').addEventListener('click', () => showPaymentSelection(stationId, userId));
+  document.getElementById('btn-new-credit').addEventListener('click', () => showNewCreditForm(stationId, userId));
+  document.getElementById('btn-payment-credit').addEventListener('click', () => showPaymentSelection(stationId, userId));
 }
 
 /**
@@ -123,8 +124,8 @@ export async function showCreditsMenu(stationId, userId) {
  * Viene sottratto dai contanti (erogazione senza incasso).
  */
 async function showNewCreditForm(stationId, userId) {
-    const modalBody = document.getElementById('modal-body');
-    modalBody.innerHTML = `
+  const modalBody = document.getElementById('modal-body');
+  modalBody.innerHTML = `
         <div class="content-box">
             <h3><i class="fas fa-user-plus"></i> Nuovo Credito</h3>
             <p class="section-subtitle">Registra un debito per un cliente</p>
@@ -197,136 +198,136 @@ async function showNewCreditForm(stationId, userId) {
         </div>
     `;
 
-    // Back button
-    document.getElementById('btn-back-credits').addEventListener('click', () => showCreditsMenu(stationId, userId));
+  // Back button
+  document.getElementById('btn-back-credits').addEventListener('click', () => showCreditsMenu(stationId, userId));
 
-    // Customer Search Logic
-    const nameInput = document.getElementById('customer-name');
-    const suggestionsDiv = document.getElementById('customer-suggestions');
-    let debounceTimer;
+  // Customer Search Logic
+  const nameInput = document.getElementById('customer-name');
+  const suggestionsDiv = document.getElementById('customer-suggestions');
+  let debounceTimer;
 
-    nameInput.addEventListener('input', (e) => {
-        clearTimeout(debounceTimer);
-        const query = (/** @type {HTMLInputElement} */(e.target)).value;
-        if (query.length < 2) {
-            suggestionsDiv.style.display = 'none';
-            return;
-        }
-        debounceTimer = setTimeout(() => searchCustomersForInput(query, stationId, suggestionsDiv, nameInput), 300);
-    });
+  nameInput.addEventListener('input', (e) => {
+    clearTimeout(debounceTimer);
+    const query = (/** @type {HTMLInputElement} */(e.target)).value;
+    if (query.length < 2) {
+      suggestionsDiv.style.display = 'none';
+      return;
+    }
+    debounceTimer = setTimeout(() => searchCustomersForInput(query, stationId, suggestionsDiv, nameInput), 300);
+  });
 
-    // Form Submit
-    document.getElementById('new-credit-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
-        const customerName = formData.get('customer_name')?.toString().trim() || '';
-        const amount = parseFloat(formData.get('amount')?.toString() || '0');
-        const product = formData.get('product')?.toString() || ''; // New field
-        const notes = formData.get('notes')?.toString() || '';
+  // Form Submit
+  document.getElementById('new-credit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
+    const customerName = formData.get('customer_name')?.toString().trim() || '';
+    const amount = parseFloat(formData.get('amount')?.toString() || '0');
+    const product = formData.get('product')?.toString() || ''; // New field
+    const notes = formData.get('notes')?.toString() || '';
 
-        if (!customerName || amount <= 0) return;
+    if (!customerName || amount <= 0) {return;}
 
-        try {
-            await processNewCredit(stationId, userId, customerName, amount, product, notes);
-            closeModal();
-            showInfoModal('Credito registrato con successo!');
-        } catch (err) {
-            Toast.show('Errore: ' + err.message, 'error');
-        }
-    });
+    try {
+      await processNewCredit(stationId, userId, customerName, amount, product, notes);
+      closeModal();
+      showInfoModal('Credito registrato con successo!');
+    } catch (err) {
+      Toast.show('Errore: ' + err.message, 'error');
+    }
+  });
 }
 
 async function searchCustomersForInput(query, stationId, suggestionsDiv, inputField) {
-    try {
-        const { data: customers } = await supabase
-            .from('crediti_clienti')
-            .select('cliente')
-            .eq('station_id', stationId)
-            .ilike('cliente', `%${query}%`)
-            .limit(5);
+  try {
+    const { data: customers } = await supabase
+      .from('crediti_clienti')
+      .select('cliente')
+      .eq('station_id', stationId)
+      .ilike('cliente', `%${query}%`)
+      .limit(5);
 
-        if (customers && customers.length > 0) {
-            suggestionsDiv.innerHTML = customers.map(c => `
+    if (customers && customers.length > 0) {
+      suggestionsDiv.innerHTML = customers.map(c => `
                 <div class="suggestion-item">${escapeHtml(c.cliente)}</div>
             `).join('');
-            suggestionsDiv.style.display = 'block';
+      suggestionsDiv.style.display = 'block';
 
-            suggestionsDiv.querySelectorAll('.suggestion-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    inputField.value = item.textContent;
-                    suggestionsDiv.style.display = 'none';
-                });
-            });
-        } else {
-            suggestionsDiv.style.display = 'none';
-        }
-    } catch (err) {
-        console.error(err);
+      suggestionsDiv.querySelectorAll('.suggestion-item').forEach(item => {
+        item.addEventListener('click', () => {
+          inputField.value = item.textContent;
+          suggestionsDiv.style.display = 'none';
+        });
+      });
+    } else {
+      suggestionsDiv.style.display = 'none';
     }
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 async function processNewCredit(stationId, userId, customerName, amount, product, notes) {
-    // 1. Trova o crea cliente
-    let { data: customer, error: fetchError } = await supabase
-        .from('crediti_clienti')
-        .select('*')
-        .eq('station_id', stationId)
-        .ilike('cliente', customerName)
-        .maybeSingle();
+  // 1. Trova o crea cliente
+  let { data: customer, error: fetchError } = await supabase
+    .from('crediti_clienti')
+    .select('*')
+    .eq('station_id', stationId)
+    .ilike('cliente', customerName)
+    .maybeSingle();
 
-    if (fetchError) throw fetchError;
+  if (fetchError) {throw fetchError;}
 
-    if (!customer) {
-        const { data: newCustomer, error: createError } = await supabase
-            .from('crediti_clienti')
-            .insert([{ station_id: stationId, cliente: customerName, saldo: 0, importo: 0 }])
-            .select()
-            .single();
+  if (!customer) {
+    const { data: newCustomer, error: createError } = await supabase
+      .from('crediti_clienti')
+      .insert([{ station_id: stationId, cliente: customerName, saldo: 0, importo: 0 }])
+      .select()
+      .single();
 
-        if (createError) throw createError;
-        customer = newCustomer;
-    }
+    if (createError) {throw createError;}
+    customer = newCustomer;
+  }
 
-    // 2. Aggiorna saldo (Aumenta debito)
-    const newBalance = (customer.saldo || 0) + amount;
-    const { error: updateError } = await supabase
-        .from('crediti_clienti')
-        .update({ saldo: newBalance, updated_at: new Date().toISOString() })
-        .eq('id', customer.id);
+  // 2. Aggiorna saldo (Aumenta debito)
+  const newBalance = (customer.saldo || 0) + amount;
+  const { error: updateError } = await supabase
+    .from('crediti_clienti')
+    .update({ saldo: newBalance, updated_at: new Date().toISOString() })
+    .eq('id', customer.id);
 
-    if (updateError) throw updateError;
+  if (updateError) {throw updateError;}
 
-    // 3. Registra movimento (Tipo: 'credito' -> Sottrae da cassa in chiusura)
-    const { error: moveError } = await supabase
-        .from('crediti_movimenti')
-        .insert([{
-            cliente_id: customer.id,
-            station_id: stationId,
-            operator_id: userId,
-            tipo: 'credito', // IMPORTANTE: Questo tipo viene sottratto dai contanti in chiusura
-            importo: amount,
-            metodo: 'credito',
-            note: `${product} - ${notes || ''}`, // Include product in notes
-            created_at: new Date().toISOString()
-        }]);
+  // 3. Registra movimento (Tipo: 'credito' -> Sottrae da cassa in chiusura)
+  const { error: moveError } = await supabase
+    .from('crediti_movimenti')
+    .insert([{
+      cliente_id: customer.id,
+      station_id: stationId,
+      operator_id: userId,
+      tipo: 'credito', // IMPORTANTE: Questo tipo viene sottratto dai contanti in chiusura
+      importo: amount,
+      metodo: 'credito',
+      note: `${product} - ${notes || ''}`, // Include product in notes
+      created_at: new Date().toISOString()
+    }]);
 
-    // 4. Registra anche in movimenti_cassa per visibilità immediata (Opzionale, ma utile per logica unificata)
-    // La chiusura legge da movimenti_cassa, quindi DOBBIAMO scrivere lì o modificare la chiusura per leggere anche crediti_movimenti.
-    // La logica attuale di chiusura legge da 'movimenti_cassa'.
-    // Per semplicità e robustezza, duplichiamo il movimento in 'movimenti_cassa' con tipo 'credito'.
+  // 4. Registra anche in movimenti_cassa per visibilità immediata (Opzionale, ma utile per logica unificata)
+  // La chiusura legge da movimenti_cassa, quindi DOBBIAMO scrivere lì o modificare la chiusura per leggere anche crediti_movimenti.
+  // La logica attuale di chiusura legge da 'movimenti_cassa'.
+  // Per semplicità e robustezza, duplichiamo il movimento in 'movimenti_cassa' con tipo 'credito'.
 
-    const { error: cashMoveError } = await supabase
-        .from('movimenti_cassa')
-        .insert([{
-            station_id: stationId,
-            operator_id: userId,
-            tipo: 'credito',
-            importo: amount,
-            descrizione: `Credito: ${customerName} (${product}) ${notes ? '- ' + notes : ''}`, // Include product in description
-            created_at: new Date().toISOString()
-        }]);
+  const { error: cashMoveError } = await supabase
+    .from('movimenti_cassa')
+    .insert([{
+      station_id: stationId,
+      operator_id: userId,
+      tipo: 'credito',
+      importo: amount,
+      descrizione: `Credito: ${customerName} (${product}) ${notes ? '- ' + notes : ''}`, // Include product in description
+      created_at: new Date().toISOString()
+    }]);
 
-    if (moveError || cashMoveError) throw moveError || cashMoveError;
+  if (moveError || cashMoveError) {throw moveError || cashMoveError;}
 }
 
 
@@ -336,8 +337,8 @@ async function processNewCredit(stationId, userId, customerName, amount, product
  * Metodi: Contanti (Somma a cassa), POS/Altro (Neutro).
  */
 async function showPaymentSelection(stationId, userId) {
-    const modalBody = document.getElementById('modal-body');
-    modalBody.innerHTML = `
+  const modalBody = document.getElementById('modal-body');
+  modalBody.innerHTML = `
         <div class="content-box">
             <h3><i class="fas fa-list"></i> Crediti Aperti</h3>
             <div class="form-group">
@@ -354,34 +355,34 @@ async function showPaymentSelection(stationId, userId) {
         </div>
     `;
 
-    document.getElementById('btn-back-credits-2').addEventListener('click', () => showCreditsMenu(stationId, userId));
+  document.getElementById('btn-back-credits-2').addEventListener('click', () => showCreditsMenu(stationId, userId));
 
-    const listContainer = document.getElementById('debtors-list');
-    const searchInput = document.getElementById('debtor-search');
+  const listContainer = document.getElementById('debtors-list');
+  const searchInput = document.getElementById('debtor-search');
 
-    // Load debtors
-    const loadDebtors = async (filter = '') => {
-        try {
-            let query = supabase
-                .from('crediti_clienti')
-                .select('*')
-                .eq('station_id', stationId)
-                .gt('saldo', 0.01) // Solo chi ha debito
-                .order('cliente');
+  // Load debtors
+  const loadDebtors = async (filter = '') => {
+    try {
+      let query = supabase
+        .from('crediti_clienti')
+        .select('*')
+        .eq('station_id', stationId)
+        .gt('saldo', 0.01) // Solo chi ha debito
+        .order('cliente');
 
-            if (filter) {
-                query = query.ilike('cliente', `%${filter}%`);
-            }
+      if (filter) {
+        query = query.ilike('cliente', `%${filter}%`);
+      }
 
-            const { data: debtors, error } = await query;
-            if (error) throw error;
+      const { data: debtors, error } = await query;
+      if (error) {throw error;}
 
-            if (!debtors || debtors.length === 0) {
-                listContainer.innerHTML = '<p style="text-align:center; color:#64748b; padding:20px;">Nessun credito aperto trovato.</p>';
-                return;
-            }
+      if (!debtors || debtors.length === 0) {
+        listContainer.innerHTML = '<p style="text-align:center; color:#64748b; padding:20px;">Nessun credito aperto trovato.</p>';
+        return;
+      }
 
-            listContainer.innerHTML = debtors.map(d => `
+      listContainer.innerHTML = debtors.map(d => `
                 <div class="result-item" onclick="((/** @type {any} */(window)).openPaymentModal)('${d.id}')" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer;">
                     <div>
                         <div style="font-weight: bold; font-size: 1.1rem;">${escapeHtml(d.cliente)}</div>
@@ -394,29 +395,29 @@ async function showPaymentSelection(stationId, userId) {
                 </div>
             `).join('');
 
-            // Hack per click
-            (/** @type {import('../types.js').CustomWindow} */(/** @type {any} */(window))).openPaymentModal = (id) => {
-                const debtor = debtors.find(x => x.id == id);
-                if (debtor) showPaymentModal(debtor, stationId, userId);
-            };
+      // Hack per click
+      (/** @type {import('../types.js').CustomWindow} */(/** @type {any} */(window))).openPaymentModal = (id) => {
+        const debtor = debtors.find(x => x.id == id);
+        if (debtor) {showPaymentModal(debtor, stationId, userId);}
+      };
 
-        } catch (err) {
-            listContainer.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
-        }
-    };
+    } catch (err) {
+      listContainer.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
+    }
+  };
 
-    loadDebtors();
+  loadDebtors();
 
-    searchInput.addEventListener('input', (e) => {
-        loadDebtors((/** @type {HTMLInputElement} */(e.target)).value);
-    });
+  searchInput.addEventListener('input', (e) => {
+    loadDebtors((/** @type {HTMLInputElement} */(e.target)).value);
+  });
 }
 
 function showPaymentModal(customer, stationId, userId) {
-    openModal(`Pagamento: ${escapeHtml(customer.cliente)}`);
-    const modalBody = document.getElementById('modal-body');
+  openModal(`Pagamento: ${escapeHtml(customer.cliente)}`);
+  const modalBody = document.getElementById('modal-body');
 
-    modalBody.innerHTML = `
+  modalBody.innerHTML = `
         <div style="background: #fff1f2; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #fecdd3;">
             <div style="font-size: 0.9rem; color: #9f1239;">Debito Attuale</div>
             <div style="font-size: 2rem; font-weight: 700; color: #e11d48;">${formatEuro(customer.saldo)}</div>
@@ -459,95 +460,95 @@ function showPaymentModal(customer, stationId, userId) {
         </form>
     `;
 
-    // Toggle Info based on method
-    const methodSelect = document.getElementById('pay-method');
-    const cashInfo = document.getElementById('cash-info');
-    const posInfo = document.getElementById('pos-info');
+  // Toggle Info based on method
+  const methodSelect = document.getElementById('pay-method');
+  const cashInfo = document.getElementById('cash-info');
+  const posInfo = document.getElementById('pos-info');
 
-    methodSelect.addEventListener('change', () => {
-        if ((/** @type {HTMLSelectElement} */(methodSelect)).value === 'contanti') {
-            (/** @type {HTMLElement} */(cashInfo)).style.display = 'block';
-            (/** @type {HTMLElement} */(posInfo)).style.display = 'none';
-        } else {
-            (/** @type {HTMLElement} */(cashInfo)).style.display = 'none';
-            (/** @type {HTMLElement} */(posInfo)).style.display = 'block';
-        }
-    });
+  methodSelect.addEventListener('change', () => {
+    if ((/** @type {HTMLSelectElement} */(methodSelect)).value === 'contanti') {
+      (/** @type {HTMLElement} */(cashInfo)).style.display = 'block';
+      (/** @type {HTMLElement} */(posInfo)).style.display = 'none';
+    } else {
+      (/** @type {HTMLElement} */(cashInfo)).style.display = 'none';
+      (/** @type {HTMLElement} */(posInfo)).style.display = 'block';
+    }
+  });
 
-    // Full Amount Button
-    document.getElementById('btn-full-amount').addEventListener('click', () => {
-        (/** @type {HTMLInputElement} */(document.getElementById('pay-amount'))).value = customer.saldo.toString();
-    });
+  // Full Amount Button
+  document.getElementById('btn-full-amount').addEventListener('click', () => {
+    (/** @type {HTMLInputElement} */(document.getElementById('pay-amount'))).value = customer.saldo.toString();
+  });
 
-    document.getElementById('btn-cancel-pay').addEventListener('click', () => {
-        showPaymentSelection(stationId, userId);
-    });
+  document.getElementById('btn-cancel-pay').addEventListener('click', () => {
+    showPaymentSelection(stationId, userId);
+  });
 
-    // Submit
-    document.getElementById('payment-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
-        const amount = parseFloat(formData.get('amount')?.toString() || '0');
-        const method = formData.get('method')?.toString() || '';
+  // Submit
+  document.getElementById('payment-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(/** @type {HTMLFormElement} */(e.target));
+    const amount = parseFloat(formData.get('amount')?.toString() || '0');
+    const method = formData.get('method')?.toString() || '';
 
-        if (amount <= 0) return;
-        if (amount > customer.saldo + 0.01) { // Tolleranza centesimi
-            Toast.show('L\'importo non può superare il debito!', 'warning');
-            return;
-        }
+    if (amount <= 0) {return;}
+    if (amount > customer.saldo + 0.01) { // Tolleranza centesimi
+      Toast.show('L\'importo non può superare il debito!', 'warning');
+      return;
+    }
 
-        try {
-            await processPayment(stationId, userId, customer, amount, method);
-            closeModal();
-            showInfoModal('Pagamento registrato con successo!');
-        } catch (err) {
-            Toast.show('Errore: ' + err.message, 'error');
-        }
-    });
+    try {
+      await processPayment(stationId, userId, customer, amount, method);
+      closeModal();
+      showInfoModal('Pagamento registrato con successo!');
+    } catch (err) {
+      Toast.show('Errore: ' + err.message, 'error');
+    }
+  });
 }
 
 async function processPayment(stationId, userId, customer, amount, method) {
-    // 1. Aggiorna saldo (Diminuisce debito)
-    const newBalance = Math.max(0, (customer.saldo || 0) - amount);
-    const { error: updateError } = await supabase
-        .from('crediti_clienti')
-        .update({ saldo: newBalance, updated_at: new Date().toISOString() })
-        .eq('id', customer.id);
+  // 1. Aggiorna saldo (Diminuisce debito)
+  const newBalance = Math.max(0, (customer.saldo || 0) - amount);
+  const { error: updateError } = await supabase
+    .from('crediti_clienti')
+    .update({ saldo: newBalance, updated_at: new Date().toISOString() })
+    .eq('id', customer.id);
 
-    if (updateError) throw updateError;
+  if (updateError) {throw updateError;}
 
-    // 2. Registra movimento in crediti_movimenti
-    // Metodo: 'incasso' (se contanti), 'incasso_pos', 'incasso_uta'
-    let movementType = 'incasso'; // Default contanti
-    if (method === 'pos') movementType = 'incasso_pos';
-    if (method === 'uta') movementType = 'incasso_uta';
+  // 2. Registra movimento in crediti_movimenti
+  // Metodo: 'incasso' (se contanti), 'incasso_pos', 'incasso_uta'
+  let movementType = 'incasso'; // Default contanti
+  if (method === 'pos') {movementType = 'incasso_pos';}
+  if (method === 'uta') {movementType = 'incasso_uta';}
 
-    const { error: moveError } = await supabase
-        .from('crediti_movimenti')
-        .insert([{
-            cliente_id: customer.id,
-            station_id: stationId,
-            operator_id: userId,
-            tipo: movementType,
-            importo: amount,
-            metodo: method,
-            created_at: new Date().toISOString()
-        }]);
+  const { error: moveError } = await supabase
+    .from('crediti_movimenti')
+    .insert([{
+      cliente_id: customer.id,
+      station_id: stationId,
+      operator_id: userId,
+      tipo: movementType,
+      importo: amount,
+      metodo: method,
+      created_at: new Date().toISOString()
+    }]);
 
-    // 3. Registra in movimenti_cassa per la chiusura
-    // Se contanti -> 'incasso' (Aggiunge ai contanti attesi)
-    // Se POS/UTA -> 'incasso_pos' / 'incasso_uta' (Ignorato nel calcolo contanti, ma tracciato)
+  // 3. Registra in movimenti_cassa per la chiusura
+  // Se contanti -> 'incasso' (Aggiunge ai contanti attesi)
+  // Se POS/UTA -> 'incasso_pos' / 'incasso_uta' (Ignorato nel calcolo contanti, ma tracciato)
 
-    const { error: cashMoveError } = await supabase
-        .from('movimenti_cassa')
-        .insert([{
-            station_id: stationId,
-            operator_id: userId,
-            tipo: movementType, // 'incasso', 'incasso_pos', 'incasso_uta'
-            importo: amount,
-            descrizione: `Pagamento Credito: ${customer.cliente} (${method})`,
-            created_at: new Date().toISOString()
-        }]);
+  const { error: cashMoveError } = await supabase
+    .from('movimenti_cassa')
+    .insert([{
+      station_id: stationId,
+      operator_id: userId,
+      tipo: movementType, // 'incasso', 'incasso_pos', 'incasso_uta'
+      importo: amount,
+      descrizione: `Pagamento Credito: ${customer.cliente} (${method})`,
+      created_at: new Date().toISOString()
+    }]);
 
-    if (moveError || cashMoveError) throw moveError || cashMoveError;
+  if (moveError || cashMoveError) {throw moveError || cashMoveError;}
 }

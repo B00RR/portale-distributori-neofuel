@@ -3,20 +3,20 @@
  * Entry point for admin panel, orchestrates layout and routing
  */
 
-import { supabase, safeSupabaseQuery } from "./core/api.js";
-import { loggedUser } from "./core/auth.js";
-import { store } from "./shared/state.js";
-import { escapeHtml } from "./utils/utils.js";
-import { router } from "./admin/router.js";
-import { renderAdminShell, renderBreadcrumbs } from "./admin/layout.js";
-import { loadDashboardConfig, showDashboardConfigPanel } from "./admin/dashboard-config.js";
+import { loadDashboardConfig, showDashboardConfigPanel } from './admin/dashboard-config.js';
+import { renderAdminShell, renderBreadcrumbs } from './admin/layout.js';
+import { router } from './admin/router.js';
+import { supabase, safeSupabaseQuery } from './core/api.js';
+import { loggedUser } from './core/auth.js';
+import { store } from './shared/state.js';
+import { escapeHtml } from './utils/utils.js';
 
 /**
  * Main entry point for Admin Area
  */
 export function showAdminArea() {
   const mainContent = document.getElementById('main-content');
-  if (!mainContent) return;
+  if (!mainContent) {return;}
 
   const user = store.getUser();
   const userRole = user?.role || 'operator';
@@ -37,7 +37,7 @@ export function showAdminArea() {
   // Setup global filter
   async function renderGlobalFilter() {
     const container = document.getElementById('header-actions');
-    if (!container) return;
+    if (!container) {return;}
 
     let stations = store.state.stations;
 

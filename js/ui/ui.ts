@@ -1,18 +1,35 @@
-// ==========================================
-// UI HELPERS
-// ==========================================
+/**
+ * UI Helpers Module
+ * Provides reusable UI functions: loaders, modals, confirmations, prompts
+ */
+
 import { escapeHtml } from "../utils/utils.js";
 
-// Helper: Inizializza elementi admin content (pattern ripetuto)
-export function initAdminContent() {
+// ========== TYPE DEFINITIONS ==========
+
+export interface AdminContentElements {
+    content: HTMLElement | null;
+    actions: HTMLElement | null;
+}
+
+// ========== INITIALIZATION HELPERS ==========
+
+/**
+ * Initialize admin content elements (repeated pattern)
+ */
+export function initAdminContent(): AdminContentElements {
     return {
         content: document.getElementById('admin-content'),
         actions: document.getElementById('content-actions')
     };
 }
 
-// Helper: Mostra messaggio di caricamento (Logo Animato)
-export function showLoadingMessage(content, message = '') {
+// ========== LOADING INDICATORS ==========
+
+/**
+ * Show loading message (Animated Logo)
+ */
+export function showLoadingMessage(content: HTMLElement | null): void {
     if (content) {
         content.innerHTML = `
             <div class="loader-container">
@@ -22,8 +39,10 @@ export function showLoadingMessage(content, message = '') {
     }
 }
 
-// Helper: Overlay Full Screen Loader (es. per Login)
-export function showFullScreenLoader(message = '') {
+/**
+ * Show full screen loader overlay (e.g., for Login)
+ */
+export function showFullScreenLoader(): void {
     let loader = document.getElementById('full-screen-loader');
     if (!loader) {
         loader = document.createElement('div');
@@ -37,7 +56,10 @@ export function showFullScreenLoader(message = '') {
     loader.style.display = 'flex';
 }
 
-export function hideFullScreenLoader() {
+/**
+ * Hide full screen loader with fade out effect
+ */
+export function hideFullScreenLoader(): void {
     const loader = document.getElementById('full-screen-loader');
     if (loader) {
         // Fade out effect
@@ -50,39 +72,50 @@ export function hideFullScreenLoader() {
     }
 }
 
-// Helper: Mostra messaggio di errore (pattern ripetuto)
-export function showErrorMessage(content, error, defaultMessage = 'Errore di caricamento') {
+/**
+ * Show error message (repeated pattern)
+ */
+export function showErrorMessage(
+    content: HTMLElement | null,
+    error: unknown,
+    defaultMessage: string = 'Errore di caricamento'
+): void {
     if (content) {
-        const errorMsg = error?.message || error || defaultMessage;
+        const errorObj = error as { message?: string };
+        const errorMsg = errorObj?.message || (typeof error === 'string' ? error : null) || defaultMessage;
         content.innerHTML = `<span style="color:red">${escapeHtml(errorMsg)}</span>`;
     }
     console.error(defaultMessage, error);
 }
 
-// ---- Modal riutilizzabile ----
-export function openModal(title = "") {
+// ========== MODAL FUNCTIONS ==========
+
+/**
+ * Open reusable modal
+ */
+export function openModal(title: string = ""): void {
     let modal = document.getElementById('app-modal');
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'app-modal';
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3 id="modal-title"></h3>
-          <button id="modal-close-btn">&times;</button>
-        </div>
-        <div id="modal-body" class="modal-body"></div>
-      </div>
-    `;
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title"></h3>
+                    <button id="modal-close-btn">&times;</button>
+                </div>
+                <div id="modal-body" class="modal-body"></div>
+            </div>
+        `;
         document.body.appendChild(modal);
 
-        // Chiudi cliccando fuori
-        modal.addEventListener('click', (e) => {
+        // Close when clicking outside
+        modal.addEventListener('click', (e: Event) => {
             if (e.target === modal) closeModal();
         });
 
-        // Chiudi col tasto X
+        // Close with X button
         const closeBtn = modal.querySelector('#modal-close-btn');
         if (closeBtn) closeBtn.addEventListener('click', closeModal);
     }
@@ -91,30 +124,37 @@ export function openModal(title = "") {
     if (titleEl) titleEl.textContent = title;
 
     const bodyEl = modal.querySelector('#modal-body');
-    if (bodyEl) bodyEl.innerHTML = ''; // Pulisci contenuto precedente
+    if (bodyEl) bodyEl.innerHTML = ''; // Clear previous content
 
     modal.style.display = 'flex';
 }
 
-export function closeModal() {
+/**
+ * Close modal
+ */
+export function closeModal(): void {
     const modal = document.getElementById('app-modal');
     if (modal) {
         modal.style.display = 'none';
         const bodyEl = modal.querySelector('#modal-body');
-        if (bodyEl) bodyEl.innerHTML = ''; // Pulisci per evitare ID duplicati o listener pendenti
+        if (bodyEl) bodyEl.innerHTML = ''; // Clean to avoid duplicate IDs or pending listeners
     }
 }
 
-// Messaggio informativo (solo Ok)
-export function showInfoModal(message, title = 'Informazione') {
+/**
+ * Show info modal (only Ok button)
+ */
+export function showInfoModal(message: string, title: string = 'Informazione'): void {
     openModal(title);
     const target = document.getElementById('modal-body');
+    if (!target) return;
+
     target.innerHTML = `
-    <p style="margin-bottom:16px;">${escapeHtml(message)}</p>
-    <div style="text-align:right;">
-      <button id="info-modal-ok" class="menu-button">Ok</button>
-    </div>
-  `;
+        <p style="margin-bottom:16px;">${escapeHtml(message)}</p>
+        <div style="text-align:right;">
+            <button id="info-modal-ok" class="menu-button">Ok</button>
+        </div>
+    `;
 
     const okBtn = document.getElementById('info-modal-ok');
     if (okBtn) {
@@ -122,10 +162,19 @@ export function showInfoModal(message, title = 'Informazione') {
     }
 }
 
-export function openConfirmModal(message) {
+/**
+ * Show confirmation modal (Ok/Cancel)
+ * @returns Promise that resolves to true if confirmed, false if cancelled
+ */
+export function openConfirmModal(message: string): Promise<boolean> {
     return new Promise((resolve) => {
         openModal('Conferma');
         const target = document.getElementById('modal-body');
+        if (!target) {
+            resolve(false);
+            return;
+        }
+
         target.innerHTML = `
             <p>${escapeHtml(message)}</p>
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
@@ -137,32 +186,41 @@ export function openConfirmModal(message) {
         const okBtn = document.getElementById('confirm-ok');
         const cancelBtn = document.getElementById('confirm-cancel');
 
-        const handleOk = () => {
+        const handleOk = (): void => {
             closeModal();
             resolve(true);
         };
 
-        const handleCancel = () => {
+        const handleCancel = (): void => {
             closeModal();
             resolve(false);
         };
 
-        okBtn.addEventListener('click', handleOk, { once: true });
-        cancelBtn.addEventListener('click', handleCancel, { once: true });
+        if (okBtn) okBtn.addEventListener('click', handleOk, { once: true });
+        if (cancelBtn) cancelBtn.addEventListener('click', handleCancel, { once: true });
     });
 }
 
 /**
- * Mostra un modal di input (sostituto premium di prompt())
- * @param {string} message Messaggio da mostrare
- * @param {string} defaultValue Valore predefinito
- * @param {string} title Titolo del modal
- * @returns {Promise<string|null>} Il valore inserito o null se annullato
+ * Show prompt modal (premium replacement for prompt())
+ * @param message - Message to display
+ * @param defaultValue - Default value
+ * @param title - Modal title
+ * @returns Promise that resolves to the input value or null if cancelled
  */
-export function showPromptModal(message, defaultValue = '', title = 'Input Richiesto') {
+export function showPromptModal(
+    message: string,
+    defaultValue: string = '',
+    title: string = 'Input Richiesto'
+): Promise<string | null> {
     return new Promise((resolve) => {
         openModal(title);
         const target = document.getElementById('modal-body');
+        if (!target) {
+            resolve(null);
+            return;
+        }
+
         target.innerHTML = `
             <p style="margin-bottom: 15px;">${escapeHtml(message)}</p>
             <div class="form-group">
@@ -174,35 +232,47 @@ export function showPromptModal(message, defaultValue = '', title = 'Input Richi
             </div>
         `;
 
-        const input = document.getElementById('prompt-input');
+        const input = document.getElementById('prompt-input') as HTMLInputElement | null;
         const okBtn = document.getElementById('prompt-ok');
         const cancelBtn = document.getElementById('prompt-cancel');
 
-        // Focus automatico sull'input
+        // Auto-focus on input
         setTimeout(() => input?.focus(), 100);
 
-        const handleOk = () => {
-            const val = input.value;
+        const handleOk = (): void => {
+            const val = input?.value || '';
             closeModal();
             resolve(val);
         };
 
-        const handleCancel = () => {
+        const handleCancel = (): void => {
             closeModal();
             resolve(null);
         };
 
-        okBtn.addEventListener('click', handleOk, { once: true });
-        cancelBtn.addEventListener('click', handleCancel, { once: true });
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') handleOk();
-            if (e.key === 'Escape') handleCancel();
-        });
+        if (okBtn) okBtn.addEventListener('click', handleOk, { once: true });
+        if (cancelBtn) cancelBtn.addEventListener('click', handleCancel, { once: true });
+        if (input) {
+            input.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Enter') handleOk();
+                if (e.key === 'Escape') handleCancel();
+            });
+        }
     });
 }
 
-export function setButtonLoading(btn, isLoading, loadingText = 'Attendi...') {
+// ========== BUTTON STATE ==========
+
+/**
+ * Set button loading state
+ */
+export function setButtonLoading(
+    btn: HTMLButtonElement | null,
+    isLoading: boolean,
+    loadingText: string = 'Attendi...'
+): void {
     if (!btn) return;
+
     if (isLoading) {
         btn.dataset.originalText = btn.innerHTML;
         btn.disabled = true;

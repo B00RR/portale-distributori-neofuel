@@ -3,9 +3,9 @@
  * Refactored to use modular architecture (Router + Layout)
  */
 
-import { store } from "./shared/state.js";
-import { renderOperatorShell } from "./operator/layout.js";
-import { router } from "./operator/router.js";
+import { renderOperatorShell } from './operator/layout.js';
+import { router } from './operator/router.js';
+import { store } from './shared/state.js';
 
 /**
  * Mostra il menu principale dell'operatore
@@ -14,7 +14,7 @@ import { router } from "./operator/router.js";
  */
 export async function showOperatorMenu(userId, stationId) {
   const mainContent = document.getElementById('main-content');
-  if (!mainContent) return;
+  if (!mainContent) {return;}
 
   console.log('[Operator] Initializing Operator Area. User:', userId, 'Station:', stationId);
 

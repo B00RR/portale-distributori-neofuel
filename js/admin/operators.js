@@ -1,15 +1,15 @@
-import { supabase, safeSupabaseQuery } from "../core/api.js";
-import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from "../ui/ui.js";
-import { handleError } from "../shared/error-handler.js";
-import { escapeHtml } from "../utils/utils.js";
-import { Validators, validateForm, formatErrorMessages } from "../shared/validators.js";
-import { Toast } from "../ui/toast.js";
+import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
+import { Validators, validateForm, formatErrorMessages } from '../shared/validators.js';
+import { Toast } from '../ui/toast.js';
+import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from '../ui/ui.js';
+import { escapeHtml } from '../utils/utils.js';
 
 export async function showOperatorsTab(container, actionsContainer) {
   showLoadingMessage(container);
 
   if (actionsContainer) {
-    actionsContainer.innerHTML = `<button class="action-btn primary" id="add-operator-btn"><i class="fas fa-plus"></i> Nuovo Operatore</button>`;
+    actionsContainer.innerHTML = '<button class="action-btn primary" id="add-operator-btn"><i class="fas fa-plus"></i> Nuovo Operatore</button>';
     document.getElementById('add-operator-btn').addEventListener('click', () => openOperatorModal());
   }
 
@@ -25,7 +25,7 @@ export async function showOperatorsTab(container, actionsContainer) {
       `)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     if (!users || users.length === 0) {
       container.innerHTML = '<p>Nessun operatore trovato.</p>';
@@ -73,7 +73,7 @@ export async function showOperatorsTab(container, actionsContainer) {
       `;
     });
 
-    html += `</tbody></table></div>`;
+    html += '</tbody></table></div>';
     container.innerHTML = html;
 
     container.querySelectorAll('.edit-operator').forEach(btn => {
@@ -192,8 +192,8 @@ export async function openOperatorModal(userId = null) {
           body: { email, password, full_name: fullName, role }
         });
 
-        if (fnError) throw fnError;
-        if (fnData?.error) throw new Error(fnData.error);
+        if (fnError) {throw fnError;}
+        if (fnData?.error) {throw new Error(fnData.error);}
 
         Toast.show('Utente creato con successo (email pre-confermata)!', 'success');
       }
@@ -230,7 +230,7 @@ export async function openAssignStationModal(userId) {
   const stations = stationsRes.data || [];
   const currentStationId = currentRes.data?.station_id;
 
-  let html = `
+  const html = `
     <form id="assign-station-form">
       <div class="form-group">
         <label>Seleziona Stazione</label>

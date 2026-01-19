@@ -7,17 +7,18 @@
  */
 
 import { html, css } from 'lit';
+
 import { BaseComponent } from './BaseComponent.js';
 
 export class LoadingState extends BaseComponent {
-    static properties = {
-        message: { type: String },
-        size: { type: String }, // small, medium, large
-    };
+  static properties = {
+    message: { type: String },
+    size: { type: String } // small, medium, large
+  };
 
-    static styles = [
-        BaseComponent.styles,
-        css`
+  static styles = [
+    BaseComponent.styles,
+    css`
       .loading-container {
         display: flex;
         flex-direction: column;
@@ -60,22 +61,22 @@ export class LoadingState extends BaseComponent {
         }
       }
     `
-    ];
+  ];
 
-    constructor() {
-        super();
-        this.message = 'Caricamento...';
-        this.size = 'medium';
-    }
+  constructor() {
+    super();
+    this.message = 'Caricamento...';
+    this.size = 'medium';
+  }
 
-    render() {
-        return html`
+  render() {
+    return html`
       <div class="loading-container">
         <i class="fas fa-spinner spinner ${this.size}"></i>
         ${this.message ? html`<div class="message">${this.message}</div>` : ''}
       </div>
     `;
-    }
+  }
 }
 
 customElements.define('loading-state', LoadingState);

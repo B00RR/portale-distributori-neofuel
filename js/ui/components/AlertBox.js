@@ -9,19 +9,20 @@
  */
 
 import { html, css } from 'lit';
+
 import { BaseComponent } from './BaseComponent.js';
 
 export class AlertBox extends BaseComponent {
-    static properties = {
-        type: { type: String }, // info, success, warning, danger
-        dismissible: { type: Boolean },
-        icon: { type: String },
-        visible: { type: Boolean },
-    };
+  static properties = {
+    type: { type: String }, // info, success, warning, danger
+    dismissible: { type: Boolean },
+    icon: { type: String },
+    visible: { type: Boolean }
+  };
 
-    static styles = [
-        BaseComponent.styles,
-        css`
+  static styles = [
+    BaseComponent.styles,
+    css`
       .alert {
         padding: 1rem 1.25rem;
         margin-bottom: 1rem;
@@ -85,29 +86,29 @@ export class AlertBox extends BaseComponent {
         color: #721c24;
       }
     `
-    ];
+  ];
 
-    constructor() {
-        super();
-        this.type = 'info';
-        this.dismissible = false;
-        this.icon = '';
-        this.visible = true;
-    }
+  constructor() {
+    super();
+    this.type = 'info';
+    this.dismissible = false;
+    this.icon = '';
+    this.visible = true;
+  }
 
-    render() {
-        if (!this.visible) return html``;
+  render() {
+    if (!this.visible) {return html``;}
 
-        const defaultIcons = {
-            info: 'fa-info-circle',
-            success: 'fa-check-circle',
-            warning: 'fa-exclamation-triangle',
-            danger: 'fa-times-circle',
-        };
+    const defaultIcons = {
+      info: 'fa-info-circle',
+      success: 'fa-check-circle',
+      warning: 'fa-exclamation-triangle',
+      danger: 'fa-times-circle'
+    };
 
-        const iconClass = this.icon || defaultIcons[this.type] || 'fa-info-circle';
+    const iconClass = this.icon || defaultIcons[this.type] || 'fa-info-circle';
 
-        return html`
+    return html`
       <div class="alert ${this.type} ${this.visible ? '' : 'hidden'}" role="alert">
         <i class="fas ${iconClass} alert-icon"></i>
         <div class="alert-content">
@@ -120,20 +121,20 @@ export class AlertBox extends BaseComponent {
         ` : ''}
       </div>
     `;
-    }
+  }
 
-    _handleDismiss() {
-        this.visible = false;
-        this.emit('dismissed');
-    }
+  _handleDismiss() {
+    this.visible = false;
+    this.emit('dismissed');
+  }
 
-    show() {
-        this.visible = true;
-    }
+  show() {
+    this.visible = true;
+  }
 
-    hide() {
-        this.visible = false;
-    }
+  hide() {
+    this.visible = false;
+  }
 }
 
 customElements.define('alert-box', AlertBox);

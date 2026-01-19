@@ -1,23 +1,76 @@
-import { supabase } from "../core/api.js";
-import { showLoadingMessage, showErrorMessage } from "../ui/ui.js";
-import { formatEuro, formatLitri, getISODate } from "../utils/utils.js";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { supabase } from '../core/api.js';
+import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
+import { formatEuro, formatLitri, getISODate } from '../utils/utils.js';
+
+// --- TYPES ---
+declare global {
+    interface Window {
+        Chart: any;
+    }
+}
 
 // Hack: Cast window to 'any' to silence the editor error about 'Chart' missing
-const Chart = /** @type {any} */ (window).Chart;
+// We access it via window because it's loaded via CDN in index.html
+const Chart = (window as any).Chart;
 
+interface ClosingData {
+    ricavo_teorico?: number | string | null;
+    litri_benzina?: number | string | null;
+    litri_gasolio?: number | string | null;
+    soldi_contanti?: number | string | null;
+    soldi_pos_totale?: number | string | null;
+    soldi_crediti?: number | string | null;
+    soldi_voucher?: number | string | null;
+    [key: string]: any;
+}
+
+interface ShiftData {
+    closed_at: string;
+    closing_data: ClosingData | null;
+    station_id: number;
+}
+
+interface DayStats {
+    date: string;
+    revenue: number;
+    liters_benzina: number;
+    liters_gasolio: number;
+}
+
+interface AnalyticsTotals {
+    benzina: number;
+    gasolio: number;
+    contanti: number;
+    pos: number;
+    crediti: number;
+    voucher: number;
+    revenue: number;
+}
+
+interface AnalyticsResult {
+    daily: DayStats[];
+    totals: AnalyticsTotals;
+}
+
+type DateRange = '7d' | '30d' | 'month' | 'year';
+
+// --- STATE ---
+const charts: Record<string, any> = {}; // Store chart instances
+
+// --- MAIN FUNCTION ---
 /**
  * Main entry point for the Analytics Tab
- * @param {HTMLElement} container 
- * @param {HTMLElement} actionsContainer 
- * @param {number|null} stationFilter 
  */
-export async function showAnalyticsTab(container, actionsContainer, stationFilter = null) {
+export async function showAnalyticsTab(
+    container: HTMLElement,
+    _actionsContainer?: HTMLElement | null,
+    stationFilter: number | null = null
+): Promise<void> {
     showLoadingMessage(container);
 
     // Initial State
-    let dateRange = '30d'; // 7d, 30d, month, year
-    let customStartDate = null;
-    let customEndDate = null;
+    let dateRange: DateRange = '30d';
 
     // Render Layout
     container.innerHTML = `
@@ -75,13 +128,14 @@ export async function showAnalyticsTab(container, actionsContainer, stationFilte
     // Event Listeners for Controls
     container.querySelectorAll('button[data-range]').forEach(btn => {
         btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement;
+
             // UI Toggle
             container.querySelectorAll('button[data-range]').forEach(b => b.classList.remove('active'));
-            const target = /** @type {HTMLElement} */(e.target);
             target.classList.add('active');
 
             // Logic
-            dateRange = target.dataset.range;
+            dateRange = target.dataset.range as DateRange;
             await updateCharts(container, stationFilter, dateRange);
         });
     });
@@ -90,7 +144,11 @@ export async function showAnalyticsTab(container, actionsContainer, stationFilte
 /**
  * Fetches data and renders all charts
  */
-async function updateCharts(container, stationId, dateRange) {
+async function updateCharts(
+    container: HTMLElement,
+    stationId: number | null,
+    dateRange: DateRange
+): Promise<void> {
     // 1. Calculate Date Range
     const endDate = new Date();
     const startDate = new Date();
@@ -123,10 +181,10 @@ async function updateCharts(container, stationId, dateRange) {
         }
 
         const { data: shifts, error } = await query;
-        if (error) throw error;
+        if (error) { throw error; }
 
         // 3. Process Data
-        const aggregated = processAnalyticsData(shifts, startDate, endDate);
+        const aggregated = processAnalyticsData(shifts as ShiftData[], startDate, endDate);
 
         // 4. Render Charts (Lazy load Chart.js logic if needed, but assuming global Chart)
         if (Chart) {
@@ -135,7 +193,7 @@ async function updateCharts(container, stationId, dateRange) {
             renderPaymentChart(aggregated);
             renderFuelMixChart(aggregated);
         } else {
-            console.error("Chart.js not found");
+            console.error('Chart.js not found');
         }
 
     } catch (err) {
@@ -146,9 +204,9 @@ async function updateCharts(container, stationId, dateRange) {
 /**
  * Process raw shifts into daily and total aggregations
  */
-function processAnalyticsData(shifts, startDate, endDate) {
-    const days = {};
-    const totals = {
+function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Date): AnalyticsResult {
+    const days: Record<string, DayStats> = {};
+    const totals: AnalyticsTotals = {
         benzina: 0,
         gasolio: 0,
         contanti: 0,
@@ -159,17 +217,25 @@ function processAnalyticsData(shifts, startDate, endDate) {
     };
 
     // Initialize all days in range to 0 to ensure continuity in charts
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const iso = getISODate(d); // YYYY-MM-DD
+    // Create a new date object to avoid modifying startDate passed by reference
+    const currentDate = new Date(startDate);
+
+    // Safety check loop limit (e.g. 400 days) to prevent infinite loops if dates are wrong
+    let loopCount = 0;
+    while (currentDate <= endDate && loopCount < 400) {
+        const iso = getISODate(currentDate); // YYYY-MM-DD
         days[iso] = {
             date: iso,
             revenue: 0,
             liters_benzina: 0,
             liters_gasolio: 0
         };
+        currentDate.setDate(currentDate.getDate() + 1);
+        loopCount++;
     }
 
     shifts.forEach(s => {
+        if (!s.closed_at) return;
         const day = s.closed_at.substring(0, 10);
         const data = s.closing_data || {};
 
@@ -187,9 +253,7 @@ function processAnalyticsData(shifts, startDate, endDate) {
             totals.benzina += lb;
             totals.gasolio += lg;
 
-            // Payments (approximation from cash movements attached in closing_data usually? 
-            // Or we assume theoretical breakdown if stored.
-            // If `soldi_contanti`, `soldi_pos` etc are stored in closing_data (they should be from closure.js logic)
+            // Payments (approximation from cash movements attached in closing_data usually)
             totals.contanti += Number(data.soldi_contanti || 0);
             totals.pos += Number(data.soldi_pos_totale || 0); // Sum of all POS
             totals.crediti += Number(data.soldi_crediti || 0);
@@ -198,16 +262,14 @@ function processAnalyticsData(shifts, startDate, endDate) {
     });
 
     return {
-        daily: Object.values(days), // Array sorted by date implicitly if generated sequentially
+        daily: Object.values(days).sort((a, b) => a.date.localeCompare(b.date)),
         totals
     };
 }
 
-let charts = {}; // Store chart instances to destroy them before re-rendering
-
-function getChartContext(id) {
-    const ctx = document.getElementById(id);
-    if (!ctx) return null;
+function getChartContext(id: string): HTMLCanvasElement | null {
+    const ctx = document.getElementById(id) as HTMLCanvasElement;
+    if (!ctx) { return null; }
 
     // Destroy existing
     if (charts[id]) {
@@ -217,9 +279,9 @@ function getChartContext(id) {
     return ctx;
 }
 
-function renderRevenueChart(data) {
+function renderRevenueChart(data: AnalyticsResult): void {
     const ctx = getChartContext('revenue-chart');
-    if (!ctx) return;
+    if (!ctx) { return; }
 
     charts['revenue-chart'] = new Chart(ctx, {
         type: 'line',
@@ -238,15 +300,15 @@ function renderRevenueChart(data) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true, ticks: { callback: v => formatEuro(v) } }
+                y: { beginAtZero: true, ticks: { callback: (v: number) => formatEuro(v) } }
             }
         }
     });
 }
 
-function renderVolumeChart(data) {
+function renderVolumeChart(data: AnalyticsResult): void {
     const ctx = getChartContext('volume-chart');
-    if (!ctx) return;
+    if (!ctx) { return; }
 
     charts['volume-chart'] = new Chart(ctx, {
         type: 'bar',
@@ -273,16 +335,16 @@ function renderVolumeChart(data) {
                 y: {
                     stacked: true,
                     beginAtZero: true,
-                    ticks: { callback: v => formatLitri(v) }
+                    ticks: { callback: (v: number) => formatLitri(v) }
                 }
             }
         }
     });
 }
 
-function renderPaymentChart(data) {
+function renderPaymentChart(data: AnalyticsResult): void {
     const ctx = getChartContext('payments-chart');
-    if (!ctx) return;
+    if (!ctx) { return; }
 
     charts['payments-chart'] = new Chart(ctx, {
         type: 'doughnut',
@@ -303,9 +365,9 @@ function renderPaymentChart(data) {
     });
 }
 
-function renderFuelMixChart(data) {
+function renderFuelMixChart(data: AnalyticsResult): void {
     const ctx = getChartContext('fuels-chart');
-    if (!ctx) return;
+    if (!ctx) { return; }
 
     charts['fuels-chart'] = new Chart(ctx, {
         type: 'pie',

@@ -8,276 +8,277 @@
 //   - Sezione "Layout": configurazione layout Admin e Operatore
 // ============================================================
 
-import { supabase, safeSupabaseQuery } from "../core/api.js";
-import { Toast } from "./toast.js";
-import { renderConfigPanel } from "../admin/dashboard-config.js";
-import { openConfirmModal, showInfoModal } from "./ui.js";
+import { renderConfigPanel } from '../admin/dashboard-config.js';
+import { supabase, safeSupabaseQuery } from '../core/api.js';
+
+import { Toast } from './toast.js';
+import { openConfirmModal, showInfoModal } from './ui.js';
 
 const UI_FIELDS = [
   {
-    key: "primary_color",
-    label: "Colore primario",
-    type: "color",
-    cssVar: "--primary-color",
-    defaultValue: "#0A2342",
-    description: "Colore di pulsanti e link principali"
+    key: 'primary_color',
+    label: 'Colore primario',
+    type: 'color',
+    cssVar: '--primary-color',
+    defaultValue: '#0A2342',
+    description: 'Colore di pulsanti e link principali'
   },
   {
-    key: "accent_color",
-    label: "Colore accento",
-    type: "color",
-    cssVar: "--accent-color",
-    defaultValue: "#8DC63F",
-    description: "Colori di evidenza e stati positivi"
+    key: 'accent_color',
+    label: 'Colore accento',
+    type: 'color',
+    cssVar: '--accent-color',
+    defaultValue: '#8DC63F',
+    description: 'Colori di evidenza e stati positivi'
   },
   {
-    key: "bg_body",
-    label: "Sfondo pagina",
-    type: "color",
-    cssVar: "--bg-body",
-    defaultValue: "#F4F6F8",
+    key: 'bg_body',
+    label: 'Sfondo pagina',
+    type: 'color',
+    cssVar: '--bg-body',
+    defaultValue: '#F4F6F8',
     description: "Background generale dell'app"
   },
   {
-    key: "bg_sidebar",
-    label: "Sfondo sidebar",
-    type: "color",
-    cssVar: "--bg-sidebar",
-    defaultValue: "#0A2342",
-    description: "Colonna di navigazione area admin"
+    key: 'bg_sidebar',
+    label: 'Sfondo sidebar',
+    type: 'color',
+    cssVar: '--bg-sidebar',
+    defaultValue: '#0A2342',
+    description: 'Colonna di navigazione area admin'
   },
   {
-    key: "sidebar_hover",
-    label: "Hover sidebar",
-    type: "color",
-    cssVar: "--bg-sidebar-hover",
-    defaultValue: "#123561",
-    description: "Colore della voce attiva/hover"
+    key: 'sidebar_hover',
+    label: 'Hover sidebar',
+    type: 'color',
+    cssVar: '--bg-sidebar-hover',
+    defaultValue: '#123561',
+    description: 'Colore della voce attiva/hover'
   },
   {
-    key: "text_main",
-    label: "Colore testo",
-    type: "color",
-    cssVar: "--text-main",
-    defaultValue: "#333333",
+    key: 'text_main',
+    label: 'Colore testo',
+    type: 'color',
+    cssVar: '--text-main',
+    defaultValue: '#333333',
     description: "Testi principali in tutta l'app"
   },
   {
-    key: "button_radius",
-    label: "Raggio bordi pulsanti",
-    type: "text",
-    cssVar: "--radius-sm",
-    defaultValue: "6px",
-    description: "Esempio: 6px, 999px per pill, ecc."
+    key: 'button_radius',
+    label: 'Raggio bordi pulsanti',
+    type: 'text',
+    cssVar: '--radius-sm',
+    defaultValue: '6px',
+    description: 'Esempio: 6px, 999px per pill, ecc.'
   },
   {
-    key: "font_family",
-    label: "Font principale",
-    type: "text",
+    key: 'font_family',
+    label: 'Font principale',
+    type: 'text',
     defaultValue: "'Inter', 'Segoe UI', Roboto, sans-serif",
     description: "Stack di caratteri per tutta l'app"
   },
   {
-    key: "login_tagline",
-    label: "Sottotitolo login",
-    type: "text",
-    defaultValue: "Portale Distributori",
-    description: "Testo sotto il logo in schermata di login"
+    key: 'login_tagline',
+    label: 'Sottotitolo login',
+    type: 'text',
+    defaultValue: 'Portale Distributori',
+    description: 'Testo sotto il logo in schermata di login'
   },
   // Icone Admin
   {
-    key: "admin_icon_dashboard",
-    label: "Dashboard",
-    type: "text",
-    defaultValue: "fas fa-chart-line",
-    description: "Icona menu Dashboard (es: fas fa-chart-line o codice SVG)",
-    category: "icon_admin"
+    key: 'admin_icon_dashboard',
+    label: 'Dashboard',
+    type: 'text',
+    defaultValue: 'fas fa-chart-line',
+    description: 'Icona menu Dashboard (es: fas fa-chart-line o codice SVG)',
+    category: 'icon_admin'
   },
   {
-    key: "admin_icon_stations",
-    label: "Distributori",
-    type: "text",
-    defaultValue: "fas fa-gas-pump",
-    description: "Icona menu Distributori",
-    category: "icon_admin"
+    key: 'admin_icon_stations',
+    label: 'Distributori',
+    type: 'text',
+    defaultValue: 'fas fa-gas-pump',
+    description: 'Icona menu Distributori',
+    category: 'icon_admin'
   },
   {
-    key: "admin_icon_operators",
-    label: "Operatori",
-    type: "text",
-    defaultValue: "fas fa-users",
-    description: "Icona menu Operatori",
-    category: "icon_admin"
+    key: 'admin_icon_operators',
+    label: 'Operatori',
+    type: 'text',
+    defaultValue: 'fas fa-users',
+    description: 'Icona menu Operatori',
+    category: 'icon_admin'
   },
   {
-    key: "admin_icon_chiusure",
-    label: "Chiusure",
-    type: "text",
-    defaultValue: "fas fa-file-invoice-dollar",
-    description: "Icona menu Chiusure",
-    category: "icon_admin"
+    key: 'admin_icon_chiusure',
+    label: 'Chiusure',
+    type: 'text',
+    defaultValue: 'fas fa-file-invoice-dollar',
+    description: 'Icona menu Chiusure',
+    category: 'icon_admin'
   },
   {
-    key: "admin_icon_crediti",
-    label: "Crediti",
-    type: "text",
-    defaultValue: "fas fa-credit-card",
-    description: "Icona menu Crediti",
-    category: "icon_admin"
+    key: 'admin_icon_crediti',
+    label: 'Crediti',
+    type: 'text',
+    defaultValue: 'fas fa-credit-card',
+    description: 'Icona menu Crediti',
+    category: 'icon_admin'
   },
   {
-    key: "admin_icon_fatture",
-    label: "Fatture",
-    type: "text",
-    defaultValue: "fas fa-file-invoice",
-    description: "Icona menu Fatture",
-    category: "icon_admin"
+    key: 'admin_icon_fatture',
+    label: 'Fatture',
+    type: 'text',
+    defaultValue: 'fas fa-file-invoice',
+    description: 'Icona menu Fatture',
+    category: 'icon_admin'
   },
   {
-    key: "admin_icon_vouchers",
-    label: "Voucher",
-    type: "text",
-    defaultValue: "fas fa-ticket-alt",
-    description: "Icona menu Voucher",
-    category: "icon_admin"
+    key: 'admin_icon_vouchers',
+    label: 'Voucher',
+    type: 'text',
+    defaultValue: 'fas fa-ticket-alt',
+    description: 'Icona menu Voucher',
+    category: 'icon_admin'
   },
   {
-    key: "admin_icon_notifiche",
-    label: "Notifiche",
-    type: "text",
-    defaultValue: "fas fa-bell",
-    description: "Icona menu Notifiche",
-    category: "icon_admin"
+    key: 'admin_icon_notifiche',
+    label: 'Notifiche',
+    type: 'text',
+    defaultValue: 'fas fa-bell',
+    description: 'Icona menu Notifiche',
+    category: 'icon_admin'
   },
   {
-    key: "admin_icon_settings",
-    label: "Impostazioni",
-    type: "text",
-    defaultValue: "fas fa-cog",
-    description: "Icona menu Impostazioni",
-    category: "icon_admin"
+    key: 'admin_icon_settings',
+    label: 'Impostazioni',
+    type: 'text',
+    defaultValue: 'fas fa-cog',
+    description: 'Icona menu Impostazioni',
+    category: 'icon_admin'
   },
   {
-    key: "admin_icon_logout",
-    label: "Esci",
-    type: "text",
-    defaultValue: "fas fa-sign-out-alt",
-    description: "Icona bottone Esci",
-    category: "icon_admin"
+    key: 'admin_icon_logout',
+    label: 'Esci',
+    type: 'text',
+    defaultValue: 'fas fa-sign-out-alt',
+    description: 'Icona bottone Esci',
+    category: 'icon_admin'
   },
   // Icone Operatore
   {
-    key: "operator_icon_turno",
-    label: "Apertura/Chiusura",
-    type: "text",
-    defaultValue: "fas fa-door-open",
-    description: "Icona bottone Apertura/Chiusura",
-    category: "icon_operator"
+    key: 'operator_icon_turno',
+    label: 'Apertura/Chiusura',
+    type: 'text',
+    defaultValue: 'fas fa-door-open',
+    description: 'Icona bottone Apertura/Chiusura',
+    category: 'icon_operator'
   },
   {
-    key: "operator_icon_movimenti",
-    label: "Movimenti",
-    type: "text",
-    defaultValue: "fas fa-exchange-alt",
-    description: "Icona menu Movimenti",
-    category: "icon_operator"
+    key: 'operator_icon_movimenti',
+    label: 'Movimenti',
+    type: 'text',
+    defaultValue: 'fas fa-exchange-alt',
+    description: 'Icona menu Movimenti',
+    category: 'icon_operator'
   },
   {
-    key: "operator_icon_crediti",
-    label: "Crediti",
-    type: "text",
-    defaultValue: "fas fa-credit-card",
-    description: "Icona sottomenu Crediti",
-    category: "icon_operator"
+    key: 'operator_icon_crediti',
+    label: 'Crediti',
+    type: 'text',
+    defaultValue: 'fas fa-credit-card',
+    description: 'Icona sottomenu Crediti',
+    category: 'icon_operator'
   },
   {
-    key: "operator_icon_voucher",
-    label: "Voucher",
-    type: "text",
-    defaultValue: "fas fa-ticket-alt",
-    description: "Icona sottomenu Voucher",
-    category: "icon_operator"
+    key: 'operator_icon_voucher',
+    label: 'Voucher',
+    type: 'text',
+    defaultValue: 'fas fa-ticket-alt',
+    description: 'Icona sottomenu Voucher',
+    category: 'icon_operator'
   },
   {
-    key: "operator_icon_uscite",
-    label: "Uscite",
-    type: "text",
-    defaultValue: "fas fa-hand-holding-usd",
-    description: "Icona sottomenu Uscite",
-    category: "icon_operator"
+    key: 'operator_icon_uscite',
+    label: 'Uscite',
+    type: 'text',
+    defaultValue: 'fas fa-hand-holding-usd',
+    description: 'Icona sottomenu Uscite',
+    category: 'icon_operator'
   },
   {
-    key: "operator_icon_incassi",
-    label: "Incassi",
-    type: "text",
-    defaultValue: "fas fa-cash-register",
-    description: "Icona sottomenu Incassi",
-    category: "icon_operator"
+    key: 'operator_icon_incassi',
+    label: 'Incassi',
+    type: 'text',
+    defaultValue: 'fas fa-cash-register',
+    description: 'Icona sottomenu Incassi',
+    category: 'icon_operator'
   },
   {
-    key: "operator_icon_fatture",
-    label: "Fatture",
-    type: "text",
-    defaultValue: "fas fa-file-invoice",
-    description: "Icona menu Fatture",
-    category: "icon_operator"
+    key: 'operator_icon_fatture',
+    label: 'Fatture',
+    type: 'text',
+    defaultValue: 'fas fa-file-invoice',
+    description: 'Icona menu Fatture',
+    category: 'icon_operator'
   },
   {
-    key: "operator_icon_prezzi",
-    label: "Prezzi",
-    type: "text",
-    defaultValue: "fas fa-tags",
-    description: "Icona menu Prezzi",
-    category: "icon_operator"
+    key: 'operator_icon_prezzi',
+    label: 'Prezzi',
+    type: 'text',
+    defaultValue: 'fas fa-tags',
+    description: 'Icona menu Prezzi',
+    category: 'icon_operator'
   },
   {
-    key: "operator_icon_logout",
-    label: "Esci",
-    type: "text",
-    defaultValue: "fas fa-sign-out-alt",
-    description: "Icona bottone Esci",
-    category: "icon_operator"
+    key: 'operator_icon_logout',
+    label: 'Esci',
+    type: 'text',
+    defaultValue: 'fas fa-sign-out-alt',
+    description: 'Icona bottone Esci',
+    category: 'icon_operator'
   },
   // Icone Azioni Distributori (Admin)
   {
-    key: "station_action_icon_edit",
-    label: "Modifica",
-    type: "text",
-    defaultValue: "fas fa-edit",
-    description: "Icona azione Modifica distributore",
-    category: "icon_station_actions"
+    key: 'station_action_icon_edit',
+    label: 'Modifica',
+    type: 'text',
+    defaultValue: 'fas fa-edit',
+    description: 'Icona azione Modifica distributore',
+    category: 'icon_station_actions'
   },
   {
-    key: "station_action_icon_prices",
-    label: "Prezzi",
-    type: "text",
-    defaultValue: "fas fa-tag",
-    description: "Icona azione Prezzi distributore",
-    category: "icon_station_actions"
+    key: 'station_action_icon_prices',
+    label: 'Prezzi',
+    type: 'text',
+    defaultValue: 'fas fa-tag',
+    description: 'Icona azione Prezzi distributore',
+    category: 'icon_station_actions'
   },
   {
-    key: "station_action_icon_islands",
-    label: "Isole e Pistole",
-    type: "text",
-    defaultValue: "fas fa-gas-pump",
-    description: "Icona azione Isole e Pistole",
-    category: "icon_station_actions"
+    key: 'station_action_icon_islands',
+    label: 'Isole e Pistole',
+    type: 'text',
+    defaultValue: 'fas fa-gas-pump',
+    description: 'Icona azione Isole e Pistole',
+    category: 'icon_station_actions'
   },
   {
-    key: "station_action_icon_tanks",
-    label: "Cisterne",
-    type: "text",
-    defaultValue: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="7" width="22" height="11" rx="5.5" /><rect x="14" y="3" width="7" height="4" rx="1" /><rect x="4" y="18" width="3" height="3" rx="1" /><rect x="17" y="18" width="3" height="3" rx="1" /><path d="M9 15.5l2-3.5 2 3.5H9z" fill="white" /></svg>`,
-    description: "Icona azione Cisterne distributore",
-    category: "icon_station_actions"
+    key: 'station_action_icon_tanks',
+    label: 'Cisterne',
+    type: 'text',
+    defaultValue: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="7" width="22" height="11" rx="5.5" /><rect x="14" y="3" width="7" height="4" rx="1" /><rect x="4" y="18" width="3" height="3" rx="1" /><rect x="17" y="18" width="3" height="3" rx="1" /><path d="M9 15.5l2-3.5 2 3.5H9z" fill="white" /></svg>',
+    description: 'Icona azione Cisterne distributore',
+    category: 'icon_station_actions'
   },
   {
-    key: "station_action_icon_delete",
-    label: "Elimina",
-    type: "text",
-    defaultValue: "fas fa-trash",
-    description: "Icona azione Elimina distributore",
-    category: "icon_station_actions"
+    key: 'station_action_icon_delete',
+    label: 'Elimina',
+    type: 'text',
+    defaultValue: 'fas fa-trash',
+    description: 'Icona azione Elimina distributore',
+    category: 'icon_station_actions'
   }
 ];
 
@@ -293,7 +294,7 @@ let settingsLoaded = false;
 // Helpers
 // -------------------------------------
 function escapeHtml(text) {
-  const div = document.createElement("div");
+  const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
@@ -303,7 +304,7 @@ function fileToBase64(file) {
     const reader = new FileReader();
     reader.onload = () => {
       // Rimuovi il prefisso "data:image/...;base64," per salvare solo il base64
-      const base64 = reader.result.split(",")[1];
+      const base64 = reader.result.split(',')[1];
       resolve(base64);
     };
     reader.onerror = reject;
@@ -313,22 +314,22 @@ function fileToBase64(file) {
 
 function setupIconImageHandlers(form) {
   // Gestione caricamento immagini per icone
-  form.querySelectorAll("input[data-icon-image-input]").forEach((fileInput) => {
-    fileInput.addEventListener("change", async (e) => {
+  form.querySelectorAll('input[data-icon-image-input]').forEach((fileInput) => {
+    fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (!file) {return;}
 
       // Verifica che sia un'immagine
-      if (!file.type.startsWith("image/")) {
-        Toast.show("Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.).", 'warning');
-        e.target.value = "";
+      if (!file.type.startsWith('image/')) {
+        Toast.show('Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.).', 'warning');
+        e.target.value = '';
         return;
       }
 
       // Limita dimensione a 500KB
       if (file.size > 500 * 1024) {
         Toast.show("L'immagine è troppo grande. Massimo 500KB.", 'warning');
-        e.target.value = "";
+        e.target.value = '';
         return;
       }
 
@@ -341,7 +342,7 @@ function setupIconImageHandlers(form) {
         // Aggiorna campo nascosto
         const textInput = form.querySelector(`input[name="${fieldKey}"]`);
         if (textInput) {
-          textInput.value = ""; // Pulisci campo testo quando carichi immagine
+          textInput.value = ''; // Pulisci campo testo quando carichi immagine
         }
 
         // Salva temporaneamente e applica
@@ -350,7 +351,7 @@ function setupIconImageHandlers(form) {
         await applyIconsSettings(tempSettings);
 
         // Ricarica il pannello per mostrare l'anteprima
-        const panel = form.closest(".ui-appearance-panel");
+        const panel = form.closest('.ui-appearance-panel');
         if (panel) {
           const currentSettings = await fetchUiSettings();
           const iconsSection = panel.querySelector('[data-appearance-section-content="icons"]');
@@ -360,19 +361,19 @@ function setupIconImageHandlers(form) {
           }
         }
       } catch (err) {
-        console.error("Errore nel caricamento immagine:", err);
+        console.error('Errore nel caricamento immagine:', err);
         Toast.show("Errore nel caricamento dell'immagine: " + err.message, 'error');
-        e.target.value = "";
+        e.target.value = '';
       }
     });
   });
 
   // Gestione rimozione immagini
-  form.querySelectorAll("button[data-icon-remove-image]").forEach((removeBtn) => {
-    removeBtn.addEventListener("click", async (e) => {
+  form.querySelectorAll('button[data-icon-remove-image]').forEach((removeBtn) => {
+    removeBtn.addEventListener('click', async (e) => {
       const fieldKey = removeBtn.dataset.iconRemoveImage;
       const field = UI_FIELDS.find(f => f.key === fieldKey);
-      const defaultValue = field?.defaultValue || "";
+      const defaultValue = field?.defaultValue || '';
 
       // Ripristina valore di default
       const textInput = form.querySelector(`input[name="${fieldKey}"]`);
@@ -386,7 +387,7 @@ function setupIconImageHandlers(form) {
       await applyIconsSettings(tempSettings);
 
       // Ricarica il pannello
-      const panel = form.closest(".ui-appearance-panel");
+      const panel = form.closest('.ui-appearance-panel');
       if (panel) {
         const currentSettings = await fetchUiSettings();
         const iconsSection = panel.querySelector('[data-appearance-section-content="icons"]');
@@ -406,9 +407,9 @@ function setupIconImageHandlers(form) {
 let settingsLoadPromise = null;
 
 function preloadSettings() {
-  if (settingsLoadPromise) return settingsLoadPromise;
+  if (settingsLoadPromise) {return settingsLoadPromise;}
   settingsLoadPromise = (async () => {
-    if (cachedSettings) return cachedSettings;
+    if (cachedSettings) {return cachedSettings;}
     try {
       // Applica defaults immediatamente per non bloccare il rendering
       if (!cachedSettings) {
@@ -418,19 +419,19 @@ function preloadSettings() {
       }
 
       // Carica da Supabase in background
-      const { data, error } = await supabase.from("ui_settings").select("key,value");
-      if (error) throw error;
+      const { data, error } = await supabase.from('ui_settings').select('key,value');
+      if (error) {throw error;}
 
       if (Array.isArray(data)) {
         data.forEach((row) => {
-          if (row?.key && typeof row.value === "string") {
+          if (row?.key && typeof row.value === 'string') {
             cachedSettings[row.key] = row.value;
           }
         });
       }
       return cachedSettings;
     } catch (err) {
-      console.warn("[UI Settings] Tabella mancante o non accessibile, uso defaults:", err.message);
+      console.warn('[UI Settings] Tabella mancante o non accessibile, uso defaults:', err.message);
       if (!cachedSettings) {
         cachedSettings = { ...DEFAULT_SETTINGS };
       }
@@ -447,15 +448,15 @@ function applyDefaultsImmediately() {
     if (field.cssVar) {
       root.style.setProperty(field.cssVar, field.defaultValue);
     }
-    if (field.key === "font_family") {
+    if (field.key === 'font_family') {
       document.body.style.fontFamily = field.defaultValue;
-      root.style.setProperty("--app-font-family", field.defaultValue);
+      root.style.setProperty('--app-font-family', field.defaultValue);
     }
   });
 }
 
 async function fetchUiSettings() {
-  if (cachedSettings) return cachedSettings;
+  if (cachedSettings) {return cachedSettings;}
   return await preloadSettings();
 }
 
@@ -466,11 +467,11 @@ async function saveUiSettings(values) {
     updated_at: new Date().toISOString()
   }));
   await safeSupabaseQuery(() =>
-    supabase.from("ui_settings").upsert(rows, { onConflict: "key" })
+    supabase.from('ui_settings').upsert(rows, { onConflict: 'key' })
   );
 
   // Aggiorna cache con i nuovi valori invece di invalidarla
-  if (!cachedSettings) cachedSettings = { ...DEFAULT_SETTINGS };
+  if (!cachedSettings) {cachedSettings = { ...DEFAULT_SETTINGS };}
   Object.assign(cachedSettings, values);
 
   // Applica tutte le impostazioni in parallelo usando la cache aggiornata
@@ -495,13 +496,13 @@ async function applyUiSettings(overrideSettings = null) {
     if (field.cssVar) {
       root.style.setProperty(field.cssVar, value);
     }
-    if (field.key === "font_family") {
+    if (field.key === 'font_family') {
       document.body.style.fontFamily = value;
-      root.style.setProperty("--app-font-family", value);
+      root.style.setProperty('--app-font-family', value);
     }
   });
 
-  document.querySelectorAll(".login-tagline").forEach((el) => {
+  document.querySelectorAll('.login-tagline').forEach((el) => {
     el.textContent = settings.login_tagline || DEFAULT_SETTINGS.login_tagline;
   });
 
@@ -513,10 +514,10 @@ async function applyUiSettings(overrideSettings = null) {
 // -------------------------------------
 function watchSettingsTab() {
   const observer = new MutationObserver(() => {
-    const shell = document.querySelector(".settings-shell");
-    const tabs = document.querySelector(".settings-tabs");
+    const shell = document.querySelector('.settings-shell');
+    const tabs = document.querySelector('.settings-tabs');
     if (shell && tabs && !shell.dataset.uiAppearanceReady) {
-      shell.dataset.uiAppearanceReady = "true";
+      shell.dataset.uiAppearanceReady = 'true';
       injectAppearanceTab(shell, tabs);
     }
   });
@@ -525,23 +526,23 @@ function watchSettingsTab() {
 }
 
 function injectAppearanceTab(shell, tabs) {
-  const panelsWrapper = shell.querySelector(".content-box[data-settings-panel]");
-  if (!tabs || !panelsWrapper) return;
+  const panelsWrapper = shell.querySelector('.content-box[data-settings-panel]');
+  if (!tabs || !panelsWrapper) {return;}
 
-  const tabBtn = document.createElement("button");
-  tabBtn.className = "settings-tab";
-  tabBtn.dataset.settingsTab = "appearance";
-  tabBtn.innerHTML = `<i class="fas fa-palette"></i> Aspetto`;
+  const tabBtn = document.createElement('button');
+  tabBtn.className = 'settings-tab';
+  tabBtn.dataset.settingsTab = 'appearance';
+  tabBtn.innerHTML = '<i class="fas fa-palette"></i> Aspetto';
 
-  const panel = document.createElement("div");
-  panel.className = "content-box settings-panel";
-  panel.dataset.settingsPanel = "appearance";
-  panel.innerHTML = `<div class="ui-appearance-panel"><p>Caricamento impostazioni...</p></div>`;
+  const panel = document.createElement('div');
+  panel.className = 'content-box settings-panel';
+  panel.dataset.settingsPanel = 'appearance';
+  panel.innerHTML = '<div class="ui-appearance-panel"><p>Caricamento impostazioni...</p></div>';
 
   tabs.appendChild(tabBtn);
   shell.appendChild(panel);
 
-  tabBtn.addEventListener("click", () => activateSettingsTab("appearance", shell));
+  tabBtn.addEventListener('click', () => activateSettingsTab('appearance', shell));
 
   renderAppearancePanel(panel);
   ensureTabSwitching(shell);
@@ -549,8 +550,8 @@ function injectAppearanceTab(shell, tabs) {
 
 
 function ensureTabSwitching(shell) {
-  shell.querySelectorAll(".settings-tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
+  shell.querySelectorAll('.settings-tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
       const target = btn.dataset.settingsTab;
       activateSettingsTab(target, shell);
     });
@@ -558,11 +559,11 @@ function ensureTabSwitching(shell) {
 }
 
 function activateSettingsTab(targetKey, shell) {
-  shell.querySelectorAll(".settings-tab").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.settingsTab === targetKey);
+  shell.querySelectorAll('.settings-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.settingsTab === targetKey);
   });
-  shell.querySelectorAll(".settings-panel").forEach((panel) => {
-    panel.classList.toggle("active", panel.dataset.settingsPanel === targetKey);
+  shell.querySelectorAll('.settings-panel').forEach((panel) => {
+    panel.classList.toggle('active', panel.dataset.settingsPanel === targetKey);
   });
 }
 
@@ -570,9 +571,9 @@ async function renderAppearancePanel(panel) {
   const settings = await fetchUiSettings();
 
   // Raggruppa i campi per categoria
-  const colorFields = UI_FIELDS.filter(f => f.type === "color");
-  const typographyFields = UI_FIELDS.filter(f => f.key === "font_family" || f.key === "button_radius");
-  const textFields = UI_FIELDS.filter(f => f.key === "login_tagline");
+  const colorFields = UI_FIELDS.filter(f => f.type === 'color');
+  const typographyFields = UI_FIELDS.filter(f => f.key === 'font_family' || f.key === 'button_radius');
+  const textFields = UI_FIELDS.filter(f => f.key === 'login_tagline');
 
   const renderColorField = (field) => {
     const value = settings[field.key] ?? field.defaultValue;
@@ -687,7 +688,7 @@ async function renderAppearancePanel(panel) {
             </h4>
             <p class="ui-section-hint">Personalizza i colori principali dell'applicazione</p>
             <div class="ui-colors-grid">
-              ${colorFields.map(renderColorField).join("")}
+              ${colorFields.map(renderColorField).join('')}
             </div>
           </div>
         </div>
@@ -700,7 +701,7 @@ async function renderAppearancePanel(panel) {
               <span>Tipografia e Stile</span>
             </h4>
             <div class="ui-typography-grid">
-              ${typographyFields.map(renderTextField).join("")}
+              ${typographyFields.map(renderTextField).join('')}
             </div>
           </div>
           <div class="ui-section-box">
@@ -709,7 +710,7 @@ async function renderAppearancePanel(panel) {
               <span>Testi Interfaccia</span>
             </h4>
             <div class="ui-text-fields-wrapper">
-              ${textFields.map(renderTextField).join("")}
+              ${textFields.map(renderTextField).join('')}
             </div>
           </div>
         </div>
@@ -775,28 +776,28 @@ async function renderAppearancePanel(panel) {
     </div>
   `;
 
-  const form = panel.querySelector("#ui-appearance-form");
-  const resetBtn = panel.querySelector("[data-ui-reset]");
+  const form = panel.querySelector('#ui-appearance-form');
+  const resetBtn = panel.querySelector('[data-ui-reset]');
 
   // Tab switching interno
-  panel.querySelectorAll(".ui-appearance-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
+  panel.querySelectorAll('.ui-appearance-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
       const section = tab.dataset.appearanceSection;
-      panel.querySelectorAll(".ui-appearance-tab").forEach((t) => t.classList.remove("active"));
-      panel.querySelectorAll(".ui-appearance-section").forEach((s) => s.classList.remove("active"));
-      tab.classList.add("active");
-      panel.querySelector(`[data-appearance-section-content="${section}"]`)?.classList.add("active");
+      panel.querySelectorAll('.ui-appearance-tab').forEach((t) => t.classList.remove('active'));
+      panel.querySelectorAll('.ui-appearance-section').forEach((s) => s.classList.remove('active'));
+      tab.classList.add('active');
+      panel.querySelector(`[data-appearance-section-content="${section}"]`)?.classList.add('active');
     });
   });
 
   // Sincronizza color picker con hex
-  form.querySelectorAll(".ui-color-picker").forEach((picker) => {
+  form.querySelectorAll('.ui-color-picker').forEach((picker) => {
     const fieldKey = picker.name;
     const hexInput = form.querySelector(`input[name="${fieldKey}_hex"]`);
 
-    picker.addEventListener("input", (e) => {
+    picker.addEventListener('input', (e) => {
       const value = e.target.value.toUpperCase();
-      if (hexInput) hexInput.value = value;
+      if (hexInput) {hexInput.value = value;}
 
       const field = UI_FIELDS.find((f) => f.key === fieldKey);
       if (field?.cssVar) {
@@ -806,15 +807,15 @@ async function renderAppearancePanel(panel) {
   });
 
   // Aggiorna picker quando cambia hex (se modificato manualmente)
-  form.querySelectorAll(".ui-color-hex").forEach((hexInput) => {
-    const fieldKey = hexInput.name.replace("_hex", "");
+  form.querySelectorAll('.ui-color-hex').forEach((hexInput) => {
+    const fieldKey = hexInput.name.replace('_hex', '');
     const picker = form.querySelector(`input[name="${fieldKey}"]`);
     if (picker) {
-      hexInput.addEventListener("input", (e) => {
+      hexInput.addEventListener('input', (e) => {
         const hex = e.target.value;
         if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
           picker.value = hex;
-          picker.dispatchEvent(new Event("input"));
+          picker.dispatchEvent(new Event('input'));
         }
       });
     }
@@ -831,20 +832,20 @@ async function renderAppearancePanel(panel) {
 
 
   // Gestione altri campi (testi, font, componenti, ecc.)
-  form.addEventListener("input", (event) => {
+  form.addEventListener('input', (event) => {
     const { name, value } = event.target;
-    if (name.endsWith("_hex")) return; // Skip hex fields, già gestiti sopra
+    if (name.endsWith('_hex')) {return;} // Skip hex fields, già gestiti sopra
 
     // Campi UI base
     const field = UI_FIELDS.find((f) => f.key === name);
     if (field?.cssVar) {
       document.documentElement.style.setProperty(field.cssVar, value);
     }
-    if (name === "font_family") {
+    if (name === 'font_family') {
       document.body.style.fontFamily = value;
     }
-    if (name === "login_tagline") {
-      document.querySelectorAll(".login-tagline").forEach((el) => {
+    if (name === 'login_tagline') {
+      document.querySelectorAll('.login-tagline').forEach((el) => {
         el.textContent = value;
       });
     }
@@ -856,7 +857,7 @@ async function renderAppearancePanel(panel) {
     applyFormsSettings({ [name]: value });
   });
 
-  form.addEventListener("submit", async (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formData = new FormData(form);
     const payload = {};
@@ -869,7 +870,7 @@ async function renderAppearancePanel(panel) {
 
     // Salva campi Componenti
     [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables,
-    ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((field) => {
+      ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((field) => {
       const value = formData.get(field.key);
       payload[field.key] = value || field.defaultValue;
     });
@@ -881,14 +882,14 @@ async function renderAppearancePanel(panel) {
     });
 
     // Salva campi Responsive
-    const responsiveBreakpoint = formData.get("responsive_mobile_breakpoint");
-    const responsiveCollapse = formData.get("responsive_sidebar_collapse");
-    if (responsiveBreakpoint) payload.responsive_mobile_breakpoint = responsiveBreakpoint;
-    if (responsiveCollapse) payload.responsive_sidebar_collapse = responsiveCollapse;
+    const responsiveBreakpoint = formData.get('responsive_mobile_breakpoint');
+    const responsiveCollapse = formData.get('responsive_sidebar_collapse');
+    if (responsiveBreakpoint) {payload.responsive_mobile_breakpoint = responsiveBreakpoint;}
+    if (responsiveCollapse) {payload.responsive_sidebar_collapse = responsiveCollapse;}
 
     // Salva campi Layout Admin
     [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
-    ...ADMIN_LAYOUT_FIELDS.spacing].forEach((field) => {
+      ...ADMIN_LAYOUT_FIELDS.spacing].forEach((field) => {
       const value = formData.get(field.key);
       payload[field.key] = value || field.defaultValue;
     });
@@ -900,37 +901,37 @@ async function renderAppearancePanel(panel) {
     });
 
     try {
-      form.classList.add("pending");
+      form.classList.add('pending');
       await saveUiSettings(payload);
       // Le impostazioni vengono già applicate da saveUiSettings
-      const successMsg = document.createElement("div");
-      successMsg.className = "ui-success-message";
+      const successMsg = document.createElement('div');
+      successMsg.className = 'ui-success-message';
       successMsg.innerHTML = '<i class="fas fa-check-circle"></i> Impostazioni salvate con successo!';
       form.parentElement.insertBefore(successMsg, form);
       setTimeout(() => successMsg.remove(), 3000);
     } catch (err) {
-      console.error("[UI Settings] Errore salvataggio:", err);
-      Toast.show("Errore nel salvataggio delle impostazioni: " + err.message, 'error');
+      console.error('[UI Settings] Errore salvataggio:', err);
+      Toast.show('Errore nel salvataggio delle impostazioni: ' + err.message, 'error');
     } finally {
-      form.classList.remove("pending");
+      form.classList.remove('pending');
     }
   });
 
-  resetBtn.addEventListener("click", async () => {
-    const confirmed = await openConfirmModal("Ripristinare tutti i valori di default (colori, layout, ecc.)?");
-    if (!confirmed) return;
+  resetBtn.addEventListener('click', async () => {
+    const confirmed = await openConfirmModal('Ripristinare tutti i valori di default (colori, layout, ecc.)?');
+    if (!confirmed) {return;}
     try {
-      form.classList.add("pending");
+      form.classList.add('pending');
       const defaults = { ...DEFAULT_SETTINGS };
       [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables,
-      ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((f) => {
+        ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((f) => {
         defaults[f.key] = f.defaultValue;
       });
       [...FORMS_FIELDS.inputs, ...FORMS_FIELDS.layout].forEach((f) => {
         defaults[f.key] = f.defaultValue;
       });
       [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
-      ...ADMIN_LAYOUT_FIELDS.spacing].forEach((f) => {
+        ...ADMIN_LAYOUT_FIELDS.spacing].forEach((f) => {
         defaults[f.key] = f.defaultValue;
       });
       [...OPERATOR_LAYOUT_FIELDS.header, ...OPERATOR_LAYOUT_FIELDS.menu].forEach((f) => {
@@ -939,47 +940,47 @@ async function renderAppearancePanel(panel) {
       await saveUiSettings(defaults);
       // Le impostazioni vengono già applicate da saveUiSettings
       renderAppearancePanel(panel);
-      Toast.show("Impostazioni ripristinate.", 'success');
+      Toast.show('Impostazioni ripristinate.', 'success');
     } catch (err) {
       console.error(err);
-      Toast.show("Impossibile ripristinare: " + err.message, 'error');
+      Toast.show('Impossibile ripristinare: ' + err.message, 'error');
     } finally {
-      form.classList.remove("pending");
+      form.classList.remove('pending');
     }
   });
 
   // Sincronizza color picker componenti con hex
-  form.querySelectorAll(".ui-color-picker").forEach((picker) => {
+  form.querySelectorAll('.ui-color-picker').forEach((picker) => {
     const fieldKey = picker.name;
-    if (fieldKey.includes("component_")) {
+    if (fieldKey.includes('component_')) {
       const hexInput = form.querySelector(`input[name="${fieldKey}_hex"]`);
 
-      picker.addEventListener("input", (e) => {
+      picker.addEventListener('input', (e) => {
         const value = e.target.value.toUpperCase();
-        if (hexInput) hexInput.value = value;
+        if (hexInput) {hexInput.value = value;}
         applyComponentsSettings({ [fieldKey]: value });
       });
     }
   });
 
-  form.querySelectorAll(".ui-color-hex").forEach((hexInput) => {
-    const fieldKey = hexInput.name.replace("_hex", "");
-    if (fieldKey.includes("component_")) {
+  form.querySelectorAll('.ui-color-hex').forEach((hexInput) => {
+    const fieldKey = hexInput.name.replace('_hex', '');
+    if (fieldKey.includes('component_')) {
       const picker = form.querySelector(`input[name="${fieldKey}"]`);
 
-      hexInput.addEventListener("input", (e) => {
-        let value = e.target.value.trim().replace("#", "").toUpperCase();
+      hexInput.addEventListener('input', (e) => {
+        let value = e.target.value.trim().replace('#', '').toUpperCase();
         if (/^[0-9A-F]{6}$/i.test(value)) {
-          value = "#" + value;
-          if (picker) picker.value = value;
+          value = '#' + value;
+          if (picker) {picker.value = value;}
           applyComponentsSettings({ [fieldKey]: value });
         }
       });
 
-      hexInput.addEventListener("blur", (e) => {
-        let value = e.target.value.trim().replace("#", "").toUpperCase();
+      hexInput.addEventListener('blur', (e) => {
+        const value = e.target.value.trim().replace('#', '').toUpperCase();
         if (!/^[0-9A-F]{6}$/i.test(value)) {
-          const pickerValue = picker?.value || "#000000";
+          const pickerValue = picker?.value || '#000000';
           e.target.value = pickerValue.toUpperCase();
         }
       });
@@ -987,7 +988,7 @@ async function renderAppearancePanel(panel) {
   });
 
   // Applica modifiche layout, componenti, form e icone in tempo reale
-  form.addEventListener("change", () => {
+  form.addEventListener('change', () => {
     applyLayoutSettings();
     applyComponentsSettings();
     applyFormsSettings();
@@ -995,22 +996,22 @@ async function renderAppearancePanel(panel) {
   });
 
   // Gestione caricamento immagini per icone
-  form.querySelectorAll("input[data-icon-image-input]").forEach((fileInput) => {
-    fileInput.addEventListener("change", async (e) => {
+  form.querySelectorAll('input[data-icon-image-input]').forEach((fileInput) => {
+    fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (!file) {return;}
 
       // Verifica che sia un'immagine
-      if (!file.type.startsWith("image/")) {
-        Toast.show("Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.).", 'warning');
-        e.target.value = "";
+      if (!file.type.startsWith('image/')) {
+        Toast.show('Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.).', 'warning');
+        e.target.value = '';
         return;
       }
 
       // Limita dimensione a 500KB
       if (file.size > 500 * 1024) {
         Toast.show("L'immagine è troppo grande. Massimo 500KB.", 'warning');
-        e.target.value = "";
+        e.target.value = '';
         return;
       }
 
@@ -1023,7 +1024,7 @@ async function renderAppearancePanel(panel) {
         // Aggiorna campo nascosto
         const textInput = form.querySelector(`input[name="${fieldKey}"]`);
         if (textInput) {
-          textInput.value = ""; // Pulisci campo testo quando carichi immagine
+          textInput.value = ''; // Pulisci campo testo quando carichi immagine
         }
 
         // Salva temporaneamente e applica
@@ -1032,7 +1033,7 @@ async function renderAppearancePanel(panel) {
         await applyIconsSettings(tempSettings);
 
         // Ricarica il pannello per mostrare l'anteprima
-        const panel = form.closest(".ui-appearance-panel");
+        const panel = form.closest('.ui-appearance-panel');
         if (panel) {
           const currentSettings = await fetchUiSettings();
           const iconsSection = panel.querySelector('[data-appearance-section-content="icons"]');
@@ -1042,19 +1043,19 @@ async function renderAppearancePanel(panel) {
           }
         }
       } catch (err) {
-        console.error("Errore nel caricamento immagine:", err);
+        console.error('Errore nel caricamento immagine:', err);
         Toast.show("Errore nel caricamento dell'immagine: " + err.message, 'error');
-        e.target.value = "";
+        e.target.value = '';
       }
     });
   });
 
   // Gestione rimozione immagini
-  form.querySelectorAll("button[data-icon-remove-image]").forEach((removeBtn) => {
-    removeBtn.addEventListener("click", async (e) => {
+  form.querySelectorAll('button[data-icon-remove-image]').forEach((removeBtn) => {
+    removeBtn.addEventListener('click', async (e) => {
       const fieldKey = removeBtn.dataset.iconRemoveImage;
       const field = UI_FIELDS.find(f => f.key === fieldKey);
-      const defaultValue = field?.defaultValue || "";
+      const defaultValue = field?.defaultValue || '';
 
       // Ripristina valore di default
       const textInput = form.querySelector(`input[name="${fieldKey}"]`);
@@ -1068,7 +1069,7 @@ async function renderAppearancePanel(panel) {
       await applyIconsSettings(tempSettings);
 
       // Ricarica il pannello
-      const panel = form.closest(".ui-appearance-panel");
+      const panel = form.closest('.ui-appearance-panel');
       if (panel) {
         const currentSettings = await fetchUiSettings();
         const iconsSection = panel.querySelector('[data-appearance-section-content="icons"]');
@@ -1081,29 +1082,29 @@ async function renderAppearancePanel(panel) {
   });
 
   // Aggiorna anteprima icone in tempo reale
-  form.querySelectorAll("input[data-icon-field]").forEach((input) => {
-    input.addEventListener("input", (e) => {
+  form.querySelectorAll('input[data-icon-field]').forEach((input) => {
+    input.addEventListener('input', (e) => {
       const value = e.target.value.trim();
-      const field = e.target.closest(".ui-layout-field");
-      if (!field) return;
+      const field = e.target.closest('.ui-layout-field');
+      if (!field) {return;}
 
       // Se c'è un'immagine caricata, non sovrascrivere
       const fieldKey = field.dataset.iconFieldKey;
       const currentSettings = cachedSettings || {};
-      if (currentSettings[fieldKey] && currentSettings[fieldKey].startsWith("IMAGE_BASE64:")) {
+      if (currentSettings[fieldKey] && currentSettings[fieldKey].startsWith('IMAGE_BASE64:')) {
         return; // Non modificare se c'è un'immagine
       }
 
       // Rimuovi anteprima esistente
-      const existingPreview = field.querySelector(".ui-icon-preview");
-      if (existingPreview) existingPreview.remove();
+      const existingPreview = field.querySelector('.ui-icon-preview');
+      if (existingPreview) {existingPreview.remove();}
 
       // Aggiungi nuova anteprima se c'è un valore
       if (value) {
-        const isSvg = value.startsWith("<svg") || value.startsWith("<?xml");
-        const preview = document.createElement("div");
-        preview.className = "ui-icon-preview";
-        preview.style.cssText = "margin-top: 8px; padding: 8px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);";
+        const isSvg = value.startsWith('<svg') || value.startsWith('<?xml');
+        const preview = document.createElement('div');
+        preview.className = 'ui-icon-preview';
+        preview.style.cssText = 'margin-top: 8px; padding: 8px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);';
 
         if (isSvg) {
           preview.innerHTML = `
@@ -1127,20 +1128,20 @@ async function renderAppearancePanel(panel) {
   });
 
   // Gestione temi predefiniti
-  panel.querySelectorAll(".ui-theme-apply").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+  panel.querySelectorAll('.ui-theme-apply').forEach((btn) => {
+    btn.addEventListener('click', async () => {
       const themeKey = btn.dataset.themeKey;
       const theme = PREDEFINED_THEMES[themeKey];
-      if (!theme) return;
+      if (!theme) {return;}
 
       const confirmed = await openConfirmModal(`Applicare il tema "${theme.name}"? I colori attuali verranno sostituiti.`);
-      if (!confirmed) return;
+      if (!confirmed) {return;}
 
       try {
-        form.classList.add("pending");
+        form.classList.add('pending');
         const themePayload = {};
         Object.entries(theme).forEach(([key, value]) => {
-          if (key !== "name") {
+          if (key !== 'name') {
             themePayload[key] = value;
           }
         });
@@ -1150,32 +1151,32 @@ async function renderAppearancePanel(panel) {
       } catch (err) {
         Toast.show("Errore nell'applicazione del tema: " + err.message, 'error');
       } finally {
-        form.classList.remove("pending");
+        form.classList.remove('pending');
       }
     });
   });
 
   // Export configurazione
-  const exportBtn = panel.querySelector("#export-config-btn");
+  const exportBtn = panel.querySelector('#export-config-btn');
   if (exportBtn) {
-    exportBtn.addEventListener("click", async () => {
+    exportBtn.addEventListener('click', async () => {
       try {
         const allSettings = await fetchUiSettings();
         const config = {
-          version: "1.0",
+          version: '1.0',
           exported_at: new Date().toISOString(),
           settings: allSettings
         };
-        const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
+        const a = document.createElement('a');
         a.href = url;
-        a.download = `neofuel-ui-config-${new Date().toISOString().split("T")[0]}.json`;
+        a.download = `neofuel-ui-config-${new Date().toISOString().split('T')[0]}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        Toast.show("Configurazione esportata con successo!", 'success');
+        Toast.show('Configurazione esportata con successo!', 'success');
       } catch (err) {
         Toast.show("Errore nell'export: " + err.message, 'error');
       }
@@ -1183,41 +1184,41 @@ async function renderAppearancePanel(panel) {
   }
 
   // Import configurazione
-  const importInput = panel.querySelector("#import-config-input");
+  const importInput = panel.querySelector('#import-config-input');
   if (importInput) {
-    importInput.addEventListener("change", async (e) => {
+    importInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (!file) {return;}
 
       try {
         const text = await file.text();
         const config = JSON.parse(text);
 
-        if (!config.settings || typeof config.settings !== "object") {
-          throw new Error("Formato file non valido");
+        if (!config.settings || typeof config.settings !== 'object') {
+          throw new Error('Formato file non valido');
         }
 
-        const confirmed = await openConfirmModal(`Importare la configurazione? Tutte le impostazioni attuali verranno sostituite.`);
+        const confirmed = await openConfirmModal('Importare la configurazione? Tutte le impostazioni attuali verranno sostituite.');
         if (!confirmed) {
-          e.target.value = "";
+          e.target.value = '';
           return;
         }
 
-        form.classList.add("pending");
+        form.classList.add('pending');
         await saveUiSettings(config.settings);
         renderAppearancePanel(panel);
-        Toast.show("Configurazione importata con successo!", 'success');
+        Toast.show('Configurazione importata con successo!', 'success');
       } catch (err) {
         Toast.show("Errore nell'import: " + err.message, 'error');
       } finally {
-        form.classList.remove("pending");
-        e.target.value = "";
+        form.classList.remove('pending');
+        e.target.value = '';
       }
     });
   }
 
   // Configura handler per caricamento immagini icone
-  const appearanceForm = panel.querySelector("#ui-appearance-form");
+  const appearanceForm = panel.querySelector('#ui-appearance-form');
   if (appearanceForm) {
     setupIconImageHandlers(appearanceForm);
   }
@@ -1231,116 +1232,116 @@ async function renderAppearancePanel(panel) {
 const ADMIN_LAYOUT_FIELDS = {
   sidebar: [
     {
-      key: "admin_sidebar_width",
-      label: "Larghezza Sidebar",
-      type: "text",
-      defaultValue: "280px",
-      description: "Larghezza della sidebar (es. 280px, 20rem)"
+      key: 'admin_sidebar_width',
+      label: 'Larghezza Sidebar',
+      type: 'text',
+      defaultValue: '280px',
+      description: 'Larghezza della sidebar (es. 280px, 20rem)'
     },
     {
-      key: "admin_sidebar_show_header",
-      label: "Mostra Header Sidebar",
-      type: "checkbox",
-      defaultValue: "true",
+      key: 'admin_sidebar_show_header',
+      label: 'Mostra Header Sidebar',
+      type: 'checkbox',
+      defaultValue: 'true',
       description: "Mostra/nascondi l'header della sidebar"
     },
     {
-      key: "admin_sidebar_show_footer",
-      label: "Mostra Footer Sidebar",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi il footer con info utente"
+      key: 'admin_sidebar_show_footer',
+      label: 'Mostra Footer Sidebar',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi il footer con info utente'
     }
   ],
   header: [
     {
-      key: "admin_header_show_logo",
-      label: "Mostra Logo Header",
-      type: "checkbox",
-      defaultValue: "true",
+      key: 'admin_header_show_logo',
+      label: 'Mostra Logo Header',
+      type: 'checkbox',
+      defaultValue: 'true',
       description: "Mostra/nascondi il logo nell'header"
     },
     {
-      key: "admin_header_logo_height",
-      label: "Altezza Logo",
-      type: "text",
-      defaultValue: "50px",
-      description: "Altezza del logo (es. 50px, 3rem)"
+      key: 'admin_header_logo_height',
+      label: 'Altezza Logo',
+      type: 'text',
+      defaultValue: '50px',
+      description: 'Altezza del logo (es. 50px, 3rem)'
     }
   ],
   menu: [
     {
-      key: "admin_menu_show_dashboard",
-      label: "Mostra Dashboard",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Dashboard"
+      key: 'admin_menu_show_dashboard',
+      label: 'Mostra Dashboard',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Dashboard'
     },
     {
-      key: "admin_menu_show_stations",
-      label: "Mostra Distributori",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Distributori"
+      key: 'admin_menu_show_stations',
+      label: 'Mostra Distributori',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Distributori'
     },
     {
-      key: "admin_menu_show_operators",
-      label: "Mostra Operatori",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Operatori"
+      key: 'admin_menu_show_operators',
+      label: 'Mostra Operatori',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Operatori'
     },
     {
-      key: "admin_menu_show_chiusure",
-      label: "Mostra Chiusure",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Chiusure"
+      key: 'admin_menu_show_chiusure',
+      label: 'Mostra Chiusure',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Chiusure'
     },
     {
-      key: "admin_menu_show_crediti",
-      label: "Mostra Crediti",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Crediti"
+      key: 'admin_menu_show_crediti',
+      label: 'Mostra Crediti',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Crediti'
     },
     {
-      key: "admin_menu_show_fatture",
-      label: "Mostra Fatture",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Fatture"
+      key: 'admin_menu_show_fatture',
+      label: 'Mostra Fatture',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Fatture'
     },
     {
-      key: "admin_menu_show_vouchers",
-      label: "Mostra Voucher",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Voucher"
+      key: 'admin_menu_show_vouchers',
+      label: 'Mostra Voucher',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Voucher'
     },
     {
-      key: "admin_menu_show_notifiche",
-      label: "Mostra Notifiche",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Notifiche"
+      key: 'admin_menu_show_notifiche',
+      label: 'Mostra Notifiche',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Notifiche'
     }
   ],
 
   spacing: [
     {
-      key: "admin_content_padding",
-      label: "Padding Contenuto",
-      type: "text",
-      defaultValue: "24px",
-      description: "Spaziatura interna del contenuto principale (es. 24px, 1.5rem)"
+      key: 'admin_content_padding',
+      label: 'Padding Contenuto',
+      type: 'text',
+      defaultValue: '24px',
+      description: 'Spaziatura interna del contenuto principale (es. 24px, 1.5rem)'
     },
     {
-      key: "admin_section_gap",
-      label: "Spaziatura Sezioni",
-      type: "text",
-      defaultValue: "24px",
-      description: "Spazio tra le sezioni (es. 24px, 1.5rem)"
+      key: 'admin_section_gap',
+      label: 'Spaziatura Sezioni',
+      type: 'text',
+      defaultValue: '24px',
+      description: 'Spazio tra le sezioni (es. 24px, 1.5rem)'
     }
   ]
 };
@@ -1349,130 +1350,130 @@ const ADMIN_LAYOUT_FIELDS = {
 const COMPONENTS_FIELDS = {
   buttons: [
     {
-      key: "component_button_padding",
-      label: "Padding Bottoni",
-      type: "text",
-      defaultValue: "12px 24px",
-      description: "Spaziatura interna bottoni (es. 12px 24px, 10px 20px)"
+      key: 'component_button_padding',
+      label: 'Padding Bottoni',
+      type: 'text',
+      defaultValue: '12px 24px',
+      description: 'Spaziatura interna bottoni (es. 12px 24px, 10px 20px)'
     },
     {
-      key: "component_button_radius",
-      label: "Raggio Bordi Bottoni",
-      type: "text",
-      defaultValue: "6px",
-      description: "Bordi arrotondati bottoni (es. 6px, 999px per pill)"
+      key: 'component_button_radius',
+      label: 'Raggio Bordi Bottoni',
+      type: 'text',
+      defaultValue: '6px',
+      description: 'Bordi arrotondati bottoni (es. 6px, 999px per pill)'
     },
     {
-      key: "component_button_font_size",
-      label: "Dimensione Font Bottoni",
-      type: "text",
-      defaultValue: "1rem",
-      description: "Dimensione testo bottoni (es. 1rem, 0.95rem)"
+      key: 'component_button_font_size',
+      label: 'Dimensione Font Bottoni',
+      type: 'text',
+      defaultValue: '1rem',
+      description: 'Dimensione testo bottoni (es. 1rem, 0.95rem)'
     },
     {
-      key: "component_button_font_weight",
-      label: "Spessore Font Bottoni",
-      type: "select",
-      defaultValue: "600",
+      key: 'component_button_font_weight',
+      label: 'Spessore Font Bottoni',
+      type: 'select',
+      defaultValue: '600',
       options: [
-        { value: "400", label: "Normale (400)" },
-        { value: "500", label: "Medio (500)" },
-        { value: "600", label: "Semi-bold (600)" },
-        { value: "700", label: "Bold (700)" }
+        { value: '400', label: 'Normale (400)' },
+        { value: '500', label: 'Medio (500)' },
+        { value: '600', label: 'Semi-bold (600)' },
+        { value: '700', label: 'Bold (700)' }
       ],
-      description: "Spessore del testo nei bottoni"
+      description: 'Spessore del testo nei bottoni'
     }
   ],
   tables: [
     {
-      key: "component_table_header_bg",
-      label: "Sfondo Header Tabelle",
-      type: "color",
-      cssVar: "--table-header-bg",
-      defaultValue: "#F4F6F8",
+      key: 'component_table_header_bg',
+      label: 'Sfondo Header Tabelle',
+      type: 'color',
+      cssVar: '--table-header-bg',
+      defaultValue: '#F4F6F8',
       description: "Colore di sfondo dell'header delle tabelle"
     },
     {
-      key: "component_table_header_color",
-      label: "Colore Testo Header",
-      type: "color",
-      cssVar: "--table-header-color",
-      defaultValue: "#333333",
+      key: 'component_table_header_color',
+      label: 'Colore Testo Header',
+      type: 'color',
+      cssVar: '--table-header-color',
+      defaultValue: '#333333',
       description: "Colore del testo nell'header delle tabelle"
     },
     {
-      key: "component_table_hover_bg",
-      label: "Sfondo Hover Righe",
-      type: "color",
-      cssVar: "--table-hover-bg",
-      defaultValue: "#F8FAFC",
-      description: "Colore di sfondo al passaggio del mouse sulle righe"
+      key: 'component_table_hover_bg',
+      label: 'Sfondo Hover Righe',
+      type: 'color',
+      cssVar: '--table-hover-bg',
+      defaultValue: '#F8FAFC',
+      description: 'Colore di sfondo al passaggio del mouse sulle righe'
     },
     {
-      key: "component_table_padding",
-      label: "Padding Celle",
-      type: "text",
-      defaultValue: "16px 24px",
-      description: "Spaziatura interna celle (es. 16px 24px)"
+      key: 'component_table_padding',
+      label: 'Padding Celle',
+      type: 'text',
+      defaultValue: '16px 24px',
+      description: 'Spaziatura interna celle (es. 16px 24px)'
     }
   ],
   cards: [
     {
-      key: "component_card_padding",
-      label: "Padding Card",
-      type: "text",
-      defaultValue: "24px",
-      description: "Spaziatura interna card/box (es. 24px, 20px)"
+      key: 'component_card_padding',
+      label: 'Padding Card',
+      type: 'text',
+      defaultValue: '24px',
+      description: 'Spaziatura interna card/box (es. 24px, 20px)'
     },
     {
-      key: "component_card_radius",
-      label: "Raggio Bordi Card",
-      type: "text",
-      defaultValue: "16px",
-      description: "Bordi arrotondati card (es. 16px, 12px)"
+      key: 'component_card_radius',
+      label: 'Raggio Bordi Card',
+      type: 'text',
+      defaultValue: '16px',
+      description: 'Bordi arrotondati card (es. 16px, 12px)'
     },
     {
-      key: "component_card_shadow",
-      label: "Intensità Ombra",
-      type: "select",
-      defaultValue: "md",
+      key: 'component_card_shadow',
+      label: 'Intensità Ombra',
+      type: 'select',
+      defaultValue: 'md',
       options: [
-        { value: "none", label: "Nessuna" },
-        { value: "sm", label: "Piccola" },
-        { value: "md", label: "Media (default)" },
-        { value: "lg", label: "Grande" }
+        { value: 'none', label: 'Nessuna' },
+        { value: 'sm', label: 'Piccola' },
+        { value: 'md', label: 'Media (default)' },
+        { value: 'lg', label: 'Grande' }
       ],
       description: "Intensità dell'ombra delle card"
     }
   ],
   modals: [
     {
-      key: "component_modal_max_width",
-      label: "Larghezza Massima Modali",
-      type: "text",
-      defaultValue: "1100px",
-      description: "Larghezza massima modali (es. 1100px, 90vw)"
+      key: 'component_modal_max_width',
+      label: 'Larghezza Massima Modali',
+      type: 'text',
+      defaultValue: '1100px',
+      description: 'Larghezza massima modali (es. 1100px, 90vw)'
     },
     {
-      key: "component_modal_padding",
-      label: "Padding Modali",
-      type: "text",
-      defaultValue: "24px",
-      description: "Spaziatura interna modali (es. 24px, 20px)"
+      key: 'component_modal_padding',
+      label: 'Padding Modali',
+      type: 'text',
+      defaultValue: '24px',
+      description: 'Spaziatura interna modali (es. 24px, 20px)'
     },
     {
-      key: "component_modal_radius",
-      label: "Raggio Bordi Modali",
-      type: "text",
-      defaultValue: "16px",
-      description: "Bordi arrotondati modali (es. 16px, 12px)"
+      key: 'component_modal_radius',
+      label: 'Raggio Bordi Modali',
+      type: 'text',
+      defaultValue: '16px',
+      description: 'Bordi arrotondati modali (es. 16px, 12px)'
     },
     {
-      key: "component_modal_overlay_opacity",
-      label: "Opacità Sfondo Modale",
-      type: "text",
-      defaultValue: "0.6",
-      description: "Opacità dello sfondo scuro (0-1, es. 0.6)"
+      key: 'component_modal_overlay_opacity',
+      label: 'Opacità Sfondo Modale',
+      type: 'text',
+      defaultValue: '0.6',
+      description: 'Opacità dello sfondo scuro (0-1, es. 0.6)'
     }
   ]
 };
@@ -1481,68 +1482,68 @@ const COMPONENTS_FIELDS = {
 const FORMS_FIELDS = {
   inputs: [
     {
-      key: "form_input_padding",
-      label: "Padding Input",
-      type: "text",
-      defaultValue: "12px 16px",
-      description: "Spaziatura interna campi input (es. 12px 16px)"
+      key: 'form_input_padding',
+      label: 'Padding Input',
+      type: 'text',
+      defaultValue: '12px 16px',
+      description: 'Spaziatura interna campi input (es. 12px 16px)'
     },
     {
-      key: "form_input_radius",
-      label: "Raggio Bordi Input",
-      type: "text",
-      defaultValue: "6px",
-      description: "Bordi arrotondati campi input"
+      key: 'form_input_radius',
+      label: 'Raggio Bordi Input',
+      type: 'text',
+      defaultValue: '6px',
+      description: 'Bordi arrotondati campi input'
     },
     {
-      key: "form_input_border_width",
-      label: "Spessore Bordo Input",
-      type: "text",
-      defaultValue: "2px",
-      description: "Spessore del bordo (es. 2px, 1px)"
+      key: 'form_input_border_width',
+      label: 'Spessore Bordo Input',
+      type: 'text',
+      defaultValue: '2px',
+      description: 'Spessore del bordo (es. 2px, 1px)'
     },
     {
-      key: "form_input_font_size",
-      label: "Dimensione Font Input",
-      type: "text",
-      defaultValue: "1rem",
-      description: "Dimensione testo campi input"
+      key: 'form_input_font_size',
+      label: 'Dimensione Font Input',
+      type: 'text',
+      defaultValue: '1rem',
+      description: 'Dimensione testo campi input'
     },
     {
-      key: "form_label_font_size",
-      label: "Dimensione Font Label",
-      type: "text",
-      defaultValue: "0.95rem",
-      description: "Dimensione testo etichette"
+      key: 'form_label_font_size',
+      label: 'Dimensione Font Label',
+      type: 'text',
+      defaultValue: '0.95rem',
+      description: 'Dimensione testo etichette'
     },
     {
-      key: "form_label_font_weight",
-      label: "Spessore Font Label",
-      type: "select",
-      defaultValue: "600",
+      key: 'form_label_font_weight',
+      label: 'Spessore Font Label',
+      type: 'select',
+      defaultValue: '600',
       options: [
-        { value: "400", label: "Normale (400)" },
-        { value: "500", label: "Medio (500)" },
-        { value: "600", label: "Semi-bold (600)" },
-        { value: "700", label: "Bold (700)" }
+        { value: '400', label: 'Normale (400)' },
+        { value: '500', label: 'Medio (500)' },
+        { value: '600', label: 'Semi-bold (600)' },
+        { value: '700', label: 'Bold (700)' }
       ],
-      description: "Spessore del testo delle etichette"
+      description: 'Spessore del testo delle etichette'
     }
   ],
   layout: [
     {
-      key: "form_group_gap",
-      label: "Spaziatura Gruppi Form",
-      type: "text",
-      defaultValue: "20px",
-      description: "Spazio tra i gruppi di campi (es. 20px)"
+      key: 'form_group_gap',
+      label: 'Spaziatura Gruppi Form',
+      type: 'text',
+      defaultValue: '20px',
+      description: 'Spazio tra i gruppi di campi (es. 20px)'
     },
     {
-      key: "form_row_gap",
-      label: "Spaziatura Righe Form",
-      type: "text",
-      defaultValue: "16px",
-      description: "Spazio tra le righe nei form a griglia"
+      key: 'form_row_gap',
+      label: 'Spaziatura Righe Form',
+      type: 'text',
+      defaultValue: '16px',
+      description: 'Spazio tra le righe nei form a griglia'
     }
   ]
 };
@@ -1550,40 +1551,40 @@ const FORMS_FIELDS = {
 // Temi predefiniti
 const PREDEFINED_THEMES = {
   light: {
-    name: "Chiaro (Default)",
-    primary_color: "#0A2342",
-    accent_color: "#8DC63F",
-    bg_body: "#F4F6F8",
-    bg_sidebar: "#0A2342",
-    sidebar_hover: "#123561",
-    text_main: "#333333"
+    name: 'Chiaro (Default)',
+    primary_color: '#0A2342',
+    accent_color: '#8DC63F',
+    bg_body: '#F4F6F8',
+    bg_sidebar: '#0A2342',
+    sidebar_hover: '#123561',
+    text_main: '#333333'
   },
   dark: {
-    name: "Scuro",
-    primary_color: "#8DC63F",
-    accent_color: "#8DC63F",
-    bg_body: "#1a1a1a",
-    bg_sidebar: "#0d1117",
-    sidebar_hover: "#161b22",
-    text_main: "#e6edf3"
+    name: 'Scuro',
+    primary_color: '#8DC63F',
+    accent_color: '#8DC63F',
+    bg_body: '#1a1a1a',
+    bg_sidebar: '#0d1117',
+    sidebar_hover: '#161b22',
+    text_main: '#e6edf3'
   },
   blue: {
-    name: "Blu Professionale",
-    primary_color: "#1e40af",
-    accent_color: "#3b82f6",
-    bg_body: "#f0f9ff",
-    bg_sidebar: "#1e40af",
-    sidebar_hover: "#2563eb",
-    text_main: "#1e293b"
+    name: 'Blu Professionale',
+    primary_color: '#1e40af',
+    accent_color: '#3b82f6',
+    bg_body: '#f0f9ff',
+    bg_sidebar: '#1e40af',
+    sidebar_hover: '#2563eb',
+    text_main: '#1e293b'
   },
   green: {
-    name: "Verde Naturale",
-    primary_color: "#059669",
-    accent_color: "#10b981",
-    bg_body: "#f0fdf4",
-    bg_sidebar: "#059669",
-    sidebar_hover: "#047857",
-    text_main: "#064e3b"
+    name: 'Verde Naturale',
+    primary_color: '#059669',
+    accent_color: '#10b981',
+    bg_body: '#f0fdf4',
+    bg_sidebar: '#059669',
+    sidebar_hover: '#047857',
+    text_main: '#064e3b'
   }
 };
 
@@ -1591,90 +1592,90 @@ const PREDEFINED_THEMES = {
 const OPERATOR_LAYOUT_FIELDS = {
   header: [
     {
-      key: "operator_header_show_logo",
-      label: "Mostra Logo Header",
-      type: "checkbox",
-      defaultValue: "true",
+      key: 'operator_header_show_logo',
+      label: 'Mostra Logo Header',
+      type: 'checkbox',
+      defaultValue: 'true',
       description: "Mostra/nascondi il logo nell'header operatore"
     },
     {
-      key: "operator_header_logo_height",
-      label: "Altezza Logo",
-      type: "text",
-      defaultValue: "40px",
-      description: "Altezza del logo (es. 40px, 2.5rem)"
+      key: 'operator_header_logo_height',
+      label: 'Altezza Logo',
+      type: 'text',
+      defaultValue: '40px',
+      description: 'Altezza del logo (es. 40px, 2.5rem)'
     },
     {
-      key: "operator_header_show_station_badge",
-      label: "Mostra Badge Stazione",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi il badge con il nome della stazione"
+      key: 'operator_header_show_station_badge',
+      label: 'Mostra Badge Stazione',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi il badge con il nome della stazione'
     },
     {
-      key: "operator_header_show_logout",
-      label: "Mostra Bottone Logout",
-      type: "checkbox",
-      defaultValue: "true",
+      key: 'operator_header_show_logout',
+      label: 'Mostra Bottone Logout',
+      type: 'checkbox',
+      defaultValue: 'true',
       description: "Mostra/nascondi il bottone di logout nell'header"
     }
   ],
   menu: [
     {
-      key: "operator_menu_show_turno",
-      label: "Mostra Apertura/Chiusura",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi il bottone principale Apertura/Chiusura turno"
+      key: 'operator_menu_show_turno',
+      label: 'Mostra Apertura/Chiusura',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi il bottone principale Apertura/Chiusura turno'
     },
     {
-      key: "operator_menu_show_movimenti",
-      label: "Mostra Movimenti",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la sezione Movimenti (accordion)"
+      key: 'operator_menu_show_movimenti',
+      label: 'Mostra Movimenti',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la sezione Movimenti (accordion)'
     },
     {
-      key: "operator_menu_show_crediti",
-      label: "Mostra Crediti",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce Crediti nel sottomenu Movimenti"
+      key: 'operator_menu_show_crediti',
+      label: 'Mostra Crediti',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce Crediti nel sottomenu Movimenti'
     },
     {
-      key: "operator_menu_show_voucher",
-      label: "Mostra Voucher",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce Voucher nel sottomenu Movimenti"
+      key: 'operator_menu_show_voucher',
+      label: 'Mostra Voucher',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce Voucher nel sottomenu Movimenti'
     },
     {
-      key: "operator_menu_show_uscite",
-      label: "Mostra Uscite",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce Uscite nel sottomenu Movimenti"
+      key: 'operator_menu_show_uscite',
+      label: 'Mostra Uscite',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce Uscite nel sottomenu Movimenti'
     },
     {
-      key: "operator_menu_show_incassi",
-      label: "Mostra Incassi",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce Incassi nel sottomenu Movimenti"
+      key: 'operator_menu_show_incassi',
+      label: 'Mostra Incassi',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce Incassi nel sottomenu Movimenti'
     },
     {
-      key: "operator_menu_show_fatture",
-      label: "Mostra Fatture",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Fatture"
+      key: 'operator_menu_show_fatture',
+      label: 'Mostra Fatture',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Fatture'
     },
     {
-      key: "operator_menu_show_prezzi",
-      label: "Mostra Prezzi",
-      type: "checkbox",
-      defaultValue: "true",
-      description: "Mostra/nascondi la voce menu Prezzi"
+      key: 'operator_menu_show_prezzi',
+      label: 'Mostra Prezzi',
+      type: 'checkbox',
+      defaultValue: 'true',
+      description: 'Mostra/nascondi la voce menu Prezzi'
     }
   ]
 };
@@ -1689,7 +1690,7 @@ function renderAdminLayoutSection(settings) {
           <span>Sidebar</span>
         </h4>
         <div class="ui-layout-fields">
-          ${ADMIN_LAYOUT_FIELDS.sidebar.map(f => renderLayoutField(f, settings)).join("")}
+          ${ADMIN_LAYOUT_FIELDS.sidebar.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
 
@@ -1699,7 +1700,7 @@ function renderAdminLayoutSection(settings) {
           <span>Header</span>
         </h4>
         <div class="ui-layout-fields">
-          ${ADMIN_LAYOUT_FIELDS.header.map(f => renderLayoutField(f, settings)).join("")}
+          ${ADMIN_LAYOUT_FIELDS.header.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
 
@@ -1710,7 +1711,7 @@ function renderAdminLayoutSection(settings) {
         </h4>
         <p class="ui-section-hint">Seleziona quali voci del menu mostrare nella sidebar admin</p>
         <div class="ui-layout-fields">
-          ${ADMIN_LAYOUT_FIELDS.menu.map(f => renderLayoutField(f, settings)).join("")}
+          ${ADMIN_LAYOUT_FIELDS.menu.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
 
@@ -1723,7 +1724,7 @@ function renderAdminLayoutSection(settings) {
         </h4>
         <p class="ui-section-hint">Personalizza padding e margini dell'area admin</p>
         <div class="ui-layout-fields">
-          ${ADMIN_LAYOUT_FIELDS.spacing.map(f => renderLayoutField(f, settings)).join("")}
+          ${ADMIN_LAYOUT_FIELDS.spacing.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
     </div>
@@ -1740,7 +1741,7 @@ function renderComponentsSection(settings) {
         </h4>
         <p class="ui-section-hint">Personalizza stile e dimensioni dei bottoni</p>
         <div class="ui-layout-fields">
-          ${COMPONENTS_FIELDS.buttons.map(f => renderLayoutField(f, settings)).join("")}
+          ${COMPONENTS_FIELDS.buttons.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
 
@@ -1751,7 +1752,7 @@ function renderComponentsSection(settings) {
         </h4>
         <p class="ui-section-hint">Configura colori e stile delle tabelle</p>
         <div class="ui-layout-fields">
-          ${COMPONENTS_FIELDS.tables.map(f => renderLayoutField(f, settings)).join("")}
+          ${COMPONENTS_FIELDS.tables.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
 
@@ -1762,7 +1763,7 @@ function renderComponentsSection(settings) {
         </h4>
         <p class="ui-section-hint">Personalizza card, box e contenitori</p>
         <div class="ui-layout-fields">
-          ${COMPONENTS_FIELDS.cards.map(f => renderLayoutField(f, settings)).join("")}
+          ${COMPONENTS_FIELDS.cards.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
 
@@ -1773,7 +1774,7 @@ function renderComponentsSection(settings) {
         </h4>
         <p class="ui-section-hint">Configura dimensioni e stile delle finestre modali</p>
         <div class="ui-layout-fields">
-          ${COMPONENTS_FIELDS.modals.map(f => renderLayoutField(f, settings)).join("")}
+          ${COMPONENTS_FIELDS.modals.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
     </div>
@@ -1790,7 +1791,7 @@ function renderFormsSection(settings) {
         </h4>
         <p class="ui-section-hint">Personalizza stile e dimensioni dei campi di input</p>
         <div class="ui-layout-fields">
-          ${FORMS_FIELDS.inputs.map(f => renderLayoutField(f, settings)).join("")}
+          ${FORMS_FIELDS.inputs.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
 
@@ -1801,7 +1802,7 @@ function renderFormsSection(settings) {
         </h4>
         <p class="ui-section-hint">Configura spaziature e layout dei form</p>
         <div class="ui-layout-fields">
-          ${FORMS_FIELDS.layout.map(f => renderLayoutField(f, settings)).join("")}
+          ${FORMS_FIELDS.layout.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
     </div>
@@ -1823,7 +1824,7 @@ function renderThemesSection(settings) {
         <i class="fas fa-check"></i> Applica Tema
       </button>
     </div>
-  `).join("");
+  `).join('');
 
   return `
     <div class="ui-layout-section">
@@ -1849,9 +1850,9 @@ function renderThemesSection(settings) {
 }
 
 function renderIconsSection(settings) {
-  const adminIconFields = UI_FIELDS.filter(f => f.category === "icon_admin");
-  const operatorIconFields = UI_FIELDS.filter(f => f.category === "icon_operator");
-  const stationActionIconFields = UI_FIELDS.filter(f => f.category === "icon_station_actions");
+  const adminIconFields = UI_FIELDS.filter(f => f.category === 'icon_admin');
+  const operatorIconFields = UI_FIELDS.filter(f => f.category === 'icon_operator');
+  const stationActionIconFields = UI_FIELDS.filter(f => f.category === 'icon_station_actions');
 
   return `
     <div class="ui-layout-section">
@@ -1862,7 +1863,7 @@ function renderIconsSection(settings) {
         </h4>
         <p class="ui-section-hint">Personalizza le icone dei menu nella sidebar admin. Inserisci una classe Font Awesome (es: "fas fa-chart-line") o codice SVG inline.</p>
         <div class="ui-layout-fields">
-          ${adminIconFields.map(f => renderIconField(f, settings)).join("")}
+          ${adminIconFields.map(f => renderIconField(f, settings)).join('')}
         </div>
       </div>
 
@@ -1873,7 +1874,7 @@ function renderIconsSection(settings) {
         </h4>
         <p class="ui-section-hint">Personalizza le icone dei menu nell'area operatore. Inserisci una classe Font Awesome (es: "fas fa-door-open") o codice SVG inline.</p>
         <div class="ui-layout-fields">
-          ${operatorIconFields.map(f => renderIconField(f, settings)).join("")}
+          ${operatorIconFields.map(f => renderIconField(f, settings)).join('')}
         </div>
       </div>
 
@@ -1884,7 +1885,7 @@ function renderIconsSection(settings) {
         </h4>
         <p class="ui-section-hint">Personalizza le icone delle azioni nella sezione Distributori (Modifica, Prezzi, Isole e Pistole, Cisterne, Elimina).</p>
         <div class="ui-layout-fields">
-          ${stationActionIconFields.map(f => renderIconField(f, settings)).join("")}
+          ${stationActionIconFields.map(f => renderIconField(f, settings)).join('')}
         </div>
       </div>
     </div>
@@ -1892,11 +1893,11 @@ function renderIconsSection(settings) {
 }
 
 function renderIconField(field, settings) {
-  const value = settings[field.key] || field.defaultValue || "";
-  const isSvg = value.trim().startsWith("<svg") || value.trim().startsWith("<?xml");
-  const isImage = value.trim().startsWith("IMAGE_BASE64:");
-  const imageBase64 = isImage ? value.replace("IMAGE_BASE64:", "") : "";
-  const displayValue = isImage ? "" : value; // Non mostrare base64 nel campo testo
+  const value = settings[field.key] || field.defaultValue || '';
+  const isSvg = value.trim().startsWith('<svg') || value.trim().startsWith('<?xml');
+  const isImage = value.trim().startsWith('IMAGE_BASE64:');
+  const imageBase64 = isImage ? value.replace('IMAGE_BASE64:', '') : '';
+  const displayValue = isImage ? '' : value; // Non mostrare base64 nel campo testo
 
   return `
     <div class="ui-layout-field" data-icon-field-key="${field.key}">
@@ -1911,7 +1912,7 @@ function renderIconField(field, settings) {
           value="${escapeHtml(displayValue)}" 
           class="ui-text-input" 
           style="flex: 1;"
-          placeholder="${field.defaultValue || ""}"
+          placeholder="${field.defaultValue || ''}"
           data-icon-field="true"
         />
         <label class="menu-button secondary" style="cursor: pointer; margin: 0; white-space: nowrap; padding: 8px 16px;">
@@ -1927,7 +1928,7 @@ function renderIconField(field, settings) {
           <button type="button" class="menu-button secondary" style="margin: 0; padding: 8px 16px;" data-icon-remove-image="${field.key}">
             <i class="fas fa-times"></i> Rimuovi
           </button>
-        ` : ""}
+        ` : ''}
       </div>
       ${isImage ? `
         <div class="ui-icon-preview" style="margin-top: 8px; padding: 8px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
@@ -1946,7 +1947,7 @@ function renderIconField(field, settings) {
           <small style="display: block; margin-bottom: 4px; color: var(--text-secondary);">Anteprima:</small>
           <i class="${value}" style="font-size: 20px; color: var(--primary-color);"></i>
         </div>
-      ` : ""}
+      ` : ''}
     </div>
   `;
 }
@@ -1990,7 +1991,7 @@ function renderAdvancedSection(settings) {
             <input 
               type="text" 
               name="responsive_mobile_breakpoint" 
-              value="${settings.responsive_mobile_breakpoint || "768px"}" 
+              value="${settings.responsive_mobile_breakpoint || '768px'}" 
               class="ui-text-input" 
             />
           </div>
@@ -1999,7 +2000,7 @@ function renderAdvancedSection(settings) {
               <input 
                 type="checkbox" 
                 name="responsive_sidebar_collapse" 
-                ${settings.responsive_sidebar_collapse === "true" ? "checked" : ""}
+                ${settings.responsive_sidebar_collapse === 'true' ? 'checked' : ''}
                 value="true"
               />
               <span class="ui-checkbox-label-text">Sidebar collassabile su mobile</span>
@@ -2014,12 +2015,12 @@ function renderAdvancedSection(settings) {
 
 function renderOperatorLayoutSection(settings) {
   const menuMainItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f =>
-    f.key === "operator_menu_show_turno" || f.key === "operator_menu_show_movimenti" ||
-    f.key === "operator_menu_show_fatture" || f.key === "operator_menu_show_prezzi"
+    f.key === 'operator_menu_show_turno' || f.key === 'operator_menu_show_movimenti' ||
+    f.key === 'operator_menu_show_fatture' || f.key === 'operator_menu_show_prezzi'
   );
   const menuSubItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f =>
-    f.key === "operator_menu_show_crediti" || f.key === "operator_menu_show_voucher" ||
-    f.key === "operator_menu_show_uscite" || f.key === "operator_menu_show_incassi"
+    f.key === 'operator_menu_show_crediti' || f.key === 'operator_menu_show_voucher' ||
+    f.key === 'operator_menu_show_uscite' || f.key === 'operator_menu_show_incassi'
   );
 
   return `
@@ -2031,7 +2032,7 @@ function renderOperatorLayoutSection(settings) {
         </h4>
         <p class="ui-section-hint">Configura gli elementi dell'header dell'area operatore</p>
         <div class="ui-layout-fields">
-          ${OPERATOR_LAYOUT_FIELDS.header.map(f => renderLayoutField(f, settings)).join("")}
+          ${OPERATOR_LAYOUT_FIELDS.header.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
 
@@ -2042,7 +2043,7 @@ function renderOperatorLayoutSection(settings) {
         </h4>
         <p class="ui-section-hint">Seleziona quali voci principali del menu mostrare</p>
         <div class="ui-layout-fields">
-          ${menuMainItems.map(f => renderLayoutField(f, settings)).join("")}
+          ${menuMainItems.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
 
@@ -2053,7 +2054,7 @@ function renderOperatorLayoutSection(settings) {
         </h4>
         <p class="ui-section-hint">Configura le voci del sottomenu Movimenti (visibili solo se Movimenti è attivo)</p>
         <div class="ui-layout-fields">
-          ${menuSubItems.map(f => renderLayoutField(f, settings)).join("")}
+          ${menuSubItems.map(f => renderLayoutField(f, settings)).join('')}
         </div>
       </div>
     </div>
@@ -2063,15 +2064,15 @@ function renderOperatorLayoutSection(settings) {
 function renderLayoutField(field, settings) {
   const value = settings[field.key] ?? field.defaultValue;
 
-  if (field.type === "checkbox") {
-    const checked = value === "true" || value === true;
+  if (field.type === 'checkbox') {
+    const checked = value === 'true' || value === true;
     return `
       <div class="ui-layout-field">
         <label class="ui-checkbox-label">
           <input 
             type="checkbox" 
             name="${field.key}" 
-            ${checked ? "checked" : ""}
+            ${checked ? 'checked' : ''}
             value="true"
           />
           <span class="ui-checkbox-label-text">${field.label}</span>
@@ -2079,7 +2080,7 @@ function renderLayoutField(field, settings) {
         <small class="ui-field-desc">${field.description}</small>
       </div>
     `;
-  } else if (field.type === "select") {
+  } else if (field.type === 'select') {
     return `
       <div class="ui-layout-field">
         <label class="ui-text-label">
@@ -2088,12 +2089,12 @@ function renderLayoutField(field, settings) {
         </label>
         <select name="${field.key}" class="ui-text-input">
           ${field.options.map(opt =>
-      `<option value="${opt.value}" ${value === opt.value ? "selected" : ""}>${opt.label}</option>`
-    ).join("")}
+    `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`
+  ).join('')}
         </select>
       </div>
     `;
-  } else if (field.type === "color") {
+  } else if (field.type === 'color') {
     const hexValue = value.toUpperCase();
     return `
       <div class="ui-layout-field">
@@ -2144,14 +2145,14 @@ async function applyFormsSettings(overrideSettings = null) {
   const settings = overrideSettings || await fetchUiSettings();
 
   // Input styles
-  const inputPadding = settings.form_input_padding || "12px 16px";
-  const inputRadius = settings.form_input_radius || "6px";
-  const inputBorderWidth = settings.form_input_border_width || "2px";
-  const inputFontSize = settings.form_input_font_size || "1rem";
-  const labelFontSize = settings.form_label_font_size || "0.95rem";
-  const labelFontWeight = settings.form_label_font_weight || "600";
+  const inputPadding = settings.form_input_padding || '12px 16px';
+  const inputRadius = settings.form_input_radius || '6px';
+  const inputBorderWidth = settings.form_input_border_width || '2px';
+  const inputFontSize = settings.form_input_font_size || '1rem';
+  const labelFontSize = settings.form_label_font_size || '0.95rem';
+  const labelFontWeight = settings.form_label_font_weight || '600';
 
-  const formInputs = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".form-group input, .form-group select, .form-group textarea, .big-input, .form-input"));
+  const formInputs = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.form-group input, .form-group select, .form-group textarea, .big-input, .form-input'));
   formInputs.forEach((input) => {
     input.style.padding = inputPadding;
     input.style.borderRadius = inputRadius;
@@ -2159,22 +2160,22 @@ async function applyFormsSettings(overrideSettings = null) {
     input.style.fontSize = inputFontSize;
   });
 
-  const formLabels = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".form-group label, .form-field label"));
+  const formLabels = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.form-group label, .form-field label'));
   formLabels.forEach((label) => {
     label.style.fontSize = labelFontSize;
     label.style.fontWeight = labelFontWeight;
   });
 
   // Form layout
-  const formGroupGap = settings.form_group_gap || "20px";
-  const formRowGap = settings.form_row_gap || "16px";
+  const formGroupGap = settings.form_group_gap || '20px';
+  const formRowGap = settings.form_row_gap || '16px';
 
-  const formGroups = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".form-group"));
+  const formGroups = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.form-group'));
   formGroups.forEach((group) => {
     group.style.marginBottom = formGroupGap;
   });
 
-  const formRows = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".form-row"));
+  const formRows = /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.form-row'));
   formRows.forEach((row) => {
     row.style.gap = formRowGap;
   });
@@ -2185,33 +2186,33 @@ async function applyIconsSettings(overrideSettings = null) {
 
   // Mappa icone Admin
   const adminIconMap = {
-    dashboard: settings.admin_icon_dashboard || "fas fa-chart-line",
-    stations: settings.admin_icon_stations || "fas fa-gas-pump",
-    operators: settings.admin_icon_operators || "fas fa-users",
-    chiusure: settings.admin_icon_chiusure || "fas fa-file-invoice-dollar",
-    crediti: settings.admin_icon_crediti || "fas fa-credit-card",
-    fatture: settings.admin_icon_fatture || "fas fa-file-invoice",
-    vouchers: settings.admin_icon_vouchers || "fas fa-ticket-alt",
-    notifiche: settings.admin_icon_notifiche || "fas fa-bell",
-    settings: settings.admin_icon_settings || "fas fa-cog"
+    dashboard: settings.admin_icon_dashboard || 'fas fa-chart-line',
+    stations: settings.admin_icon_stations || 'fas fa-gas-pump',
+    operators: settings.admin_icon_operators || 'fas fa-users',
+    chiusure: settings.admin_icon_chiusure || 'fas fa-file-invoice-dollar',
+    crediti: settings.admin_icon_crediti || 'fas fa-credit-card',
+    fatture: settings.admin_icon_fatture || 'fas fa-file-invoice',
+    vouchers: settings.admin_icon_vouchers || 'fas fa-ticket-alt',
+    notifiche: settings.admin_icon_notifiche || 'fas fa-bell',
+    settings: settings.admin_icon_settings || 'fas fa-cog'
   };
 
   // Applica icone menu admin
   Object.entries(adminIconMap).forEach(([tab, iconValue]) => {
     const btn = document.querySelector(`.nav-btn[data-tab="${tab}"]`);
     if (btn) {
-      const iconEl = btn.querySelector("i, img, span.icon-svg-wrapper, span.icon-img-wrapper");
+      const iconEl = btn.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper');
       if (iconEl) {
-        if (iconValue.trim().startsWith("IMAGE_BASE64:")) {
+        if (iconValue.trim().startsWith('IMAGE_BASE64:')) {
           // Immagine base64
-          const base64 = iconValue.replace("IMAGE_BASE64:", "");
+          const base64 = iconValue.replace('IMAGE_BASE64:', '');
           iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 16px; height: 16px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-        } else if (iconValue.trim().startsWith("<svg") || iconValue.trim().startsWith("<?xml")) {
+        } else if (iconValue.trim().startsWith('<svg') || iconValue.trim().startsWith('<?xml')) {
           // SVG inline
           iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 16px; height: 16px; vertical-align: middle;">${iconValue}</span>`;
         } else {
           // Font Awesome - assicurati che ci sia un elemento <i>
-          if (iconEl.tagName === "I") {
+          if (iconEl.tagName === 'I') {
             iconEl.className = iconValue;
           } else {
             iconEl.outerHTML = `<i class="${iconValue}"></i>`;
@@ -2222,18 +2223,18 @@ async function applyIconsSettings(overrideSettings = null) {
   });
 
   // Icona logout admin
-  const adminLogoutIcon = settings.admin_icon_logout || "fas fa-sign-out-alt";
-  const adminLogoutBtn = document.querySelector("#admin-logout");
+  const adminLogoutIcon = settings.admin_icon_logout || 'fas fa-sign-out-alt';
+  const adminLogoutBtn = document.querySelector('#admin-logout');
   if (adminLogoutBtn) {
-    const iconEl = adminLogoutBtn.querySelector("i, img, span.icon-svg-wrapper, span.icon-img-wrapper");
+    const iconEl = adminLogoutBtn.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper');
     if (iconEl) {
-      if (adminLogoutIcon.trim().startsWith("IMAGE_BASE64:")) {
-        const base64 = adminLogoutIcon.replace("IMAGE_BASE64:", "");
+      if (adminLogoutIcon.trim().startsWith('IMAGE_BASE64:')) {
+        const base64 = adminLogoutIcon.replace('IMAGE_BASE64:', '');
         iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 16px; height: 16px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-      } else if (adminLogoutIcon.trim().startsWith("<svg") || adminLogoutIcon.trim().startsWith("<?xml")) {
+      } else if (adminLogoutIcon.trim().startsWith('<svg') || adminLogoutIcon.trim().startsWith('<?xml')) {
         iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 16px; height: 16px; vertical-align: middle;">${adminLogoutIcon}</span>`;
       } else {
-        if (iconEl.tagName === "I") {
+        if (iconEl.tagName === 'I') {
           iconEl.className = adminLogoutIcon;
         } else {
           iconEl.outerHTML = `<i class="${adminLogoutIcon}"></i>`;
@@ -2244,27 +2245,27 @@ async function applyIconsSettings(overrideSettings = null) {
 
   // Mappa icone Operatore
   const operatorIconMap = {
-    turno: settings.operator_icon_turno || "fas fa-door-open",
-    movimenti: settings.operator_icon_movimenti || "fas fa-exchange-alt",
-    crediti: settings.operator_icon_crediti || "fas fa-credit-card",
-    voucher: settings.operator_icon_voucher || "fas fa-ticket-alt",
-    uscite: settings.operator_icon_uscite || "fas fa-hand-holding-usd",
-    incassi: settings.operator_icon_incassi || "fas fa-cash-register",
-    fatture: settings.operator_icon_fatture || "fas fa-file-invoice",
-    prezzi: settings.operator_icon_prezzi || "fas fa-tags"
+    turno: settings.operator_icon_turno || 'fas fa-door-open',
+    movimenti: settings.operator_icon_movimenti || 'fas fa-exchange-alt',
+    crediti: settings.operator_icon_crediti || 'fas fa-credit-card',
+    voucher: settings.operator_icon_voucher || 'fas fa-ticket-alt',
+    uscite: settings.operator_icon_uscite || 'fas fa-hand-holding-usd',
+    incassi: settings.operator_icon_incassi || 'fas fa-cash-register',
+    fatture: settings.operator_icon_fatture || 'fas fa-file-invoice',
+    prezzi: settings.operator_icon_prezzi || 'fas fa-tags'
   };
 
   // Applica icona turno
   const turnoIcon = operatorIconMap.turno;
-  const turnoIconEl = document.querySelector("#turno-icon");
+  const turnoIconEl = document.querySelector('#turno-icon');
   if (turnoIconEl) {
-    if (turnoIcon.trim().startsWith("IMAGE_BASE64:")) {
-      const base64 = turnoIcon.replace("IMAGE_BASE64:", "");
+    if (turnoIcon.trim().startsWith('IMAGE_BASE64:')) {
+      const base64 = turnoIcon.replace('IMAGE_BASE64:', '');
       turnoIconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 20px; height: 20px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-    } else if (turnoIcon.trim().startsWith("<svg") || turnoIcon.trim().startsWith("<?xml")) {
+    } else if (turnoIcon.trim().startsWith('<svg') || turnoIcon.trim().startsWith('<?xml')) {
       turnoIconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 20px; height: 20px; vertical-align: middle;">${turnoIcon}</span>`;
     } else {
-      if (turnoIconEl.tagName === "I") {
+      if (turnoIconEl.tagName === 'I') {
         turnoIconEl.className = turnoIcon;
       } else {
         turnoIconEl.outerHTML = `<i class="${turnoIcon}"></i>`;
@@ -2274,17 +2275,17 @@ async function applyIconsSettings(overrideSettings = null) {
 
   // Applica icona movimenti
   const movimentiIcon = operatorIconMap.movimenti;
-  const movimentiBtn = document.querySelector("#btn-movimenti");
+  const movimentiBtn = document.querySelector('#btn-movimenti');
   if (movimentiBtn) {
-    const iconEl = movimentiBtn.querySelector("i:not(.accordion-icon), img, span.icon-svg-wrapper, span.icon-img-wrapper");
+    const iconEl = movimentiBtn.querySelector('i:not(.accordion-icon), img, span.icon-svg-wrapper, span.icon-img-wrapper');
     if (iconEl) {
-      if (movimentiIcon.trim().startsWith("IMAGE_BASE64:")) {
-        const base64 = movimentiIcon.replace("IMAGE_BASE64:", "");
+      if (movimentiIcon.trim().startsWith('IMAGE_BASE64:')) {
+        const base64 = movimentiIcon.replace('IMAGE_BASE64:', '');
         iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 20px; height: 20px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-      } else if (movimentiIcon.trim().startsWith("<svg") || movimentiIcon.trim().startsWith("<?xml")) {
+      } else if (movimentiIcon.trim().startsWith('<svg') || movimentiIcon.trim().startsWith('<?xml')) {
         iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 20px; height: 20px; vertical-align: middle;">${movimentiIcon}</span>`;
       } else {
-        if (iconEl.tagName === "I") {
+        if (iconEl.tagName === 'I') {
           iconEl.className = movimentiIcon;
         } else {
           iconEl.outerHTML = `<i class="${movimentiIcon}"></i>`;
@@ -2295,24 +2296,24 @@ async function applyIconsSettings(overrideSettings = null) {
 
   // Applica icone sottomenu movimenti
   const submenuIcons = {
-    "#btn-crediti": operatorIconMap.crediti,
-    "#btn-voucher": operatorIconMap.voucher,
-    "#btn-uscite": operatorIconMap.uscite,
-    "#btn-incassi": operatorIconMap.incassi
+    '#btn-crediti': operatorIconMap.crediti,
+    '#btn-voucher': operatorIconMap.voucher,
+    '#btn-uscite': operatorIconMap.uscite,
+    '#btn-incassi': operatorIconMap.incassi
   };
 
   Object.entries(submenuIcons).forEach(([selector, iconValue]) => {
     const btn = document.querySelector(selector);
     if (btn) {
-      const iconEl = btn.querySelector("i, img, span.icon-svg-wrapper, span.icon-img-wrapper");
+      const iconEl = btn.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper');
       if (iconEl) {
-        if (iconValue.trim().startsWith("IMAGE_BASE64:")) {
-          const base64 = iconValue.replace("IMAGE_BASE64:", "");
+        if (iconValue.trim().startsWith('IMAGE_BASE64:')) {
+          const base64 = iconValue.replace('IMAGE_BASE64:', '');
           iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 18px; height: 18px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-        } else if (iconValue.trim().startsWith("<svg") || iconValue.trim().startsWith("<?xml")) {
+        } else if (iconValue.trim().startsWith('<svg') || iconValue.trim().startsWith('<?xml')) {
           iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 18px; height: 18px; vertical-align: middle;">${iconValue}</span>`;
         } else {
-          if (iconEl.tagName === "I") {
+          if (iconEl.tagName === 'I') {
             iconEl.className = iconValue;
           } else {
             iconEl.outerHTML = `<i class="${iconValue}"></i>`;
@@ -2324,17 +2325,17 @@ async function applyIconsSettings(overrideSettings = null) {
 
   // Applica icona fatture operatore
   const fattureIcon = operatorIconMap.fatture;
-  const fattureBtn = document.querySelector("#btn-fatture");
+  const fattureBtn = document.querySelector('#btn-fatture');
   if (fattureBtn) {
-    const iconEl = fattureBtn.querySelector("i, img, span.icon-svg-wrapper, span.icon-img-wrapper");
+    const iconEl = fattureBtn.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper');
     if (iconEl) {
-      if (fattureIcon.trim().startsWith("IMAGE_BASE64:")) {
-        const base64 = fattureIcon.replace("IMAGE_BASE64:", "");
+      if (fattureIcon.trim().startsWith('IMAGE_BASE64:')) {
+        const base64 = fattureIcon.replace('IMAGE_BASE64:', '');
         iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 20px; height: 20px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-      } else if (fattureIcon.trim().startsWith("<svg") || fattureIcon.trim().startsWith("<?xml")) {
+      } else if (fattureIcon.trim().startsWith('<svg') || fattureIcon.trim().startsWith('<?xml')) {
         iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 20px; height: 20px; vertical-align: middle;">${fattureIcon}</span>`;
       } else {
-        if (iconEl.tagName === "I") {
+        if (iconEl.tagName === 'I') {
           iconEl.className = fattureIcon;
         } else {
           iconEl.outerHTML = `<i class="${fattureIcon}"></i>`;
@@ -2345,17 +2346,17 @@ async function applyIconsSettings(overrideSettings = null) {
 
   // Applica icona prezzi
   const prezziIcon = operatorIconMap.prezzi;
-  const prezziBtn = document.querySelector("#btn-prezzi");
+  const prezziBtn = document.querySelector('#btn-prezzi');
   if (prezziBtn) {
-    const iconEl = prezziBtn.querySelector("i, img, span.icon-svg-wrapper, span.icon-img-wrapper");
+    const iconEl = prezziBtn.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper');
     if (iconEl) {
-      if (prezziIcon.trim().startsWith("IMAGE_BASE64:")) {
-        const base64 = prezziIcon.replace("IMAGE_BASE64:", "");
+      if (prezziIcon.trim().startsWith('IMAGE_BASE64:')) {
+        const base64 = prezziIcon.replace('IMAGE_BASE64:', '');
         iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 20px; height: 20px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-      } else if (prezziIcon.trim().startsWith("<svg") || prezziIcon.trim().startsWith("<?xml")) {
+      } else if (prezziIcon.trim().startsWith('<svg') || prezziIcon.trim().startsWith('<?xml')) {
         iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 20px; height: 20px; vertical-align: middle;">${prezziIcon}</span>`;
       } else {
-        if (iconEl.tagName === "I") {
+        if (iconEl.tagName === 'I') {
           iconEl.className = prezziIcon;
         } else {
           iconEl.outerHTML = `<i class="${prezziIcon}"></i>`;
@@ -2365,18 +2366,18 @@ async function applyIconsSettings(overrideSettings = null) {
   }
 
   // Icona logout operatore
-  const operatorLogoutIcon = settings.operator_icon_logout || "fas fa-sign-out-alt";
-  const operatorLogoutBtn = document.querySelector("#op-logout-btn");
+  const operatorLogoutIcon = settings.operator_icon_logout || 'fas fa-sign-out-alt';
+  const operatorLogoutBtn = document.querySelector('#op-logout-btn');
   if (operatorLogoutBtn) {
-    const iconEl = operatorLogoutBtn.querySelector("i, img, span.icon-svg-wrapper, span.icon-img-wrapper");
+    const iconEl = operatorLogoutBtn.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper');
     if (iconEl) {
-      if (operatorLogoutIcon.trim().startsWith("IMAGE_BASE64:")) {
-        const base64 = operatorLogoutIcon.replace("IMAGE_BASE64:", "");
+      if (operatorLogoutIcon.trim().startsWith('IMAGE_BASE64:')) {
+        const base64 = operatorLogoutIcon.replace('IMAGE_BASE64:', '');
         iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 18px; height: 18px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-      } else if (operatorLogoutIcon.trim().startsWith("<svg") || operatorLogoutIcon.trim().startsWith("<?xml")) {
+      } else if (operatorLogoutIcon.trim().startsWith('<svg') || operatorLogoutIcon.trim().startsWith('<?xml')) {
         iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 18px; height: 18px; vertical-align: middle;">${operatorLogoutIcon}</span>`;
       } else {
-        if (iconEl.tagName === "I") {
+        if (iconEl.tagName === 'I') {
           iconEl.className = operatorLogoutIcon;
         } else {
           iconEl.outerHTML = `<i class="${operatorLogoutIcon}"></i>`;
@@ -2387,26 +2388,26 @@ async function applyIconsSettings(overrideSettings = null) {
 
   // Applica icone azioni distributori
   const stationActionIcons = {
-    edit: settings.station_action_icon_edit || "fas fa-edit",
-    prices: settings.station_action_icon_prices || "fas fa-tag",
-    islands: settings.station_action_icon_islands || "fas fa-gas-pump",
-    tanks: (settings.station_action_icon_tanks && settings.station_action_icon_tanks.includes('fill="white"')) ? settings.station_action_icon_tanks : `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="7" width="22" height="11" rx="5.5" /><rect x="14" y="3" width="7" height="4" rx="1" /><rect x="4" y="18" width="3" height="3" rx="1" /><rect x="17" y="18" width="3" height="3" rx="1" /><path d="M9 15.5l2-3.5 2 3.5H9z" fill="white" /></svg>`,
-    delete: settings.station_action_icon_delete || "fas fa-trash"
+    edit: settings.station_action_icon_edit || 'fas fa-edit',
+    prices: settings.station_action_icon_prices || 'fas fa-tag',
+    islands: settings.station_action_icon_islands || 'fas fa-gas-pump',
+    tanks: (settings.station_action_icon_tanks && settings.station_action_icon_tanks.includes('fill="white"')) ? settings.station_action_icon_tanks : '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="7" width="22" height="11" rx="5.5" /><rect x="14" y="3" width="7" height="4" rx="1" /><rect x="4" y="18" width="3" height="3" rx="1" /><rect x="17" y="18" width="3" height="3" rx="1" /><path d="M9 15.5l2-3.5 2 3.5H9z" fill="white" /></svg>',
+    delete: settings.station_action_icon_delete || 'fas fa-trash'
   };
 
   // Funzione helper per applicare icona
   const applyStationActionIcon = (button, iconValue) => {
-    if (!button) return;
-    const iconEl = button.querySelector("i, img, span.icon-svg-wrapper, span.icon-img-wrapper");
-    if (!iconEl) return;
+    if (!button) {return;}
+    const iconEl = button.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper');
+    if (!iconEl) {return;}
 
-    if (iconValue.trim().startsWith("IMAGE_BASE64:")) {
-      const base64 = iconValue.replace("IMAGE_BASE64:", "");
+    if (iconValue.trim().startsWith('IMAGE_BASE64:')) {
+      const base64 = iconValue.replace('IMAGE_BASE64:', '');
       iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 16px; height: 16px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-    } else if (iconValue.trim().startsWith("<svg") || iconValue.trim().startsWith("<?xml")) {
+    } else if (iconValue.trim().startsWith('<svg') || iconValue.trim().startsWith('<?xml')) {
       iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 16px; height: 16px; vertical-align: middle;">${iconValue}</span>`;
     } else {
-      if (iconEl.tagName === "I") {
+      if (iconEl.tagName === 'I') {
         iconEl.className = iconValue;
       } else {
         iconEl.outerHTML = `<i class="${iconValue}"></i>`;
@@ -2415,11 +2416,11 @@ async function applyIconsSettings(overrideSettings = null) {
   };
 
   // Applica icone a tutti i bottoni delle azioni distributori
-  document.querySelectorAll(".edit-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.edit));
-  document.querySelectorAll(".prices-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.prices));
-  document.querySelectorAll(".islands-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.islands));
-  document.querySelectorAll(".tanks-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.tanks));
-  document.querySelectorAll(".delete-station").forEach(btn => applyStationActionIcon(btn, stationActionIcons.delete));
+  document.querySelectorAll('.edit-station').forEach(btn => applyStationActionIcon(btn, stationActionIcons.edit));
+  document.querySelectorAll('.prices-station').forEach(btn => applyStationActionIcon(btn, stationActionIcons.prices));
+  document.querySelectorAll('.islands-station').forEach(btn => applyStationActionIcon(btn, stationActionIcons.islands));
+  document.querySelectorAll('.tanks-station').forEach(btn => applyStationActionIcon(btn, stationActionIcons.tanks));
+  document.querySelectorAll('.delete-station').forEach(btn => applyStationActionIcon(btn, stationActionIcons.delete));
 }
 
 // Esponi funzione globale per aggiornare le icone (utile quando il DOM viene aggiornato dinamicamente)
@@ -2436,12 +2437,12 @@ async function applyComponentsSettings(overrideSettings = null) {
   const root = document.documentElement;
 
   // Bottoni
-  const buttonPadding = settings.component_button_padding || "12px 24px";
-  const buttonRadius = settings.component_button_radius || "6px";
-  const buttonFontSize = settings.component_button_font_size || "1rem";
-  const buttonFontWeight = settings.component_button_font_weight || "600";
+  const buttonPadding = settings.component_button_padding || '12px 24px';
+  const buttonRadius = settings.component_button_radius || '6px';
+  const buttonFontSize = settings.component_button_font_size || '1rem';
+  const buttonFontWeight = settings.component_button_font_weight || '600';
 
-  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".menu-button")).forEach((btn) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.menu-button')).forEach((btn) => {
     btn.style.padding = buttonPadding;
     btn.style.borderRadius = buttonRadius;
     btn.style.fontSize = buttonFontSize;
@@ -2449,30 +2450,30 @@ async function applyComponentsSettings(overrideSettings = null) {
   });
 
   // Tabelle
-  const tableHeaderBg = settings.component_table_header_bg || "#F4F6F8";
-  const tableHeaderColor = settings.component_table_header_color || "#333333";
-  const tableHoverBg = settings.component_table_hover_bg || "#F8FAFC";
-  const tablePadding = settings.component_table_padding || "16px 24px";
+  const tableHeaderBg = settings.component_table_header_bg || '#F4F6F8';
+  const tableHeaderColor = settings.component_table_header_color || '#333333';
+  const tableHoverBg = settings.component_table_hover_bg || '#F8FAFC';
+  const tablePadding = settings.component_table_padding || '16px 24px';
 
-  root.style.setProperty("--table-header-bg", tableHeaderBg);
-  root.style.setProperty("--table-header-color", tableHeaderColor);
-  root.style.setProperty("--table-hover-bg", tableHoverBg);
+  root.style.setProperty('--table-header-bg', tableHeaderBg);
+  root.style.setProperty('--table-header-color', tableHeaderColor);
+  root.style.setProperty('--table-hover-bg', tableHoverBg);
 
-  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".admin-table th")).forEach((th) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.admin-table th')).forEach((th) => {
     th.style.backgroundColor = tableHeaderBg;
     th.style.color = tableHeaderColor;
     th.style.padding = tablePadding;
   });
 
-  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".admin-table td")).forEach((td) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.admin-table td')).forEach((td) => {
     td.style.padding = tablePadding;
   });
 
   // Aggiungi hover style via CSS variable
-  const styleId = "component-table-hover-style";
+  const styleId = 'component-table-hover-style';
   let hoverStyle = document.getElementById(styleId);
   if (!hoverStyle) {
-    hoverStyle = document.createElement("style");
+    hoverStyle = document.createElement('style');
     hoverStyle.id = styleId;
     document.head.appendChild(hoverStyle);
   }
@@ -2483,43 +2484,43 @@ async function applyComponentsSettings(overrideSettings = null) {
   `;
 
   // Card
-  const cardPadding = settings.component_card_padding || "24px";
-  const cardRadius = settings.component_card_radius || "16px";
-  const cardShadow = settings.component_card_shadow || "md";
+  const cardPadding = settings.component_card_padding || '24px';
+  const cardRadius = settings.component_card_radius || '16px';
+  const cardShadow = settings.component_card_shadow || 'md';
 
   const shadowMap = {
-    none: "none",
-    sm: "0 1px 3px rgba(15, 23, 42, 0.08)",
-    md: "0 4px 10px rgba(15, 23, 42, 0.12)",
-    lg: "0 12px 30px rgba(15, 23, 42, 0.18)"
+    none: 'none',
+    sm: '0 1px 3px rgba(15, 23, 42, 0.08)',
+    md: '0 4px 10px rgba(15, 23, 42, 0.12)',
+    lg: '0 12px 30px rgba(15, 23, 42, 0.18)'
   };
 
-  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".content-box, .kpi-card, .panel-card")).forEach((card) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.content-box, .kpi-card, .panel-card')).forEach((card) => {
     card.style.padding = cardPadding;
     card.style.borderRadius = cardRadius;
-    if (cardShadow !== "none") {
+    if (cardShadow !== 'none') {
       card.style.boxShadow = shadowMap[cardShadow] || shadowMap.md;
     } else {
-      card.style.boxShadow = "none";
+      card.style.boxShadow = 'none';
     }
   });
 
   // Modali
-  const modalMaxWidth = settings.component_modal_max_width || "1100px";
-  const modalPadding = settings.component_modal_padding || "24px";
-  const modalRadius = settings.component_modal_radius || "16px";
-  const modalOverlayOpacity = settings.component_modal_overlay_opacity || "0.6";
+  const modalMaxWidth = settings.component_modal_max_width || '1100px';
+  const modalPadding = settings.component_modal_padding || '24px';
+  const modalRadius = settings.component_modal_radius || '16px';
+  const modalOverlayOpacity = settings.component_modal_overlay_opacity || '0.6';
 
-  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".modal-content")).forEach((modal) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.modal-content')).forEach((modal) => {
     modal.style.maxWidth = modalMaxWidth;
     modal.style.borderRadius = modalRadius;
   });
 
-  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".modal-body")).forEach((body) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.modal-body')).forEach((body) => {
     body.style.padding = modalPadding;
   });
 
-  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll(".modal-overlay")).forEach((overlay) => {
+  /** @type {NodeListOf<HTMLElement>} */(document.querySelectorAll('.modal-overlay')).forEach((overlay) => {
     overlay.style.backgroundColor = `rgba(15, 23, 42, ${modalOverlayOpacity})`;
   });
 }
@@ -2530,25 +2531,25 @@ async function applyLayoutSettings(overrideSettings = null) {
 
   // Sidebar width
   if (settings.admin_sidebar_width) {
-    root.style.setProperty("--admin-sidebar-width", settings.admin_sidebar_width);
-    const sidebar = document.querySelector(".admin-sidebar");
-    if (sidebar) sidebar.style.width = settings.admin_sidebar_width;
+    root.style.setProperty('--admin-sidebar-width', settings.admin_sidebar_width);
+    const sidebar = document.querySelector('.admin-sidebar');
+    if (sidebar) {sidebar.style.width = settings.admin_sidebar_width;}
   }
 
   // Sidebar header/footer visibility
-  const sidebarHeader = document.querySelector(".admin-sidebar .sidebar-header");
-  const sidebarFooter = document.querySelector(".admin-sidebar .sidebar-footer");
+  const sidebarHeader = document.querySelector('.admin-sidebar .sidebar-header');
+  const sidebarFooter = document.querySelector('.admin-sidebar .sidebar-footer');
   if (sidebarHeader) {
-    sidebarHeader.style.display = settings.admin_sidebar_show_header === "false" ? "none" : "";
+    sidebarHeader.style.display = settings.admin_sidebar_show_header === 'false' ? 'none' : '';
   }
   if (sidebarFooter) {
-    sidebarFooter.style.display = settings.admin_sidebar_show_footer === "false" ? "none" : "";
+    sidebarFooter.style.display = settings.admin_sidebar_show_footer === 'false' ? 'none' : '';
   }
 
   // Header logo
-  const headerLogo = document.querySelector(".admin-header-logo");
+  const headerLogo = document.querySelector('.admin-header-logo');
   if (headerLogo) {
-    headerLogo.style.display = settings.admin_header_show_logo === "false" ? "none" : "";
+    headerLogo.style.display = settings.admin_header_show_logo === 'false' ? 'none' : '';
     if (settings.admin_header_logo_height) {
       headerLogo.style.height = settings.admin_header_logo_height;
     }
@@ -2569,13 +2570,13 @@ async function applyLayoutSettings(overrideSettings = null) {
   Object.entries(menuItems).forEach(([tab, visible]) => {
     const btn = document.querySelector(`.nav-btn[data-tab="${tab}"]`);
     if (btn) {
-      btn.style.display = visible === "false" ? "none" : "";
+      btn.style.display = visible === 'false' ? 'none' : '';
     }
   });
 
   // Dashboard KPI layout
-  const kpiLayout = settings.admin_dashboard_kpi_layout || "4";
-  const dashboardGrid = document.querySelector(".dashboard-grid");
+  const kpiLayout = settings.admin_dashboard_kpi_layout || '4';
+  const dashboardGrid = document.querySelector('.dashboard-grid');
   if (dashboardGrid) {
     const cols = parseInt(kpiLayout) || 4;
     dashboardGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -2590,29 +2591,29 @@ async function applyLayoutSettings(overrideSettings = null) {
   };
 
   // I KPI cards hanno classi specifiche, cerchiamo per contenuto o posizione
-  const kpiCards = document.querySelectorAll(".kpi-card");
+  const kpiCards = document.querySelectorAll('.kpi-card');
   if (kpiCards.length >= 4) {
-    const kpiOrder = ["venduto", "erogato", "stazioni", "alert"];
+    const kpiOrder = ['venduto', 'erogato', 'stazioni', 'alert'];
     kpiOrder.forEach((kpi, idx) => {
       if (kpiCards[idx]) {
-        kpiCards[idx].style.display = kpiItems[kpi] === "false" ? "none" : "";
+        kpiCards[idx].style.display = kpiItems[kpi] === 'false' ? 'none' : '';
       }
     });
   }
 
   // Dashboard tanks table visibility
-  const tanksPanel = document.querySelector(".dashboard-panels .panel-card");
+  const tanksPanel = document.querySelector('.dashboard-panels .panel-card');
   if (tanksPanel) {
-    tanksPanel.style.display = settings.admin_dashboard_show_tanks === "false" ? "none" : "";
+    tanksPanel.style.display = settings.admin_dashboard_show_tanks === 'false' ? 'none' : '';
   }
 
   // Spacing
-  const contentArea = document.querySelector(".admin-content-area");
+  const contentArea = document.querySelector('.admin-content-area');
   if (contentArea && settings.admin_content_padding) {
     contentArea.style.padding = settings.admin_content_padding;
   }
 
-  const sections = document.querySelectorAll(".dashboard-grid, .dashboard-panels");
+  const sections = document.querySelectorAll('.dashboard-grid, .dashboard-panels');
   if (settings.admin_section_gap) {
     sections.forEach((section) => {
       section.style.marginBottom = settings.admin_section_gap;
@@ -2620,22 +2621,22 @@ async function applyLayoutSettings(overrideSettings = null) {
   }
 
   // Operator header
-  const opHeaderLogo = document.querySelector(".operator-header img");
+  const opHeaderLogo = document.querySelector('.operator-header img');
   if (opHeaderLogo) {
-    opHeaderLogo.style.display = settings.operator_header_show_logo === "false" ? "none" : "";
+    opHeaderLogo.style.display = settings.operator_header_show_logo === 'false' ? 'none' : '';
     if (settings.operator_header_logo_height) {
       opHeaderLogo.style.height = settings.operator_header_logo_height;
     }
   }
 
-  const opStationBadge = document.getElementById("station-badge");
+  const opStationBadge = document.getElementById('station-badge');
   if (opStationBadge) {
-    opStationBadge.style.display = settings.operator_header_show_station_badge === "false" ? "none" : "";
+    opStationBadge.style.display = settings.operator_header_show_station_badge === 'false' ? 'none' : '';
   }
 
-  const opLogoutBtn = document.getElementById("op-logout-btn");
+  const opLogoutBtn = document.getElementById('op-logout-btn');
   if (opLogoutBtn) {
-    opLogoutBtn.style.display = settings.operator_header_show_logout === "false" ? "none" : "";
+    opLogoutBtn.style.display = settings.operator_header_show_logout === 'false' ? 'none' : '';
   }
 
   // Operator menu items principali
@@ -2647,21 +2648,21 @@ async function applyLayoutSettings(overrideSettings = null) {
   };
 
   Object.entries(opMainMenuItems).forEach(([id, visible]) => {
-    if (id === "movimenti") {
-      const accordion = document.querySelector(".op-menu-accordion");
+    if (id === 'movimenti') {
+      const accordion = document.querySelector('.op-menu-accordion');
       if (accordion) {
-        accordion.style.display = visible === "false" ? "none" : "";
+        accordion.style.display = visible === 'false' ? 'none' : '';
       }
     } else {
       const btn = document.getElementById(`btn-${id}`);
       if (btn) {
-        btn.style.display = visible === "false" ? "none" : "";
+        btn.style.display = visible === 'false' ? 'none' : '';
       }
     }
   });
 
   // Operator submenu items (solo se movimenti è visibile)
-  if (settings.operator_menu_show_movimenti !== "false") {
+  if (settings.operator_menu_show_movimenti !== 'false') {
     const opSubMenuItems = {
       crediti: settings.operator_menu_show_crediti,
       voucher: settings.operator_menu_show_voucher,
@@ -2672,15 +2673,15 @@ async function applyLayoutSettings(overrideSettings = null) {
     Object.entries(opSubMenuItems).forEach(([id, visible]) => {
       const btn = document.getElementById(`btn-${id}`);
       if (btn) {
-        btn.style.display = visible === "false" ? "none" : "";
+        btn.style.display = visible === 'false' ? 'none' : '';
       }
     });
   } else {
     // Se movimenti è nascosto, nascondi anche tutti i submenu
-    ["crediti", "voucher", "uscite", "incassi"].forEach((id) => {
+    ['crediti', 'voucher', 'uscite', 'incassi'].forEach((id) => {
       const btn = document.getElementById(`btn-${id}`);
       if (btn) {
-        btn.style.display = "none";
+        btn.style.display = 'none';
       }
     });
   }
@@ -2690,9 +2691,9 @@ async function applyLayoutSettings(overrideSettings = null) {
 // Inline styles (isolati)
 // -------------------------------------
 function injectStyles() {
-  if (document.getElementById("ui-appearance-style")) return;
-  const style = document.createElement("style");
-  style.id = "ui-appearance-style";
+  if (document.getElementById('ui-appearance-style')) {return;}
+  const style = document.createElement('style');
+  style.id = 'ui-appearance-style';
   style.textContent = `
     /* Container principale - Layout a Griglia */
     .ui-appearance-panel {
@@ -3270,11 +3271,11 @@ let isInitializing = false;
 let observerDebounceTimer = null;
 
 // Inizia a pre-caricare le impostazioni subito (prima del DOMContentLoaded)
-if (document.readyState === "loading") {
+if (document.readyState === 'loading') {
   preloadSettings();
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener('DOMContentLoaded', async () => {
   injectStyles();
   isInitializing = true;
 
@@ -3296,10 +3297,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Applica settings quando cambia area (admin/operator) o vengono aggiunti elementi
   // Con debouncing per evitare troppe chiamate
   const observer = new MutationObserver(() => {
-    if (isInitializing) return; // Evita durante l'inizializzazione
+    if (isInitializing) {return;} // Evita durante l'inizializzazione
 
     // Debounce: aspetta 100ms prima di applicare
-    if (observerDebounceTimer) clearTimeout(observerDebounceTimer);
+    if (observerDebounceTimer) {clearTimeout(observerDebounceTimer);}
 
     observerDebounceTimer = setTimeout(async () => {
       const currentSettings = await fetchUiSettings();
