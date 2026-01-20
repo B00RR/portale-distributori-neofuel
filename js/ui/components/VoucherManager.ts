@@ -158,6 +158,10 @@ export class VoucherManager extends BaseComponent {
         }
     }
 
+    override createRenderRoot() {
+        return this; // Disable Shadow DOM so Html5Qrcode can find #reader
+    }
+
     override disconnectedCallback() {
         super.disconnectedCallback();
         this.stopScanner();
