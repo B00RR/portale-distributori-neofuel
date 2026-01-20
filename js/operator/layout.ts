@@ -113,9 +113,11 @@ export async function renderOperatorShell(container: HTMLElement, handlers: Oper
         </div>
     `;
 
-    if (stationId && user?.id) {
+    const userId = user?.user_id || user?.id;
+
+    if (stationId && userId) {
         updateStationBadge(String(stationId));
-        updateTurnoButton(String(stationId), String(user.id), handlers);
+        updateTurnoButton(String(stationId), String(userId), handlers);
     }
 
     attachEventListeners(handlers);

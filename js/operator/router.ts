@@ -45,7 +45,7 @@ class OperatorRouter {
     async navigateTo(view: OperatorView): Promise<void> {
         const user = store.getUser() as ExtendedUser | null;
         const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
-        const userId = user?.id;
+        const userId = user?.user_id || user?.id;
 
         if (!stationId || !userId) {
             console.error('[Router] Missing user or station context');
