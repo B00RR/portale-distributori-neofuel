@@ -133,5 +133,22 @@ const updateSW = registerSW({
     },
     onOfflineReady() {
         Toast.show('App pronta per l\'uso offline', 'success');
+    },
+    onRegistered(r) {
+        if (!r) return;
+
+        // 1. Check every 60 seconds
+        setInterval(() => {
+            console.log('[PWA] Checking for updates...');
+            r.update().catch(err => console.warn('[PWA] Update check failed', err));
+        }, 60 * 1000);
+
+        // 2. Check whenever user comes back to the app
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                console.log('[PWA] App visible, checking for updates...');
+                r.update().catch(err => console.warn('[PWA] Update check failed', err));
+            }
+        });
     }
 });
