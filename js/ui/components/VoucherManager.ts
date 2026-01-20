@@ -371,7 +371,7 @@ export class VoucherManager extends BaseComponent {
                     
                     <div class="menu-grid" style="margin-top: 2rem">
                         <button class="action-btn" @click=${() => { this.mode = 'menu'; this.activeVoucher = null; }}>Annulla</button>
-                        <button class="action-btn primary" @click=${() => this.confirmRedeem()}>Conserva (Riscatta)</button>
+                        <button class="action-btn primary" @click=${() => this.confirmRedeem()}>Riscatta</button>
                     </div>
                 </div>
             `;

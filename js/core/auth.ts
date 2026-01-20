@@ -31,7 +31,8 @@ export interface UserStationData {
 }
 
 export interface LoggedUserData {
-    user_id: number | string;
+    id: string; // Supabase Auth UUID
+    user_id: number | string; // Legacy Integer ID
     email: string;
     full_name: string;
     role: UserRole;
@@ -220,6 +221,7 @@ export function setupLoginForm(): void {
 
                 if (rpcId && !rpcError) {
                     userData = {
+                        id: authData.user.id,
                         user_id: rpcId,
                         email: authData.user.email,
                         full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
@@ -228,13 +230,16 @@ export function setupLoginForm(): void {
                 } else {
                     console.error('RPC lookup failed:', rpcError);
                     userData = {
-                        user_id: authData.user.id,
+                        id: authData.user.id,
+                        user_id: authData.user.id, // Fallback to UUID as user_id if legacy ID missing
                         email: authData.user.email,
                         full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
                         role: authData.user.user_metadata?.role || 'operator'
                     };
-                    console.error("ATTENZIONE: Stiamo usando un UUID come user_id. Le query SQL potrebbero fallire.");
                 }
+            } else {
+                // We have DB user, add the Auth UUID
+                userData.id = authData.user.id;
             }
 
             if (userData?.role) {
@@ -317,6 +322,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
 
             if (rpcId && !rpcError) {
                 userData = {
+                    id: session.user.id,
                     user_id: rpcId,
                     email: session.user.email,
                     full_name: session.user.user_metadata?.full_name || 'Operatore',
@@ -324,12 +330,15 @@ export async function loadSession(): Promise<LoggedUserData | null> {
                 };
             } else {
                 userData = {
+                    id: session.user.id,
                     user_id: session.user.id,
                     email: session.user.email,
                     full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Operatore',
                     role: session.user.user_metadata?.role || 'operator'
                 };
             }
+        } else {
+            userData.id = session.user.id;
         }
 
         if (!userData.role) {

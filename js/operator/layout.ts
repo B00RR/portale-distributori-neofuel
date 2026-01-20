@@ -113,7 +113,7 @@ export async function renderOperatorShell(container: HTMLElement, handlers: Oper
         </div>
     `;
 
-    const userId = user?.user_id || user?.id;
+    const userId = user?.id || user?.user_id;
 
     if (stationId && userId) {
         updateStationBadge(String(stationId));

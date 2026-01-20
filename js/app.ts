@@ -50,7 +50,7 @@ async function initializeApp(): Promise<void> {
                 // Update the user object in store with the fresh station_id
                 const freshUser = { ...user, station_id: stId };
                 store.setUser(freshUser as any);
-                showOperatorMenu(String(user.user_id), stId);
+                showOperatorMenu(String(user.id), stId);
             } else {
                 Toast.show('Nessuna stazione assegnata all\'utente', 'error');
             }
@@ -96,7 +96,7 @@ async function initializeApp(): Promise<void> {
                 // Update the user object in store with the fresh station_id
                 const freshUser = { ...user, station_id: stId };
                 store.setUser(freshUser as any);
-                showOperatorMenu(String(user.user_id), stId);
+                showOperatorMenu(String(user.id), stId);
             } else {
                 Toast.show('Nessuna stazione assegnata all\'utente', 'error');
             }
