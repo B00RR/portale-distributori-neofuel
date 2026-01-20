@@ -107,11 +107,14 @@ export const CARD_SIZES: CardSizeDefinition[] = [
  * Helper to get current user id reliably
  */
 async function getCurrentUserId(): Promise<string | number | null> {
+    // Priority: Supabase Auth UUID (required for user_dashboard_config table which uses uuid type)
+    const { data: { session } } = await (supabase as any).auth.getSession();
+    if (session?.user?.id) { return session.user.id; }
+
+    // Fallback to internal ID (though this might cause type errors if table expects uuid)
     if (loggedUser?.user_id) { return loggedUser.user_id; }
 
-    // Fallback: check supabase session
-    const { data: { session } } = await (supabase as any).auth.getSession();
-    return session?.user?.id || null;
+    return null;
 }
 
 /**
