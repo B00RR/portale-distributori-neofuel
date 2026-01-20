@@ -129,6 +129,16 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
         return getDefaultConfig();
     }
 
+    // Validate if userId is a valid UUID (simple regex check)
+    // The table user_dashboard_config requires a UUID type for user_id.
+    // If the legacy admin user has an integer ID (e.g. 1 or 11), the query will fail with 400.
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(userId));
+
+    if (!isUUID) {
+        console.warn('[Dashboard Config] User ID is not a UUID (User:', userId, '). Using default config.');
+        return getDefaultConfig();
+    }
+
     try {
         // Try to fetch existing config
         const { data, error } = await (supabase as any)
@@ -138,7 +148,7 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
             .single();
 
         if (error && error.code !== '406' && error.code !== 'PGRST116') {
-            // Error other than "not found"
+            // Error other than "not found" or "not acceptable"
             throw error;
         }
 
