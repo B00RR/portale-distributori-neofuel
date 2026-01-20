@@ -116,29 +116,23 @@ export class VoucherManager extends BaseComponent {
         outline: none;
       }
 
-      .card-preview {
+      .card-preview, .error-box {
         background: white;
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         animation: fadeIn 0.3s ease;
       }
 
-      .amount-display {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: var(--success-color, #22c55e);
-        margin: 1rem 0;
-      }
-
       .error-box {
-        background: #fee2e2;
-        border: 1px solid #fecaca;
-        color: #991b1b;
-        padding: 1.5rem;
-        border-radius: 8px;
-        text-align: center;
+        background: #fff5f5;
+        border: 1px solid #feb2b2;
+        color: #c53030;
       }
 
       @keyframes fadeIn {
@@ -382,15 +376,17 @@ export class VoucherManager extends BaseComponent {
                 const isValidationErr = this.validationResult && !this.validationResult.valid;
                 return html`
                 <div class="error-box">
-                    <i class="fas fa-exclamation-triangle fa-3x" style="margin-bottom: 1rem; display: block"></i>
-                    <h2>${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
-                    <p>${isValidationErr
+                    <div style="background: #fff5f5; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem">
+                        <i class="fas fa-exclamation-triangle fa-3x" style="color: #c53030"></i>
+                    </div>
+                    <h2 style="margin-bottom: 0.5rem">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
+                    <p style="color: #c53030; margin-bottom: 2rem">${isValidationErr
                         ? (this.validationResult?.reason === 'redeemed'
                             ? `Usato il ${formatDate(this.validationResult?.details?.date)}`
                             : 'Voucher non valido')
                         : this.errorMessage}</p>
                     
-                    <button class="action-btn" style="width: 100%; margin-top: 1rem; border: 1px solid #b91c1c" @click=${() => this.mode = 'menu'}>
+                    <button class="action-btn" style="width: 100%; border: 1px solid #feb2b2; background: white" @click=${() => this.mode = 'menu'}>
                         Riprova
                     </button>
                 </div>
@@ -398,11 +394,13 @@ export class VoucherManager extends BaseComponent {
 
             case 'success':
                 return html`
-                <div class="card-preview" style="border-color: var(--success-color)">
-                    <i class="fas fa-check fa-4x" style="color: var(--success-color); margin-bottom: 1rem"></i>
-                    <h2>Riscattato!</h2>
-                    <p>L'importo è stato registrato nel turno corrente.</p>
-                    <button class="action-btn primary" style="width: 100%; margin-top: 1rem" @click=${() => { this.mode = 'menu'; this.activeVoucher = null; }}>
+                <div class="card-preview" style="border-top: 4px solid var(--success-color)">
+                    <div style="background: #ecfdf5; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem">
+                        <i class="fas fa-check fa-3x" style="color: var(--success-color)"></i>
+                    </div>
+                    <h2 style="margin-bottom: 0.5rem">Riscattato!</h2>
+                    <p style="color: #64748b; margin-bottom: 2rem">L'importo è stato registrato nel turno corrente.</p>
+                    <button class="action-btn primary" style="width: 100%" @click=${() => { this.mode = 'menu'; this.activeVoucher = null; }}>
                         Nuova Scansione
                     </button>
                 </div>
