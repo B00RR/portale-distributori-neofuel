@@ -921,10 +921,22 @@ async function handleDeleteBatch(batchId: string): Promise<void> {
 
 export async function openPrintView(batchId: string | undefined): Promise<void> {
     if (!batchId) return;
+
+    // 1. OPEN WINDOW IMMEDIATELY (Synchronous) to bypass Popup Blocker
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        showInfoModal('Attenzione: Il browser ha bloccato il popup. Autorizza i popup per stampare.', 'Stampa Bloccata');
+        return;
+    }
+
+    // 2. Show Loading State in the new window
+    printWindow.document.write('<html><head><title>Caricamento...</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;"><h2>Generazione Voucher in corso...</h2><p>Attendere prego.</p></body></html>');
+
     const container = document.getElementById('voucher-content');
-    if (container) showLoadingMessage(container);
+    if (container) showLoadingMessage(container); // Loader in parent too
 
     try {
+        // 3. Fetch Data (Async)
         const { data: vouchers, error } = await supabase
             .from('vouchers')
             .select('*')
@@ -933,21 +945,18 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
 
         if (error) { throw error; }
 
-        renderActiveTab();
+        renderActiveTab(); // Refresh list to update icons if needed
 
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            showInfoModal('Attenzione: Il browser ha bloccato il popup. Autorizza i popup per stampare.', 'Stampa Bloccata');
-            return;
-        }
-
-        // Call Pure CSS Generator
+        // 4. Update Window Content
         generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
 
     } catch (err: any) {
         console.error(err);
         (Toast as any).show('Errore recupero voucher: ' + err.message, 'error');
-        if (container) renderDashboard(container); // Fallback to Dashboard
+        if (container) renderDashboard(container); // Reset UI
+
+        // Show error in popup
+        printWindow.document.body.innerHTML = `<h3 style="color:red">Errore: ${err.message}</h3>`;
     }
 }
 
