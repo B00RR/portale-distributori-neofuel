@@ -149,37 +149,54 @@ export async function updateTurnoButton(
 ): Promise<void> {
     const btnTurno = document.getElementById('btn-turno');
     const badge = document.getElementById('opening-status');
-    if (!btnTurno) return;
+
+    if (!btnTurno) {
+        console.error('Btn Turno not found');
+        return;
+    }
 
     const opening = await (checkOpeningStatus as any)(stationId) as OpeningData | null;
+    console.log('[Layout] Opening Data:', opening);
 
-    const newBtnTurno = btnTurno.cloneNode(true) as HTMLElement;
-    btnTurno.parentNode?.replaceChild(newBtnTurno, btnTurno);
+    const turnoIcon = btnTurno.querySelector('#turno-icon') as HTMLElement | null;
+    const turnoText = btnTurno.querySelector('#turno-text') as HTMLElement | null;
 
-    const turnoIcon = newBtnTurno.querySelector('#turno-icon') as HTMLElement | null;
-    const turnoText = newBtnTurno.querySelector('#turno-text') as HTMLElement | null;
-    const newBadge = newBtnTurno.querySelector('#opening-status');
+    // Debug badge
+    if (!badge) {
+        console.error('[Layout] Badge opening-status NOT FOUND in DOM.');
+    } else {
+        console.log('[Layout] Badge opening-status FOUND.', badge);
+    }
 
     if (opening) {
         if (turnoIcon) turnoIcon.className = 'fas fa-door-closed';
         if (turnoText) turnoText.textContent = 'Chiusura';
-        newBtnTurno.addEventListener('click', () => handlers.onClosure(String(stationId), String(userId)));
 
-        if (newBadge) {
+        // Remove old listeners by using onclick property (safest simple way)
+        btnTurno.onclick = () => handlers.onClosure(String(stationId), String(userId));
+
+        if (badge) {
             const hasPartial = opening.closing_data?.closure_stage === 'partial';
-            newBadge.textContent = hasPartial ? 'Parziale' : 'Aperto';
-            newBadge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
-            (newBadge as HTMLElement).title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
+            const text = hasPartial ? 'Parziale' : 'Aperto';
+            console.log('[Layout] Setting badge text to:', text);
+            badge.textContent = text;
+            badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
+            badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
+            // Force visibility
+            badge.style.display = 'inline-block';
         }
     } else {
         if (turnoIcon) turnoIcon.className = 'fas fa-door-open';
         if (turnoText) turnoText.textContent = 'Apertura';
-        newBtnTurno.addEventListener('click', () => handlers.onOpening(String(stationId), String(userId)));
 
-        if (newBadge) {
-            newBadge.textContent = 'Chiuso';
-            newBadge.className = 'status-badge status-closed';
-            (newBadge as HTMLElement).title = 'Nessuna apertura attiva';
+        btnTurno.onclick = () => handlers.onOpening(String(stationId), String(userId));
+
+        if (badge) {
+            console.log('[Layout] Setting badge text to: Chiuso');
+            badge.textContent = 'Chiuso';
+            badge.className = 'status-badge status-closed';
+            badge.title = 'Nessuna apertura attiva';
+            badge.style.display = 'inline-block';
         }
     }
 }
