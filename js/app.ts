@@ -41,13 +41,15 @@ async function initializeApp(): Promise<void> {
         if (isAdminRole) {
             showAdminArea();
         } else {
-            let stId = (user as any).station_id;
-            if (!stId) {
-                // Recupera station_id se non presente
-                const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', user.user_id).maybeSingle();
-                stId = us?.station_id;
-            }
+            // ALWAYS fetch the authoritative station_id from DB, ignoring potential stale session data
+            let stId: number | null = null;
+            const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', user.user_id).maybeSingle();
+            stId = us?.station_id;
+
             if (stId) {
+                // Update the user object in store with the fresh station_id
+                const freshUser = { ...user, station_id: stId };
+                store.setUser(freshUser as any);
                 showOperatorMenu(String(user.user_id), stId);
             } else {
                 Toast.show('Nessuna stazione assegnata all\'utente', 'error');
@@ -83,12 +85,17 @@ async function initializeApp(): Promise<void> {
             showAdminArea();
         } else {
             document.body.classList.remove('admin-layout', 'desktop-layout');
-            let stId = (user as any).station_id;
-            if (!stId) {
-                const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', user.user_id).maybeSingle();
-                stId = us?.station_id;
-            }
+            document.body.classList.remove('admin-layout', 'desktop-layout');
+
+            // ALWAYS fetch the authoritative station_id from DB
+            let stId: number | null = null;
+            const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', user.user_id).maybeSingle();
+            stId = us?.station_id;
+
             if (stId) {
+                // Update the user object in store with the fresh station_id
+                const freshUser = { ...user, station_id: stId };
+                store.setUser(freshUser as any);
                 showOperatorMenu(String(user.user_id), stId);
             } else {
                 Toast.show('Nessuna stazione assegnata all\'utente', 'error');

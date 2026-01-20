@@ -20,9 +20,14 @@ export async function showOperatorMenu(userId: string, stationId: string | numbe
 
     // Ensure state is updated (if not already set by app.js)
     const user = store.getUser();
-    if (user && !user.station_id && stationId) {
-        user.station_id = typeof stationId === 'string' ? parseInt(stationId) : stationId;
-        store.setUser(user);
+    if (user && stationId) {
+        // FORCE update of station_id to ensure it matches the one passed by app.js (authoritative from DB)
+        const newStationId = typeof stationId === 'string' ? parseInt(stationId) : stationId;
+        if (user.station_id !== newStationId) {
+            console.log('[Operator] Updating stale station_id in store:', user.station_id, '->', newStationId);
+            user.station_id = newStationId;
+            store.setUser(user);
+        }
     }
 
     // Define handlers for the layout
