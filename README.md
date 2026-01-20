@@ -263,9 +263,11 @@ Vedi [Component Migration Guide](./docs/COMPONENT_MIGRATION.md) per dettagli.
 - ✅ Edge Functions per operazioni sensibili
 
 ```bash
-# Run security audit
-npm audit
-npm audit fix
+# Security & Quality Checks
+npm run lint          # Check standard (stile + errori)
+npm run lint:security # Check vulnerabilità (OWASP)
+npm run secure        # Check completo (Audit + Format + Lint)
+npm audit fix         # Fix automatico dipendenze
 ```
 
 ## 🤝 Contributing

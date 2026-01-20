@@ -12,9 +12,12 @@ Queste linee guida devono essere seguite in ogni futuro intervento di coding su 
 -   **Atomic Transaction**: Il cambio stato del voucher e la registrazione dell'incasso devono avvenire nella stessa transazione DB.
 
 ## 3. Sicurezza Frontend
--   **Sanitizzazione**: Usare sempre `escapeHtml()` (da `utils/utils.js`) quando si inietta HTML dinamico (`innerHTML`).
+## 3. Sicurezza Frontend
+-   **Sanitizzazione**: Usare sempre `setInnerHTML(elem, content)` (da `utils/sanitizer.ts`) per iniettare HTML dinamico. Evitare `innerHTML` diretto.
+-   **Validazione Output**: Usare `escapeHtml()` per interpolazioni di testo semplici.
+-   **Local Storage**: Usare `getSafeLocalStorage()` per prevenire errori di parsing e validare i dati.
+-   **Linting**: Eseguire `npm run lint:security` prima di ogni commit per intercettare vulnerabilità.
 -   **Nessun Segreto**: Non committare mai Service Role Keys o password nel codice client.
--   **Validazione Input**: Validare sempre gli input utente (formati numerici, lunghezze stringhe) prima di inviarli al server, ma NON affidarsi solo a questo per la sicurezza.
 
 ## 4. Gestione Errori
 -   **No Leak**: Non mostrare stack trace o dettagli tecnici grezzi del database nei messaggi di errore utente (`Toast` o `Alert`). Usare messaggi generici ("Errore durante l'operazione").

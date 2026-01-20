@@ -4,6 +4,7 @@
  */
 
 import { Toast } from "../ui/toast.js";
+import { escapeHtml } from "../utils/utils.js";
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -147,14 +148,4 @@ function sanitizeErrorForLogging(error: unknown): unknown {
     return error;
 }
 
-/**
- * Simple HTML escape to prevent XSS in error messages
- */
-function escapeHtml(unsafe: string): string {
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
+// Helper escapeHtml rimosso in favore di import centralizzato da ../utils/utils.js
