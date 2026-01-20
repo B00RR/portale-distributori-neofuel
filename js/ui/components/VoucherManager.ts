@@ -191,7 +191,10 @@ export class VoucherManager extends BaseComponent {
             );
         } catch (e) {
             console.error("Scanner error", e);
-            this.errorMessage = "Impossibile avviare la fotocamera.";
+        } catch (e: any) {
+            console.error("Scanner error", e);
+            // Show detailed error for debugging
+            this.errorMessage = `Impossibile avviare la fotocamera: ${e.name || ''} ${e.message || e}`;
             this.mode = 'error';
         }
     }
