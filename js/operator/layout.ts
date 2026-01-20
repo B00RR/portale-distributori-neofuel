@@ -160,7 +160,7 @@ export async function updateTurnoButton(
     if (opening) {
         if (turnoIcon) turnoIcon.className = 'fas fa-door-closed';
         if (turnoText) turnoText.textContent = 'Chiusura';
-        newBtnTurno.addEventListener('click', () => handlers.onClosure(stationId, userId));
+        newBtnTurno.addEventListener('click', () => handlers.onClosure(String(stationId), String(userId)));
 
         if (badge) {
             const hasPartial = opening.closing_data?.closure_stage === 'partial';
@@ -171,7 +171,7 @@ export async function updateTurnoButton(
     } else {
         if (turnoIcon) turnoIcon.className = 'fas fa-door-open';
         if (turnoText) turnoText.textContent = 'Apertura';
-        newBtnTurno.addEventListener('click', () => handlers.onOpening(stationId, userId));
+        newBtnTurno.addEventListener('click', () => handlers.onOpening(String(stationId), String(userId)));
 
         if (badge) {
             badge.textContent = 'Chiuso';

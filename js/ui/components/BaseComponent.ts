@@ -6,10 +6,10 @@
 import { LitElement, CSSResultGroup, css } from 'lit';
 
 export class BaseComponent extends LitElement {
-    /**
-     * Stili comuni a tutti i componenti
-     */
-    static styles: CSSResultGroup = css`
+  /**
+   * Stili comuni a tutti i componenti
+   */
+  static override styles: CSSResultGroup = [css`
     * {
       box-sizing: border-box;
     }
@@ -34,28 +34,28 @@ export class BaseComponent extends LitElement {
     .warning {
       color: var(--warning-color, #ffc107);
     }
-  `;
+  `];
 
-    /**
-     * Emette un evento personalizzato
-     * @param {string} eventName - Nome dell'evento
-     * @param {any} detail - Dettagli dell'evento
-     */
-    public emit(eventName: string, detail: any = {}): void {
-        this.dispatchEvent(new CustomEvent(eventName, {
-            detail,
-            bubbles: true,
-            composed: true
-        }));
-    }
+  /**
+   * Emette un evento personalizzato
+   * @param {string} eventName - Nome dell'evento
+   * @param {any} detail - Dettagli dell'evento
+   */
+  public emit(eventName: string, detail: any = {}): void {
+    this.dispatchEvent(new CustomEvent(eventName, {
+      detail,
+      bubbles: true,
+      composed: true
+    }));
+  }
 
-    /**
-     * Helper per gestire errori nei componenti
-     * @param {Error} error - Errore catturato
-     * @param {string} context - Contesto dell'errore
-     */
-    public handleComponentError(error: Error | unknown, context: string = ''): void {
-        console.error(`[${(this.constructor as any).name}${context ? ':' + context : ''}]`, error);
-        this.emit('component-error', { error, context });
-    }
+  /**
+   * Helper per gestire errori nei componenti
+   * @param {Error} error - Errore catturato
+   * @param {string} context - Contesto dell'errore
+   */
+  public handleComponentError(error: Error | unknown, context: string = ''): void {
+    console.error(`[${(this.constructor as any).name}${context ? ':' + context : ''}]`, error);
+    this.emit('component-error', { error, context });
+  }
 }

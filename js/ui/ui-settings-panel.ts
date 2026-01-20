@@ -9,286 +9,294 @@ import { supabase, safeSupabaseQuery } from '../core/api.js';
 import { Toast } from './toast.js';
 import { openConfirmModal } from './ui.js';
 import {
-    UI_FIELDS,
-    ADMIN_LAYOUT_FIELDS,
-    COMPONENTS_FIELDS,
-    FORMS_FIELDS,
-    OPERATOR_LAYOUT_FIELDS,
-    PREDEFINED_THEMES,
-    DEFAULT_SETTINGS,
-    UiField
+  UI_FIELDS,
+  ADMIN_LAYOUT_FIELDS,
+  COMPONENTS_FIELDS,
+  FORMS_FIELDS,
+  OPERATOR_LAYOUT_FIELDS,
+  PREDEFINED_THEMES,
+  DEFAULT_SETTINGS,
+  UiField
 } from './ui-settings-constants.js';
 import { UI_SETTINGS_STYLES } from './ui-settings-styles.js';
 
 let cachedSettings: Record<string, string> | null = null;
-let settingsLoaded = false;
 
 // -------------------------------------
 // Helpers
 // -------------------------------------
 function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const result = reader.result as string;
-            const base64 = result.split(',')[1];
-            resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        const parts = result.split(',');
+        const content = parts[1];
+        if (content) {
+          resolve(content);
+        } else {
+          reject(new Error('Invalid base64 string'));
+        }
+      } else {
+        reject(new Error('Failed to read file'));
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function setupIconImageHandlers(form: HTMLFormElement): void {
-    form.querySelectorAll('input[data-icon-image-input]').forEach((el) => {
-        const fileInput = el as HTMLInputElement;
-        fileInput.addEventListener('change', async (e: Event) => {
-            const target = e.target as HTMLInputElement;
-            const file = target.files?.[0];
-            if (!file) { return; }
+  form.querySelectorAll('input[data-icon-image-input]').forEach((el) => {
+    const fileInput = el as HTMLInputElement;
+    fileInput.addEventListener('change', async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (!file) { return; }
 
-            if (!file.type.startsWith('image/')) {
-                Toast.show('Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.).', 'warning');
-                target.value = '';
-                return;
-            }
+      if (!file.type.startsWith('image/')) {
+        Toast.show('Per favore seleziona un file immagine (PNG, JPG, SVG, ecc.).', 'warning');
+        target.value = '';
+        return;
+      }
 
-            if (file.size > 500 * 1024) {
-                Toast.show("L'immagine è troppo grande. Massimo 500KB.", 'warning');
-                target.value = '';
-                return;
-            }
+      if (file.size > 500 * 1024) {
+        Toast.show("L'immagine è troppo grande. Massimo 500KB.", 'warning');
+        target.value = '';
+        return;
+      }
 
-            try {
-                const base64 = await fileToBase64(file);
-                const fieldKey = fileInput.dataset.iconImageInput!;
-                const iconValue = `IMAGE_BASE64:${base64}`;
+      try {
+        const base64 = await fileToBase64(file);
+        const fieldKey = fileInput.dataset.iconImageInput!;
+        const iconValue = `IMAGE_BASE64:${base64}`;
 
-                const textInput = form.querySelector(`input[name="${fieldKey}"]`) as HTMLInputElement;
-                if (textInput) {
-                    textInput.value = '';
-                }
+        const textInput = form.querySelector(`input[name="${fieldKey}"]`) as HTMLInputElement;
+        if (textInput) {
+          textInput.value = '';
+        }
 
-                const tempSettings = await fetchUiSettings();
-                tempSettings[fieldKey] = iconValue;
-                await applyIconsSettings(tempSettings);
+        const tempSettings = await fetchUiSettings();
+        tempSettings[fieldKey] = iconValue;
+        await applyIconsSettings(tempSettings);
 
-                const panel = form.closest('.ui-appearance-panel');
-                if (panel) {
-                    const currentSettings = await fetchUiSettings();
-                    const iconsSection = panel.querySelector('[data-appearance-section-content="icons"]');
-                    if (iconsSection) {
-                        iconsSection.innerHTML = renderIconsSection(currentSettings);
-                        setupIconImageHandlers(form);
-                    }
-                }
-            } catch (err: any) {
-                console.error('Errore nel caricamento immagine:', err);
-                Toast.show("Errore nel caricamento dell'immagine: " + err.message, 'error');
-                target.value = '';
-            }
-        });
+        const panel = form.closest('.ui-appearance-panel');
+        if (panel) {
+          const currentSettings = await fetchUiSettings();
+          const iconsSection = panel.querySelector('[data-appearance-section-content="icons"]');
+          if (iconsSection) {
+            iconsSection.innerHTML = renderIconsSection(currentSettings);
+            setupIconImageHandlers(form);
+          }
+        }
+      } catch (err: any) {
+        console.error('Errore nel caricamento immagine:', err);
+        Toast.show("Errore nel caricamento dell'immagine: " + err.message, 'error');
+        target.value = '';
+      }
     });
+  });
 
-    form.querySelectorAll('button[data-icon-remove-image]').forEach((el) => {
-        const removeBtn = el as HTMLButtonElement;
-        removeBtn.addEventListener('click', async () => {
-            const fieldKey = removeBtn.dataset.iconRemoveImage!;
-            const field = UI_FIELDS.find(f => f.key === fieldKey);
-            const defaultValue = field?.defaultValue || '';
+  form.querySelectorAll('button[data-icon-remove-image]').forEach((el) => {
+    const removeBtn = el as HTMLButtonElement;
+    removeBtn.addEventListener('click', async () => {
+      const fieldKey = removeBtn.dataset.iconRemoveImage!;
+      const field = UI_FIELDS.find(f => f.key === fieldKey);
+      const defaultValue = field?.defaultValue || '';
 
-            const textInput = form.querySelector(`input[name="${fieldKey}"]`) as HTMLInputElement;
-            if (textInput) {
-                textInput.value = defaultValue;
-            }
+      const textInput = form.querySelector(`input[name="${fieldKey}"]`) as HTMLInputElement;
+      if (textInput) {
+        textInput.value = defaultValue;
+      }
 
-            const tempSettings = await fetchUiSettings();
-            tempSettings[fieldKey] = defaultValue;
-            await applyIconsSettings(tempSettings);
+      const tempSettings = await fetchUiSettings();
+      tempSettings[fieldKey] = defaultValue;
+      await applyIconsSettings(tempSettings);
 
-            const panel = form.closest('.ui-appearance-panel');
-            if (panel) {
-                const currentSettings = await fetchUiSettings();
-                const iconsSection = panel.querySelector('[data-appearance-section-content="icons"]');
-                if (iconsSection) {
-                    iconsSection.innerHTML = renderIconsSection(currentSettings);
-                    setupIconImageHandlers(form);
-                }
-            }
-        });
+      const panel = form.closest('.ui-appearance-panel');
+      if (panel) {
+        const currentSettings = await fetchUiSettings();
+        const iconsSection = panel.querySelector('[data-appearance-section-content="icons"]');
+        if (iconsSection) {
+          iconsSection.innerHTML = renderIconsSection(currentSettings);
+          setupIconImageHandlers(form);
+        }
+      }
     });
+  });
 }
 
 let settingsLoadPromise: Promise<Record<string, string>> | null = null;
 
 function preloadSettings(): Promise<Record<string, string>> {
-    if (settingsLoadPromise) { return settingsLoadPromise; }
-    settingsLoadPromise = (async () => {
-        if (cachedSettings) { return cachedSettings; }
-        try {
-            if (!cachedSettings) {
-                cachedSettings = { ...DEFAULT_SETTINGS };
-                applyDefaultsImmediately();
-            }
+  if (settingsLoadPromise) { return settingsLoadPromise; }
+  settingsLoadPromise = (async () => {
+    if (cachedSettings) { return cachedSettings; }
+    try {
+      if (!cachedSettings) {
+        cachedSettings = { ...DEFAULT_SETTINGS };
+        applyDefaultsImmediately();
+      }
 
-            const { data, error } = await supabase.from('ui_settings').select('key,value');
-            if (error) { throw error; }
+      const { data, error } = await supabase.from('ui_settings').select('key,value');
+      if (error) { throw error; }
 
-            if (Array.isArray(data)) {
-                data.forEach((row) => {
-                    if (row?.key && typeof row.value === 'string') {
-                        cachedSettings![row.key] = row.value;
-                    }
-                });
-            }
-            return cachedSettings!;
-        } catch (err: any) {
-            console.warn('[UI Settings] Tabella mancante o non accessibile, uso defaults:', err.message);
-            if (!cachedSettings) {
-                cachedSettings = { ...DEFAULT_SETTINGS };
-            }
-            return cachedSettings!;
-        }
-    })();
-    return settingsLoadPromise;
+      if (Array.isArray(data)) {
+        data.forEach((row) => {
+          if (row?.key && typeof row.value === 'string') {
+            cachedSettings![row.key] = row.value;
+          }
+        });
+      }
+      return cachedSettings!;
+    } catch (err: any) {
+      console.warn('[UI Settings] Tabella mancante o non accessibile, uso defaults:', err.message);
+      if (!cachedSettings) {
+        cachedSettings = { ...DEFAULT_SETTINGS };
+      }
+      return cachedSettings!;
+    }
+  })();
+  return settingsLoadPromise;
 }
 
 function applyDefaultsImmediately(): void {
-    const root = document.documentElement;
-    UI_FIELDS.forEach((field) => {
-        if (field.cssVar) {
-            root.style.setProperty(field.cssVar, field.defaultValue);
-        }
-        if (field.key === 'font_family') {
-            document.body.style.fontFamily = field.defaultValue;
-            root.style.setProperty('--app-font-family', field.defaultValue);
-        }
-    });
+  const root = document.documentElement;
+  UI_FIELDS.forEach((field) => {
+    if (field.cssVar) {
+      root.style.setProperty(field.cssVar, field.defaultValue);
+    }
+    if (field.key === 'font_family') {
+      document.body.style.fontFamily = field.defaultValue;
+      root.style.setProperty('--app-font-family', field.defaultValue);
+    }
+  });
 }
 
 async function fetchUiSettings(): Promise<Record<string, string>> {
-    if (cachedSettings) { return cachedSettings; }
-    return await preloadSettings();
+  if (cachedSettings) { return cachedSettings; }
+  return await preloadSettings();
 }
 
 async function saveUiSettings(values: Record<string, string>): Promise<void> {
-    const rows = Object.entries(values).map(([key, value]) => ({
-        key,
-        value,
-        updated_at: new Date().toISOString()
-    }));
-    await safeSupabaseQuery(() =>
-        supabase.from('ui_settings').upsert(rows, { onConflict: 'key' })
-    );
+  const rows = Object.entries(values).map(([key, value]) => ({
+    key,
+    value,
+    updated_at: new Date().toISOString()
+  }));
+  await safeSupabaseQuery(() =>
+    supabase.from('ui_settings').upsert(rows, { onConflict: 'key' })
+  );
 
-    if (!cachedSettings) { cachedSettings = { ...DEFAULT_SETTINGS }; }
+  if (!cachedSettings) { cachedSettings = { ...DEFAULT_SETTINGS }; }
+  if (cachedSettings) {
     Object.assign(cachedSettings, values);
+  }
 
-    await Promise.all([
-        applyUiSettings(cachedSettings),
-        applyLayoutSettings(cachedSettings),
-        applyComponentsSettings(cachedSettings),
-        applyFormsSettings(cachedSettings),
-        applyIconsSettings(cachedSettings)
-    ]);
+  await Promise.all([
+    applyUiSettings(cachedSettings),
+    applyLayoutSettings(cachedSettings),
+    applyComponentsSettings(cachedSettings),
+    applyFormsSettings(cachedSettings),
+    applyIconsSettings(cachedSettings)
+  ]);
 }
 
 async function applyUiSettings(overrideSettings: Record<string, string> | null = null): Promise<void> {
-    const settings = overrideSettings || await fetchUiSettings();
-    const root = document.documentElement;
+  const settings = overrideSettings || await fetchUiSettings();
+  const root = document.documentElement;
 
-    UI_FIELDS.forEach((field) => {
-        const value = settings[field.key] ?? field.defaultValue;
-        if (field.cssVar) {
-            root.style.setProperty(field.cssVar, value);
-        }
-        if (field.key === 'font_family') {
-            document.body.style.fontFamily = value;
-            root.style.setProperty('--app-font-family', value);
-        }
-    });
+  UI_FIELDS.forEach((field) => {
+    const value = settings[field.key] ?? field.defaultValue;
+    if (field.cssVar) {
+      root.style.setProperty(field.cssVar, value);
+    }
+    if (field.key === 'font_family') {
+      document.body.style.fontFamily = value;
+      root.style.setProperty('--app-font-family', value);
+    }
+  });
 
-    document.querySelectorAll('.login-tagline').forEach((el) => {
-        el.textContent = settings.login_tagline || DEFAULT_SETTINGS.login_tagline;
-    });
-
-    settingsLoaded = true;
+  document.querySelectorAll('.login-tagline').forEach((el) => {
+    el.textContent = settings.login_tagline || DEFAULT_SETTINGS.login_tagline;
+  });
 }
 
 function watchSettingsTab(): void {
-    const observer = new MutationObserver(() => {
-        const shell = document.querySelector('.settings-shell') as HTMLElement;
-        const tabs = document.querySelector('.settings-tabs') as HTMLElement;
-        if (shell && tabs && !shell.dataset.uiAppearanceReady) {
-            shell.dataset.uiAppearanceReady = 'true';
-            injectAppearanceTab(shell, tabs);
-        }
-    });
+  const observer = new MutationObserver(() => {
+    const shell = document.querySelector('.settings-shell') as HTMLElement;
+    const tabs = document.querySelector('.settings-tabs') as HTMLElement;
+    if (shell && tabs && !shell.dataset.uiAppearanceReady) {
+      shell.dataset.uiAppearanceReady = 'true';
+      injectAppearanceTab(shell, tabs);
+    }
+  });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function injectAppearanceTab(shell: HTMLElement, tabs: HTMLElement): void {
-    const panelsWrapper = shell.querySelector('.content-box[data-settings-panel]');
-    if (!tabs || !panelsWrapper) { return; }
+  const panelsWrapper = shell.querySelector('.content-box[data-settings-panel]');
+  if (!tabs || !panelsWrapper) { return; }
 
-    const tabBtn = document.createElement('button');
-    tabBtn.className = 'settings-tab';
-    tabBtn.dataset.settingsTab = 'appearance';
-    tabBtn.innerHTML = '<i class="fas fa-palette"></i> Aspetto';
+  const tabBtn = document.createElement('button');
+  tabBtn.className = 'settings-tab';
+  tabBtn.dataset.settingsTab = 'appearance';
+  tabBtn.innerHTML = '<i class="fas fa-palette"></i> Aspetto';
 
-    const panel = document.createElement('div');
-    panel.className = 'content-box settings-panel';
-    panel.dataset.settingsPanel = 'appearance';
-    panel.innerHTML = '<div class="ui-appearance-panel"><p>Caricamento impostazioni...</p></div>';
+  const panel = document.createElement('div');
+  panel.className = 'content-box settings-panel';
+  panel.dataset.settingsPanel = 'appearance';
+  panel.innerHTML = '<div class="ui-appearance-panel"><p>Caricamento impostazioni...</p></div>';
 
-    tabs.appendChild(tabBtn);
-    shell.appendChild(panel);
+  tabs.appendChild(tabBtn);
+  shell.appendChild(panel);
 
-    tabBtn.addEventListener('click', () => activateSettingsTab('appearance', shell));
+  tabBtn.addEventListener('click', () => activateSettingsTab('appearance', shell));
 
-    renderAppearancePanel(panel);
-    ensureTabSwitching(shell);
+  renderAppearancePanel(panel);
+  ensureTabSwitching(shell);
 }
 
 function ensureTabSwitching(shell: HTMLElement): void {
-    shell.querySelectorAll('.settings-tab').forEach((el) => {
-        const btn = el as HTMLElement;
-        btn.addEventListener('click', () => {
-            const target = btn.dataset.settingsTab!;
-            activateSettingsTab(target, shell);
-        });
+  shell.querySelectorAll('.settings-tab').forEach((el) => {
+    const btn = el as HTMLElement;
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.settingsTab!;
+      activateSettingsTab(target, shell);
     });
+  });
 }
 
 function activateSettingsTab(targetKey: string, shell: HTMLElement): void {
-    shell.querySelectorAll('.settings-tab').forEach((el) => {
-        const btn = el as HTMLElement;
-        btn.classList.toggle('active', btn.dataset.settingsTab === targetKey);
-    });
-    shell.querySelectorAll('.settings-panel').forEach((el) => {
-        const panel = el as HTMLElement;
-        panel.classList.toggle('active', panel.dataset.settingsPanel === targetKey);
-    });
+  shell.querySelectorAll('.settings-tab').forEach((el) => {
+    const btn = el as HTMLElement;
+    btn.classList.toggle('active', btn.dataset.settingsTab === targetKey);
+  });
+  shell.querySelectorAll('.settings-panel').forEach((el) => {
+    const panel = el as HTMLElement;
+    panel.classList.toggle('active', panel.dataset.settingsPanel === targetKey);
+  });
 }
 
 async function renderAppearancePanel(panel: HTMLElement): Promise<void> {
-    const settings = await fetchUiSettings();
+  const settings = await fetchUiSettings();
 
-    const colorFields = UI_FIELDS.filter(f => f.type === 'color');
-    const typographyFields = UI_FIELDS.filter(f => f.key === 'font_family' || f.key === 'button_radius');
-    const textFields = UI_FIELDS.filter(f => f.key === 'login_tagline');
+  const colorFields = UI_FIELDS.filter(f => f.type === 'color');
+  const typographyFields = UI_FIELDS.filter(f => f.key === 'font_family' || f.key === 'button_radius');
+  const textFields = UI_FIELDS.filter(f => f.key === 'login_tagline');
 
-    const renderColorField = (field: UiField) => {
-        const value = settings[field.key] ?? field.defaultValue;
-        const hexValue = value.toUpperCase();
-        return `
+  const renderColorField = (field: UiField) => {
+    const value = settings[field.key] ?? field.defaultValue;
+    const hexValue = value.toUpperCase();
+    return `
       <div class="ui-color-field">
         <label class="ui-color-label">
           <span class="ui-color-label-text">${field.label}</span>
@@ -315,11 +323,11 @@ async function renderAppearancePanel(panel: HTMLElement): Promise<void> {
         </div>
       </div>
     `;
-    };
+  };
 
-    const renderTextField = (field: UiField) => {
-        const value = settings[field.key] ?? field.defaultValue;
-        return `
+  const renderTextField = (field: UiField) => {
+    const value = settings[field.key] ?? field.defaultValue;
+    return `
       <div class="ui-text-field">
         <label class="ui-text-label">
           <span>${field.label}</span>
@@ -333,9 +341,9 @@ async function renderAppearancePanel(panel: HTMLElement): Promise<void> {
         />
       </div>
     `;
-    };
+  };
 
-    panel.innerHTML = `
+  panel.innerHTML = `
     <div class="ui-appearance-panel">
       <div class="ui-header-box">
         <div class="ui-header-titles">
@@ -475,253 +483,253 @@ async function renderAppearancePanel(panel: HTMLElement): Promise<void> {
     </div>
   `;
 
-    const form = panel.querySelector('#ui-appearance-form') as HTMLFormElement;
-    const resetBtn = panel.querySelector('[data-ui-reset]') as HTMLButtonElement;
+  const form = panel.querySelector('#ui-appearance-form') as HTMLFormElement;
+  const resetBtn = panel.querySelector('[data-ui-reset]') as HTMLButtonElement;
 
-    panel.querySelectorAll('.ui-appearance-tab').forEach((el) => {
-        const tab = el as HTMLElement;
-        tab.addEventListener('click', () => {
-            const section = tab.dataset.appearanceSection;
-            panel.querySelectorAll('.ui-appearance-tab').forEach((t) => t.classList.remove('active'));
-            panel.querySelectorAll('.ui-appearance-section').forEach((s) => s.classList.remove('active'));
-            tab.classList.add('active');
-            panel.querySelector(`[data-appearance-section-content="${section}"]`)?.classList.add('active');
-        });
+  panel.querySelectorAll('.ui-appearance-tab').forEach((el) => {
+    const tab = el as HTMLElement;
+    tab.addEventListener('click', () => {
+      const section = tab.dataset.appearanceSection;
+      panel.querySelectorAll('.ui-appearance-tab').forEach((t) => t.classList.remove('active'));
+      panel.querySelectorAll('.ui-appearance-section').forEach((s) => s.classList.remove('active'));
+      tab.classList.add('active');
+      panel.querySelector(`[data-appearance-section-content="${section}"]`)?.classList.add('active');
     });
+  });
 
-    form.querySelectorAll('.ui-color-picker').forEach((el) => {
-        const picker = el as HTMLInputElement;
-        const fieldKey = picker.name;
-        const hexInput = form.querySelector(`input[name="${fieldKey}_hex"]`) as HTMLInputElement;
+  form.querySelectorAll('.ui-color-picker').forEach((el) => {
+    const picker = el as HTMLInputElement;
+    const fieldKey = picker.name;
+    const hexInput = form.querySelector(`input[name="${fieldKey}_hex"]`) as HTMLInputElement;
 
-        picker.addEventListener('input', (e: any) => {
-            const value = e.target.value.toUpperCase();
-            if (hexInput) { hexInput.value = value; }
-            const field = UI_FIELDS.find((f) => f.key === fieldKey);
-            if (field?.cssVar) {
-                document.documentElement.style.setProperty(field.cssVar, value);
-            }
-        });
+    picker.addEventListener('input', (e: any) => {
+      const value = e.target.value.toUpperCase();
+      if (hexInput) { hexInput.value = value; }
+      const field = UI_FIELDS.find((f) => f.key === fieldKey);
+      if (field?.cssVar) {
+        document.documentElement.style.setProperty(field.cssVar, value);
+      }
     });
+  });
 
-    form.querySelectorAll('.ui-color-hex').forEach((el) => {
-        const hexInput = el as HTMLInputElement;
-        const fieldKey = hexInput.name.replace('_hex', '');
-        const picker = form.querySelector(`input[name="${fieldKey}"]`) as HTMLInputElement;
-        if (picker) {
-            hexInput.addEventListener('input', (e: any) => {
-                const hex = e.target.value;
-                if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-                    picker.value = hex;
-                    picker.dispatchEvent(new Event('input'));
-                }
-            });
+  form.querySelectorAll('.ui-color-hex').forEach((el) => {
+    const hexInput = el as HTMLInputElement;
+    const fieldKey = hexInput.name.replace('_hex', '');
+    const picker = form.querySelector(`input[name="${fieldKey}"]`) as HTMLInputElement;
+    if (picker) {
+      hexInput.addEventListener('input', (e: any) => {
+        const hex = e.target.value;
+        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+          picker.value = hex;
+          picker.dispatchEvent(new Event('input'));
         }
-    });
+      });
+    }
+  });
 
-    const dashboardContainer = panel.querySelector('[data-appearance-section-content="dashboard"]') as HTMLElement;
-    if (dashboardContainer) {
-        renderConfigPanel(dashboardContainer);
+  const dashboardContainer = panel.querySelector('[data-appearance-section-content="dashboard"]') as HTMLElement;
+  if (dashboardContainer) {
+    renderConfigPanel(dashboardContainer);
+  }
+
+  form.addEventListener('input', (event: any) => {
+    const { name, value } = event.target;
+    if (name.endsWith('_hex')) { return; }
+
+    const field = UI_FIELDS.find((f) => f.key === name);
+    if (field?.cssVar) {
+      document.documentElement.style.setProperty(field.cssVar, value);
+    }
+    if (name === 'font_family') {
+      document.body.style.fontFamily = value;
+    }
+    if (name === 'login_tagline') {
+      document.querySelectorAll('.login-tagline').forEach((el) => {
+        (el as HTMLElement).textContent = value;
+      });
     }
 
-    form.addEventListener('input', (event: any) => {
-        const { name, value } = event.target;
-        if (name.endsWith('_hex')) { return; }
+    applyComponentsSettings({ [name]: value });
+    applyFormsSettings({ [name]: value });
+  });
 
-        const field = UI_FIELDS.find((f) => f.key === name);
-        if (field?.cssVar) {
-            document.documentElement.style.setProperty(field.cssVar, value);
-        }
-        if (name === 'font_family') {
-            document.body.style.fontFamily = value;
-        }
-        if (name === 'login_tagline') {
-            document.querySelectorAll('.login-tagline').forEach((el) => {
-                (el as HTMLElement).textContent = value;
-            });
-        }
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const payload: Record<string, string> = {};
 
-        applyComponentsSettings({ [name]: value });
-        applyFormsSettings({ [name]: value });
+    UI_FIELDS.forEach((field) => {
+      const value = formData.get(field.key) as string;
+      payload[field.key] = value || field.defaultValue;
     });
 
-    form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const formData = new FormData(form);
-        const payload: Record<string, string> = {};
-
-        UI_FIELDS.forEach((field) => {
-            const value = formData.get(field.key) as string;
-            payload[field.key] = value || field.defaultValue;
-        });
-
-        [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables,
-        ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((field) => {
-            const value = formData.get(field.key) as string;
-            payload[field.key] = value || field.defaultValue;
-        });
-
-        [...FORMS_FIELDS.inputs, ...FORMS_FIELDS.layout].forEach((field) => {
-            const value = formData.get(field.key) as string;
-            payload[field.key] = value || field.defaultValue;
-        });
-
-        const responsiveBreakpoint = formData.get('responsive_mobile_breakpoint') as string;
-        const responsiveCollapse = formData.get('responsive_sidebar_collapse') as string;
-        if (responsiveBreakpoint) { payload.responsive_mobile_breakpoint = responsiveBreakpoint; }
-        if (responsiveCollapse) { payload.responsive_sidebar_collapse = responsiveCollapse; }
-
-        [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
-        ...ADMIN_LAYOUT_FIELDS.spacing].forEach((field) => {
-            const value = formData.get(field.key) as string;
-            payload[field.key] = value || field.defaultValue;
-        });
-
-        [...OPERATOR_LAYOUT_FIELDS.header, ...OPERATOR_LAYOUT_FIELDS.menu].forEach((field) => {
-            const value = formData.get(field.key) as string;
-            payload[field.key] = value || field.defaultValue;
-        });
-
-        try {
-            form.classList.add('pending');
-            await saveUiSettings(payload);
-            const successMsg = document.createElement('div');
-            successMsg.className = 'ui-success-message';
-            successMsg.innerHTML = '<i class="fas fa-check-circle"></i> Impostazioni salvate con successo!';
-            form.parentElement!.insertBefore(successMsg, form);
-            setTimeout(() => successMsg.remove(), 3000);
-        } catch (err: any) {
-            console.error('[UI Settings] Errore salvataggio:', err);
-            Toast.show('Errore nel salvataggio delle impostazioni: ' + err.message, 'error');
-        } finally {
-            form.classList.remove('pending');
-        }
+    [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables,
+    ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((field) => {
+      const value = formData.get(field.key) as string;
+      payload[field.key] = value || field.defaultValue;
     });
 
-    resetBtn.addEventListener('click', async () => {
-        const confirmed = await openConfirmModal('Ripristinare tutti i valori di default (colori, layout, ecc.)?');
-        if (!confirmed) { return; }
-        try {
-            form.classList.add('pending');
-            const defaults = { ...DEFAULT_SETTINGS };
-            [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables,
-            ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((f) => {
-                defaults[f.key] = f.defaultValue;
-            });
-            [...FORMS_FIELDS.inputs, ...FORMS_FIELDS.layout].forEach((f) => {
-                defaults[f.key] = f.defaultValue;
-            });
-            [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
-            ...ADMIN_LAYOUT_FIELDS.spacing].forEach((f) => {
-                defaults[f.key] = f.defaultValue;
-            });
-            [...OPERATOR_LAYOUT_FIELDS.header, ...OPERATOR_LAYOUT_FIELDS.menu].forEach((f) => {
-                defaults[f.key] = f.defaultValue;
-            });
-            await saveUiSettings(defaults);
-            renderAppearancePanel(panel);
-            Toast.show('Impostazioni ripristinate.', 'success');
-        } catch (err: any) {
-            console.error(err);
-            Toast.show('Impossibile ripristinare: ' + err.message, 'error');
-        } finally {
-            form.classList.remove('pending');
-        }
+    [...FORMS_FIELDS.inputs, ...FORMS_FIELDS.layout].forEach((field) => {
+      const value = formData.get(field.key) as string;
+      payload[field.key] = value || field.defaultValue;
     });
 
-    panel.querySelectorAll('.ui-theme-apply').forEach((el) => {
-        const btn = el as HTMLElement;
-        btn.addEventListener('click', async () => {
-            const themeKey = btn.dataset.themeKey!;
-            const theme = PREDEFINED_THEMES[themeKey];
-            if (!theme) { return; }
+    const responsiveBreakpoint = formData.get('responsive_mobile_breakpoint') as string;
+    const responsiveCollapse = formData.get('responsive_sidebar_collapse') as string;
+    if (responsiveBreakpoint) { payload.responsive_mobile_breakpoint = responsiveBreakpoint; }
+    if (responsiveCollapse) { payload.responsive_sidebar_collapse = responsiveCollapse; }
 
-            const confirmed = await openConfirmModal(`Applicare il tema "${theme.name}"? I colori attuali verranno sostituiti.`);
-            if (!confirmed) { return; }
-
-            try {
-                form.classList.add('pending');
-                const themePayload: Record<string, string> = {};
-                Object.entries(theme).forEach(([key, value]) => {
-                    if (key !== 'name') {
-                        themePayload[key] = value as string;
-                    }
-                });
-                await saveUiSettings(themePayload);
-                renderAppearancePanel(panel);
-                Toast.show(`Tema "${theme.name}" applicato con successo!`, 'success');
-            } catch (err: any) {
-                Toast.show("Errore nell'applicazione del tema: " + err.message, 'error');
-            } finally {
-                form.classList.remove('pending');
-            }
-        });
+    [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
+    ...ADMIN_LAYOUT_FIELDS.spacing].forEach((field) => {
+      const value = formData.get(field.key) as string;
+      payload[field.key] = value || field.defaultValue;
     });
 
-    const exportBtn = panel.querySelector('#export-config-btn');
-    if (exportBtn) {
-        exportBtn.addEventListener('click', async () => {
-            try {
-                const allSettings = await fetchUiSettings();
-                const config = {
-                    version: '1.0',
-                    exported_at: new Date().toISOString(),
-                    settings: allSettings
-                };
-                const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `neofuel-ui-config-${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                Toast.show('Configurazione esportata con successo!', 'success');
-            } catch (err: any) {
-                Toast.show("Errore nell'export: " + err.message, 'error');
-            }
-        });
+    [...OPERATOR_LAYOUT_FIELDS.header, ...OPERATOR_LAYOUT_FIELDS.menu].forEach((field) => {
+      const value = formData.get(field.key) as string;
+      payload[field.key] = value || field.defaultValue;
+    });
+
+    try {
+      form.classList.add('pending');
+      await saveUiSettings(payload);
+      const successMsg = document.createElement('div');
+      successMsg.className = 'ui-success-message';
+      successMsg.innerHTML = '<i class="fas fa-check-circle"></i> Impostazioni salvate con successo!';
+      form.parentElement!.insertBefore(successMsg, form);
+      setTimeout(() => successMsg.remove(), 3000);
+    } catch (err: any) {
+      console.error('[UI Settings] Errore salvataggio:', err);
+      Toast.show('Errore nel salvataggio delle impostazioni: ' + err.message, 'error');
+    } finally {
+      form.classList.remove('pending');
     }
+  });
 
-    const importInput = panel.querySelector('#import-config-input') as HTMLInputElement;
-    if (importInput) {
-        importInput.addEventListener('change', async (e: any) => {
-            const file = e.target.files[0];
-            if (!file) { return; }
-
-            try {
-                const text = await file.text();
-                const config = JSON.parse(text);
-
-                if (!config.settings || typeof config.settings !== 'object') {
-                    throw new Error('Formato file non valido');
-                }
-
-                const confirmed = await openConfirmModal('Importare la configurazione? Tutte le impostazioni attuali verranno sostituite.');
-                if (!confirmed) {
-                    e.target.value = '';
-                    return;
-                }
-
-                form.classList.add('pending');
-                await saveUiSettings(config.settings);
-                renderAppearancePanel(panel);
-                Toast.show('Configurazione importata con successo!', 'success');
-            } catch (err: any) {
-                Toast.show("Errore nell'import: " + err.message, 'error');
-            } finally {
-                form.classList.remove('pending');
-                e.target.value = '';
-            }
-        });
+  resetBtn.addEventListener('click', async () => {
+    const confirmed = await openConfirmModal('Ripristinare tutti i valori di default (colori, layout, ecc.)?');
+    if (!confirmed) { return; }
+    try {
+      form.classList.add('pending');
+      const defaults = { ...DEFAULT_SETTINGS };
+      [...COMPONENTS_FIELDS.buttons, ...COMPONENTS_FIELDS.tables,
+      ...COMPONENTS_FIELDS.cards, ...COMPONENTS_FIELDS.modals].forEach((f) => {
+        defaults[f.key] = f.defaultValue;
+      });
+      [...FORMS_FIELDS.inputs, ...FORMS_FIELDS.layout].forEach((f) => {
+        defaults[f.key] = f.defaultValue;
+      });
+      [...ADMIN_LAYOUT_FIELDS.sidebar, ...ADMIN_LAYOUT_FIELDS.header, ...ADMIN_LAYOUT_FIELDS.menu,
+      ...ADMIN_LAYOUT_FIELDS.spacing].forEach((f) => {
+        defaults[f.key] = f.defaultValue;
+      });
+      [...OPERATOR_LAYOUT_FIELDS.header, ...OPERATOR_LAYOUT_FIELDS.menu].forEach((f) => {
+        defaults[f.key] = f.defaultValue;
+      });
+      await saveUiSettings(defaults);
+      renderAppearancePanel(panel);
+      Toast.show('Impostazioni ripristinate.', 'success');
+    } catch (err: any) {
+      console.error(err);
+      Toast.show('Impossibile ripristinare: ' + err.message, 'error');
+    } finally {
+      form.classList.remove('pending');
     }
+  });
 
-    setupIconImageHandlers(form);
+  panel.querySelectorAll('.ui-theme-apply').forEach((el) => {
+    const btn = el as HTMLElement;
+    btn.addEventListener('click', async () => {
+      const themeKey = btn.dataset.themeKey!;
+      const theme = PREDEFINED_THEMES[themeKey];
+      if (!theme) { return; }
+
+      const confirmed = await openConfirmModal(`Applicare il tema "${theme.name}"? I colori attuali verranno sostituiti.`);
+      if (!confirmed) { return; }
+
+      try {
+        form.classList.add('pending');
+        const themePayload: Record<string, string> = {};
+        Object.entries(theme).forEach(([key, value]) => {
+          if (key !== 'name') {
+            themePayload[key] = value as string;
+          }
+        });
+        await saveUiSettings(themePayload);
+        renderAppearancePanel(panel);
+        Toast.show(`Tema "${theme.name}" applicato con successo!`, 'success');
+      } catch (err: any) {
+        Toast.show("Errore nell'applicazione del tema: " + err.message, 'error');
+      } finally {
+        form.classList.remove('pending');
+      }
+    });
+  });
+
+  const exportBtn = panel.querySelector('#export-config-btn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', async () => {
+      try {
+        const allSettings = await fetchUiSettings();
+        const config = {
+          version: '1.0',
+          exported_at: new Date().toISOString(),
+          settings: allSettings
+        };
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `neofuel-ui-config-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        Toast.show('Configurazione esportata con successo!', 'success');
+      } catch (err: any) {
+        Toast.show("Errore nell'export: " + err.message, 'error');
+      }
+    });
+  }
+
+  const importInput = panel.querySelector('#import-config-input') as HTMLInputElement;
+  if (importInput) {
+    importInput.addEventListener('change', async (e: any) => {
+      const file = e.target.files[0];
+      if (!file) { return; }
+
+      try {
+        const text = await file.text();
+        const config = JSON.parse(text);
+
+        if (!config.settings || typeof config.settings !== 'object') {
+          throw new Error('Formato file non valido');
+        }
+
+        const confirmed = await openConfirmModal('Importare la configurazione? Tutte le impostazioni attuali verranno sostituite.');
+        if (!confirmed) {
+          e.target.value = '';
+          return;
+        }
+
+        form.classList.add('pending');
+        await saveUiSettings(config.settings);
+        renderAppearancePanel(panel);
+        Toast.show('Configurazione importata con successo!', 'success');
+      } catch (err: any) {
+        Toast.show("Errore nell'import: " + err.message, 'error');
+      } finally {
+        form.classList.remove('pending');
+        e.target.value = '';
+      }
+    });
+  }
+
+  setupIconImageHandlers(form);
 }
 
 function renderAdminLayoutSection(settings: Record<string, string>): string {
-    return `
+  return `
     <div class="ui-layout-section">
       <div class="ui-section-box">
         <h4 class="ui-section-title">
@@ -764,7 +772,7 @@ function renderAdminLayoutSection(settings: Record<string, string>): string {
 }
 
 function renderComponentsSection(settings: Record<string, string>): string {
-    return `
+  return `
     <div class="ui-layout-section">
       <div class="ui-section-box">
         <h4 class="ui-section-title">
@@ -807,7 +815,7 @@ function renderComponentsSection(settings: Record<string, string>): string {
 }
 
 function renderFormsSection(settings: Record<string, string>): string {
-    return `
+  return `
     <div class="ui-layout-section">
       <div class="ui-section-box">
         <h4 class="ui-section-title">
@@ -831,8 +839,8 @@ function renderFormsSection(settings: Record<string, string>): string {
   `;
 }
 
-function renderThemesSection(settings: Record<string, string>): string {
-    const themesList = Object.entries(PREDEFINED_THEMES).map(([key, theme]) => `
+function renderThemesSection(_settings: Record<string, string>): string {
+  const themesList = Object.entries(PREDEFINED_THEMES).map(([key, theme]) => `
     <div class="ui-theme-card" data-theme-key="${key}">
       <div class="ui-theme-preview">
         <div class="ui-theme-preview-sidebar" style="background: ${theme.bg_sidebar};"></div>
@@ -848,7 +856,7 @@ function renderThemesSection(settings: Record<string, string>): string {
     </div>
   `).join('');
 
-    return `
+  return `
     <div class="ui-layout-section">
       <div class="ui-section-box">
         <h4 class="ui-section-title">
@@ -864,11 +872,11 @@ function renderThemesSection(settings: Record<string, string>): string {
 }
 
 function renderIconsSection(settings: Record<string, string>): string {
-    const adminIconFields = UI_FIELDS.filter(f => f.category === 'icon_admin');
-    const operatorIconFields = UI_FIELDS.filter(f => f.category === 'icon_operator');
-    const stationActionIconFields = UI_FIELDS.filter(f => f.category === 'icon_station_actions');
+  const adminIconFields = UI_FIELDS.filter(f => f.category === 'icon_admin');
+  const operatorIconFields = UI_FIELDS.filter(f => f.category === 'icon_operator');
+  const stationActionIconFields = UI_FIELDS.filter(f => f.category === 'icon_station_actions');
 
-    return `
+  return `
     <div class="ui-layout-section">
       <div class="ui-section-box">
         <h4 class="ui-section-title">
@@ -902,13 +910,13 @@ function renderIconsSection(settings: Record<string, string>): string {
 }
 
 function renderIconField(field: UiField, settings: Record<string, string>): string {
-    const value = settings[field.key] || field.defaultValue || '';
-    const isSvg = value.trim().startsWith('<svg') || value.trim().startsWith('<?xml');
-    const isImage = value.trim().startsWith('IMAGE_BASE64:');
-    const imageBase64 = isImage ? value.replace('IMAGE_BASE64:', '') : '';
-    const displayValue = isImage ? '' : value;
+  const value = settings[field.key] || field.defaultValue || '';
+  const isSvg = value.trim().startsWith('<svg') || value.trim().startsWith('<?xml');
+  const isImage = value.trim().startsWith('IMAGE_BASE64:');
+  const imageBase64 = isImage ? value.replace('IMAGE_BASE64:', '') : '';
+  const displayValue = isImage ? '' : value;
 
-    return `
+  return `
     <div class="ui-layout-field" data-icon-field-key="${field.key}">
       <label class="ui-text-label">
         <span>${field.label}</span>
@@ -962,7 +970,7 @@ function renderIconField(field: UiField, settings: Record<string, string>): stri
 }
 
 function renderAdvancedSection(settings: Record<string, string>): string {
-    return `
+  return `
     <div class="ui-layout-section">
       <div class="ui-section-box">
         <h4 class="ui-section-title">
@@ -1003,16 +1011,16 @@ function renderAdvancedSection(settings: Record<string, string>): string {
 }
 
 function renderOperatorLayoutSection(settings: Record<string, string>): string {
-    const menuMainItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f =>
-        f.key === 'operator_menu_show_turno' || f.key === 'operator_menu_show_movimenti' ||
-        f.key === 'operator_menu_show_fatture' || f.key === 'operator_menu_show_prezzi'
-    );
-    const menuSubItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f =>
-        f.key === 'operator_menu_show_crediti' || f.key === 'operator_menu_show_voucher' ||
-        f.key === 'operator_menu_show_uscite' || f.key === 'operator_menu_show_incassi'
-    );
+  const menuMainItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f =>
+    f.key === 'operator_menu_show_turno' || f.key === 'operator_menu_show_movimenti' ||
+    f.key === 'operator_menu_show_fatture' || f.key === 'operator_menu_show_prezzi'
+  );
+  const menuSubItems = OPERATOR_LAYOUT_FIELDS.menu.filter(f =>
+    f.key === 'operator_menu_show_crediti' || f.key === 'operator_menu_show_voucher' ||
+    f.key === 'operator_menu_show_uscite' || f.key === 'operator_menu_show_incassi'
+  );
 
-    return `
+  return `
     <div class="ui-layout-section">
       <div class="ui-section-box">
         <h4 class="ui-section-title">
@@ -1046,11 +1054,11 @@ function renderOperatorLayoutSection(settings: Record<string, string>): string {
 }
 
 function renderLayoutField(field: UiField, settings: Record<string, string>): string {
-    const value = settings[field.key] ?? field.defaultValue;
+  const value = settings[field.key] ?? field.defaultValue;
 
-    if (field.type === 'checkbox') {
-        const checked = value === 'true' || value === true;
-        return `
+  if (field.type === 'checkbox') {
+    const checked = String(value) === 'true';
+    return `
       <div class="ui-layout-field">
         <label class="ui-checkbox-label">
           <input 
@@ -1064,8 +1072,8 @@ function renderLayoutField(field: UiField, settings: Record<string, string>): st
         <small class="ui-field-desc">${field.description}</small>
       </div>
     `;
-    } else if (field.type === 'select') {
-        return `
+  } else if (field.type === 'select') {
+    return `
       <div class="ui-layout-field">
         <label class="ui-text-label">
           <span>${field.label}</span>
@@ -1073,14 +1081,14 @@ function renderLayoutField(field: UiField, settings: Record<string, string>): st
         </label>
         <select name="${field.key}" class="ui-text-input">
           ${field.options?.map(opt =>
-            `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`
-        ).join('')}
+      `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`
+    ).join('')}
         </select>
       </div>
     `;
-    } else if (field.type === 'color') {
-        const hexValue = value.toUpperCase();
-        return `
+  } else if (field.type === 'color') {
+    const hexValue = value.toUpperCase();
+    return `
       <div class="ui-layout-field">
         <label class="ui-color-label">
           <span class="ui-color-label-text">${field.label}</span>
@@ -1107,8 +1115,8 @@ function renderLayoutField(field: UiField, settings: Record<string, string>): st
         </div>
       </div>
     `;
-    } else {
-        return `
+  } else {
+    return `
       <div class="ui-layout-field">
         <label class="ui-text-label">
           <span>${field.label}</span>
@@ -1122,244 +1130,244 @@ function renderLayoutField(field: UiField, settings: Record<string, string>): st
         />
       </div>
     `;
-    }
+  }
 }
 
 async function applyFormsSettings(overrideSettings: Record<string, string> | null = null): Promise<void> {
-    const settings = overrideSettings || await fetchUiSettings();
+  const settings = overrideSettings || await fetchUiSettings();
 
-    const inputPadding = settings.form_input_padding || '12px 16px';
-    const inputRadius = settings.form_input_radius || '6px';
-    const inputBorderWidth = settings.form_input_border_width || '2px';
-    const inputFontSize = settings.form_input_font_size || '1rem';
-    const labelFontSize = settings.form_label_font_size || '0.95rem';
-    const labelFontWeight = settings.form_label_font_weight || '600';
+  const inputPadding = settings.form_input_padding || '12px 16px';
+  const inputRadius = settings.form_input_radius || '6px';
+  const inputBorderWidth = settings.form_input_border_width || '2px';
+  const inputFontSize = settings.form_input_font_size || '1rem';
+  const labelFontSize = settings.form_label_font_size || '0.95rem';
+  const labelFontWeight = settings.form_label_font_weight || '600';
 
-    const formInputs = document.querySelectorAll('.form-group input, .form-group select, .form-group textarea, .big-input, .form-input') as NodeListOf<HTMLElement>;
-    formInputs.forEach((input) => {
-        input.style.padding = inputPadding;
-        input.style.borderRadius = inputRadius;
-        input.style.borderWidth = inputBorderWidth;
-        input.style.fontSize = inputFontSize;
-    });
+  const formInputs = document.querySelectorAll('.form-group input, .form-group select, .form-group textarea, .big-input, .form-input') as NodeListOf<HTMLElement>;
+  formInputs.forEach((input) => {
+    input.style.padding = inputPadding;
+    input.style.borderRadius = inputRadius;
+    input.style.borderWidth = inputBorderWidth;
+    input.style.fontSize = inputFontSize;
+  });
 
-    const formLabels = document.querySelectorAll('.form-group label, .form-field label') as NodeListOf<HTMLElement>;
-    formLabels.forEach((label) => {
-        label.style.fontSize = labelFontSize;
-        label.style.fontWeight = labelFontWeight;
-    });
+  const formLabels = document.querySelectorAll('.form-group label, .form-field label') as NodeListOf<HTMLElement>;
+  formLabels.forEach((label) => {
+    label.style.fontSize = labelFontSize;
+    label.style.fontWeight = labelFontWeight;
+  });
 
-    const formGroupGap = settings.form_group_gap || '20px';
-    const formRowGap = settings.form_row_gap || '16px';
+  const formGroupGap = settings.form_group_gap || '20px';
+  const formRowGap = settings.form_row_gap || '16px';
 
-    const formGroups = document.querySelectorAll('.form-group') as NodeListOf<HTMLElement>;
-    formGroups.forEach((group) => {
-        group.style.marginBottom = formGroupGap;
-    });
+  const formGroups = document.querySelectorAll('.form-group') as NodeListOf<HTMLElement>;
+  formGroups.forEach((group) => {
+    group.style.marginBottom = formGroupGap;
+  });
 
-    const formRows = document.querySelectorAll('.form-row') as NodeListOf<HTMLElement>;
-    formRows.forEach((row) => {
-        row.style.gap = formRowGap;
-    });
+  const formRows = document.querySelectorAll('.form-row') as NodeListOf<HTMLElement>;
+  formRows.forEach((row) => {
+    row.style.gap = formRowGap;
+  });
 }
 
 async function applyIconsSettings(overrideSettings: Record<string, string> | null = null): Promise<void> {
-    const settings = overrideSettings || await fetchUiSettings();
+  const settings = overrideSettings || await fetchUiSettings();
 
-    const adminIconMap: Record<string, string> = {
-        dashboard: settings.admin_icon_dashboard || 'fas fa-chart-line',
-        stations: settings.admin_icon_stations || 'fas fa-gas-pump',
-        operators: settings.admin_icon_operators || 'fas fa-users',
-        chiusure: settings.admin_icon_chiusure || 'fas fa-file-invoice-dollar',
-        crediti: settings.admin_icon_crediti || 'fas fa-credit-card',
-        fatture: settings.admin_icon_fatture || 'fas fa-file-invoice',
-        vouchers: settings.admin_icon_vouchers || 'fas fa-ticket-alt',
-        notifiche: settings.admin_icon_notifiche || 'fas fa-bell',
-        settings: settings.admin_icon_settings || 'fas fa-cog'
-    };
+  const adminIconMap: Record<string, string> = {
+    dashboard: settings.admin_icon_dashboard || 'fas fa-chart-line',
+    stations: settings.admin_icon_stations || 'fas fa-gas-pump',
+    operators: settings.admin_icon_operators || 'fas fa-users',
+    chiusure: settings.admin_icon_chiusure || 'fas fa-file-invoice-dollar',
+    crediti: settings.admin_icon_crediti || 'fas fa-credit-card',
+    fatture: settings.admin_icon_fatture || 'fas fa-file-invoice',
+    vouchers: settings.admin_icon_vouchers || 'fas fa-ticket-alt',
+    notifiche: settings.admin_icon_notifiche || 'fas fa-bell',
+    settings: settings.admin_icon_settings || 'fas fa-cog'
+  };
 
-    Object.entries(adminIconMap).forEach(([tab, iconValue]) => {
-        const btn = document.querySelector(`.nav-btn[data-tab="${tab}"]`);
-        if (btn) {
-            const iconEl = btn.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper') as HTMLElement;
-            if (iconEl) {
-                if (iconValue.trim().startsWith('IMAGE_BASE64:')) {
-                    const base64 = iconValue.replace('IMAGE_BASE64:', '');
-                    iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 16px; height: 16px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-                } else if (iconValue.trim().startsWith('<svg') || iconValue.trim().startsWith('<?xml')) {
-                    iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 16px; height: 16px; vertical-align: middle;">${iconValue}</span>`;
-                } else {
-                    if (iconEl.tagName === 'I') {
-                        iconEl.className = iconValue;
-                    } else {
-                        iconEl.outerHTML = `<i class="${iconValue}"></i>`;
-                    }
-                }
-            }
+  Object.entries(adminIconMap).forEach(([tab, iconValue]) => {
+    const btn = document.querySelector(`.nav-btn[data-tab="${tab}"]`);
+    if (btn) {
+      const iconEl = btn.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper') as HTMLElement;
+      if (iconEl) {
+        if (iconValue.trim().startsWith('IMAGE_BASE64:')) {
+          const base64 = iconValue.replace('IMAGE_BASE64:', '');
+          iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 16px; height: 16px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
+        } else if (iconValue.trim().startsWith('<svg') || iconValue.trim().startsWith('<?xml')) {
+          iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 16px; height: 16px; vertical-align: middle;">${iconValue}</span>`;
+        } else {
+          if (iconEl.tagName === 'I') {
+            iconEl.className = iconValue;
+          } else {
+            iconEl.outerHTML = `<i class="${iconValue}"></i>`;
+          }
         }
-    });
+      }
+    }
+  });
 
-    // Logout
-    const refreshIcon = (selector: string, iconValue: string) => {
-        const el = document.querySelector(selector);
-        if (el) {
-            const iconEl = el.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper') as HTMLElement;
-            if (iconEl) {
-                if (iconValue.trim().startsWith('IMAGE_BASE64:')) {
-                    const base64 = iconValue.replace('IMAGE_BASE64:', '');
-                    iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 18px; height: 18px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
-                } else if (iconValue.trim().startsWith('<svg') || iconValue.trim().startsWith('<?xml')) {
-                    iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 18px; height: 18px; vertical-align: middle;">${iconValue}</span>`;
-                } else {
-                    if (iconEl.tagName === 'I') {
-                        iconEl.className = iconValue;
-                    } else {
-                        iconEl.outerHTML = `<i class="${iconValue}"></i>`;
-                    }
-                }
-            }
+  // Logout
+  const refreshIcon = (selector: string, iconValue: string) => {
+    const el = document.querySelector(selector);
+    if (el) {
+      const iconEl = el.querySelector('i, img, span.icon-svg-wrapper, span.icon-img-wrapper') as HTMLElement;
+      if (iconEl) {
+        if (iconValue.trim().startsWith('IMAGE_BASE64:')) {
+          const base64 = iconValue.replace('IMAGE_BASE64:', '');
+          iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 18px; height: 18px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
+        } else if (iconValue.trim().startsWith('<svg') || iconValue.trim().startsWith('<?xml')) {
+          iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 18px; height: 18px; vertical-align: middle;">${iconValue}</span>`;
+        } else {
+          if (iconEl.tagName === 'I') {
+            iconEl.className = iconValue;
+          } else {
+            iconEl.outerHTML = `<i class="${iconValue}"></i>`;
+          }
         }
-    };
+      }
+    }
+  };
 
-    refreshIcon('#admin-logout', settings.admin_icon_logout || 'fas fa-sign-out-alt');
-    refreshIcon('#turno-icon', settings.operator_icon_turno || 'fas fa-door-open');
-    refreshIcon('#op-logout-btn', settings.operator_icon_logout || 'fas fa-sign-out-alt');
-    refreshIcon('#btn-movimenti', settings.operator_icon_movimenti || 'fas fa-exchange-alt');
-    refreshIcon('#btn-crediti', settings.operator_icon_crediti || 'fas fa-credit-card');
-    refreshIcon('#btn-voucher', settings.operator_icon_voucher || 'fas fa-ticket-alt');
-    refreshIcon('#btn-uscite', settings.operator_icon_uscite || 'fas fa-hand-holding-usd');
-    refreshIcon('#btn-incassi', settings.operator_icon_incassi || 'fas fa-cash-register');
-    refreshIcon('#btn-fatture', settings.operator_icon_fatture || 'fas fa-file-invoice');
-    refreshIcon('#btn-prezzi', settings.operator_icon_prezzi || 'fas fa-tags');
+  refreshIcon('#admin-logout', settings.admin_icon_logout || 'fas fa-sign-out-alt');
+  refreshIcon('#turno-icon', settings.operator_icon_turno || 'fas fa-door-open');
+  refreshIcon('#op-logout-btn', settings.operator_icon_logout || 'fas fa-sign-out-alt');
+  refreshIcon('#btn-movimenti', settings.operator_icon_movimenti || 'fas fa-exchange-alt');
+  refreshIcon('#btn-crediti', settings.operator_icon_crediti || 'fas fa-credit-card');
+  refreshIcon('#btn-voucher', settings.operator_icon_voucher || 'fas fa-ticket-alt');
+  refreshIcon('#btn-uscite', settings.operator_icon_uscite || 'fas fa-hand-holding-usd');
+  refreshIcon('#btn-incassi', settings.operator_icon_incassi || 'fas fa-cash-register');
+  refreshIcon('#btn-fatture', settings.operator_icon_fatture || 'fas fa-file-invoice');
+  refreshIcon('#btn-prezzi', settings.operator_icon_prezzi || 'fas fa-tags');
 }
 
 async function applyComponentsSettings(overrideSettings: Record<string, string> | null = null): Promise<void> {
-    const settings = overrideSettings || await fetchUiSettings();
-    const root = document.documentElement;
+  const settings = overrideSettings || await fetchUiSettings();
+  const root = document.documentElement;
 
-    const buttonPadding = settings.component_button_padding || '12px 24px';
-    const buttonRadius = settings.component_button_radius || '6px';
-    const buttonFontSize = settings.component_button_font_size || '1rem';
-    const buttonFontWeight = settings.component_button_font_weight || '600';
+  const buttonPadding = settings.component_button_padding || '12px 24px';
+  const buttonRadius = settings.component_button_radius || '6px';
+  const buttonFontSize = settings.component_button_font_size || '1rem';
+  const buttonFontWeight = settings.component_button_font_weight || '600';
 
-    document.querySelectorAll('.menu-button').forEach((el) => {
-        const btn = el as HTMLElement;
-        btn.style.padding = buttonPadding;
-        btn.style.borderRadius = buttonRadius;
-        btn.style.fontSize = buttonFontSize;
-        btn.style.fontWeight = buttonFontWeight;
-    });
+  document.querySelectorAll('.menu-button').forEach((el) => {
+    const btn = el as HTMLElement;
+    btn.style.padding = buttonPadding;
+    btn.style.borderRadius = buttonRadius;
+    btn.style.fontSize = buttonFontSize;
+    btn.style.fontWeight = buttonFontWeight;
+  });
 
-    // Tables
-    const tableHeaderBg = settings.component_table_header_bg || '#F4F6F8';
-    const tableHoverBg = settings.component_table_hover_bg || '#F8FAFC';
-    const tablePadding = settings.component_table_padding || '16px 24px';
+  // Tables
+  const tableHeaderBg = settings.component_table_header_bg || '#F4F6F8';
+  const tableHoverBg = settings.component_table_hover_bg || '#F8FAFC';
+  const tablePadding = settings.component_table_padding || '16px 24px';
 
-    root.style.setProperty('--table-header-bg', tableHeaderBg);
-    root.style.setProperty('--table-hover-bg', tableHoverBg);
+  root.style.setProperty('--table-header-bg', tableHeaderBg);
+  root.style.setProperty('--table-hover-bg', tableHoverBg);
 
-    document.querySelectorAll('.admin-table th').forEach((el) => {
-        const th = el as HTMLElement;
-        th.style.backgroundColor = tableHeaderBg;
-        th.style.padding = tablePadding;
-    });
+  document.querySelectorAll('.admin-table th').forEach((el) => {
+    const th = el as HTMLElement;
+    th.style.backgroundColor = tableHeaderBg;
+    th.style.padding = tablePadding;
+  });
 
-    document.querySelectorAll('.admin-table td').forEach((el) => {
-        const td = el as HTMLElement;
-        td.style.padding = tablePadding;
-    });
+  document.querySelectorAll('.admin-table td').forEach((el) => {
+    const td = el as HTMLElement;
+    td.style.padding = tablePadding;
+  });
 
-    // Cards
-    const cardPadding = settings.component_card_padding || '24px';
-    const cardRadius = settings.component_card_radius || '16px';
-    const cardShadow = settings.component_card_shadow || 'md';
+  // Cards
+  const cardPadding = settings.component_card_padding || '24px';
+  const cardRadius = settings.component_card_radius || '16px';
+  const cardShadow = settings.component_card_shadow || 'md';
 
-    const shadowMap: Record<string, string> = {
-        none: 'none',
-        sm: '0 1px 3px rgba(15, 23, 42, 0.08)',
-        md: '0 4px 10px rgba(15, 23, 42, 0.12)',
-        lg: '0 12px 30px rgba(15, 23, 42, 0.18)'
-    };
+  const shadowMap: Record<string, string> = {
+    none: 'none',
+    sm: '0 1px 3px rgba(15, 23, 42, 0.08)',
+    md: '0 4px 10px rgba(15, 23, 42, 0.12)',
+    lg: '0 12px 30px rgba(15, 23, 42, 0.18)'
+  };
 
-    document.querySelectorAll('.content-box, .kpi-card, .panel-card').forEach((el) => {
-        const card = el as HTMLElement;
-        card.style.padding = cardPadding;
-        card.style.borderRadius = cardRadius;
-        card.style.boxShadow = shadowMap[cardShadow] || shadowMap.md;
-    });
+  document.querySelectorAll('.content-box, .kpi-card, .panel-card').forEach((el) => {
+    const card = el as HTMLElement;
+    card.style.padding = cardPadding;
+    card.style.borderRadius = cardRadius;
+    card.style.boxShadow = shadowMap[cardShadow] || shadowMap.md || 'none';
+  });
 }
 
 async function applyLayoutSettings(overrideSettings: Record<string, string> | null = null): Promise<void> {
-    const settings = overrideSettings || await fetchUiSettings();
-    const root = document.documentElement;
+  const settings = overrideSettings || await fetchUiSettings();
+  const root = document.documentElement;
 
-    if (settings.admin_sidebar_width) {
-        root.style.setProperty('--admin-sidebar-width', settings.admin_sidebar_width);
-    }
+  if (settings.admin_sidebar_width) {
+    root.style.setProperty('--admin-sidebar-width', settings.admin_sidebar_width);
+  }
 
-    const setVisible = (selector: string, visible: boolean) => {
-        const el = document.querySelector(selector) as HTMLElement;
-        if (el) { el.style.display = visible ? '' : 'none'; };
-    };
+  const setVisible = (selector: string, visible: boolean) => {
+    const el = document.querySelector(selector) as HTMLElement;
+    if (el) { el.style.display = visible ? '' : 'none'; };
+  };
 
-    setVisible('.admin-sidebar .sidebar-header', settings.admin_sidebar_show_header !== 'false');
-    setVisible('.admin-sidebar .sidebar-footer', settings.admin_sidebar_show_footer !== 'false');
-    setVisible('.admin-header-logo', settings.admin_header_show_logo !== 'false');
+  setVisible('.admin-sidebar .sidebar-header', settings.admin_sidebar_show_header !== 'false');
+  setVisible('.admin-sidebar .sidebar-footer', settings.admin_sidebar_show_footer !== 'false');
+  setVisible('.admin-header-logo', settings.admin_header_show_logo !== 'false');
 
-    ['dashboard', 'stations', 'operators', 'chiusure', 'crediti', 'fatture', 'vouchers', 'notifiche'].forEach(tab => {
-        setVisible(`.nav-btn[data-tab="${tab}"]`, settings[`admin_menu_show_${tab}`] !== 'false');
-    });
+  ['dashboard', 'stations', 'operators', 'chiusure', 'crediti', 'fatture', 'vouchers', 'notifiche'].forEach(tab => {
+    setVisible(`.nav-btn[data-tab="${tab}"]`, settings[`admin_menu_show_${tab}`] !== 'false');
+  });
 
-    setVisible('#station-badge', settings.operator_header_show_station_badge !== 'false');
-    setVisible('#op-logout-btn', settings.operator_header_show_logout !== 'false');
+  setVisible('#station-badge', settings.operator_header_show_station_badge !== 'false');
+  setVisible('#op-logout-btn', settings.operator_header_show_logout !== 'false');
 }
 
 function injectStyles(): void {
-    if (document.getElementById('ui-appearance-style')) { return; }
-    const style = document.createElement('style');
-    style.id = 'ui-appearance-style';
-    style.textContent = UI_SETTINGS_STYLES;
-    document.head.appendChild(style);
+  if (document.getElementById('ui-appearance-style')) { return; }
+  const style = document.createElement('style');
+  style.id = 'ui-appearance-style';
+  style.textContent = UI_SETTINGS_STYLES;
+  document.head.appendChild(style);
 }
 
 // Inizializzazione
 if (document.readyState === 'loading') {
-    preloadSettings();
+  preloadSettings();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    injectStyles();
-    const settings = await fetchUiSettings();
+  injectStyles();
+  const settings = await fetchUiSettings();
 
-    await Promise.all([
-        applyUiSettings(settings),
-        applyLayoutSettings(settings),
-        applyComponentsSettings(settings),
-        applyFormsSettings(settings),
-        applyIconsSettings(settings)
-    ]);
+  await Promise.all([
+    applyUiSettings(settings),
+    applyLayoutSettings(settings),
+    applyComponentsSettings(settings),
+    applyFormsSettings(settings),
+    applyIconsSettings(settings)
+  ]);
 
-    watchSettingsTab();
+  watchSettingsTab();
 
-    const observer = new MutationObserver(() => {
-        fetchUiSettings().then(currentSettings => {
-            applyLayoutSettings(currentSettings);
-            applyComponentsSettings(currentSettings);
-            applyFormsSettings(currentSettings);
-            applyIconsSettings(currentSettings);
-        });
+  const observer = new MutationObserver(() => {
+    fetchUiSettings().then(currentSettings => {
+      applyLayoutSettings(currentSettings);
+      applyComponentsSettings(currentSettings);
+      applyFormsSettings(currentSettings);
+      applyIconsSettings(currentSettings);
     });
+  });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, { childList: true, subtree: true });
 });
 
 /**
  * Refresh UI icons globally
  */
 (window as any).refreshUiIcons = () => {
-    if (cachedSettings) {
-        applyIconsSettings(cachedSettings);
-    } else {
-        fetchUiSettings().then(settings => applyIconsSettings(settings));
-    }
+  if (cachedSettings) {
+    applyIconsSettings(cachedSettings);
+  } else {
+    fetchUiSettings().then(settings => applyIconsSettings(settings));
+  }
 };

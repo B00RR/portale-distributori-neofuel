@@ -8,28 +8,28 @@ import { property } from 'lit/decorators.js';
 import { BaseComponent } from './BaseComponent.js';
 
 export interface FormFieldOption {
-    value: string | number;
-    label: string;
+  value: string | number;
+  label: string;
 }
 
 export class FormField extends BaseComponent {
-    @property({ type: String }) label: string = '';
-    @property({ type: String }) name: string = '';
-    @property({ type: String }) type: string = 'text';
-    @property({ type: String }) value: any = '';
-    @property({ type: String }) placeholder: string = '';
-    @property({ type: Boolean }) required: boolean = false;
-    @property({ type: Boolean }) disabled: boolean = false;
-    @property({ type: String }) error: string = '';
-    @property({ type: Array }) options: (FormFieldOption | string)[] = [];
-    @property({ type: Number }) rows: number = 3;
-    @property({ type: String }) step: string = 'any';
-    @property({ type: String }) min: string = '';
-    @property({ type: String }) max: string = '';
+  @property({ type: String }) label: string = '';
+  @property({ type: String }) name: string = '';
+  @property({ type: String }) type: string = 'text';
+  @property({ type: String }) value: any = '';
+  @property({ type: String }) placeholder: string = '';
+  @property({ type: Boolean }) required: boolean = false;
+  @property({ type: Boolean }) disabled: boolean = false;
+  @property({ type: String }) error: string = '';
+  @property({ type: Array }) options: (FormFieldOption | string)[] = [];
+  @property({ type: Number }) rows: number = 3;
+  @property({ type: String }) step: string = 'any';
+  @property({ type: String }) min: string = '';
+  @property({ type: String }) max: string = '';
 
-    static styles: CSSResultGroup = [
-        BaseComponent.styles,
-        css`
+  static override styles: CSSResultGroup = [
+    BaseComponent.styles,
+    css`
       .form-group {
         margin-bottom: 1rem;
       }
@@ -85,14 +85,14 @@ export class FormField extends BaseComponent {
         color: var(--danger-color, #dc3545);
       }
     `
-    ];
+  ];
 
-    constructor() {
-        super();
-    }
+  constructor() {
+    super();
+  }
 
-    render(): TemplateResult {
-        return html`
+  override render(): TemplateResult {
+    return html`
       <div class="form-group">
         ${this.label ? html`
           <label class="${this.required ? 'required' : ''}">
@@ -107,14 +107,14 @@ export class FormField extends BaseComponent {
         ` : ''}
       </div>
     `;
-    }
+  }
 
-    private _renderInput(): TemplateResult {
-        const errorClass = this.error ? 'error' : '';
+  private _renderInput(): TemplateResult {
+    const errorClass = this.error ? 'error' : '';
 
-        switch (this.type) {
-            case 'select':
-                return html`
+    switch (this.type) {
+      case 'select':
+        return html`
           <select
             name="${this.name}"
             class="${errorClass}"
@@ -126,19 +126,19 @@ export class FormField extends BaseComponent {
           >
             ${!this.required ? html`<option value="">Seleziona...</option>` : ''}
             ${this.options.map((opt: any) => {
-                    const val = typeof opt === 'object' ? opt.value : opt;
-                    const label = typeof opt === 'object' ? opt.label : opt;
-                    return html`
+          const val = typeof opt === 'object' ? opt.value : opt;
+          const label = typeof opt === 'object' ? opt.label : opt;
+          return html`
                 <option value="${val}" ?selected="${this.value === val}">
                   ${label}
                 </option>
               `;
-                })}
+        })}
           </select>
         `;
 
-            case 'textarea':
-                return html`
+      case 'textarea':
+        return html`
           <textarea
             name="${this.name}"
             class="${errorClass}"
@@ -152,8 +152,8 @@ export class FormField extends BaseComponent {
           ></textarea>
         `;
 
-            case 'number':
-                return html`
+      case 'number':
+        return html`
           <input
             type="number"
             name="${this.name}"
@@ -170,8 +170,8 @@ export class FormField extends BaseComponent {
           />
         `;
 
-            case 'checkbox':
-                return html`
+      case 'checkbox':
+        return html`
           <label class="checkbox-label">
             <input
               type="checkbox"
@@ -186,8 +186,8 @@ export class FormField extends BaseComponent {
           </label>
         `;
 
-            default:
-                return html`
+      default:
+        return html`
           <input
             type="${this.type}"
             name="${this.name}"
@@ -200,35 +200,35 @@ export class FormField extends BaseComponent {
             @change="${this._handleChange}"
           />
         `;
-        }
     }
+  }
 
-    private _handleInput(e: any): void {
-        this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        this.emit('input', { name: this.name, value: this.value });
-    }
+  private _handleInput(e: any): void {
+    this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    this.emit('input', { name: this.name, value: this.value });
+  }
 
-    private _handleChange(e: any): void {
-        this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        this.emit('change', { name: this.name, value: this.value });
-    }
+  private _handleChange(e: any): void {
+    this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    this.emit('change', { name: this.name, value: this.value });
+  }
 
-    public getValue(): any {
-        const input = this.shadowRoot?.querySelector('input, select, textarea') as any;
-        if (!input) { return this.value; }
-        if (input.type === 'checkbox') { return input.checked; }
-        return input.value;
-    }
+  public getValue(): any {
+    const input = this.shadowRoot?.querySelector('input, select, textarea') as any;
+    if (!input) { return this.value; }
+    if (input.type === 'checkbox') { return input.checked; }
+    return input.value;
+  }
 
-    public setError(message: string): void {
-        this.error = message;
-    }
+  public setError(message: string): void {
+    this.error = message;
+  }
 
-    public clearError(): void {
-        this.error = '';
-    }
+  public clearError(): void {
+    this.error = '';
+  }
 }
 
 if (!customElements.get('form-field')) {
-    customElements.define('form-field', FormField);
+  customElements.define('form-field', FormField);
 }

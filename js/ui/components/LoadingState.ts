@@ -6,17 +6,17 @@
  * <loading-state message="Caricamento dati..."></loading-state>
  */
 
-import { html, css, CSSResultGroup, TemplateResult } from 'lit';
+import { html, css, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
 import { BaseComponent } from './BaseComponent.js';
 
 export class LoadingState extends BaseComponent {
-    @property({ type: String }) message: string = 'Caricamento...';
-    @property({ type: String }) size: 'small' | 'medium' | 'large' = 'medium';
+  @property({ type: String }) message: string = 'Caricamento...';
+  @property({ type: String }) size: 'small' | 'medium' | 'large' = 'medium';
 
-    static styles: CSSResultGroup = [
-        BaseComponent.styles,
-        css`
+  static override styles = [
+    BaseComponent.styles,
+    css`
       .loading-container {
         display: flex;
         flex-direction: column;
@@ -59,22 +59,22 @@ export class LoadingState extends BaseComponent {
         }
       }
     `
-    ];
+  ];
 
-    constructor() {
-        super();
-    }
+  constructor() {
+    super();
+  }
 
-    render(): TemplateResult {
-        return html`
+  override render(): TemplateResult {
+    return html`
       <div class="loading-container">
         <i class="fas fa-spinner spinner ${this.size}"></i>
         ${this.message ? html`<div class="message">${this.message}</div>` : ''}
       </div>
     `;
-    }
+  }
 }
 
 if (!customElements.get('loading-state')) {
-    customElements.define('loading-state', LoadingState);
+  customElements.define('loading-state', LoadingState);
 }

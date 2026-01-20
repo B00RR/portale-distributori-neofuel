@@ -15,7 +15,7 @@ export class FilterBar {
         const container = document.getElementById(this.containerId);
         if (!container) { return; }
 
-        const currentFilters = (store as any).getFilters();
+        const currentFilters = store.getFilters();
         const activeChip = currentFilters.rangeLabel || 'all';
 
         const chips = [
@@ -25,8 +25,8 @@ export class FilterBar {
             { label: 'Mese', value: 'month' }
         ];
 
-        const stations = (store.state as any).stations || [];
-        const currentStation = (store as any).getFilter();
+        const stations = store.getStations() || [];
+        const currentStation = store.getFilter();
 
         container.innerHTML = `
             <div class="filter-bar">
@@ -67,7 +67,7 @@ export class FilterBar {
             stationSelect.addEventListener('change', (e: Event) => {
                 const target = e.target as HTMLSelectElement;
                 const val = target.value;
-                (store as any).setStationFilter(val ? parseInt(val) : null);
+                store.setStationFilter(val ? parseInt(val) as any : null);
             });
         }
 
@@ -108,19 +108,19 @@ export class FilterBar {
 
         switch (rangeValue) {
             case 'today':
-                from = today.toISOString().split('T')[0];
-                to = tomorrow.toISOString().split('T')[0]; // Query usually < to
+                from = today.toISOString().split('T')[0] ?? null;
+                to = tomorrow.toISOString().split('T')[0] ?? null; // Query usually < to
                 break;
             case 'week':
                 // Inizio settimana (Lunedì)
                 const day = today.getDay() || 7; // Dom=0 -> 7
                 if (day !== 1) { today.setHours(-24 * (day - 1)); }
-                from = today.toISOString().split('T')[0];
+                from = today.toISOString().split('T')[0] ?? null;
                 to = null; // Fine al futuro
                 break;
             case 'month':
                 today.setDate(1);
-                from = today.toISOString().split('T')[0];
+                from = today.toISOString().split('T')[0] ?? null;
                 to = null;
                 break;
             case 'all':

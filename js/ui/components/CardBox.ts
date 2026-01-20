@@ -14,13 +14,13 @@ import { property } from 'lit/decorators.js';
 import { BaseComponent } from './BaseComponent.js';
 
 export class CardBox extends BaseComponent {
-    @property({ type: String }) title: string = '';
-    @property({ type: String }) subtitle: string = '';
-    @property({ type: String }) variant: 'default' | 'primary' | 'success' | 'warning' | 'danger' = 'default';
+  @property({ type: String }) override title: string = '';
+  @property({ type: String }) subtitle: string = '';
+  @property({ type: String }) variant: 'default' | 'primary' | 'success' | 'warning' | 'danger' = 'default';
 
-    static styles: CSSResultGroup = [
-        BaseComponent.styles,
-        css`
+  static override styles: CSSResultGroup = [
+    BaseComponent.styles,
+    css`
       .card {
         background: white;
         border-radius: 8px;
@@ -98,14 +98,14 @@ export class CardBox extends BaseComponent {
         color: white;
       }
     `
-    ];
+  ];
 
-    constructor() {
-        super();
-    }
+  constructor() {
+    super();
+  }
 
-    render(): TemplateResult {
-        return html`
+  override render(): TemplateResult {
+    return html`
       <div class="card ${this.variant}">
         ${this.title || this._hasHeaderSlot() ? html`
           <div class="card-header">
@@ -129,17 +129,17 @@ export class CardBox extends BaseComponent {
         ` : ''}
       </div>
     `;
-    }
+  }
 
-    private _hasHeaderSlot(): boolean {
-        return this.querySelector('[slot="header"]') !== null;
-    }
+  private _hasHeaderSlot(): boolean {
+    return this.querySelector('[slot="header"]') !== null;
+  }
 
-    private _hasFooterSlot(): boolean {
-        return this.querySelector('[slot="footer"]') !== null;
-    }
+  private _hasFooterSlot(): boolean {
+    return this.querySelector('[slot="footer"]') !== null;
+  }
 }
 
 if (!customElements.get('card-box')) {
-    customElements.define('card-box', CardBox);
+  customElements.define('card-box', CardBox);
 }

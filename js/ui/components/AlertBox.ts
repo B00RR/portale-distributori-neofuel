@@ -8,19 +8,19 @@
  * </alert-box>
  */
 
-import { html, css, CSSResultGroup, TemplateResult } from 'lit';
+import { html, css, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
 import { BaseComponent } from './BaseComponent.js';
 
 export class AlertBox extends BaseComponent {
-    @property({ type: String }) type: 'info' | 'success' | 'warning' | 'danger' = 'info';
-    @property({ type: Boolean }) dismissible: boolean = false;
-    @property({ type: String }) icon: string = '';
-    @property({ type: Boolean }) visible: boolean = true;
+  @property({ type: String }) type: 'info' | 'success' | 'warning' | 'danger' = 'info';
+  @property({ type: Boolean }) dismissible: boolean = false;
+  @property({ type: String }) icon: string = '';
+  @property({ type: Boolean }) visible: boolean = true;
 
-    static styles: CSSResultGroup = [
-        BaseComponent.styles,
-        css`
+  static override styles = [
+    BaseComponent.styles,
+    css`
       .alert {
         padding: 1rem 1.25rem;
         margin-bottom: 1rem;
@@ -84,25 +84,25 @@ export class AlertBox extends BaseComponent {
         color: #721c24;
       }
     `
-    ];
+  ];
 
-    constructor() {
-        super();
-    }
+  constructor() {
+    super();
+  }
 
-    render(): TemplateResult | typeof html | any {
-        if (!this.visible) { return html``; }
+  override render(): TemplateResult | typeof html | any {
+    if (!this.visible) { return html``; }
 
-        const defaultIcons: Record<string, string> = {
-            info: 'fa-info-circle',
-            success: 'fa-check-circle',
-            warning: 'fa-exclamation-triangle',
-            danger: 'fa-times-circle'
-        };
+    const defaultIcons: Record<string, string> = {
+      info: 'fa-info-circle',
+      success: 'fa-check-circle',
+      warning: 'fa-exclamation-triangle',
+      danger: 'fa-times-circle'
+    };
 
-        const iconClass = this.icon || defaultIcons[this.type] || 'fa-info-circle';
+    const iconClass = this.icon || defaultIcons[this.type] || 'fa-info-circle';
 
-        return html`
+    return html`
       <div class="alert ${this.type} ${this.visible ? '' : 'hidden'}" role="alert">
         <i class="fas ${iconClass} alert-icon"></i>
         <div class="alert-content">
@@ -115,22 +115,22 @@ export class AlertBox extends BaseComponent {
         ` : ''}
       </div>
     `;
-    }
+  }
 
-    private _handleDismiss(): void {
-        this.visible = false;
-        this.emit('dismissed');
-    }
+  private _handleDismiss(): void {
+    this.visible = false;
+    this.emit('dismissed');
+  }
 
-    public show(): void {
-        this.visible = true;
-    }
+  public show(): void {
+    this.visible = true;
+  }
 
-    public hide(): void {
-        this.visible = false;
-    }
+  public hide(): void {
+    this.visible = false;
+  }
 }
 
 if (!customElements.get('alert-box')) {
-    customElements.define('alert-box', AlertBox);
+  customElements.define('alert-box', AlertBox);
 }

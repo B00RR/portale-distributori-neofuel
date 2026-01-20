@@ -180,7 +180,7 @@ export async function computeExportSummaryMetrics(adminClient: any, closure: any
                 const rawPistols = sp || [];
 
                 if (rawPistols.length > 0) {
-                    const pistolIds = [...new Set(rawPistols.map(p => p.pistol_id))];
+                    const pistolIds = [...new Set(rawPistols.map((p: any) => p.pistol_id))];
 
                     // 2a. Fetch Pistols (Flat)
                     const { data: pistolsFlat } = await adminClient
@@ -222,7 +222,7 @@ export async function computeExportSummaryMetrics(adminClient: any, closure: any
                     }
 
                     // Step 3: Deep Merge in JS
-                    shiftPistols = rawPistols.map(rp => {
+                    shiftPistols = rawPistols.map((rp: any) => {
                         const pId = parseInt(rp.pistol_id, 10);
                         const pistolBase = pistolsMap.get(String(pId));
 
@@ -340,7 +340,7 @@ export async function fetchClosureExportData(closureId: string | number): Promis
     let enrichedPistols = [];
 
     if (rawPistols.length > 0) {
-        const pistolIds = [...new Set(rawPistols.map(p => p.pistol_id))];
+        const pistolIds = [...new Set(rawPistols.map((p: any) => p.pistol_id))];
         const { data: pistolDetails } = await supabase
             .from('pistols')
             .select(`
@@ -360,7 +360,7 @@ export async function fetchClosureExportData(closureId: string | number): Promis
             pistolDetails.forEach((p: any) => pxMap.set(p.pistol_id, p));
         }
 
-        enrichedPistols = rawPistols.map(rp => ({
+        enrichedPistols = rawPistols.map((rp: any) => ({
             ...rp,
             pistols: pxMap.get(rp.pistol_id) || {}
         }));
@@ -506,6 +506,8 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
 
         for (let i = 0; i < closuresData.length; i++) {
             const data = closuresData[i];
+            if (!data) continue;
+
             const dateStr = data.meta?.dateSlug || `C${i + 1}`;
             const sheetName = `${dateStr}_${i + 1}`.substring(0, 31);
 
@@ -545,6 +547,8 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
 
         for (let i = 0; i < closuresData.length; i++) {
             const data = closuresData[i];
+            if (!data) continue;
+
             const dateStr = data.meta?.dateSlug || `C${i + 1}`;
             const fileName = `chiusura_${dateStr}_${i + 1}.xlsx`;
 
