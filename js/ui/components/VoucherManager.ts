@@ -405,21 +405,22 @@ export class VoucherManager extends BaseComponent {
             `;
 
             case 'error':
-                // Check if it's a validation error with details
                 const isValidationErr = this.validationResult && !this.validationResult.valid;
                 return html`
-                <div class="error-box">
-                    <div style="background: white; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1)">
-                        <i class="fas fa-exclamation-triangle fa-3x" style="color: #c53030; display: block"></i>
+                <div class="error-box" style="padding: 2.5rem 0 !important; text-align: center !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 100% !important;">
+                    <div style="background: white !important; width: 100px !important; height: 100px !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto 2rem auto !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;">
+                        <i class="fas fa-exclamation-triangle fa-3x" style="color: #c53030 !important; display: block !important;"></i>
                     </div>
-                    <h2 style="margin: 0 0 1rem 0; color: #1e293b; text-align: center; width: 100%">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
-                    <p style="color: #64748b; margin: 0 0 0.5rem 0; text-align: center; width: 100%">${isValidationErr
+                    <h2 style="margin: 0 0 1rem 0 !important; color: #1e293b !important; text-align: center !important; width: 100% !important; font-weight: 700 !important;">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
+                    <p style="color: #64748b !important; margin: 0 0 0.5rem 0 !important; text-align: center !important; width: 100% !important;">${isValidationErr
                         ? (this.validationResult?.reason === 'redeemed'
                             ? `Usato il ${formatDate(this.validationResult?.details?.date)}`
                             : 'Voucher non valido')
                         : this.errorMessage}</p>
                     
-                    <button class="small-btn outline" @click=${() => this.mode = 'menu'}>
+                    <button class="small-btn outline" 
+                            style="background: #0A2342 !important; color: white !important; width: 100% !important; max-width: 300px !important; padding: 0.85rem !important; border-radius: 50px !important; font-weight: 700 !important; cursor: pointer !important; border: none !important; font-size: 1.1rem !important; margin-top: 2rem !important; display: block !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;"
+                            @click=${() => this.mode = 'menu'}>
                         Riprova
                     </button>
                 </div>
@@ -427,13 +428,15 @@ export class VoucherManager extends BaseComponent {
 
             case 'success':
                 return html`
-                <div class="card-preview">
-                    <div style="background: white; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1)">
-                        <i class="fas fa-check fa-3x" style="color: #8DC63F; display: block"></i>
+                <div class="card-preview" style="padding: 2.5rem 0 !important; text-align: center !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 100% !important;">
+                    <div style="background: white !important; width: 100px !important; height: 100px !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto 2rem auto !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;">
+                        <i class="fas fa-check fa-3x" style="color: #8DC63F !important; display: block !important;"></i>
                     </div>
-                    <h2 style="margin: 0 0 1rem 0; color: #1e293b; text-align: center; width: 100%">Riscattato!</h2>
-                    <p style="color: #64748b; margin: 0 0 0.5rem 0; text-align: center; width: 100%">L'importo è stato registrato nel turno corrente.</p>
-                    <button class="small-btn primary" @click=${() => { this.mode = 'menu'; this.activeVoucher = null; }}>
+                    <h2 style="margin: 0 0 1rem 0 !important; color: #1e293b !important; text-align: center !important; width: 100% !important; font-weight: 700 !important;">Riscattato!</h2>
+                    <p style="color: #64748b !important; margin: 0 0 0.5rem 0 !important; text-align: center !important; width: 100% !important;">L'importo è stato registrato nel turno corrente.</p>
+                    <button class="small-btn primary" 
+                            style="background: #8DC63F !important; color: white !important; width: 100% !important; max-width: 300px !important; padding: 0.85rem !important; border-radius: 50px !important; font-weight: 700 !important; cursor: pointer !important; border: none !important; font-size: 1.1rem !important; margin-top: 2rem !important; display: block !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;"
+                            @click=${() => { this.mode = 'menu'; this.activeVoucher = null; }}>
                         Nuova Scansione
                     </button>
                 </div>
