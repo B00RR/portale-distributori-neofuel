@@ -137,17 +137,23 @@ const updateSW = registerSW({
     onRegistered(r) {
         if (!r) return;
 
-        // 1. Check every 60 seconds
+        // 1. Hyper-aggressive polling (every 15 seconds)
         setInterval(() => {
-            console.log('[PWA] Checking for updates...');
-            r.update().catch(err => console.warn('[PWA] Update check failed', err));
-        }, 60 * 1000);
+            r.update().catch(() => { });
+        }, 15 * 1000);
 
-        // 2. Check whenever user comes back to the app
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                console.log('[PWA] App visible, checking for updates...');
-                r.update().catch(err => console.warn('[PWA] Update check failed', err));
+        // 2. Immediate check when window gets focus
+        window.addEventListener('focus', () => {
+            r.update().catch(() => { });
+        });
+
+        // 3. Check on user interaction (throttled to once every 5s)
+        let lastInteractionCheck = 0;
+        document.addEventListener('click', () => {
+            const now = Date.now();
+            if (now - lastInteractionCheck > 5000) {
+                lastInteractionCheck = now;
+                r.update().catch(() => { });
             }
         });
     }
