@@ -168,9 +168,16 @@ export class VoucherManager extends BaseComponent {
         // Small delay to allow render
         await this.updateComplete;
 
+        // Check if library is loaded with retries
+        let retries = 0;
+        while (!window.Html5Qrcode && retries < 20) {
+            await new Promise(r => setTimeout(r, 200));
+            retries++;
+        }
+
         if (!window.Html5Qrcode) {
-            Toast.show('Caricamento scanner...', 'warning');
-            setTimeout(() => this.startScanner(), 500);
+            this.errorMessage = "Libreria scanner non caricata. Riprova o ricarica la pagina.";
+            this.mode = 'error';
             return;
         }
 
