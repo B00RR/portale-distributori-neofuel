@@ -181,6 +181,13 @@ export class VoucherManager extends BaseComponent {
             return;
         }
 
+        // Check for Secure Context (HTTPS) - required for camera access on mobile
+        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            this.errorMessage = "Errore: Lo scanner richiede una connessione sicura (HTTPS). Se stai accedendo via IP locale, la fotocamera sarà bloccata dal browser.";
+            this.mode = 'error';
+            return;
+        }
+
         try {
             this.html5QrCode = new window.Html5Qrcode("reader");
             await this.html5QrCode.start(
@@ -189,12 +196,10 @@ export class VoucherManager extends BaseComponent {
                 (decodedText: string) => this.handleCodeFound(decodedText),
                 () => { } // Ignore failures
             );
-        } catch (e) {
-            console.error("Scanner error", e);
         } catch (e: any) {
             console.error("Scanner error", e);
-            // Show detailed error for debugging
-            this.errorMessage = `Impossibile avviare la fotocamera: ${e.name || ''} ${e.message || e}`;
+            const errDetails = e.name ? `${e.name}: ${e.message}` : String(e);
+            this.errorMessage = `Impossibile avviare la fotocamera. Dettaglio: ${errDetails}`;
             this.mode = 'error';
         }
     }
