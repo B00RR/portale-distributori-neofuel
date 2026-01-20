@@ -158,27 +158,28 @@ export async function updateTurnoButton(
 
     const turnoIcon = newBtnTurno.querySelector('#turno-icon') as HTMLElement | null;
     const turnoText = newBtnTurno.querySelector('#turno-text') as HTMLElement | null;
+    const newBadge = newBtnTurno.querySelector('#opening-status');
 
     if (opening) {
         if (turnoIcon) turnoIcon.className = 'fas fa-door-closed';
         if (turnoText) turnoText.textContent = 'Chiusura';
         newBtnTurno.addEventListener('click', () => handlers.onClosure(String(stationId), String(userId)));
 
-        if (badge) {
+        if (newBadge) {
             const hasPartial = opening.closing_data?.closure_stage === 'partial';
-            badge.textContent = hasPartial ? 'Parziale' : 'Aperto';
-            badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
-            badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
+            newBadge.textContent = hasPartial ? 'Parziale' : 'Aperto';
+            newBadge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
+            (newBadge as HTMLElement).title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
         }
     } else {
         if (turnoIcon) turnoIcon.className = 'fas fa-door-open';
         if (turnoText) turnoText.textContent = 'Apertura';
         newBtnTurno.addEventListener('click', () => handlers.onOpening(String(stationId), String(userId)));
 
-        if (badge) {
-            badge.textContent = 'Chiuso';
-            badge.className = 'status-badge status-closed';
-            badge.title = 'Nessuna apertura attiva';
+        if (newBadge) {
+            newBadge.textContent = 'Chiuso';
+            newBadge.className = 'status-badge status-closed';
+            (newBadge as HTMLElement).title = 'Nessuna apertura attiva';
         }
     }
 }
