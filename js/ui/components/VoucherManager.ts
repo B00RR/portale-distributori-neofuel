@@ -117,21 +117,17 @@ export class VoucherManager extends BaseComponent {
       }
 
       .card-preview, .error-box {
-        background: white;
-        padding: 2.5rem;
-        border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        padding: 1rem 0;
         text-align: center;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        width: 100%;
         animation: fadeIn 0.3s ease;
       }
 
       .error-box {
-        background: #fff5f5;
-        border: 1px solid #feb2b2;
         color: #c53030;
       }
 
@@ -394,7 +390,7 @@ export class VoucherManager extends BaseComponent {
 
             case 'success':
                 return html`
-                <div class="card-preview" style="border-top: 4px solid var(--success-color)">
+                <div class="card-preview">
                     <div style="background: #ecfdf5; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem">
                         <i class="fas fa-check fa-3x" style="color: var(--success-color)"></i>
                     </div>
