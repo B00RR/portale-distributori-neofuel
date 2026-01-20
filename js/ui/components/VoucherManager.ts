@@ -117,44 +117,55 @@ export class VoucherManager extends BaseComponent {
       }
 
       .card-preview, .error-box {
-        padding: 2rem 0;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
+        padding: 2.5rem 0 !important;
+        text-align: center !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
         animation: fadeIn 0.3s ease;
       }
 
       .small-btn {
-        width: 100%;
-        padding: 0.75rem;
-        border-radius: 50px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        border: none;
-        font-size: 1rem;
-        margin-top: 1.5rem;
+        width: 100% !important;
+        max-width: 300px !important;
+        padding: 0.85rem !important;
+        border-radius: 50px !important;
+        font-weight: 700 !important;
+        cursor: pointer !important;
+        transition: all 0.2s !important;
+        border: none !important;
+        font-size: 1.1rem !important;
+        margin-top: 2rem !important;
+        display: block !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
       }
 
       .small-btn.primary {
-        background: #8DC63F; /* Verde Lime Neofuel */
-        color: white;
+        background: #8DC63F !important; /* Verde Lime Neofuel */
+        color: white !important;
       }
 
       .small-btn.outline {
-        background: #0A2342; /* Blu Navy Neofuel */
-        color: white;
+        background: #0A2342 !important; /* Blu Navy Neofuel */
+        color: white !important;
       }
 
-      .small-btn.outline:hover {
-        background: #0d2d57;
+      .small-btn:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15) !important;
       }
 
       .error-box {
-        color: #c53030;
+        color: #c53030 !important;
       }
 
       @keyframes fadeIn {
@@ -398,11 +409,11 @@ export class VoucherManager extends BaseComponent {
                 const isValidationErr = this.validationResult && !this.validationResult.valid;
                 return html`
                 <div class="error-box">
-                    <div style="background: white; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.05)">
-                        <i class="fas fa-exclamation-triangle fa-3x" style="color: #c53030"></i>
+                    <div style="background: white; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1)">
+                        <i class="fas fa-exclamation-triangle fa-3x" style="color: #c53030; display: block"></i>
                     </div>
-                    <h2 style="margin-bottom: 1rem; color: #1e293b; text-align: center">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
-                    <p style="color: #64748b; margin-bottom: 0.5rem; text-align: center">${isValidationErr
+                    <h2 style="margin: 0 0 1rem 0; color: #1e293b; text-align: center; width: 100%">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
+                    <p style="color: #64748b; margin: 0 0 0.5rem 0; text-align: center; width: 100%">${isValidationErr
                         ? (this.validationResult?.reason === 'redeemed'
                             ? `Usato il ${formatDate(this.validationResult?.details?.date)}`
                             : 'Voucher non valido')
@@ -417,11 +428,11 @@ export class VoucherManager extends BaseComponent {
             case 'success':
                 return html`
                 <div class="card-preview">
-                    <div style="background: white; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.05)">
-                        <i class="fas fa-check fa-3x" style="color: #8DC63F"></i>
+                    <div style="background: white; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1)">
+                        <i class="fas fa-check fa-3x" style="color: #8DC63F; display: block"></i>
                     </div>
-                    <h2 style="margin-bottom: 1rem; color: #1e293b; text-align: center">Riscattato!</h2>
-                    <p style="color: #64748b; margin-bottom: 0.5rem; text-align: center">L'importo è stato registrato nel turno corrente.</p>
+                    <h2 style="margin: 0 0 1rem 0; color: #1e293b; text-align: center; width: 100%">Riscattato!</h2>
+                    <p style="color: #64748b; margin: 0 0 0.5rem 0; text-align: center; width: 100%">L'importo è stato registrato nel turno corrente.</p>
                     <button class="small-btn primary" @click=${() => { this.mode = 'menu'; this.activeVoucher = null; }}>
                         Nuova Scansione
                     </button>
