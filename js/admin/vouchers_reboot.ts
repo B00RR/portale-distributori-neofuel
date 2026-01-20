@@ -959,6 +959,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
     const html = `<!DOCTYPE html>
             <html>
                 <head>
+                    <base href="${window.location.origin}/">
                     <title>Stampa Voucher Neofuel</title>
                     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
                     <style>
@@ -1074,54 +1075,65 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                 <body>
                     <div id="print-container"></div>
                     <script>
-                        const vouchers = ${JSON.stringify(vouchers)};
-                        const container = document.getElementById('print-container');
-                        
-                        // 1 Voucher per Page (Full A4)
-                        const chunkSize = 1;
-                        for (let i = 0; i < vouchers.length; i += chunkSize) {
-                            const chunk = vouchers.slice(i, i + chunkSize);
-                            
-                            // --- FRONT PAGE ---
-                            const pageFront = document.createElement('div');
-                            pageFront.className = 'page page-front'; 
-                            
-                            chunk.forEach(v => {
-                                const date = v.expiration_date ? new Date(v.expiration_date).toLocaleDateString('it-IT') : 'Illimitata';
-                                // Format amount: No decimals, "euro" suffix
-                                const amount = Math.floor(v.amount) + ' euro';
-                                const visibleCode = v.code.substring(0, 4); 
-                                const content = document.createElement('div');
-                                content.className = 'voucher-front';
-                                content.innerHTML = \`
-                                    <div class="voucher-amount">\${amount}</div>
-                                    <div class="voucher-code">\${visibleCode}</div>
-                                    <div class="voucher-expiry">\${date}</div>
-                                    <div id="qr-\${v.code}" class="qr-code"></div>
-                                \`;
-                                pageFront.appendChild(content);
-                            });
-                            
-                            container.appendChild(pageFront);
+                        window.onload = function() {
+                            try {
+                                const vouchers = ${JSON.stringify(vouchers)};
+                                const container = document.getElementById('print-container');
+                                
+                                // 1 Voucher per Page (Full A4)
+                                const chunkSize = 1;
+                                for (let i = 0; i < vouchers.length; i += chunkSize) {
+                                    const chunk = vouchers.slice(i, i + chunkSize);
+                                    
+                                    // --- FRONT PAGE ---
+                                    const pageFront = document.createElement('div');
+                                    pageFront.className = 'page page-front'; 
+                                    
+                                    chunk.forEach(v => {
+                                        const date = v.expiration_date ? new Date(v.expiration_date).toLocaleDateString('it-IT') : 'Illimitata';
+                                        // Format amount: No decimals, "euro" suffix
+                                        const amount = Math.floor(v.amount) + ' euro';
+                                        const visibleCode = v.code.substring(0, 4); 
+                                        const content = document.createElement('div');
+                                        content.className = 'voucher-front';
+                                        content.innerHTML = \`
+                                            <div class="voucher-amount">\${amount}</div>
+                                            <div class="voucher-code">\${visibleCode}</div>
+                                            <div class="voucher-expiry">\${date}</div>
+                                            <div id="qr-\${v.code}" class="qr-code"></div>
+                                        \`;
+                                        pageFront.appendChild(content);
+                                    });
+                                    
+                                    container.appendChild(pageFront);
 
-                            // --- BACK PAGE --- 
-                            const pageBack = document.createElement('div');
-                            pageBack.className = 'page page-back'; 
-                            // Empty back page
-                            container.appendChild(pageBack);
+                                    // --- BACK PAGE --- 
+                                    const pageBack = document.createElement('div');
+                                    pageBack.className = 'page page-back'; 
+                                    // Empty back page
+                                    container.appendChild(pageBack);
 
-                            // QR Gen
-                            chunk.forEach(v => {
-                                new QRCode(document.getElementById('qr-' + v.code), {
-                                    text: v.code,
-                                    width: 128,
-                                    height: 128,
-                                    colorDark : "#000000",
-                                    colorLight : "#ffffff",
-                                    correctLevel : QRCode.CorrectLevel.H
-                                });
-                            });
-                        }
+                                    // QR Gen
+                                    chunk.forEach(v => {
+                                        if (typeof QRCode !== 'undefined') {
+                                            new QRCode(document.getElementById('qr-' + v.code), {
+                                                text: v.code,
+                                                width: 128,
+                                                height: 128,
+                                                colorDark : "#000000",
+                                                colorLight : "#ffffff",
+                                                correctLevel : QRCode.CorrectLevel.H
+                                            });
+                                        } else {
+                                            console.error('QRCode library not loaded');
+                                        }
+                                    });
+                                }
+                            } catch (e) {
+                                console.error('Print generation error:', e);
+                                document.body.innerHTML += '<p style="color:red">Errore generazione anteprima: ' + e.message + '</p>';
+                            }
+                        };
                     </script>
                 </body>
             </html>`;
