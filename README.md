@@ -17,15 +17,154 @@ Sistema di gestione per distributori di carburante Neofuel con focus su sicurezz
 
 ## 🏗️ Architettura
 
+### System Architecture
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        WebApp[Web Application<br/>TypeScript + Lit Components]
+    end
+    
+    subgraph "Authentication"
+        Auth[Supabase Auth<br/>JWT + Row Level Security]
+    end
+    
+    subgraph "Edge Functions Layer"
+        EF1[validate-shift-closure<br/>Server-side Validation]
+        EF2[rate-limiter<br/>Centralized Rate Limiting]
+        EF3[redeem-voucher<br/>Secure Voucher Redemption]
+    end
+    
+    subgraph "Database Layer"
+        DB[(PostgreSQL + RLS<br/>Row Level Security)]
+        Cache[Query Cache]
+    end
+    
+    WebApp -->|JWT Token| Auth
+    WebApp -->|Anon Key + RLS| DB
+    WebApp -->|POST /functions/v1/*| EF1
+    WebApp -->|POST /functions/v1/*| EF2
+    WebApp -->|POST /functions/v1/*| EF3
+    
+    EF1 -->|Service Role Key| DB
+    EF2 -->|Service Role Key| DB
+    EF3 -->|Service Role Key| DB
+    
+    Auth -.->|Validates| DB
+    DB --> Cache
+    
+    style WebApp fill:#e1f5ff
+    style Auth fill:#ffe1e1
+    style DB fill:#e1ffe1
+    style EF1 fill:#fff4e1
+    style EF2 fill:#fff4e1
+    style EF3 fill:#fff4e1
+```
+
+### Security Layers
+
+1. **Client Layer**: Type-safe TypeScript, input sanitization, client-side rate limiting
+2. **Authentication**: JWT verification, session management, role-based access
+3. **Edge Functions**: Server-side validation, business logic isolation, rate limiting
+4. **Database**: Row Level Security (RLS), foreign key constraints, audit logging
+
+### Code Structure
+
 ```
 js/
-├── core/       # Core services, API layer (TS)
-├── admin/      # Admin modules (TS/JS migration)
-├── operator/   # Operator modules (TS/JS migration)
-├── shared/     # State management, types, state (TS)
-├── ui/         # UI logic and core components (TS)
-├── utils/      # Utilities and calculation engine (TS)
+├── core/       # Core services, API layer (100% TS)
+├── admin/      # Admin modules (100% TS)
+├── operator/   # Operator modules (100% TS)
+├── shared/     # State management, error handling (100% TS)
+├── ui/         # UI components (Lit + TypeScript)
+├── utils/      # Utilities, validators, sanitizers (100% TS)
 └── types.ts    # Global type definitions
+
+supabase/
+└── functions/  # Edge Functions (Deno + TypeScript)
+    ├── validate-shift-closure/
+    ├── rate-limiter/
+    └── redeem-voucher/
+```
+
+### Edge Functions API
+
+#### `POST /functions/v1/validate-shift-closure`
+**Purpose**: Server-side validation of shift closure totals  
+**Auth**: Required (JWT)  
+**Rate Limit**: None (trusted operation)
+
+```typescript
+// Request
+{
+  "shift_id": number,
+  "submitted_totals": {
+    "total_teorico": number,
+    "contanti_in": number,
+    "contanti_out": number,
+    "carte": number,
+    "crediti": number,
+    "voucher": number
+  }
+}
+
+// Response (200 OK)
+{
+  "valid": boolean,
+  "recalculated_totals": { ...totals },
+  "discrepancies"?: { ...details } // Only if valid=false
+}
+```
+
+#### `POST /functions/v1/rate-limiter`
+**Purpose**: Centralized rate limiting check/reset  
+**Auth**: Optional (public endpoint)  
+**Rate Limit**: None (rate limiter itself)
+
+```typescript
+// Request
+{
+  "action": "check" | "reset",
+  "identifier": string, // user_id, email, or IP
+  "endpoint": string,    // operation name
+  "max_attempts"?: number,
+  "window_seconds"?: number
+}
+
+// Response (200 OK or 429 Too Many Requests)
+{
+  "allowed": boolean,
+  "attempts": number,
+  "remaining": number,
+  "reset_at": timestamp,
+  "retry_after_seconds"?: number
+}
+```
+
+#### `POST /functions/v1/redeem-voucher`
+**Purpose**: Secure voucher redemption with built-in rate limiting  
+**Auth**: Required (JWT)  
+**Rate Limit**: 10/minute per user
+
+```typescript
+// Request
+{
+  "voucher_code": string,
+  "station_id": number
+}
+
+// Response (200 OK)
+{
+  "success": boolean,
+  "amount": number,
+  "code": string
+}
+
+// Error Response (429 Too Many Requests)
+{
+  "error": "Rate limit exceeded",
+  "retry_after": number
+}
 ```
 
 ## 🧪 Testing

@@ -2,7 +2,7 @@
 import { supabase } from '../core/api.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
-import { showLoadingMessage, showErrorMessage, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
+import { showLoadingMessage, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
 // JS Imports (not yet migrated)
@@ -14,6 +14,7 @@ import { checkOpeningStatus, updateOpeningStatus } from './opening.js';
 import {
     createWarningMessage
 } from './ui-components.js';
+import { CASH_DISCREPANCY_TOLERANCE_EUR } from '../shared/app-constants.js';
 
 // --- INTERFACES ---
 
@@ -135,7 +136,9 @@ export async function startClosureWizard(stationId: number | string, userId: str
         if (!modalBody) return;
         modalBody.innerHTML = '<p style="text-align: center; padding: 20px;">Caricamento...</p>';
 
-        const activeOpening = await checkOpeningStatus(Number(stationId)) as ActiveOpening;
+        // Type-safe casting with validation
+        const openingResult = await checkOpeningStatus(Number(stationId));
+        const activeOpening = openingResult as ActiveOpening | null;
         if (!activeOpening) {
             modalBody.innerHTML = (createWarningMessage as any)(
                 'Nessuna Apertura Attiva',
@@ -229,8 +232,11 @@ export async function startClosureWizard(stationId: number | string, userId: str
                 pumpName: link.pistole?.nome || `Pistola #${link.pump_id}`,
                 islandName: link.pistole?.islands?.nome || ''
             };
-            if (!tankLinksByPump[link.pump_id]) tankLinksByPump[link.pump_id] = [];
-            tankLinksByPump[link.pump_id].push(normalized);
+            // Safe array initialization and push
+            if (!tankLinksByPump[link.pump_id]) {
+                tankLinksByPump[link.pump_id] = [];
+            }
+            tankLinksByPump[link.pump_id]!.push(normalized);
         });
 
         const hasManualTankLinks = Object.values(tankLinksByPump).some(list => list.some(link => link.mode === 'manual'));
@@ -249,7 +255,7 @@ export async function startClosureWizard(stationId: number | string, userId: str
             step: 1,
             data: {
                 stationId, userId, turnoId: activeOpening.id,
-                openingDate: activeOpening.opened_at || activeOpening.date_time,
+                openingDate: activeOpening.opened_at ?? activeOpening.date_time ?? new Date().toISOString(),
                 pistole: allPistole, openingCounters: openingMap,
                 prezzoBenzina, prezzoGasolio, movimenti,
                 existingClosingData: previousClosing,
@@ -550,7 +556,7 @@ async function showClosureStep3(): Promise<void> {
         discrepancy = cashDiff;
     }
 
-    const isValid = Math.abs(cashDiff) <= 5;
+    const isValid = Math.abs(cashDiff) <= CASH_DISCREPANCY_TOLERANCE_EUR;
 
     container.innerHTML = `
         <div class="content-box">
@@ -609,7 +615,7 @@ async function showClosureStep3(): Promise<void> {
 
                 if (!proceed) {
                     if (container) {
-                        showErrorMessage('Validazione Fallita', 'Chiusura annullata. Verifica i dati e riprova.');
+                        Toast.show('Chiusura annullata. Verifica i dati e riprova.', 'error');
                     }
                     return;
                 }
@@ -621,7 +627,7 @@ async function showClosureStep3(): Promise<void> {
             );
             if (!proceed) {
                 if (container) {
-                    showErrorMessage('Errore Validazione', 'Chiusura annullata.');
+                    Toast.show('Chiusura annullata.', 'error');
                 }
                 return;
             }
@@ -634,8 +640,10 @@ async function showClosureStep3(): Promise<void> {
                 const litri = d.litersPerPump[pumpId] || 0;
                 const manual = links.filter(l => l.mode === 'manual');
                 const auto = links.filter(l => l.mode !== 'manual');
-                if (manual.length) {
-                    const sel = d.tankSelections[pumpId]?.tankId || manual[0].tank_id;
+                if (manual.length > 0) {
+                    const fallbackTankId = manual[0]?.tank_id;
+                    const selection = d.tankSelections ? d.tankSelections[pumpId] : undefined;
+                    const sel = selection?.tankId || fallbackTankId;
                     const foundLink = manual.find(m => m.tank_id === sel) || manual[0];
                     if (foundLink) {
                         tankUsage.push({ pump_id: pumpId, pump_name: d.pumpLabelMap[pumpId] || `Pistola #${pumpId}`, tank_id: foundLink.tank_id, tank_name: foundLink.tankName, mode: 'manual', ratio: null, liters: litri });
@@ -678,7 +686,9 @@ async function showClosureStep3(): Promise<void> {
             container.innerHTML = `<div class="success-message"><h3>Chiusura Salvata!</h3><button id="btn-home" class="menu-button primary">Ok</button></div>`;
             document.getElementById('btn-home')?.addEventListener('click', () => { closeModal(); updateOpeningStatus(Number(d.stationId)); });
         } catch (err: any) {
-            showErrorMessage('Errore', err.message);
+            if (container) handleError(err, 'submitClosure', container);
+            else Toast.show(err.message, 'error');
+
             showClosureStep3();
         }
     });
