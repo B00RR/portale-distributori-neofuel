@@ -12,7 +12,7 @@ import {
     setButtonLoading,
     showPromptModal
 } from "../ui/ui.js";
-// import { createRateLimiter, RateLimiter } from "../utils/utils.js";
+import { isRateLimited, resetRateLimit, getRemainingAttempts } from "../utils/rate-limiter.js";
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -150,6 +150,17 @@ export function setupLoginForm(): void {
             return;
         }
 
+        // SECURITY: Rate limiting - prevent brute force attacks
+        const rateLimitKey = `login:${email}`;
+        if (isRateLimited(rateLimitKey, 5, 60000)) { // 5 attempts per minute
+            const remaining = getRemainingAttempts(rateLimitKey, 5);
+            if (errorElement) {
+                errorElement.textContent = `Troppi tentativi di login. Riprova tra 1 minuto. (${remaining} tentativi rimanenti)`;
+            }
+            Toast.show('Rate limit superato. Attendere prima di riprovare.', 'warning');
+            return;
+        }
+
         try {
             showFullScreenLoader();
             const submitBtn = loginForm?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
@@ -256,6 +267,9 @@ export function setupLoginForm(): void {
                     loggedUser.assignedStations = [];
                 }
                 onLoginSuccessCallback(loggedUser);
+
+                // SECURITY: Reset rate limit on successful login
+                resetRateLimit(`login:${email}`);
             }
 
         } catch (err: any) {

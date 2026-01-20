@@ -574,6 +574,59 @@ async function showClosureStep3(): Promise<void> {
         if (!(await openConfirmModal('Confermi il salvataggio?'))) return;
 
         if (container) showLoadingMessage(container);
+
+        // SECURITY: Server-side validation to prevent client-side manipulation
+        try {
+            const { data: validationResult, error: validationError } = await supabase.functions.invoke('validate-shift-closure', {
+                body: {
+                    shift_id: d.turnoId,
+                    submitted_totals: {
+                        total_teorico: d.totaleAtteso! + (d.extraCashSum || 0),
+                        contanti_in: d.selfCashIn! + d.cashReal!,
+                        contanti_out: d.selfCashOut!,
+                        carte: d.selfPos! + totalPos,
+                        crediti: d.creditsSum!,
+                        voucher: d.vouchersSum!
+                    }
+                }
+            });
+
+            if (validationError) {
+                throw new Error(`Validazione server-side fallita: ${validationError.message}`);
+            }
+
+            if (!validationResult?.valid) {
+                // Server detected discrepancies
+                const discrepancyMsg = Object.entries(validationResult?.discrepancies || {})
+                    .map(([key, vals]: [string, any]) => {
+                        return `${key}: atteso ${formatEuro(vals.expected)}, inviato ${formatEuro(vals.submitted)} (diff: ${formatEuro(vals.diff)})`;
+                    })
+                    .join('\n');
+
+                const proceed = await openConfirmModal(
+                    `ATTENZIONE: Il server ha rilevato discrepanze nei totali:\n\n${discrepancyMsg}\n\nQuesto potrebbe indicare un errore di calcolo client-side.\nProcedere comunque?`
+                );
+
+                if (!proceed) {
+                    if (container) {
+                        showErrorMessage('Validazione Fallita', 'Chiusura annullata. Verifica i dati e riprova.');
+                    }
+                    return;
+                }
+            }
+        } catch (validationErr: any) {
+            console.error('[SECURITY] Server validation failed:', validationErr);
+            const proceed = await openConfirmModal(
+                `Impossibile validare i totali lato server: ${validationErr.message}\n\nProcedere senza validazione server?`
+            );
+            if (!proceed) {
+                if (container) {
+                    showErrorMessage('Errore Validazione', 'Chiusura annullata.');
+                }
+                return;
+            }
+        }
+
         try {
             const tankUsage: TankUsageRecord[] = [];
             Object.entries(d.tankLinksByPump).forEach(([pumpIdStr, links]) => {

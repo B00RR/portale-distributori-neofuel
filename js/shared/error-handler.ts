@@ -40,7 +40,7 @@ export class AppError extends Error {
 
 /**
  * Handles errors centrally by showing a Toast and logging to console
- * Optionally renders the error in an HTML element
+ * SECURITY: Sanitizes logs to prevent sensitive information disclosure
  * @param error - The caught error object
  * @param context - The context where the error occurred (e.g., function name)
  * @param renderTarget - Optional element where to display the error persistently
@@ -50,7 +50,18 @@ export function handleError(
     context: string = '',
     renderTarget: HTMLElement | null = null
 ): void {
-    console.error(`[${context}] Error:`, error);
+    // SECURITY: Only log full error details in development mode
+    const isDevelopment = import.meta.env?.MODE === 'development' ||
+        window.location.hostname === 'localhost';
+
+    if (isDevelopment) {
+        // Development: Full error details for debugging
+        console.error(`[${context}] Error:`, error);
+    } else {
+        // Production: Sanitized error logging
+        const sanitizedError = sanitizeErrorForLogging(error);
+        console.error(`[${context}] Error:`, sanitizedError);
+    }
 
     let userMessage = 'Si è verificato un errore imprevisto.';
     let type: ToastType = 'error';
@@ -70,7 +81,8 @@ export function handleError(
     } else if (error instanceof AppError) {
         userMessage = error.message;
     } else if (errorObj?.message) {
-        userMessage = errorObj.message;
+        // SECURITY: Don't expose raw database error messages to users
+        userMessage = isDevelopment ? errorObj.message : 'Si è verificato un errore. Contatta il supporto.';
     }
 
     // Show toast
@@ -93,6 +105,46 @@ export function handleError(
             </div>
         `;
     }
+}
+
+/**
+ * Sanitize error object for secure logging
+ * SECURITY: Removes sensitive information like passwords, tokens, PII
+ */
+function sanitizeErrorForLogging(error: unknown): unknown {
+    if (error == null) return null;
+
+    if (typeof error === 'string') {
+        // Remove potential sensitive patterns
+        return error.replace(/[\w\-\.]+@[\w\-\.]+/g, '[EMAIL]')
+            .replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE]')
+            .replace(/password[=:]\s*[\w]+/gi, 'password=[REDACTED]')
+            .replace(/token[=:]\s*[\w\-\.]+/gi, 'token=[REDACTED]');
+    }
+
+    if (error instanceof Error) {
+        return {
+            name: error.name,
+            message: sanitizeErrorForLogging(error.message),
+            // Don't include stack trace in production logs
+            stack: '[REDACTED]'
+        };
+    }
+
+    if (typeof error === 'object') {
+        const sanitized: Record<string, any> = {};
+        for (const [key, value] of Object.entries(error)) {
+            // Skip sensitive keys
+            if (['password', 'token', 'secret', 'apiKey', 'authorization'].includes(key.toLowerCase())) {
+                sanitized[key] = '[REDACTED]';
+            } else {
+                sanitized[key] = sanitizeErrorForLogging(value);
+            }
+        }
+        return sanitized;
+    }
+
+    return error;
 }
 
 /**
