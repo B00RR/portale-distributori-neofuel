@@ -1139,6 +1139,6 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
             </html>`;
 
     win.document.open();
-    win.document.documentElement.innerHTML = html;
+    win.document.write(html);
     win.document.close();
 }
