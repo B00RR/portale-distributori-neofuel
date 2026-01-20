@@ -140,14 +140,17 @@ export class VoucherManager extends BaseComponent {
       }
 
       .small-btn.primary {
-        background: #22c55e;
+        background: #8DC63F; /* Verde Lime Neofuel */
         color: white;
       }
 
       .small-btn.outline {
-        background: transparent;
-        border: 1px solid #e2e8f0;
-        color: #64748b;
+        background: #0A2342; /* Blu Navy Neofuel */
+        color: white;
+      }
+
+      .small-btn.outline:hover {
+        background: #0d2d57;
       }
 
       .error-box {
@@ -395,11 +398,11 @@ export class VoucherManager extends BaseComponent {
                 const isValidationErr = this.validationResult && !this.validationResult.valid;
                 return html`
                 <div class="error-box">
-                    <div style="background: #fff5f5; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem">
+                    <div style="background: white; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.05)">
                         <i class="fas fa-exclamation-triangle fa-3x" style="color: #c53030"></i>
                     </div>
-                    <h2 style="margin-bottom: 0.5rem; color: #1e293b">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
-                    <p style="color: #64748b; margin-bottom: 0.5rem">${isValidationErr
+                    <h2 style="margin-bottom: 1rem; color: #1e293b; text-align: center">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
+                    <p style="color: #64748b; margin-bottom: 0.5rem; text-align: center">${isValidationErr
                         ? (this.validationResult?.reason === 'redeemed'
                             ? `Usato il ${formatDate(this.validationResult?.details?.date)}`
                             : 'Voucher non valido')
@@ -414,11 +417,11 @@ export class VoucherManager extends BaseComponent {
             case 'success':
                 return html`
                 <div class="card-preview">
-                    <div style="background: #ecfdf5; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem">
-                        <i class="fas fa-check fa-3x" style="color: var(--success-color)"></i>
+                    <div style="background: white; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.05)">
+                        <i class="fas fa-check fa-3x" style="color: #8DC63F"></i>
                     </div>
-                    <h2 style="margin-bottom: 0.5rem; color: #1e293b">Riscattato!</h2>
-                    <p style="color: #64748b; margin-bottom: 0.5rem">L'importo è stato registrato nel turno corrente.</p>
+                    <h2 style="margin-bottom: 1rem; color: #1e293b; text-align: center">Riscattato!</h2>
+                    <p style="color: #64748b; margin-bottom: 0.5rem; text-align: center">L'importo è stato registrato nel turno corrente.</p>
                     <button class="small-btn primary" @click=${() => { this.mode = 'menu'; this.activeVoucher = null; }}>
                         Nuova Scansione
                     </button>
