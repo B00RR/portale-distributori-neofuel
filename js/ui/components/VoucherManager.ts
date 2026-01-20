@@ -275,6 +275,7 @@ export class VoucherManager extends BaseComponent {
         this.mode = 'loading';
 
         try {
+            console.log('[Voucher] Redeeming voucher:', this.activeVoucher.code, 'Station:', this.stationId, 'Operator UUID:', this.userId);
             const { data: result, error } = await supabase.rpc('redeem_voucher_validated', {
                 p_voucher_code: this.activeVoucher.code,
                 p_station_id: this.stationId,
