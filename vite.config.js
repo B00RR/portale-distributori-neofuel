@@ -9,6 +9,7 @@ export default defineConfig({
 
     plugins: [
         VitePWA({
+            injectRegister: null, // Disable auto injection, we handle it manually in app.ts
             registerType: 'prompt',
             devOptions: {
                 enabled: true
