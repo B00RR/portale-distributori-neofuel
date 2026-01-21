@@ -37,7 +37,81 @@ export default defineConfig({
             },
 
             workbox: {
-                runtimeCaching: [],
+                runtimeCaching: [
+                    // Cache images and static assets (CacheFirst)
+                    {
+                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?)$/i,
+                        handler: 'CacheFirst',
+                        options: {
+                            cacheName: 'images-assets-cache',
+                            expiration: {
+                                maxEntries: 100,
+                                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+                            }
+                        }
+                    },
+                    // Stale-While-Revalidate for JS/CSS (fast load, background update)
+                    {
+                        urlPattern: /\.(?:js|css)$/i,
+                        handler: 'StaleWhileRevalidate',
+                        options: {
+                            cacheName: 'static-resources-cache',
+                            expiration: {
+                                maxEntries: 50,
+                                maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+                            }
+                        }
+                    },
+                    // NetworkFirst for Supabase API (offline fallback)
+                    {
+                        urlPattern: /supabase\.co\/rest\/v1/i,
+                        handler: 'NetworkFirst',
+                        options: {
+                            cacheName: 'supabase-api-cache',
+                            networkTimeoutSeconds: 10,
+                            expiration: {
+                                maxEntries: 100,
+                                maxAgeSeconds: 24 * 60 * 60 // 24 hours
+                            },
+                            cacheableResponse: {
+                                statuses: [0, 200]
+                            }
+                        }
+                    },
+                    // NetworkFirst for Supabase Auth
+                    {
+                        urlPattern: /supabase\.co\/auth/i,
+                        handler: 'NetworkFirst',
+                        options: {
+                            cacheName: 'supabase-auth-cache',
+                            networkTimeoutSeconds: 5
+                        }
+                    },
+                    // Cache external fonts
+                    {
+                        urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com/i,
+                        handler: 'CacheFirst',
+                        options: {
+                            cacheName: 'google-fonts-cache',
+                            expiration: {
+                                maxEntries: 20,
+                                maxAgeSeconds: 365 * 24 * 60 * 60 // 1 year
+                            }
+                        }
+                    },
+                    // Cache FontAwesome icons
+                    {
+                        urlPattern: /^https:\/\/cdnjs\.cloudflare\.com/i,
+                        handler: 'CacheFirst',
+                        options: {
+                            cacheName: 'cdn-cache',
+                            expiration: {
+                                maxEntries: 30,
+                                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+                            }
+                        }
+                    }
+                ],
                 globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
                 skipWaiting: false,
                 clientsClaim: true

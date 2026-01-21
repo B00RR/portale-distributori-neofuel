@@ -5,6 +5,7 @@ import { supabase } from '../../core/api.js';
 import { Toast } from '../toast.js';
 import { formatEuro } from '../../utils/utils.js';
 import { Pistola, Island, Shift } from '../../types.js';
+import { isOffline, queueAction } from '../../core/offline-queue.js';
 
 interface ClosureWizardState {
     step: 1 | 2 | 3;
@@ -469,18 +470,39 @@ export class ClosureWizard extends BaseComponent {
 
     private async handleConfirmClosure() {
         this.wizardState = { ...this.wizardState, mode: 'submitting' };
+
+        const isFinal = this.closureType === 'final';
+        const totalIncasso = (Number(this.selfCashIn) - Number(this.selfCashOut)) + Number(this.operatorCash) + Number(this.selfPos) + Number(this.operatorPos) + Number(this.selfFleet) + Number(this.operatorUta);
+        const dataJson = {
+            litri_benzina: this.totalLitriBenzina, litri_gasolio: this.totalLitriGasolio,
+            prezzo_benzina: this.prezzi?.prezzo_benzina || 0, prezzo_gasolio: this.prezzi?.prezzo_gasolio || 0,
+            ricavo_teorico: this.ricavoTeorico, incasso_reale: totalIncasso,
+            closure_stage: this.closureType,
+            scontrino_self: { banconote_incassate: Number(this.selfCashIn), banconote_erogate: Number(this.selfCashOut), bancomat_erogati: Number(this.selfPos), transazioni_uta: Number(this.selfFleet), id_gestore: Number(this.selfManager) },
+            dettaglio_incasso: { contanti_operatore: Number(this.operatorCash), pos_operatore: Number(this.operatorPos), uta_dkv_operatore: Number(this.operatorUta) },
+            discrepanza: totalIncasso - this.ricavoTeorico, is_final: isFinal
+        };
+
+        // Check if offline - queue action for later sync
+        if (isOffline()) {
+            try {
+                await queueAction('shift_close', {
+                    shiftId: this.activeOpening?.id,
+                    stationId: Number(this.stationId),
+                    closingData: dataJson,
+                    isFinal,
+                    finalCounters: this.includeCounters ? this.finalCounters : null
+                });
+                Toast.show('Chiusura salvata. Verrà sincronizzata quando online.', 'success');
+                setTimeout(() => window.location.reload(), 2000);
+            } catch {
+                Toast.show("Impossibile salvare la chiusura offline", 'error');
+                this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
+            }
+            return;
+        }
+
         try {
-            const isFinal = this.closureType === 'final';
-            const totalIncasso = (Number(this.selfCashIn) - Number(this.selfCashOut)) + Number(this.operatorCash) + Number(this.selfPos) + Number(this.operatorPos) + Number(this.selfFleet) + Number(this.operatorUta);
-            const dataJson = {
-                litri_benzina: this.totalLitriBenzina, litri_gasolio: this.totalLitriGasolio,
-                prezzo_benzina: this.prezzi?.prezzo_benzina || 0, prezzo_gasolio: this.prezzi?.prezzo_gasolio || 0,
-                ricavo_teorico: this.ricavoTeorico, incasso_reale: totalIncasso,
-                closure_stage: this.closureType,
-                scontrino_self: { banconote_incassate: Number(this.selfCashIn), banconote_erogate: Number(this.selfCashOut), bancomat_erogati: Number(this.selfPos), transazioni_uta: Number(this.selfFleet), id_gestore: Number(this.selfManager) },
-                dettaglio_incasso: { contanti_operatore: Number(this.operatorCash), pos_operatore: Number(this.operatorPos), uta_dkv_operatore: Number(this.operatorUta) },
-                discrepanza: totalIncasso - this.ricavoTeorico, is_final: isFinal
-            };
             const { data: res, error } = await supabase.rpc('submit_shift_closure', {
                 p_shift_id: this.activeOpening?.id, p_station_id: Number(this.stationId), p_closing_data: dataJson,
                 p_is_final: isFinal, p_final_counters: this.includeCounters ? this.finalCounters : null, p_tank_usage: []

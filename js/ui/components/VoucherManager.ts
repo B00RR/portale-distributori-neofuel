@@ -6,6 +6,7 @@ import { createRateLimiter } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
 import { validateVoucher } from '../../core/rules.js';
 import { formatEuro, formatDate } from '../../utils/utils.js';
+import { isOffline, queueAction } from '../../core/offline-queue.js';
 declare const window: Window & { Html5Qrcode?: any };
 
 interface Voucher {
@@ -300,6 +301,24 @@ export class VoucherManager extends BaseComponent {
         if (!this.activeVoucher || !this.stationId || !this.userId) return;
 
         this.mode = 'loading';
+
+        // Check if offline - queue action for later sync
+        if (isOffline()) {
+            try {
+                await queueAction('voucher_redeem', {
+                    voucherCode: this.activeVoucher.code,
+                    stationId: this.stationId,
+                    operatorId: this.userId,
+                    voucherAmount: this.activeVoucher.amount
+                });
+                this.mode = 'success';
+                this.emit('voucher-redeemed', { voucher: this.activeVoucher, queued: true });
+            } catch {
+                this.errorMessage = "Impossibile salvare l'azione offline";
+                this.mode = 'error';
+            }
+            return;
+        }
 
         try {
             console.log('[Voucher] Redeeming voucher:', this.activeVoucher.code, 'Station:', this.stationId, 'Operator UUID:', this.userId);

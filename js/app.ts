@@ -27,6 +27,52 @@ async function initializeApp(): Promise<void> {
 
     initializeCalculationPresets();
 
+    // Initialize offline queue for background sync
+    try {
+        const { initOfflineQueue, setupAutoSync, registerExecutor } = await import('./core/offline-queue.js');
+        await initOfflineQueue();
+
+        // Register executors for offline actions
+        registerExecutor('voucher_redeem', async (action) => {
+            const payload = action.payload as { voucherCode: string; stationId: string; operatorId: string };
+            const { data: result, error } = await supabase.rpc('redeem_voucher_validated', {
+                p_voucher_code: payload.voucherCode,
+                p_station_id: payload.stationId,
+                p_operator_id: payload.operatorId
+            });
+            if (error || (result && !result.success)) {
+                console.error('[OfflineQueue] Voucher redeem failed:', error || result?.error);
+                return false;
+            }
+            return true;
+        });
+
+        registerExecutor('shift_close', async (action) => {
+            const payload = action.payload as {
+                shiftId: number; stationId: number; closingData: Record<string, unknown>;
+                isFinal: boolean; finalCounters: unknown
+            };
+            const { data: res, error } = await supabase.rpc('submit_shift_closure', {
+                p_shift_id: payload.shiftId,
+                p_station_id: payload.stationId,
+                p_closing_data: payload.closingData,
+                p_is_final: payload.isFinal,
+                p_final_counters: payload.finalCounters,
+                p_tank_usage: []
+            });
+            if (error || (res && !res.success)) {
+                console.error('[OfflineQueue] Shift close failed:', error || res?.error);
+                return false;
+            }
+            return true;
+        });
+
+        setupAutoSync();
+        console.log('[App] Offline queue initialized with executors');
+    } catch (err) {
+        console.warn('[App] Offline queue initialization failed:', err);
+    }
+
     // Configura callback login
     setOnLoginSuccess(async (user: LoggedUserData) => {
         store.setUser(user as any);
