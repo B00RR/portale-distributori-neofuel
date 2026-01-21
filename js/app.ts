@@ -117,10 +117,16 @@ const updateSW = registerSW({
                 text: 'AGGIORNA',
                 onClick: () => {
                     console.log('[PWA] Update button clicked');
+                    // Force reload immediately after clicking
                     updateSW(true)
-                        .then(() => console.log('[PWA] Update accepted, waiting for reload...'))
+                        .then(() => {
+                            console.log('[PWA] Update accepted, reloading...');
+                            // Force hard reload to bypass cache
+                            window.location.reload();
+                        })
                         .catch(e => {
                             console.error('[PWA] Update failed:', e);
+                            // Reload anyway to try to get new version
                             window.location.reload();
                         });
                 }
@@ -133,24 +139,14 @@ const updateSW = registerSW({
     onRegistered(r) {
         if (!r) return;
 
-        // Hyper-aggressive polling (every 15 seconds)
+        // Poll for updates every 60 seconds (less aggressive)
         setInterval(() => {
             r.update().catch(() => { });
-        }, 15 * 1000);
+        }, 60 * 1000);
 
         // Immediate check when window gets focus
         window.addEventListener('focus', () => {
             r.update().catch(() => { });
-        });
-
-        // Check on user interaction (throttled to once every 5s)
-        let lastInteractionCheck = 0;
-        document.addEventListener('click', () => {
-            const now = Date.now();
-            if (now - lastInteractionCheck > 5000) {
-                lastInteractionCheck = now;
-                r.update().catch(() => { });
-            }
         });
     }
 });
