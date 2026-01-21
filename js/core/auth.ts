@@ -102,32 +102,31 @@ export function setupLoginForm(): void {
     if (!loginForm) return;
     if (loginFormInitialized) return;
 
-    // Event delegation for password toggle
-    loginForm.addEventListener('click', (e: Event) => {
-        const target = e.target as HTMLElement;
-        const toggleBtn = target.closest('#toggle-password');
-        if (toggleBtn) {
+    // Direct event listener for password toggle (more reliable than delegation)
+    const toggleBtn = document.getElementById('toggle-password');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', (e: Event) => {
             e.preventDefault();
             e.stopPropagation();
 
-            const passwordInput = loginForm?.querySelector('#password') as HTMLInputElement | null;
-            const passwordIcon = toggleBtn.querySelector('i');
+            const passwordInput = document.getElementById('password') as HTMLInputElement | null;
+            const passwordIcon = document.getElementById('password-icon');
 
             if (passwordInput && passwordIcon) {
                 if (passwordInput.type === 'password') {
                     passwordInput.type = 'text';
                     passwordIcon.classList.remove('fa-eye');
                     passwordIcon.classList.add('fa-eye-slash');
-                    (toggleBtn as HTMLElement).title = 'Nascondi password';
+                    toggleBtn.title = 'Nascondi password';
                 } else {
                     passwordInput.type = 'password';
                     passwordIcon.classList.remove('fa-eye-slash');
                     passwordIcon.classList.add('fa-eye');
-                    (toggleBtn as HTMLElement).title = 'Mostra password';
+                    toggleBtn.title = 'Mostra password';
                 }
             }
-        }
-    });
+        });
+    }
 
     loginForm.addEventListener('submit', async (e: Event) => {
         e.preventDefault();

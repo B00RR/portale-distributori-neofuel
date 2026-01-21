@@ -223,6 +223,11 @@ export async function syncPendingActions(): Promise<{ success: number; failed: n
 
     if (success > 0) {
         Toast.show(`${success} azioni sincronizzate con successo!`, 'success');
+
+        // Dispatch custom event to notify other parts of the app
+        window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+            detail: { success, failed }
+        }));
     }
 
     if (failed > 0) {

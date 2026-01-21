@@ -156,6 +156,15 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
         });
     });
 
+    // Listen for offline sync completion to auto-refresh
+    const syncHandler = () => {
+        if (voucherState.activeTab === 'dashboard') {
+            Toast.show('Dati aggiornati dopo sincronizzazione', 'info');
+            renderActiveTab();
+        }
+    };
+    window.addEventListener('offline-sync-complete', syncHandler);
+
     // Load dependencies
     await loadCustomers();
     renderActiveTab();
