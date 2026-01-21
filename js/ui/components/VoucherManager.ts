@@ -169,9 +169,41 @@ export class VoucherManager extends BaseComponent {
         color: #c53030 !important;
       }
 
+
       @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Helper Classes for CSP Compliance */
+      .mt-3 { margin-top: 1rem !important; }
+      .w-100 { width: 100% !important; }
+      .h-100 { height: 100% !important; }
+      
+      .icon-success-lg { color: var(--success-color, #10b981); font-size: 3rem; margin-bottom: 1rem; }
+      .icon-error-lg { color: #dc2626; font-size: 3rem; margin-bottom: 1rem; }
+      
+      .circle-wrapper {
+        background: white;
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2rem auto;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+      
+      .text-center { text-align: center; }
+      
+      .spinner-wrapper {
+        padding: 3rem;
+        text-align: center;
+      }
+      .spinner-lg {
+        font-size: 3rem;
+        color: var(--primary-color, #0A2342);
       }
     `
     ];
@@ -381,7 +413,7 @@ export class VoucherManager extends BaseComponent {
                 return html`
                 <div class="scanner-wrapper">
                     <div id="reader" class="scanner-container"></div>
-                    <button class="action-btn" style="margin-top: 1rem; width: 100%" @click=${() => { this.stopScanner(); this.mode = 'menu'; }}>
+                    <button class="action-btn mt-3 w-100" @click=${() => { this.stopScanner(); this.mode = 'menu'; }}>
                         Annulla
                     </button>
                 </div>
@@ -403,7 +435,7 @@ export class VoucherManager extends BaseComponent {
                             <i class="fas fa-arrow-right"></i>
                         </button>
                     </div>
-                    <button class="action-btn" style="margin-top: 1rem; width: 100%" @click=${() => this.mode = 'menu'}>
+                    <button class="action-btn mt-3 w-100" @click=${() => this.mode = 'menu'}>
                         Indietro
                     </button>
                 </div>
@@ -411,9 +443,9 @@ export class VoucherManager extends BaseComponent {
 
             case 'loading':
                 return html`
-                <div class="loading-state" style="text-align: center; padding: 3rem;">
-                    <i class="fas fa-spinner fa-spin fa-3x" style="color: var(--primary-color)"></i>
-                    <p style="margin-top: 1rem">Elaborazione in corso...</p>
+                <div class="loading-state spinner-wrapper">
+                    <i class="fas fa-spinner fa-spin spinner-lg"></i>
+                    <p class="mt-3">Elaborazione in corso...</p>
                 </div>
             `;
 
@@ -421,7 +453,7 @@ export class VoucherManager extends BaseComponent {
                 if (!this.activeVoucher) return html``;
                 return html`
                 <div class="card-preview">
-                    <div style="color: var(--success-color); font-size: 3rem; margin-bottom: 1rem">
+                    <div class="icon-success-wrapper">
                         <i class="fas fa-check-circle"></i>
                     </div>
                     <h2>Voucher Valido</h2>
@@ -429,7 +461,7 @@ export class VoucherManager extends BaseComponent {
                     <p>Codice: <strong>${this.activeVoucher.code}</strong></p>
                     ${this.activeVoucher.voucher_batches?.customer_name ? html`<p>Cliente: ${this.activeVoucher.voucher_batches.customer_name}</p>` : ''}
                     
-                    <div class="menu-grid" style="margin-top: 2rem">
+                    <div class="menu-grid mt-3">
                         <button class="action-btn" @click=${() => { this.mode = 'menu'; this.activeVoucher = null; }}>Annulla</button>
                         <button class="action-btn primary" @click=${() => this.confirmRedeem()}>Riscatta</button>
                     </div>
@@ -439,13 +471,14 @@ export class VoucherManager extends BaseComponent {
             case 'error':
                 const isValidationErr = this.validationResult && !this.validationResult.valid;
                 return html`
-                <div class="error-box" style="padding: 2.5rem 0 !important; text-align: center !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 100% !important;">
-                    <div style="background: white !important; width: 100px !important; height: 100px !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto 2rem auto !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;">
-                        <i class="fas fa-exclamation-triangle fa-3x" style="color: #c53030 !important; display: block !important;"></i>
+                <div class="error-box-container">
+                    <div class="icon-error-wrapper">
+                        <i class="fas fa-exclamation-triangle icon-error"></i>
                     </div>
-                    <h2 style="margin: 0 0 1rem 0 !important; color: #1e293b !important; text-align: center !important; width: 100% !important; font-weight: 700 !important;">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
-                    <p style="color: #64748b !important; margin: 0 0 0.5rem 0 !important; text-align: center !important; width: 100% !important;">${isValidationErr
+                    <h2 class="title-lg">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
+                    <p class="subtitle-gray">${isValidationErr
                         ? (this.validationResult?.reason === 'redeemed'
+
                             ? `Usato il ${formatDate(this.validationResult?.details?.date)}`
                             : 'Voucher non valido')
                         : this.errorMessage}</p>

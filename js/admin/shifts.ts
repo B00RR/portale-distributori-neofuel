@@ -329,55 +329,64 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
         const totaleReale = formatEuro(totaleRealeVal);
 
         target.innerHTML = `
-      <div class="closure-details" style="font-size: 0.95rem;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+      <div class="closure-details">
+        <div class="closure-details-header">
             <span>ID Chiusura: <b>${closure.id}</b></span>
             <span>${dateStr}</span>
         </div>
 
         <!-- SEZIONE SELF SERVICE -->
-        <div style="background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-            <div style="font-weight: 600; color: #334155; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">Dettaglio Self Service</div>
+        <div class="closure-section-alt">
+            <div class="closure-section-header">Dettaglio Self Service</div>
             
-            <p style="display: flex; justify-content: space-between; margin: 5px 0;">${contantiSelfHtml}</p>
-            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Bancomat:</span> <b>${formatEuro(bancomatSelf)}</b></p>
-            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Icad/DKV/Iscard:</span> <b>${formatEuro(cardsSelf)}</b></p>
+            <p class="closure-row">${contantiSelfHtml}</p>
+            <p class="closure-row"><span>Bancomat:</span> <b>${formatEuro(bancomatSelf)}</b></p>
+            <p class="closure-row"><span>Icad/DKV/Iscard:</span> <b>${formatEuro(cardsSelf)}</b></p>
             
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; font-weight: 700;">
+            <div class="mt-2 pt-2 border-top-dashed d-flex justify-between font-weight-bold">
                 <span>Incasso Totale Self:</span> <span>${selfTotalFormatted}</span>
             </div>
         </div>
 
         <!-- SEZIONE OPERATORE -->
-        <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
-            <div style="font-weight: 600; color: #334155; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">Dettaglio Operatore</div>
-            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Contanti:</span> <b>${contanti}</b></p>
-            <p style="display: flex; justify: space-between; margin: 5px 0;"><span>POS:</span> <b>${pos}</b></p>
-            <p style="display: flex; justify-content: space-between; margin: 5px 0;"><span>Crediti:</span> <b>${crediti}</b></p>
-            <p style="display: flex; justify: space-between; margin: 5px 0;"><span>Voucher/Buoni:</span> <b>${voucher}</b></p>
-            <p style="display: flex; justify: space-between; margin: 5px 0;"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
-            <p style="display: flex; justify: space-between; margin: 5px 0; color: #dc2626;"><span>Uscite/Rimborsi:</span> <b>- ${rimborsi}</b></p>
+        <div class="closure-section">
+            <div class="closure-section-header">Dettaglio Operatore</div>
+            <p class="closure-row"><span>Contanti:</span> <b>${contanti}</b></p>
+            <p class="closure-row"><span>POS:</span> <b>${pos}</b></p>
+            <p class="closure-row"><span>Crediti:</span> <b>${crediti}</b></p>
+            <p class="closure-row"><span>Voucher/Buoni:</span> <b>${voucher}</b></p>
+            <p class="closure-row"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
+            <p class="closure-row text-danger"><span>Uscite/Rimborsi:</span> <b>- ${rimborsi}</b></p>
             
-            <hr style="margin: 8px 0; border-color: #e2e8f0;">
+            <hr class="my-2 border-0 border-top">
             
             <!-- NUOVA RIGA: Totale venduto della giornata (pistole) -->
-            <p style="display: flex; justify-content: space-between; margin: 5px 0; font-weight: 600; color: #0f172a;"><span>Totale Venduto (Pistole):</span> <b>${vendutoCarburante}</b></p>
+            <p class="closure-row font-weight-bold text-main"><span>Totale Venduto (Pistole):</span> <b>${vendutoCarburante}</b></p>
             
-            <p style="display: flex; justify-content: space-between; margin: 5px 0; color: #1e40af;"><span>Incassi Extra:</span> <b>${extra}</b></p>
+            <p class="closure-row text-primary"><span>Incassi Extra:</span> <b>${extra}</b></p>
         </div>
 
-        <div style="background: #eff6ff; padding: 15px; border-radius: 6px; border: 1px solid #bfdbfe; text-align: right; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 4px;">Totale Venduto (Carburante + Extra)</div>
-            <div style="font-size: 1.6rem; font-weight: 700; color: #1e3a8a;">${totaleReale}</div>
+        <div class="closure-total-box">
+            <div class="closure-total-label">Totale Venduto (Carburante + Extra)</div>
+            <div class="closure-total-value">${totaleReale}</div>
         </div>
         
-        <div style="margin-top: 15px; text-align: center;">
-             <button class="menu-button" onclick="document.querySelector('.icon-btn.export-closure[data-id=\\'${closure.id}\\']').click()">
+        <div class="mt-3 text-center">
+             <button class="menu-button" id="btn-export-details">
                 <i class="fas fa-file-export"></i> Scarica Excel Dettagliato
              </button>
         </div>
       </div>
     `;
+
+        // Attach Event Listener for Export Button
+        const exportBtn = document.getElementById('btn-export-details');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                openExportModal(closure.id);
+            });
+        }
+
     } catch (err) {
         target.innerHTML = `<p class="error">Errore: ${(err as Error).message}</p>`;
     }
@@ -411,8 +420,8 @@ async function openBulkExportModal(): Promise<void> {
     } catch (e) { console.error(e); }
 
     target.innerHTML = `
-        <div style="padding: 10px;">
-            <p style="margin-bottom: 15px; color: #64748b;">Seleziona i criteri per scaricare più chiusure in un unico file Excel.</p>
+        <div class="p-2">
+            <p class="mb-3 text-muted">Seleziona i criteri per scaricare più chiusure in un unico file Excel.</p>
             
             <div class="form-group">
                 <label>Stazione</label>
@@ -421,29 +430,29 @@ async function openBulkExportModal(): Promise<void> {
                 </select>
             </div>
 
-            <div class="form-group" style="margin-top: 15px;">
+            <div class="form-group mt-3">
                 <label>Tipo di Export</label>
-                <div style="display: flex; gap: 15px; margin-top: 5px;">
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="bulk-type" value="last_n" checked onchange="document.getElementById('range-options').style.display='none'; document.getElementById('last-n-options').style.display='block';">
+                <div class="d-flex gap-3 mt-1">
+                    <label class="d-flex align-center gap-1 cursor-pointer">
+                        <input type="radio" name="bulk-type" value="last_n" id="radio-last-n" checked>
                         Ultime Chiusure
                     </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="bulk-type" value="date_range" onchange="document.getElementById('range-options').style.display='block'; document.getElementById('last-n-options').style.display='none';">
+                    <label class="d-flex align-center gap-1 cursor-pointer">
+                        <input type="radio" name="bulk-type" value="date_range" id="radio-date-range">
                         Intervallo Date
                     </label>
                 </div>
             </div>
 
             <!-- OPZIONI LAST N -->
-            <div id="last-n-options" style="margin-top: 15px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div id="last-n-options" class="mt-3 bg-light p-2 rounded border">
                 <label>Numero di chiusure da scaricare:</label>
                 <input type="number" id="bulk-limit" class="form-control" value="10" min="1" max="50" style="width: 100px; margin-top: 5px;">
-                <small style="display: block; color: #94a3b8; margin-top: 4px;">Es. 3 per le ultime 3, 10 per le ultime 10.</small>
+                <small class="d-block text-muted mt-1">Es. 3 per le ultime 3, 10 per le ultime 10.</small>
             </div>
 
             <!-- OPZIONI DATE RANGE -->
-            <div id="range-options" style="display: none; margin-top: 15px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div id="range-options" class="mt-3 bg-light p-2 rounded border hidden">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div>
                         <label>Da:</label>
@@ -456,17 +465,40 @@ async function openBulkExportModal(): Promise<void> {
                 </div>
             </div>
 
-            <div style="margin-top: 25px; text-align: right;">
+            <div class="mt-4 text-right">
                 <button id="btn-start-bulk" class="menu-button primary">
                     <i class="fas fa-download"></i> Scarica Excel
                 </button>
             </div>
             
-            <div id="bulk-loading" style="display: none; margin-top: 15px; color: #3b82f6; text-align: center;">
+            <div id="bulk-loading" class="hidden mt-3 text-info text-center">
                 <i class="fas fa-spinner fa-spin"></i> Generazione in corso...
             </div>
         </div>
     `;
+
+    // Handle Radio Change Events (CSP Safe)
+    const radioLastN = document.getElementById('radio-last-n');
+    const radioDateRange = document.getElementById('radio-date-range');
+    const rangeOptions = document.getElementById('range-options');
+    const lastNOptions = document.getElementById('last-n-options');
+
+    const toggleBulkOptions = (isRange: boolean) => {
+        if (isRange) {
+            rangeOptions?.classList.remove('hidden');
+            lastNOptions?.classList.add('hidden');
+        } else {
+            rangeOptions?.classList.add('hidden');
+            lastNOptions?.classList.remove('hidden');
+        }
+    };
+
+    if (radioLastN) {
+        radioLastN.addEventListener('change', () => toggleBulkOptions(false));
+    }
+    if (radioDateRange) {
+        radioDateRange.addEventListener('change', () => toggleBulkOptions(true));
+    }
 
     const btn = document.getElementById('btn-start-bulk');
     if (btn) {
@@ -489,7 +521,7 @@ async function openBulkExportModal(): Promise<void> {
             }
 
             const loadingDiv = document.getElementById('bulk-loading');
-            if (loadingDiv) loadingDiv.style.display = 'block';
+            if (loadingDiv) loadingDiv.classList.remove('hidden');
 
             const btnElement = btn as HTMLButtonElement;
             btnElement.disabled = true;
@@ -507,7 +539,7 @@ async function openBulkExportModal(): Promise<void> {
                 console.error(err);
                 (Toast as any).show('Errore durante export multiplo: ' + err.message, 'error');
             } finally {
-                if (loadingDiv) loadingDiv.style.display = 'none';
+                if (loadingDiv) loadingDiv.classList.add('hidden');
                 btnElement.disabled = false;
             }
         });

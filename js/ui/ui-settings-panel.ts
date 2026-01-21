@@ -839,14 +839,15 @@ function renderFormsSection(settings: Record<string, string>): string {
   `;
 }
 
+
 function renderThemesSection(_settings: Record<string, string>): string {
   const themesList = Object.entries(PREDEFINED_THEMES).map(([key, theme]) => `
     <div class="ui-theme-card" data-theme-key="${key}">
       <div class="ui-theme-preview">
-        <div class="ui-theme-preview-sidebar" style="background: ${theme.bg_sidebar};"></div>
-        <div class="ui-theme-preview-main" style="background: ${theme.bg_body};">
-          <div class="ui-theme-preview-header" style="background: ${theme.primary_color};"></div>
-          <div class="ui-theme-preview-content" style="background: white; border-left: 4px solid ${theme.accent_color};"></div>
+        <div class="ui-theme-preview-sidebar theme-${key}-sidebar"></div>
+        <div class="ui-theme-preview-main theme-${key}-body">
+          <div class="ui-theme-preview-header theme-${key}-primary"></div>
+          <div class="ui-theme-preview-content theme-${key}-accent"></div>
         </div>
       </div>
       <h5 class="ui-theme-name">${theme.name}</h5>
@@ -922,17 +923,16 @@ function renderIconField(field: UiField, settings: Record<string, string>): stri
         <span>${field.label}</span>
         <small>${field.description}</small>
       </label>
-      <div style="display: flex; gap: 8px; align-items: flex-start;">
+      <div class="preview-icon-wrapper">
         <input 
           type="text" 
           name="${field.key}" 
           value="${escapeHtml(displayValue)}" 
-          class="ui-text-input" 
-          style="flex: 1;"
+          class="ui-text-input preview-icon-input" 
           placeholder="${field.defaultValue || ''}"
           data-icon-field="true"
         />
-        <label class="menu-button secondary" style="cursor: pointer; margin: 0; white-space: nowrap; padding: 8px 16px;">
+        <label class="menu-button secondary preview-file-label">
           <i class="fas fa-image"></i> Carica Immagine
           <input 
             type="file" 
@@ -942,27 +942,27 @@ function renderIconField(field: UiField, settings: Record<string, string>): stri
           />
         </label>
         ${isImage ? `
-          <button type="button" class="menu-button secondary" style="margin: 0; padding: 8px 16px;" data-icon-remove-image="${field.key}">
+          <button type="button" class="menu-button secondary preview-file-label" data-icon-remove-image="${field.key}">
             <i class="fas fa-times"></i> Rimuovi
           </button>
         ` : ''}
       </div>
       ${isImage ? `
-        <div class="ui-icon-preview" style="margin-top: 8px; padding: 8px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-          <small style="display: block; margin-bottom: 4px; color: var(--text-secondary);">Anteprima Immagine:</small>
-          <img src="data:image/png;base64,${imageBase64}" style="max-width: 40px; max-height: 40px; object-fit: contain;" alt="Icona" />
+        <div class="preview-box">
+          <small class="preview-label">Anteprima Immagine:</small>
+          <img src="data:image/png;base64,${imageBase64}" class="preview-img-lg" alt="Icona" />
         </div>
       ` : isSvg ? `
-        <div class="ui-icon-preview" style="margin-top: 8px; padding: 8px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-          <small style="display: block; margin-bottom: 4px; color: var(--text-secondary);">Anteprima:</small>
-          <div style="display: inline-block; width: 20px; height: 20px; vertical-align: middle;">
+        <div class="preview-box">
+          <small class="preview-label">Anteprima:</small>
+          <div class="preview-svg-box">
             ${value}
           </div>
         </div>
       ` : value ? `
-        <div class="ui-icon-preview" style="margin-top: 8px; padding: 8px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-          <small style="display: block; margin-bottom: 4px; color: var(--text-secondary);">Anteprima:</small>
-          <i class="${value}" style="font-size: 20px; color: var(--primary-color);"></i>
+        <div class="preview-box">
+          <small class="preview-label">Anteprima:</small>
+          <i class="${value} preview-font-icon"></i>
         </div>
       ` : ''}
     </div>
@@ -1193,9 +1193,9 @@ async function applyIconsSettings(overrideSettings: Record<string, string> | nul
       if (iconEl) {
         if (iconValue.trim().startsWith('IMAGE_BASE64:')) {
           const base64 = iconValue.replace('IMAGE_BASE64:', '');
-          iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 16px; height: 16px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
+          iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper icon-preview-sm" alt="Icona" />`;
         } else if (iconValue.trim().startsWith('<svg') || iconValue.trim().startsWith('<?xml')) {
-          iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 16px; height: 16px; vertical-align: middle;">${iconValue}</span>`;
+          iconEl.outerHTML = `<span class="icon-svg-wrapper icon-preview-sm">${iconValue}</span>`;
         } else {
           if (iconEl.tagName === 'I') {
             iconEl.className = iconValue;
@@ -1215,9 +1215,9 @@ async function applyIconsSettings(overrideSettings: Record<string, string> | nul
       if (iconEl) {
         if (iconValue.trim().startsWith('IMAGE_BASE64:')) {
           const base64 = iconValue.replace('IMAGE_BASE64:', '');
-          iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper" style="display: inline-block; width: 18px; height: 18px; object-fit: contain; vertical-align: middle;" alt="Icona" />`;
+          iconEl.outerHTML = `<img src="data:image/png;base64,${base64}" class="icon-img-wrapper icon-preview-md" alt="Icona" />`;
         } else if (iconValue.trim().startsWith('<svg') || iconValue.trim().startsWith('<?xml')) {
-          iconEl.outerHTML = `<span class="icon-svg-wrapper" style="display: inline-block; width: 18px; height: 18px; vertical-align: middle;">${iconValue}</span>`;
+          iconEl.outerHTML = `<span class="icon-svg-wrapper icon-preview-md">${iconValue}</span>`;
         } else {
           if (iconEl.tagName === 'I') {
             iconEl.className = iconValue;

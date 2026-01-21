@@ -83,7 +83,7 @@ export function showErrorMessage(
     if (content) {
         const errorObj = error as { message?: string };
         const errorMsg = errorObj?.message || (typeof error === 'string' ? error : null) || defaultMessage;
-        content.innerHTML = `<span style="color:red">${escapeHtml(errorMsg)}</span>`;
+        content.innerHTML = `<span class="text-danger">${escapeHtml(errorMsg)}</span>`;
     }
     console.error(defaultMessage, error);
 }
@@ -150,8 +150,8 @@ export function showInfoModal(message: string, title: string = 'Informazione'): 
     if (!target) return;
 
     target.innerHTML = `
-        <p style="margin-bottom:16px;">${escapeHtml(message)}</p>
-        <div style="text-align:right;">
+        <p class="mb-3">${escapeHtml(message)}</p>
+        <div class="text-right">
             <button id="info-modal-ok" class="menu-button">Ok</button>
         </div>
     `;
@@ -177,7 +177,7 @@ export function openConfirmModal(message: string): Promise<boolean> {
 
         target.innerHTML = `
             <p>${escapeHtml(message)}</p>
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+            <div class="d-flex justify-end gap-2 mt-4">
                 <button id="confirm-cancel" class="menu-button btn-danger">Annulla</button>
                 <button id="confirm-ok" class="menu-button btn-success">Conferma</button>
             </div>
@@ -222,11 +222,11 @@ export function showPromptModal(
         }
 
         target.innerHTML = `
-            <p style="margin-bottom: 15px;">${escapeHtml(message)}</p>
+            <p class="mb-3">${escapeHtml(message)}</p>
             <div class="form-group">
-                <input type="text" id="prompt-input" class="form-control" value="${escapeHtml(defaultValue)}" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                <input type="text" id="prompt-input" class="form-control w-100 p-2" value="${escapeHtml(defaultValue)}">
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+            <div class="d-flex justify-end gap-2 mt-4">
                 <button id="prompt-cancel" class="menu-button">Annulla</button>
                 <button id="prompt-ok" class="menu-button primary">Ok</button>
             </div>

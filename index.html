@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <title>Portale Distributori Neofuel</title>
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; frame-src 'none'; object-src 'none';" />
+    content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; frame-src 'none'; object-src 'none';" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- PWA Configuration -->
@@ -59,8 +59,8 @@
     </form>
   </div>
 
-  <div class="app-container" id="app-container" style="display: none;">
-    <main id="main-content" style="padding: 16px;"></main>
+  <div class="app-container hidden" id="app-container">
+    <main id="main-content" class="p-3"></main>
     <!-- Contenuto dinamico inserito da app.js -->
   </div>
 
