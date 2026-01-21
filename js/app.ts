@@ -35,9 +35,17 @@ async function initializeApp(): Promise<void> {
         // Register executors for offline actions
         registerExecutor('voucher_redeem', async (action) => {
             const payload = action.payload as { voucherCode: string; stationId: string; operatorId: string };
+
+            // Ensure stationId is a number
+            const stationIdNum = Number(payload.stationId);
+            if (isNaN(stationIdNum)) {
+                console.error('[OfflineQueue] Invalid station ID:', payload.stationId);
+                return false;
+            }
+
             const { data: result, error } = await supabase.rpc('redeem_voucher_validated', {
                 p_voucher_code: payload.voucherCode,
-                p_station_id: payload.stationId,
+                p_station_id: stationIdNum,
                 p_operator_id: payload.operatorId
             });
             if (error || (result && !result.success)) {
