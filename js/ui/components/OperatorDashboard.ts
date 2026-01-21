@@ -1,4 +1,4 @@
-import { html, css, CSSResultGroup, TemplateResult, LitElement } from 'lit';
+import { html, css, TemplateResult, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { renderOperatorShell, OperatorHandlers } from '../../operator/layout.js';
 import { router, OperatorView } from '../../operator/router.js';
@@ -6,21 +6,22 @@ import { store } from '../../shared/state.js';
 
 /**
  * Operator Dashboard - LitElement wrapper for the existing operator layout.
- * Acts as a bridge between the new declarative <app-root> and the
- * existing imperative renderOperatorShell function.
+ * Uses Light DOM to allow renderOperatorShell to access the container via document.getElementById.
  */
 @customElement('operator-dashboard')
 export class OperatorDashboard extends LitElement {
     @property({ type: String }) userId: string = '';
     @property({ type: Number }) stationId: number = 0;
 
-    static override styles: CSSResultGroup = css`
-        :host {
-            display: block;
-        }
+    // Use Light DOM instead of Shadow DOM for legacy compatibility
+    protected override createRenderRoot(): HTMLElement | DocumentFragment {
+        return this;
+    }
 
-        #operator-shell-container {
-            min-height: 100%;
+    static styles = css`
+        operator-dashboard {
+            display: block;
+            min-height: 100vh;
         }
     `;
 
@@ -29,7 +30,7 @@ export class OperatorDashboard extends LitElement {
     }
 
     private async initializeOperatorShell(): Promise<void> {
-        const container = this.renderRoot.querySelector('#operator-shell-container') as HTMLElement;
+        const container = this.querySelector('#main-content') as HTMLElement;
         if (!container) {
             console.error('[OperatorDashboard] Container not found');
             return;
@@ -59,7 +60,8 @@ export class OperatorDashboard extends LitElement {
     }
 
     override render(): TemplateResult {
-        return html`<div id="operator-shell-container"></div>`;
+        // Render the main-content element directly in Light DOM
+        return html`<main id="main-content" style="padding: 16px; min-height: 100vh;"></main>`;
     }
 }
 

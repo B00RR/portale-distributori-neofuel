@@ -1,21 +1,22 @@
-import { html, css, CSSResultGroup, TemplateResult, LitElement } from 'lit';
+import { html, css, TemplateResult, LitElement } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { showAdminArea } from '../../admin.js';
 
 /**
  * Admin Dashboard - LitElement wrapper for the existing admin layout.
- * Acts as a bridge between the new declarative <app-root> and the
- * existing imperative showAdminArea function.
+ * Uses Light DOM to allow showAdminArea to access the container via document.getElementById.
  */
 @customElement('admin-dashboard')
 export class AdminDashboard extends LitElement {
-    static override styles: CSSResultGroup = css`
-        :host {
-            display: block;
-        }
+    // Use Light DOM instead of Shadow DOM for legacy compatibility
+    protected override createRenderRoot(): HTMLElement | DocumentFragment {
+        return this;
+    }
 
-        #admin-shell-container {
-            min-height: 100%;
+    static styles = css`
+        admin-dashboard {
+            display: block;
+            min-height: 100vh;
         }
     `;
 
@@ -24,7 +25,7 @@ export class AdminDashboard extends LitElement {
     }
 
     private initializeAdminShell(): void {
-        const container = this.renderRoot.querySelector('#admin-shell-container') as HTMLElement;
+        const container = this.querySelector('#main-content') as HTMLElement;
         if (!container) {
             console.error('[AdminDashboard] Container not found');
             return;
@@ -32,28 +33,13 @@ export class AdminDashboard extends LitElement {
 
         console.log('[AdminDashboard] Initializing Admin Area');
 
-        // The existing showAdminArea targets #main-content, so we need to
-        // temporarily set our container's ID to main-content
-        const originalMainContent = document.getElementById('main-content');
-        if (originalMainContent) {
-            originalMainContent.id = 'main-content-backup';
-        }
-        container.id = 'main-content';
-
-        // Call the existing admin area function
+        // Call the existing admin area function - it will find #main-content in the Light DOM
         showAdminArea();
-
-        // Restore original ID after a tick
-        setTimeout(() => {
-            if (originalMainContent) {
-                container.id = 'admin-shell-container';
-                originalMainContent.id = 'main-content';
-            }
-        }, 100);
     }
 
     override render(): TemplateResult {
-        return html`<div id="admin-shell-container"></div>`;
+        // Render the main-content element directly in Light DOM
+        return html`<main id="main-content" style="padding: 16px; min-height: 100vh;"></main>`;
     }
 }
 
