@@ -263,8 +263,21 @@ export class VoucherManager extends BaseComponent {
         this.mode = 'loading';
         this.errorMessage = '';
 
+        // OFFLINE MODE: Skip validation and prepare for deferred redemption
+        if (isOffline()) {
+            // Create a minimal voucher object for offline queueing
+            this.activeVoucher = {
+                code: code,
+                amount: 0, // Will be determined when synced
+                customer_name: 'Verifica al ritorno online'
+            };
+            this.mode = 'verify';
+            Toast.show('Modalità offline: il voucher verrà validato al ritorno online.', 'warning');
+            return;
+        }
+
         try {
-            // Mock query for now or real
+            // Online query for validation
             let query = supabase.from('vouchers').select('*, voucher_batches(customer_name)');
 
             if (code.length === 4) {
