@@ -2,6 +2,8 @@
 reviews:
   # Aiming to get under the 150 file limit by excluding non-essential paths
   max_files: 300 
+  # Allow CodeRabbit to review PRs authored by the same user (necessary for this audit)
+  review_self_pr: true
   auto_review:
     enabled: true
   path_filters:
