@@ -48,7 +48,13 @@ interface TankPumpLink {
     pistole?: Pump;
 }
 
-// --- MAIN FUNCTIONS ---
+/**
+ * Open and display the Tanks management modal for a given station.
+ *
+ * Fetches tanks, pumps, and their associations for the provided station and renders a modal UI that allows viewing, creating, updating, toggling, and deleting tanks and pistol↔cisterna associations.
+ *
+ * @param stationId - The numeric or string identifier of the station to manage
+ */
 
 export async function showTanksAdminModal(stationId: number | string): Promise<void> {
     const stationName = await getStationName(stationId);
@@ -426,6 +432,12 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
     renderTanks();
 }
 
+/**
+ * Render the "Gestione Cisterne" tab UI into the given container.
+ *
+ * @param container - The element where the tab content will be placed.
+ * @param headerActions - Optional header actions element; if provided its contents will be cleared.
+ */
 export async function showTanksTab(container: HTMLElement, headerActions: HTMLElement | null): Promise<void> {
     if (headerActions) { headerActions.innerHTML = ''; }
     container.innerHTML = `

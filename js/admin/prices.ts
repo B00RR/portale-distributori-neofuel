@@ -17,7 +17,16 @@ interface PriceRecord {
     data_validita: string;
 }
 
-// --- MAIN FUNCTIONS ---
+/**
+ * Open an admin modal to view and edit the latest fuel prices for a station.
+ *
+ * Fetches the most recent price record for the given station, pre-fills a form
+ * with Benzina and Gasolio values and a validity option, and submits updates
+ * to the server via a secure RPC call; on success the modal is closed and a
+ * success toast is shown, and errors are routed to the global error handler.
+ *
+ * @param stationId - Station identifier (number or numeric string)
+ */
 
 export async function showPrezziAdminModal(stationId: number | string): Promise<void> {
     const stationName = await getStationName(stationId);
@@ -102,6 +111,15 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
     }
 }
 
+/**
+ * Render the "Prices" management view into the provided container.
+ *
+ * If `headerActions` is provided, its contents are cleared before rendering.
+ * The injected content includes a title, instructions, and a button that navigates to the Stations tab.
+ *
+ * @param container - Element where the Prices management UI will be rendered
+ * @param headerActions - Optional header actions element to clear prior to rendering
+ */
 export async function showPricesTab(container: HTMLElement, headerActions: HTMLElement | null): Promise<void> {
     if (headerActions) { headerActions.innerHTML = ''; }
     container.innerHTML = `
@@ -112,4 +130,3 @@ export async function showPricesTab(container: HTMLElement, headerActions: HTMLE
         </div>
     `;
 }
-

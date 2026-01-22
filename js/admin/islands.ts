@@ -19,7 +19,14 @@ interface IslandWithGuns extends Island {
     pistole: { id: number }[]; // Count only
 }
 
-// --- MAIN FUNCTION ---
+/**
+ * Open and render the Islands management modal for the specified station.
+ *
+ * Loads islands for the station, displays a compact UI showing each island with its pistol count,
+ * and provides actions to add, edit, manage pistols, and delete islands (with safety checks and confirmations).
+ *
+ * @param stationId - The station identifier (number or string) whose islands will be managed
+ */
 
 export async function showIslandsModal(stationId: number | string): Promise<void> {
     const stationName = await getStationName(stationId);
@@ -139,6 +146,14 @@ export async function showIslandsModal(stationId: number | string): Promise<void
     renderIslands();
 }
 
+/**
+ * Open a modal to create a new island or edit an existing island for the specified station.
+ *
+ * If `islandId` is provided, the function loads the island data and pre-fills the form. The form allows updating the island's name or creating a new island; on successful submit it saves the changes to the backend, shows a success message, closes the modal, and refreshes the islands list. The cancel action closes the modal and refreshes the islands list.
+ *
+ * @param stationId - Identifier of the station the island belongs to
+ * @param islandId - Optional island identifier; when provided the form is loaded for editing that island
+ */
 async function openIslandForm(stationId: number | string, islandId: number | null = null): Promise<void> {
     const isEdit = !!islandId;
 
@@ -212,6 +227,16 @@ async function openIslandForm(stationId: number | string, islandId: number | nul
     }
 }
 
+/**
+ * Delete an island after verifying it has no associated pistols and confirming with the user.
+ *
+ * Checks whether the island has any associated pistols; if so, shows a warning toast and aborts.
+ * Otherwise, prompts the user for confirmation, deletes the island from the database on confirmation,
+ * shows a success info modal, and refreshes the islands view for the given station. On error, shows an error toast.
+ *
+ * @param islandId - The identifier of the island to delete
+ * @param stationId - The station identifier used to refresh the islands modal after deletion
+ */
 async function deleteIsland(islandId: number, stationId: number | string): Promise<void> {
     try {
         // Find if has guns

@@ -77,6 +77,17 @@ interface BulkExportOptions {
 
 console.log('%c SHIFTS MODULE LOADED (v112 - Fix Export - TS)', 'background: #22c55e; color: #fff; padding: 4px; font-weight: bold;');
 
+/**
+ * Render and manage the "Chiusure" (shift closures) admin tab with filters, table, and pagination.
+ *
+ * Renders the filters and paginated list of closures into the provided container, attaches row actions
+ * (view details, export, delete), and optionally adds a bulk-export button into the provided actions container.
+ *
+ * @param container - The element where the tab's filters, data table, and pagination will be rendered
+ * @param actionsContainer - Optional container for action controls (e.g., bulk export button); if null no actions area is populated
+ * @param defaultStationId - Optional station id to use when no station filter is selected
+ * @returns Resolves when the initial rendering and subscriptions are set up
+ */
 export async function showChiusureTab(
     container: HTMLElement,
     actionsContainer: HTMLElement | null,
@@ -260,6 +271,14 @@ export async function showChiusureTab(
     });
 }
 
+/**
+ * Display a modal with a detailed breakdown for the specified closure.
+ *
+ * Fetches the closure record, formats self-service and operator incassi (cash, POS, credits, vouchers, cards, refunds),
+ * computes totals (venduto carburante, extra, and overall total) and renders a structured details view with an export button.
+ *
+ * @param closureId - The closure (shift) identifier to load and display
+ */
 export async function showClosureDetails(closureId: string | number): Promise<void> {
     openModal('Dettagli Chiusura');
     const target = document.getElementById('modal-body');
@@ -392,6 +411,13 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     }
 }
 
+/**
+ * Generate and download an Excel export for the specified closure.
+ *
+ * Fetches the export context for the given closure, computes the export metrics, and generates the Excel file for download.
+ *
+ * @param closureId - The identifier of the closure to export (string or number)
+ */
 export async function openExportModal(closureId: string | number): Promise<void> {
     try {
         const ctx = await fetchClosureExportData(closureId);
@@ -403,6 +429,12 @@ export async function openExportModal(closureId: string | number): Promise<void>
     }
 }
 
+/**
+ * Open a modal that allows selecting criteria and initiating a bulk export of closures into one Excel file.
+ *
+ * Renders UI for station selection, choice between exporting the last N closures or a date range, input validation,
+ * progress indication, and triggers the bulk export process. Closes the modal on success and shows user-facing errors via Toast on failure.
+ */
 async function openBulkExportModal(): Promise<void> {
     openModal('Export Multiplo Chiusure');
     const target = document.getElementById('modal-body');
@@ -546,6 +578,14 @@ async function openBulkExportModal(): Promise<void> {
     }
 }
 
+/**
+ * Fetches closures according to the provided criteria, computes export metrics for each closure, and generates a combined Excel export.
+ *
+ * @param opts - Criteria for selecting closures: optionally a stationId; `type` is `"last_n"` (uses `limit`) or `"date_range"` (uses `dateFrom` and `dateTo`).
+ * @throws Error if `type` is `"date_range"` and `dateFrom`/`dateTo` are missing.
+ * @throws Error if no closures match the selection criteria.
+ * @throws Error if the Supabase query returns an error.
+ */
 async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
     // 1. Fetch Data
     let query = supabase.from('shifts')
@@ -583,6 +623,14 @@ async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
     await generateMultiClosureExcel(processedClosures);
 }
 
+/**
+ * Prompt the user for confirmation and permanently delete the specified closure on the server.
+ *
+ * If the user confirms, invokes a server-side RPC to perform a cascade delete; on success shows a success toast and invokes `onSuccessCallback` if provided. Errors are reported via the module's error handler.
+ *
+ * @param closureId - The ID of the closure to delete (number or numeric string)
+ * @param onSuccessCallback - Optional callback executed after a successful deletion
+ */
 export async function deleteClosure(
     closureId: string | number,
     onSuccessCallback?: () => void
@@ -605,5 +653,4 @@ export async function deleteClosure(
         handleError(err as Error, 'deleteClosure');
     }
 }
-
 

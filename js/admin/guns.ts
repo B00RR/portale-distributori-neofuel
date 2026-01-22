@@ -23,7 +23,15 @@ interface CounterRecord {
     turno_id: number;
 }
 
-// --- MAIN FUNCTIONS ---
+/**
+ * Open the "Pistole" modal for a given island and render its guns list.
+ *
+ * Opens a modal titled with the island name, shows a loading state, and renders the pistole UI for the specified island and station.
+ *
+ * @param islandId - Identifier of the island whose pistole will be displayed
+ * @param islandName - Display name of the island used in the modal title
+ * @param stationId - Identifier of the station context (passed through to render functions)
+ */
 
 export async function showGunsModal(islandId: number, islandName: string, stationId: number | string): Promise<void> {
     openModal(`Pistole - ${escapeHtml(islandName)}`);
@@ -40,6 +48,17 @@ export async function showGunsModal(islandId: number, islandName: string, statio
     await renderGuns(target, islandId, islandName, stationId);
 }
 
+/**
+ * Render the list of pistole (guns) for a given island into the provided DOM target and attach related UI controls.
+ *
+ * Fetches pistole and their latest closure counters from the database, builds the HTML list (including add, edit,
+ * delete and edit-counter controls), and wires event listeners that open the appropriate forms/modals or perform deletions.
+ *
+ * @param target - DOM element where the guns list and controls will be rendered
+ * @param islandId - Identifier of the island whose pistole should be displayed
+ * @param islandName - Human-readable island name (used in modal titles and UI)
+ * @param stationId - Identifier of the parent station (passed through to modal actions)
+ */
 async function renderGuns(target: HTMLElement, islandId: number, islandName: string, stationId: number | string): Promise<void> {
     try {
         const { data: rawGuns, error } = await supabase
@@ -228,6 +247,14 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
     }
 }
 
+/**
+ * Open a modal to create a new pistol or edit an existing one, handle form submission, and refresh the pistols list.
+ *
+ * The modal displays fields for name, fuel type, and initial counter; when submitted it saves the pistola record,
+ * shows a success or error message, closes the modal, and reloads the guns view for the given island.
+ *
+ * @param gunId - ID of the pistola to edit; pass `null` to create a new pistola
+ */
 async function openGunForm(islandId: number, islandName: string, stationId: number | string, gunId: number | null = null): Promise<void> {
     const isEdit = !!gunId;
     openModal(isEdit ? 'Modifica Pistola' : 'Nuova Pistola');
@@ -322,6 +349,20 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
     }
 }
 
+/**
+ * Open a modal to edit a gun's counter and persist the updated value.
+ *
+ * Updates the gun's `numero_litri` and inserts or updates a corresponding
+ * `chiusura_turno_pistole` record for the latest turno (or initializes turno_id = 1
+ * when no turno exists). Shows validation for negative values and refreshes the guns list on success.
+ *
+ * @param gunId - Identifier of the gun to edit
+ * @param gunName - Display name of the gun used in the modal title
+ * @param currentCounter - Current counter value to show as the initial input
+ * @param islandId - Island identifier used to refresh the guns view after saving
+ * @param islandName - Island display name used when reopening the guns view
+ * @param stationId - Station identifier associated with the island (used when reopening the guns view)
+ */
 async function showCounterEditModal(gunId: number, gunName: string, currentCounter: number, islandId: number, islandName: string, stationId: number | string): Promise<void> {
     openModal(`Modifica Numeratore - ${escapeHtml(gunName)}`);
     const target = document.getElementById('modal-body');
@@ -452,6 +493,14 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
     }
 }
 
+/**
+ * Delete a pistol record after confirming with the user and refresh the guns modal.
+ *
+ * @param gunId - The ID of the pistol to delete
+ * @param islandId - The island ID used to refresh the modal view after deletion
+ * @param islandName - The island display name used when reopening the modal
+ * @param stationId - The station identifier passed through when reopening the modal
+ */
 async function deleteGun(gunId: number, islandId: number, islandName: string, stationId: number | string): Promise<void> {
     try {
         if (!await openConfirmModal('Sei sicuro di voler eliminare questa pistola?')) { return; }

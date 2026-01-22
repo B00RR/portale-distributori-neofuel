@@ -11,10 +11,10 @@ import { checkOpeningStatus } from './opening.js';
 import { CreditoCliente } from '../types.js';
 
 /**
- * Mostra il menu principale per la gestione crediti
- * Scelta tra "Nuovo Credito" e "Pagamento"
- * @param {number | string} stationId - ID della stazione
- * @param {string} userId - ID dell'operatore
+ * Open the credits management modal and present options to create a new credit or record a payment.
+ *
+ * @param stationId - Station identifier used to scope credits and check the current opening status
+ * @param userId - Operator identifier performing the action
  */
 export async function showCreditsMenu(stationId: number | string, userId: string): Promise<void> {
     openModal('Gestione Crediti');
@@ -122,9 +122,15 @@ export async function showCreditsMenu(stationId: number | string, userId: string
 }
 
 /**
- * 1. NUOVO CREDITO
- * L'operatore segna nome cliente e importo.
- * Viene sottratto dai contanti (erogazione senza incasso).
+ * Render and initialize the "New Credit" modal for registering a customer credit.
+ *
+ * Presents a form to enter customer name, amount, product, and optional notes; wires live customer suggestions,
+ * validates the inputs, and submits the credit.
+ *
+ * On successful submission the modal is closed and a success info modal is shown; on error a toast with the error message is displayed.
+ *
+ * @param stationId - Identifier of the station where the credit is recorded
+ * @param userId - Identifier of the operator performing the action
  */
 async function showNewCreditForm(stationId: number | string, userId: string): Promise<void> {
     const modalBody = document.getElementById('modal-body');
@@ -244,6 +250,14 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
     }
 }
 
+/**
+ * Searches for customers matching `query` and displays clickable suggestions that populate the provided input.
+ *
+ * Renders up to five matching customer names into `suggestionsDiv`; clicking a suggestion sets `inputField.value` to that name and hides the suggestions. If no matches are found, the suggestions container is hidden.
+ *
+ * @param suggestionsDiv - The container element where suggestion items will be rendered or hidden.
+ * @param inputField - The text input to be filled when a suggestion is selected.
+ */
 async function searchCustomersForInput(query: string, stationId: number | string, suggestionsDiv: HTMLElement, inputField: HTMLInputElement): Promise<void> {
     try {
         const { data: customers } = await supabase
@@ -274,6 +288,20 @@ async function searchCustomersForInput(query: string, stationId: number | string
     }
 }
 
+/**
+ * Ensures a customer record exists, increases the customer's credit balance by the specified amount, and records both a credit movement and a corresponding cash movement.
+ *
+ * @param stationId - Identifier of the station where the credit is recorded
+ * @param userId - Identifier of the operator performing the action
+ * @param customerName - Full name of the customer to credit; case-insensitive match is used to find existing records
+ * @param amount - Amount to add to the customer's balance; expected to be greater than zero
+ * @param product - Product description to include in movement notes (e.g., "Gasolio", "Accessori")
+ * @param notes - Optional additional notes to include in movement records
+ *
+ * @throws If a database query fails when fetching, creating, or updating the customer
+ * @throws If inserting the credit movement or the cash movement fails
+ * @throws If a customer record cannot be obtained after an attempted create
+ */
 async function processNewCredit(stationId: number | string, userId: string, customerName: string, amount: number, product: string, notes: string): Promise<void> {
     // 1. Trova o crea cliente
     let { data: customer, error: fetchError } = await supabase
@@ -337,9 +365,13 @@ async function processNewCredit(stationId: number | string, userId: string, cust
 }
 
 /**
- * 2. PAGAMENTO
- * Lista crediti aperti. Scelta cliente -> Pagamento (Parziale/Totale).
- * Metodi: Contanti (Somma a cassa), POS/Altro (Neutro).
+ * Show a modal listing open customer credits and allow selecting a debtor to record a payment.
+ *
+ * Loads customers with a positive balance for the given station, renders a searchable list,
+ * and opens the payment modal for the chosen debtor.
+ *
+ * @param stationId - Station identifier used to filter customers (number or string)
+ * @param userId - Operator identifier performing the payment action
  */
 async function showPaymentSelection(stationId: number | string, userId: string): Promise<void> {
     const modalBody = document.getElementById('modal-body');
@@ -425,6 +457,17 @@ async function showPaymentSelection(stationId: number | string, userId: string):
     });
 }
 
+/**
+ * Opens a payment modal for the specified customer allowing the operator to record a payment against the customer's debt.
+ *
+ * Displays the customer's current debt, a form to enter a payment amount and method, a "Tutto" button to fill the full debt,
+ * and contextual info about cash vs non-cash methods. Validates the amount (must be > 0 and not exceed the current debt),
+ * invokes `processPayment` to record the payment, closes the modal and shows a success info modal on success, and shows an error toast on failure.
+ *
+ * @param customer - The customer record containing at least `cliente` and `saldo`
+ * @param stationId - Identifier of the station where the payment is recorded
+ * @param userId - Identifier of the operator performing the payment
+ */
 function showPaymentModal(customer: CreditoCliente, stationId: number | string, userId: string): void {
     openModal(`Pagamento: ${escapeHtml(customer.cliente)}`);
     const modalBody = document.getElementById('modal-body');
@@ -528,6 +571,18 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
     }
 }
 
+/**
+ * Apply a payment against a customer's credit: update the customer's balance and record the corresponding credit and cash movements.
+ *
+ * Updates the customer's saldo by subtracting `amount` (bounded at zero), creates a `crediti_movimenti` entry describing the receipt, and creates a `movimenti_cassa` entry for cash accounting.
+ *
+ * @param stationId - Identifier of the station where the payment is recorded
+ * @param userId - Identifier of the operator performing the payment
+ * @param customer - The customer's credit record to be updated
+ * @param amount - The payment amount to apply (must be greater than 0 and not exceed the customer's outstanding balance)
+ * @param method - Payment method; expected values include `'contanti'`, `'pos'`, and `'uta'` (affects the recorded movement type)
+ * @throws SupabaseError if updating the customer or inserting movement records fails
+ */
 async function processPayment(stationId: number | string, userId: string, customer: CreditoCliente, amount: number, method: string): Promise<void> {
     // 1. Aggiorna saldo (Diminuisce debito)
     const newBalance = Math.max(0, (customer.saldo || 0) - amount);

@@ -18,20 +18,22 @@ interface CacheEntry<T> {
 const CACHE_VERSION = '1.0';
 
 /**
- * Validates if a cache entry is still valid based on TTL
- * @param timestamp - Entry creation timestamp
- * @param ttlMs - Time-to-live in milliseconds
- * @returns boolean
+ * Determines whether a cache entry's timestamp falls within the specified TTL.
+ *
+ * @param timestamp - Entry creation time in milliseconds since the UNIX epoch
+ * @param ttlMs - Time-to-live duration in milliseconds
+ * @returns `true` if the entry is still within `ttlMs` from `timestamp`, `false` otherwise.
  */
 function isValid(timestamp: number, ttlMs: number): boolean {
     return (Date.now() - timestamp) < ttlMs;
 }
 
 /**
- * Retrieves data from cache if valid
- * @param key - Cache key
- * @param ttlMs - Optional custom TTL (defaults to global constant)
- * @returns Cached data or null if invalid/missing
+ * Retrieve a value from localStorage cache if it exists, matches the current cache version, and is within the TTL.
+ *
+ * @param key - Cache identifier; stored under `cache_{key}` in localStorage
+ * @param ttlMs - Time-to-live in milliseconds used to validate the entry
+ * @returns The cached value for `key` if valid, `null` otherwise
  */
 export function getFromCache<T>(key: string, ttlMs: number = CACHE_DEFAULT_TTL_MS): T | null {
     try {
@@ -60,9 +62,10 @@ export function getFromCache<T>(key: string, ttlMs: number = CACHE_DEFAULT_TTL_M
 }
 
 /**
- * Saves data to cache with timestamp
- * @param key - Cache key
- * @param data - Data to store
+ * Store a value in the client-side cache under the given key, recording the current timestamp and cache version.
+ *
+ * @param key - The cache key (stored with a `cache_` prefix in localStorage)
+ * @param data - The value to store in the cache
  */
 export function setInCache<T>(key: string, data: T): void {
     try {
@@ -78,7 +81,7 @@ export function setInCache<T>(key: string, data: T): void {
 }
 
 /**
- * Clears all application cache entries
+ * Remove all LocalStorage entries created by the caching module (keys starting with "cache_").
  */
 export function clearCache(): void {
     Object.keys(localStorage).forEach(key => {
@@ -89,7 +92,9 @@ export function clearCache(): void {
 }
 
 /**
- * Automatic background cleanup of expired entries
+ * Starts a periodic background task that removes expired or malformed localStorage entries prefixed with "cache_".
+ *
+ * The task runs at an interval defined by CACHE_CLEANUP_INTERVAL_MS and deletes entries whose stored timestamp is older than CACHE_DEFAULT_TTL_MS or that cannot be parsed.
  */
 export function startCacheCleanup(): void {
     setInterval(() => {

@@ -1,4 +1,3 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const SUPABASE_URL = "https://ahlmgafaurossyghimxc.supabase.co";
@@ -6,6 +5,11 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/**
+ * Attempts to sign in to Supabase with a hard-coded account and then fetches up to five rows from the `shifts` table, logging authentication and query outcomes to the console.
+ *
+ * This function performs observable side effects (console logging) and does not return a value.
+ */
 async function testQuery() {
     console.log("Testing Supabase connection...");
     try {

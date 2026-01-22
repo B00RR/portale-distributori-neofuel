@@ -60,7 +60,12 @@ const charts: Record<string, any> = {}; // Store chart instances
 
 // --- MAIN FUNCTION ---
 /**
- * Main entry point for the Analytics Tab
+ * Render the analytics tab UI into the given container, initialize charts, and attach period controls.
+ *
+ * Renders the analytics layout (period selector and four chart panels), loads initial data and charts, and wires click handlers to update charts when the selected date range changes.
+ *
+ * @param container - The HTMLElement where the analytics UI will be rendered.
+ * @param stationFilter - Optional station id to filter displayed data; pass `null` to include all stations.
  */
 export async function showAnalyticsTab(
     container: HTMLElement,
@@ -142,7 +147,12 @@ export async function showAnalyticsTab(
 }
 
 /**
- * Fetches data and renders all charts
+ * Fetch and aggregate closed-shift data for the given period and render all analytics charts into the provided container.
+ *
+ * On failure, displays an error message inside the container.
+ *
+ * @param stationId - Optional station id to filter shifts; when null, data for all stations is used
+ * @param dateRange - Time window to query (`'7d'`, `'30d'`, `'month'`, or `'year'`)
  */
 async function updateCharts(
     container: HTMLElement,
@@ -202,7 +212,16 @@ async function updateCharts(
 }
 
 /**
- * Process raw shifts into daily and total aggregations
+ * Aggregate shifts into a continuous daily series and overall totals for revenue, fuel volumes, and payment methods.
+ *
+ * Processes each shift's `closing_data` and `closed_at` to produce:
+ * - a `daily` array containing one entry per calendar day in the provided date range (inclusive), with summed `revenue`, `liters_benzina`, and `liters_gasolio`; missing days are initialized to zero to ensure continuity for charts;
+ * - `totals` with accumulated values for `revenue`, `benzina`, `gasolio`, `contanti`, `pos`, `crediti`, and `voucher`.
+ *
+ * @param shifts - Array of shift records; each item may include `closed_at` (ISO timestamp string) and `closing_data` with numeric fields such as `ricavo_teorico`, `litri_benzina`, `litri_gasolio`, `soldi_contanti`, `soldi_pos_totale`, `soldi_crediti`, and `soldi_voucher`.
+ * @param startDate - Inclusive start of the date range used to initialize daily entries (time portion is ignored).
+ * @param endDate - Inclusive end of the date range used to initialize daily entries (time portion is ignored).
+ * @returns The aggregated analytics result with `daily` (sorted by date) and `totals` containing summed metrics.
  */
 function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Date): AnalyticsResult {
     const days: Record<string, DayStats> = {};
@@ -267,6 +286,12 @@ function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Dat
     };
 }
 
+/**
+ * Retrieve the canvas element for a chart id and clean up any existing Chart.js instance for that id.
+ *
+ * @param id - The DOM id of the canvas used for the chart
+ * @returns The `HTMLCanvasElement` with the specified id, or `null` if no such element exists
+ */
 function getChartContext(id: string): HTMLCanvasElement | null {
     const ctx = document.getElementById(id) as HTMLCanvasElement;
     if (!ctx) { return null; }
@@ -279,6 +304,11 @@ function getChartContext(id: string): HTMLCanvasElement | null {
     return ctx;
 }
 
+/**
+ * Renders a line chart of daily revenue into the canvas with id 'revenue-chart' and stores the Chart instance.
+ *
+ * @param data - Aggregated analytics containing daily entries (each with `date` and `revenue`) and overall totals
+ */
 function renderRevenueChart(data: AnalyticsResult): void {
     const ctx = getChartContext('revenue-chart');
     if (!ctx) { return; }
@@ -306,6 +336,11 @@ function renderRevenueChart(data: AnalyticsResult): void {
     });
 }
 
+/**
+ * Renders a stacked bar chart of daily fuel volumes (benzina and gasolio) into the canvas with id "volume-chart".
+ *
+ * @param data - AnalyticsResult containing a `daily` series with `date`, `liters_benzina`, and `liters_gasolio` used as chart labels and datasets
+ */
 function renderVolumeChart(data: AnalyticsResult): void {
     const ctx = getChartContext('volume-chart');
     if (!ctx) { return; }
@@ -342,6 +377,11 @@ function renderVolumeChart(data: AnalyticsResult): void {
     });
 }
 
+/**
+ * Render the payments distribution as a doughnut chart in the payments panel.
+ *
+ * @param data - Aggregated analytics result; `totals.contanti`, `totals.pos`, `totals.crediti`, and `totals.voucher` are used to populate the chart slices
+ */
 function renderPaymentChart(data: AnalyticsResult): void {
     const ctx = getChartContext('payments-chart');
     if (!ctx) { return; }
@@ -365,6 +405,11 @@ function renderPaymentChart(data: AnalyticsResult): void {
     });
 }
 
+/**
+ * Render a pie chart showing the fuel mix (benzina vs gasolio).
+ *
+ * @param data - Aggregated analytics result; `data.totals.benzina` and `data.totals.gasolio` supply the chart values
+ */
 function renderFuelMixChart(data: AnalyticsResult): void {
     const ctx = getChartContext('fuels-chart');
     if (!ctx) { return; }

@@ -46,12 +46,26 @@ export interface CalculationModule {
     calculation_versions?: CalculationVersion[];
 }
 
+/**
+ * Refreshes the administrator Settings tab if a settings container has been initialized.
+ */
 async function refreshSettingsTab(): Promise<void> {
     if (logicViewContext.container) {
         await showSettingsTab(logicViewContext.container, logicViewContext.actions);
     }
 }
 
+/**
+ * Render and initialize the administrator Settings UI for managing calculation modules and their versions.
+ *
+ * This function populates the provided container with the Settings tab UI, ensures calculation presets are synced,
+ * and (when an actions container is provided) injects module-related actions. It loads modules and their versions
+ * from the database, renders the modules layout, and binds interaction handlers. If required database tables are
+ * missing, it renders a dedicated missing-tables state; other loading errors are surfaced inside the panel.
+ *
+ * @param container - The HTMLElement where the Settings UI will be rendered. If falsy, the function no-ops.
+ * @param actionsContainer - Optional HTMLElement where action buttons (e.g., "New Module", "Refresh Cache") will be injected.
+ */
 export async function showSettingsTab(container: HTMLElement, actionsContainer: HTMLElement | null): Promise<void> {
     if (!container) { return; }
     logicViewContext.container = container;
@@ -140,6 +154,12 @@ export async function showSettingsTab(container: HTMLElement, actionsContainer: 
     }
 }
 
+/**
+ * Render the modules management layout into the given container, showing either an empty-state guide or a grid of module cards with KPIs.
+ *
+ * @param container - The DOM element where the layout will be injected.
+ * @param modules - The list of modules to display; when empty, an instructional empty state is rendered.
+ */
 function renderModulesLayout(container: HTMLElement, modules: CalculationModule[]): void {
     if (!modules.length) {
         container.innerHTML = `
@@ -194,6 +214,13 @@ function renderModulesLayout(container: HTMLElement, modules: CalculationModule[
   `;
 }
 
+/**
+ * Renders an HTML card representing a calculation module and its summary metadata.
+ *
+ * @param module - The calculation module record to render (may include its versions).
+ * @param idx - Zero-based index of the module in the current list; used for `data-module-index` attributes.
+ * @returns An HTML string for the module card including scope, name, description, version counts, draft count, and actions.
+ */
 function renderModuleCard(module: CalculationModule, idx: number): string {
     const active = findActiveVersion(module);
     const drafts = countDrafts(module);
@@ -228,6 +255,12 @@ function renderModuleCard(module: CalculationModule, idx: number): string {
   `;
 }
 
+/**
+ * Attach click handlers to ".logic-details-btn" elements inside the container to open the corresponding module details modal.
+ *
+ * @param container - DOM element that contains elements with the `.logic-details-btn` class and a `data-module-index` attribute
+ * @param modules - Array of CalculationModule objects where each button's `data-module-index` maps to the module at that index
+ */
 function bindModuleDetails(container: HTMLElement, modules: CalculationModule[]): void {
     container.querySelectorAll('.logic-details-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -238,6 +271,15 @@ function bindModuleDetails(container: HTMLElement, modules: CalculationModule[])
     });
 }
 
+/**
+ * Attaches click handlers inside a versions table or container to view and publish specific module versions.
+ *
+ * Searches `target` for elements with classes `logic-version-view` and `logic-version-publish`. For elements that include a `data-version-index` attribute, the view handler opens the DSL editor for the referenced version, and the publish handler prompts the user for confirmation and, if confirmed, publishes the referenced version.
+ *
+ * @param target - Container element that holds the version rows/buttons
+ * @param module - The module to which the versions belong (used when performing publish/view actions)
+ * @param versions - Array of versions indexed by each element's `data-version-index` attribute
+ */
 function bindVersionRowActions(target: HTMLElement, module: CalculationModule, versions: CalculationVersion[]): void {
     target.querySelectorAll('.logic-version-view').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -259,6 +301,16 @@ function bindVersionRowActions(target: HTMLElement, module: CalculationModule, v
     });
 }
 
+/**
+ * Open a modal displaying a module's details, its version history, and actions for managing versions.
+ *
+ * Renders the module summary (scope, description, active version), a table of versions with action buttons
+ * (open editor, publish), and action controls to create a new version, open the active version editor, or close the modal.
+ * Binds event handlers for closing the modal, creating a new version, opening the DSL editor for a version,
+ * publishing versions, and other row-level actions.
+ *
+ * @param module - The CalculationModule whose details and versions will be shown and managed
+ */
 function openModuleDetailsModal(module: CalculationModule): void {
     openModal(`Modulo: ${module.name || module.scope}`);
     const target = document.getElementById('modal-body');
@@ -346,6 +398,13 @@ function openModuleDetailsModal(module: CalculationModule): void {
     bindVersionRowActions(target, module, versions);
 }
 
+/**
+ * Open a modal with a form to create a new calculation module.
+ *
+ * The form collects module name, scope (technical key), description, DSL (JSON), initial status, and notes.
+ * The module name, scope, and DSL fields are required. The modal includes actions to submit the form or cancel;
+ * event handlers are attached for form submission and for closing the modal.
+ */
 function openNewModuleModal(): void {
     openModal('Nuovo Modulo di Calcolo');
     const target = document.getElementById('modal-body');
@@ -395,6 +454,14 @@ function openNewModuleModal(): void {
     }
 }
 
+/**
+ * Open a modal to create a new version for the given calculation module.
+ *
+ * The modal pre-fills the DSL with the module's active version DSL or the most recent version's DSL (or a minimal pipeline if none exist),
+ * displays the next suggested version number, and provides fields for DSL JSON, status, and internal notes. Submitting the form triggers version creation.
+ *
+ * @param module - The calculation module for which a new version will be created; must include optional `calculation_versions` for prefill and version numbering
+ */
 function openNewVersionModal(module: CalculationModule): void {
     const versions = module.calculation_versions || [];
     const nextVersion = (Math.max(0, ...versions.map(v => Number(v.version) || 0)) || 0) + 1;
@@ -435,6 +502,13 @@ function openNewVersionModal(module: CalculationModule): void {
     form?.addEventListener('submit', (event) => handleVersionCreation(event, module, nextVersion));
 }
 
+/**
+ * Renders a warning UI into the provided container informing the administrator that required database tables are missing.
+ *
+ * The rendered content explains that the MODULE_TABLE and VERSION_TABLE are not present in the Supabase project and advises running the SQL migration or importing the scripts from the supabase/ folder before refreshing the page.
+ *
+ * @param container - The DOM element where the missing-tables notice will be injected
+ */
 function renderMissingTablesState(container: HTMLElement): void {
     container.innerHTML = `
     <section class="content-box warning-box">
@@ -452,16 +526,37 @@ function renderMissingTablesState(container: HTMLElement): void {
   `;
 }
 
+/**
+ * Retrieve the active CalculationVersion for a module, or null if the module has no active version.
+ *
+ * @param module - The CalculationModule whose active version should be returned
+ * @returns The `CalculationVersion` whose `id` matches `module.active_version_id`, or `null` if no match exists
+ */
 function findActiveVersion(module: CalculationModule): CalculationVersion | null {
     const versions = module.calculation_versions || [];
     if (!versions.length || !module.active_version_id) { return null; }
     return versions.find(v => v.id === module.active_version_id) || null;
 }
 
+/**
+ * Counts how many versions of a module are in the 'draft' status.
+ *
+ * @param module - The module whose versions to inspect; if `calculation_versions` is absent, it is treated as empty.
+ * @returns The number of versions with status `'draft'`.
+ */
 function countDrafts(module: CalculationModule): number {
     return (module.calculation_versions || []).filter(v => v.status === 'draft').length;
 }
 
+/**
+ * Handles submission of the "new module" form, creating a module and its initial version.
+ *
+ * Creates a module row and a first version in the database, optionally publishes the version
+ * (updating the module's active_version_id and invalidating the calculation engine cache for the module's scope),
+ * closes the modal, shows a success modal, and refreshes the settings UI. Validates required fields and that the DSL is a JSON object; on validation or runtime errors it shows a toast and logs the error.
+ *
+ * @param event - The form submit event from the new-module form
+ */
 async function handleModuleCreation(event: Event): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
@@ -553,6 +648,16 @@ async function handleModuleCreation(event: Event): Promise<void> {
     }
 }
 
+/**
+ * Open a modal containing a DSL editor and a live preview for a specific module version.
+ *
+ * The modal shows the module scope and version metadata, lets the user validate the DSL JSON,
+ * run a preview of the DSL against a JSON test input, and view the output; edits are local previews only
+ * (saving requires creating a new version).
+ *
+ * @param module - The calculation module to which the DSL belongs
+ * @param version - The specific calculation version whose DSL will be loaded into the editor
+ */
 function openDslEditorModal(module: CalculationModule, version: CalculationVersion): void {
     openModal(`Editor DSL · ${module.name || module.scope}`);
     const target = document.getElementById('modal-body');
@@ -619,6 +724,15 @@ function openDslEditorModal(module: CalculationModule, version: CalculationVersi
     });
 }
 
+/**
+ * Create and persist a new version for a module using values submitted from the version-creation form.
+ *
+ * Validates the DSL JSON from the form, constructs the version payload (including `created_by` when the current user ID is a UUID and `published_at` when status is `published`), inserts the new version into the database, and—if the version is published—updates the module's active version and invalidates the calculation engine cache for the module's scope. On success the modal is closed, an informational modal is shown, and the settings tab is refreshed. Errors are surfaced via toast notifications and logged. The submit button is disabled while the request is in progress.
+ *
+ * @param event - The form submit event from the "new version" modal
+ * @param module - The module for which the new version is being created
+ * @param nextVersion - The numeric version number to assign to the new version
+ */
 async function handleVersionCreation(event: Event, module: CalculationModule, nextVersion: number): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
@@ -685,6 +799,14 @@ async function handleVersionCreation(event: Event, module: CalculationModule, ne
     }
 }
 
+/**
+ * Publish a specific module version and set it as the module's active version.
+ *
+ * Updates the version's status to `published` and its `published_at` timestamp, sets the module's `active_version_id` to the published version, invalidates the calculation engine cache for the module's scope, shows a confirmation modal, and refreshes the settings UI.
+ *
+ * @param module - The module whose active version will be updated
+ * @param version - The version to publish and set as active
+ */
 async function handlePublishVersion(module: CalculationModule, version: CalculationVersion): Promise<void> {
     try {
         await safeSupabaseQuery(() =>

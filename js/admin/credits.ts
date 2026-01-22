@@ -32,7 +32,17 @@ interface CreditsContext {
 // Context to allow refreshing the view
 let creditsContext: CreditsContext = { container: null, actions: null, stationId: null };
 
-// --- MAIN FUNCTION ---
+/**
+ * Render the credits customers overview into the provided container, optionally filtered by station.
+ *
+ * Loads customer records (including related station name), builds and injects an HTML table showing
+ * client name, station, current balance, last update and action buttons, and wires Edit/Delete
+ * buttons to the corresponding modal and deletion flows.
+ *
+ * @param container - The DOM element where the overview content will be rendered.
+ * @param actionsContainer - Optional DOM element where top-level action controls (e.g., "Nuovo Cliente" button) will be placed.
+ * @param stationId - Optional station ID to filter customers by a specific fuel station.
+ */
 
 export async function showCreditiOverview(
     container: HTMLElement,
@@ -127,7 +137,13 @@ export async function showCreditiOverview(
     }
 }
 
-// --- HELPER FUNCTIONS ---
+/**
+ * Open a modal to create a new customer or edit an existing one.
+ *
+ * If `customerId` is provided, the existing customer data is loaded into the form; on submit the form is validated and the function either inserts a new customer or updates the existing one, then closes the modal and refreshes the credits overview.
+ *
+ * @param customerId - The ID of the customer to edit, or `null` to open the modal for creating a new customer
+ */
 
 async function openCustomerModal(customerId: number | null = null): Promise<void> {
     const isEdit = !!customerId;
@@ -205,6 +221,13 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
     }
 }
 
+/**
+ * Delete a customer record after user confirmation and refresh the credits overview.
+ *
+ * Prompts the user for confirmation, deletes the record with the given id when confirmed, shows a success toast, and refreshes the credits tab.
+ *
+ * @param customerId - The id of the customer record to delete
+ */
 async function deleteCustomer(customerId: number): Promise<void> {
     if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) { return; }
     try {
@@ -216,6 +239,9 @@ async function deleteCustomer(customerId: number): Promise<void> {
     }
 }
 
+/**
+ * Re-renders the credits overview using the last stored UI context.
+ */
 function refreshCreditsTab(): void {
     if (creditsContext.container) {
         showCreditiOverview(creditsContext.container, creditsContext.actions, creditsContext.stationId);

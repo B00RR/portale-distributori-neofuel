@@ -6,9 +6,13 @@ import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
 
 /**
- * Mostra il menu per la gestione degli incassi extra (olio, AdBlue, ecc.)
- * @param {number | string} stationId - ID della stazione
- * @param {string} userId - ID dell'operatore
+ * Open the "Register Extra Income" modal and orchestrate the flow to record an extra income entry for a station and operator.
+ *
+ * If a shift is not currently open for the given station, the modal is replaced with a warning and a close action.
+ * If a shift is open, the extra income form is rendered and wired for submission.
+ *
+ * @param stationId - Identifier of the station (number or string)
+ * @param userId - Identifier of the operator performing the registration
  */
 export async function showExtraIncomeMenu(stationId: number | string, userId: string): Promise<void> {
     openModal('Registra Incasso Extra');
@@ -48,7 +52,13 @@ export async function showExtraIncomeMenu(stationId: number | string, userId: st
 }
 
 /**
- * Renderizza il form per l'inserimento dell'incasso extra
+ * Render the extra-income entry form into the provided container and attach its UI behavior.
+ *
+ * Renders inputs for amount, product type, and description; makes the description required when the selected type is "accessori" or "altro_incasso"; validates the amount on submit and inserts a record into the `movimenti_cassa` table with `tipo` set to `'incasso'`. On successful save the modal is closed and an informational modal is shown; on error a toast message is displayed.
+ *
+ * @param container - DOM element where the form will be rendered
+ * @param stationId - Station identifier to associate with the recorded income
+ * @param userId - Operator identifier to associate with the recorded income
  */
 function renderExtraIncomeForm(container: HTMLElement, stationId: number | string, userId: string): void {
     container.innerHTML = `
@@ -91,6 +101,11 @@ function renderExtraIncomeForm(container: HTMLElement, stationId: number | strin
     const descriptionField = document.getElementById('description-field') as HTMLTextAreaElement | null;
     const requiredIndicator = document.getElementById('required-indicator') as HTMLElement | null;
 
+    /**
+     * Toggle the description field's required state and its UI indicator based on the selected product type.
+     *
+     * Marks the description as required when the product type is 'accessori' or 'altro_incasso'; otherwise hides the required indicator and clears the description value.
+     */
     function updateDescriptionRequired(): void {
         if (!productTypeSelect || !descriptionField || !requiredIndicator) { return; }
 

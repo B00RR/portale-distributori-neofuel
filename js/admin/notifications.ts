@@ -6,8 +6,11 @@
 import { handleError } from '../shared/error-handler.js';
 
 /**
- * Display notifications in the admin panel
- * @param container - HTML element where notifications will be rendered
+ * Renders admin notifications into the provided container element.
+ *
+ * On error, delegates handling to the module's centralized error handler.
+ *
+ * @param container - Element used as the notification render target
  */
 export async function showNotificheAdmin(container: HTMLElement): Promise<void> {
     try {

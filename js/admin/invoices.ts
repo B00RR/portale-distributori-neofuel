@@ -46,7 +46,12 @@ interface Invoice {
     clienti_fatturazione?: BillingCustomer;
 }
 
-// --- MAIN FUNCTION ---
+/**
+ * Load invoice records (optionally filtered by station) and render a table of invoices into the given container.
+ *
+ * @param _actionsContainer - Optional element whose contents will be cleared before rendering the invoices UI.
+ * @param stationId - If provided, filters invoices to those belonging to the specified station id.
+ */
 
 export async function showFattureTab(
     container: HTMLElement,
@@ -121,6 +126,16 @@ export async function showFattureTab(
     }
 }
 
+/**
+ * Renders a table of invoices into the given container and attaches status-toggle handlers.
+ *
+ * Renders invoice data (dates, customer, amount, payment method, product category, station,
+ * operator, status, notes, and actions) as an HTML table inside `container`, and binds click
+ * listeners on action buttons to toggle invoice status.
+ *
+ * @param container - DOM element where the invoices table will be inserted
+ * @param invoices - Array of invoices to display
+ */
 function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void {
     let html = `
       <div class="table-responsive">
@@ -207,6 +222,14 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
     });
 }
 
+/**
+ * Update an invoice's status and refresh the invoices view.
+ *
+ * Updates the invoice record's status in the backend, shows a success or error notification, and attempts to refresh the currently displayed invoices tab.
+ *
+ * @param id - The identifier of the invoice to update
+ * @param newStatus - The target invoice status (e.g., 'pending', 'completed', 'emessa', 'annullata')
+ */
 async function toggleInvoiceStatus(id: number, newStatus: InvoiceStatus): Promise<void> {
     try {
         const { error } = await supabase

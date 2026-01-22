@@ -62,8 +62,11 @@ export const AssignStationSchema = z.object({
 // ========== HELPER FUNCTIONS ==========
 
 /**
- * Safely parse and validate data with a Zod schema.
- * Returns { success: true, data } or { success: false, error }
+ * Parse a value against a Zod schema and return either the parsed result or a human-readable error summary.
+ *
+ * @param schema - Zod schema used for validation
+ * @param data - Value to validate
+ * @returns `{ success: true, data }` with parsed `data` on success; `{ success: false, error }` with a concatenated error message on failure
  */
 export function safeParse<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; error: string } {
     const result = schema.safeParse(data);
@@ -76,7 +79,12 @@ export function safeParse<T>(schema: z.ZodSchema<T>, data: unknown): { success: 
 }
 
 /**
- * Parse and validate, throwing on failure (for use in try/catch blocks)
+ * Validate input against a Zod schema and return the parsed value.
+ *
+ * @param schema - The Zod schema to validate against
+ * @param data - The input data to be validated and parsed
+ * @returns The value parsed and typed according to `schema`
+ * @throws ZodError if validation fails
  */
 export function parse<T>(schema: z.ZodSchema<T>, data: unknown): T {
     return schema.parse(data);

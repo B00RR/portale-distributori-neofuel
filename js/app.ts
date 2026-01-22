@@ -21,6 +21,14 @@ const customWindow = window as unknown as CustomWindow;
 // Espone funzioni globali per compatibilità
 customWindow.requestPasswordReset = requestPasswordReset;
 
+/**
+ * Bootstraps the application by initializing analytics, offline sync, authentication handlers, and the initial UI state.
+ *
+ * Attempts to initialize the offline queue and registers background executors for voucher redemption and shift closure.
+ * Configures the login-success callback to update stored user state and display either the admin area or the operator menu
+ * (fetching authoritative station assignment when required). Handles password-reset flows triggered via URL token and
+ * restores any existing session to set up the appropriate UI, or falls back to initializing the login elements.
+ */
 async function initializeApp(): Promise<void> {
     // Initialize monitoring and analytics
     initAnalytics();

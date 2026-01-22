@@ -3,10 +3,10 @@ import { openModal, closeModal } from '../ui/ui.js';
 import '../ui/components/ClosureWizard.js';
 
 /**
- * Entry point for the closure wizard.
- * Mounts the <closure-wizard> component into the global modal.
- * @param stationId The station identifier.
- * @param userId The operator identifier.
+ * Open a modal titled "Chiusura Turno" and mount a <closure-wizard> element configured with the provided station and user identifiers.
+ *
+ * @param stationId - The station identifier to set on the wizard (converted to string).
+ * @param userId - The operator identifier to set on the wizard (converted to string).
  */
 export async function startClosureWizard(stationId: number | string, userId: string | number): Promise<void> {
     try {

@@ -12,7 +12,14 @@ import { escapeHtml } from './utils/utils.js';
 import { FuelStation } from './types.js';
 
 /**
- * Main entry point for Admin Area
+ * Initialize and render the admin area UI, its routing, global station filter, and related event handlers.
+ *
+ * Finds the main admin container (id "main-content") and aborts if absent. Infers the current user's role and
+ * admin capability, initializes the admin router, renders the admin shell (wiring tab navigation and breadcrumbs),
+ * and renders a header global station filter that sources stations from the store or remote and restricts options
+ * for non-full-admin users. Ensures a sensible default filter for restricted users, navigates to the dashboard on
+ * first load, and attaches handlers for opening the dashboard configuration panel and refreshing the dashboard when
+ * configuration changes occur.
  */
 export function showAdminArea(): void {
     const mainContent = document.getElementById('main-content');
@@ -34,7 +41,11 @@ export function showAdminArea(): void {
         await renderGlobalFilter();
     });
 
-    // Setup global filter
+    /**
+     * Render and wire the global station filter UI inside the header actions container.
+     *
+     * Fetches station data into the central store if missing, builds filter options restricted to the current user's assigned stations when the user is not a full admin, initializes a default station filter for restricted users when none is set, inserts the select control into the header, and attaches a change handler that updates the store and re-navigates to the current tab.
+     */
     async function renderGlobalFilter(): Promise<void> {
         const container = document.getElementById('header-actions');
         if (!container) { return; }

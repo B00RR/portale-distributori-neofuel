@@ -36,7 +36,14 @@ interface OpeningData {
 // ========== FUNCTIONS ==========
 
 /**
- * Render the operator shell layout
+ * Render the operator shell layout into the given container and initialize its dynamic state and interactions.
+ *
+ * Injects styles if needed, populates the container with the operator header, menu and content areas,
+ * initializes the station badge and Turno button (opening/closing) when user and station are available,
+ * attaches UI event listeners, updates the sync indicator, and subscribes to sync-status changes.
+ *
+ * @param container - The HTMLElement where the operator UI will be rendered
+ * @param handlers - Callback handlers for navigation, opening, and closure actions
  */
 export async function renderOperatorShell(container: HTMLElement, handlers: OperatorHandlers): Promise<void> {
     const user = store.getUser() as ExtendedUser | null;
@@ -127,7 +134,11 @@ export async function renderOperatorShell(container: HTMLElement, handlers: Oper
 }
 
 /**
- * Update the station badge with the real name
+ * Set the page's station badge text to the station's display name.
+ *
+ * Fetches the display name for the provided stationId and updates the DOM element with id `station-badge` when present. If retrieval fails, the error is logged to the console.
+ *
+ * @param stationId - Identifier of the station whose display name should be shown
  */
 async function updateStationBadge(stationId: string | number): Promise<void> {
     try {
@@ -140,7 +151,16 @@ async function updateStationBadge(stationId: string | number): Promise<void> {
 }
 
 /**
- * Update the dynamic "Turno" button state
+ * Update the Turno (opening/closing) button and its status badge for the given station and user.
+ *
+ * Queries the current opening status for the station and updates the Turno button's icon, label,
+ * and click handler to invoke the appropriate `handlers.onOpening` or `handlers.onClosure`.
+ * Also updates the `opening-status` badge text, CSS classes, tooltip, and visibility to reflect
+ * the current state (open, partial, or closed).
+ *
+ * @param stationId - Identifier of the station whose Turno state should be displayed
+ * @param userId - Identifier of the user used when invoking opening/closure handlers
+ * @param handlers - Callback hooks; this function uses `onOpening` and `onClosure` to wire button actions
  */
 export async function updateTurnoButton(
     stationId: string | number,
@@ -202,7 +222,10 @@ export async function updateTurnoButton(
 }
 
 /**
- * Update the sync indicator badge
+ * Refreshes the sync indicator badge to reflect the number of queued offline actions.
+ *
+ * Reads the offline action queue count and updates the elements with ids `sync-indicator` and
+ * `sync-count`, setting the badge's `active` class when the count is greater than zero.
  */
 async function updateSyncBadge(): Promise<void> {
     try {
@@ -220,7 +243,9 @@ async function updateSyncBadge(): Promise<void> {
 }
 
 /**
- * Attach global event listeners
+ * Wire UI controls to application handlers for logout, the Movimenti accordion, and main-menu navigation.
+ *
+ * @param handlers - Callbacks used by the attached event listeners for navigation, opening, and closure actions
  */
 function attachEventListeners(handlers: OperatorHandlers): void {
     const logoutBtn = document.getElementById('op-logout-btn');
@@ -266,7 +291,10 @@ function attachEventListeners(handlers: OperatorHandlers): void {
 }
 
 /**
- * Inject local styles
+ * Creates a <style> element with operator UI CSS and appends it to document.head.
+ *
+ * The element uses the id `operator-custom-styles` and contains embedded styles
+ * for operator layout components (badges, tabs, result items, sync badge animation, etc.).
  */
 function injectStyles(): void {
     const style = document.createElement('style');

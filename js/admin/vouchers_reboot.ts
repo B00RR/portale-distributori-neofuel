@@ -85,7 +85,16 @@ const voucherState: VoucherState = {
     }
 };
 
-// --- INITIALIZATION ---
+/**
+ * Mounts the voucher administration UI into the provided container and initializes its state, event handlers, and data.
+ *
+ * This populates the container with the tabbed Generator and Dashboard UI, binds tab switching and refresh behaviors,
+ * subscribes to offline-sync-complete events to refresh the dashboard, and loads required data (customers) before
+ * rendering the active tab.
+ *
+ * @param container - The DOM element where the voucher admin interface will be rendered.
+ * @param _headerActions - Optional container element reserved for additional header/action controls (may be null).
+ */
 export async function showVoucherAdminTab(container: HTMLElement, _headerActions?: HTMLElement | null): Promise<void> {
     // V3 REBOOT: Clean Flexbox Structure
     container.innerHTML = `
@@ -170,6 +179,13 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
     renderActiveTab();
 }
 
+/**
+ * Load the customer list into the voucher module state for use in UI controls.
+ *
+ * Fetches `id` and `cliente` from the `crediti_clienti` table ordered by `cliente`
+ * and stores the result in `voucherState.customers`. On failure, logs the error
+ * and shows an error toast to the user.
+ */
 async function loadCustomers(): Promise<void> {
     try {
         // Fetch active customers for the dropdown
@@ -186,6 +202,11 @@ async function loadCustomers(): Promise<void> {
     }
 }
 
+/**
+ * Render the currently selected voucher admin tab into the main content area.
+ *
+ * If the content container with id "voucher-content" is not found, no action is taken.
+ */
 async function renderActiveTab(): Promise<void> {
     const content = document.getElementById('voucher-content');
     if (!content) { return; }
@@ -200,7 +221,14 @@ async function renderActiveTab(): Promise<void> {
     }
 }
 
-// --- GENERATOR TAB ---
+/**
+ * Render the voucher generator UI into the provided container.
+ *
+ * Inserts the generator form (amount, quantity, expiration, optional customer) into the container,
+ * populates the customer datalist from state, and attaches the form submit handler that triggers voucher generation.
+ *
+ * @param container - The HTMLElement where the generator UI will be rendered
+ */
 function renderGenerator(container: HTMLElement): void {
     const today = new Date().toISOString().split('T')[0];
     const nextYear = new Date();
@@ -257,6 +285,13 @@ function renderGenerator(container: HTMLElement): void {
     document.getElementById('voucher-generator-form')?.addEventListener('submit', handleGeneration);
 }
 
+/**
+ * Create a voucher batch and generate the requested number of vouchers from a submitted form.
+ *
+ * Reads amount, quantity, customer_name, and expiration_date from the form event; confirms the action with the user, creates a new batch record, inserts the specified vouchers associated with that batch, shows success or error feedback, and switches the UI to the dashboard view on success.
+ *
+ * @param e - The form submit event containing the voucher generation fields
+ */
 async function handleGeneration(e: Event): Promise<void> {
     e.preventDefault();
     const target = e.target as HTMLFormElement;
@@ -329,6 +364,11 @@ async function handleGeneration(e: Event): Promise<void> {
     }
 }
 
+/**
+ * Generate a human-friendly voucher code grouped with hyphens.
+ *
+ * @returns A voucher code string formatted as `XXXX-XXXX-XXXX` using uppercase letters and digits, excluding easily confused characters (`I`, `O`, `0`, `1`). Example: `A4K9-XP3M-9L2N`
+ */
 function generateVoucherCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I, O, 0, 1 to avoid confusion
     let result = '';
@@ -339,7 +379,13 @@ function generateVoucherCode(): string {
     return result; // e.g. A4K9-XP3M-9L2N
 }
 
-// --- DASHBOARD TAB ---
+/**
+ * Render the vouchers dashboard UI into the provided container element.
+ *
+ * Renders KPI cards, a batches table with per-batch statistics, and a refresh control; loads voucher and batch data to compute counts and monetary totals, wires per-row actions (print, details, delete), enables column resizing with persisted widths, and exposes global voucher actions on `window.voucherActions`. On failure the container is replaced with an error message and the error is logged.
+ *
+ * @param container - The HTMLElement where the dashboard UI will be rendered and event handlers attached
+ */
 async function renderDashboard(container: HTMLElement): Promise<void> {
     container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento Dashboard...</div>';
 
@@ -768,7 +814,13 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
     }
 }
 
-// --- COLUMN RESIZING UTILS ---
+/**
+ * Enables column resizing for a voucher table: applies any saved column widths and adds resizer handles to header cells.
+ *
+ * Loads stored widths from localStorage key "voucher_table_widths" and applies them as CSS variables (--col-<n>) on the provided table element, then appends resizer elements to each header cell except the last to enable drag-to-resize behavior.
+ *
+ * @param table - The table root element containing header cells with the selector `.voucher-grid-header .voucher-header-cell`; if `null`, the function is a no-op.
+ */
 function setupColumnResizing(table: HTMLElement | null): void {
     if (!table) { return; }
 
@@ -797,6 +849,18 @@ function setupColumnResizing(table: HTMLElement | null): void {
     });
 }
 
+/**
+ * Enables drag-to-resize behavior for a table column and persists adjusted widths.
+ *
+ * @param col - The column header cell element whose width will be adjusted.
+ * @param resizer - The draggable handle element placed inside the header cell.
+ * @param colIndex - 1-based index of the column used to set the CSS variable `--col-<index>`.
+ * @param table - The table element where CSS variables are applied and persisted to `localStorage` under `voucher_table_widths`.
+ *
+ * Observable behavior:
+ * - Updates the CSS variable `--col-<colIndex>` with the new pixel width while dragging (enforces a minimum width of 50px).
+ * - Persists all visible column width variables (`--col-1`…`--col-6`) to localStorage when the drag ends.
+ */
 function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex: number, table: HTMLElement): void {
     let x = 0;
     let w = 0;
@@ -839,6 +903,13 @@ function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex:
     resizer.addEventListener('mousedown', mouseDownHandler);
 }
 
+/**
+ * Open a modal displaying all vouchers for the specified voucher batch.
+ *
+ * Fetches the batch description and its vouchers, renders a table with serial number, code, status, and redemption date, and adds a close control for the modal.
+ *
+ * @param batchId - The ID of the voucher batch to display
+ */
 async function showBatchDetails(batchId: string): Promise<void> {
     openModal('Dettaglio Lotto Voucher');
     const modalBody = document.getElementById('modal-body');
@@ -909,6 +980,14 @@ async function showBatchDetails(batchId: string): Promise<void> {
     }
 }
 
+/**
+ * Delete the voucher batch identified by `batchId` after explicit user confirmation.
+ *
+ * Shows a confirmation modal, deletes the batch and its associated vouchers on confirmation,
+ * displays a success or error toast, and refreshes the active admin tab on success.
+ *
+ * @param batchId - The identifier of the voucher batch to delete
+ */
 async function handleDeleteBatch(batchId: string): Promise<void> {
     const confirmed = await openConfirmModal('PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.');
     if (!confirmed) { return; }
@@ -928,6 +1007,13 @@ async function handleDeleteBatch(batchId: string): Promise<void> {
     }
 }
 
+/**
+ * Open a print-ready browser window and render printable voucher pages for the specified batch.
+ *
+ * If the browser blocks popups, an informational modal is shown instead. If `batchId` is not provided, the function does nothing.
+ *
+ * @param batchId - The identifier of the voucher batch to print; if undefined, no action is taken
+ */
 export async function openPrintView(batchId: string | undefined): Promise<void> {
     if (!batchId) return;
 
@@ -969,6 +1055,12 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
     }
 }
 
+/**
+ * Populate the provided window with a print-ready HTML/CSS document containing printable voucher pages and QR codes.
+ *
+ * @param win - The target Window instance to receive the generated print document (must be opened to avoid popup blocking).
+ * @param vouchers - The vouchers to render; each voucher becomes a printable A4 page pair (front with data and QR code, back blank).
+ */
 async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<void> {
     const frontBg = 'assets/templates/template_voucher_pagina 1.jpg';
     const backBg = 'assets/templates/template_voucher_pagina 2.jpg';

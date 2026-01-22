@@ -6,9 +6,12 @@ import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
 
 /**
- * Mostra il menu per la gestione delle uscite di cassa
- * @param {number | string} stationId - ID della stazione
- * @param {string} userId - ID dell'operatore
+ * Open the "Registra Uscita Cassa" modal and present the UI to register a cash outflow for a station and operator.
+ *
+ * If a station does not have an active opening, a warning is shown instead of the form.
+ *
+ * @param stationId - The station identifier (number or string)
+ * @param userId - The operator identifier
  */
 export async function showOutflowMenu(stationId: number | string, userId: string): Promise<void> {
     openModal('Registra Uscita Cassa');
@@ -48,7 +51,13 @@ export async function showOutflowMenu(stationId: number | string, userId: string
 }
 
 /**
- * Renderizza il form per l'inserimento dell'uscita
+ * Render an outflow entry form into the provided container and attach handlers to validate input and persist the outflow.
+ *
+ * On form submission the function validates the amount (> 0), inserts a `tipo: 'uscita'` record into the `movimenti_cassa` table (including station and operator identifiers, a formatted description, amount and a timestamp), closes the modal and shows a confirmation on success, or displays an error toast on failure.
+ *
+ * @param container - The DOM element where the form will be rendered.
+ * @param stationId - Identifier of the station (numeric or string) associated with the outflow.
+ * @param userId - Identifier of the operator recording the outflow.
  */
 function renderOutflowForm(container: HTMLElement, stationId: number | string, userId: string): void {
     container.innerHTML = `

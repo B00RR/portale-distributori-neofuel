@@ -27,7 +27,12 @@ interface CustomWindow extends Window {
 
 declare const window: CustomWindow;
 
-// --- MAIN FUNCTION ---
+/**
+ * Render the fuel stations management table and wire per-station action controls into the provided container.
+ *
+ * @param container - HTMLElement where the stations table or an empty-state message will be rendered
+ * @param actionsContainer - Optional HTMLElement where top-level action controls (e.g., "New Station" button) will be injected
+ */
 
 export async function showStationsTab(container: HTMLElement, actionsContainer: HTMLElement | null): Promise<void> {
     showLoadingMessage(container);
@@ -131,6 +136,15 @@ export async function showStationsTab(container: HTMLElement, actionsContainer: 
     }
 }
 
+/**
+ * Open a modal to create a new fuel station or edit an existing one.
+ *
+ * If `stationId` is provided the modal is prefilled with the station's data;
+ * submitting the form inserts a new record or updates the existing record in the `fuel_stations` table,
+ * dispatches a `stations-updated` event, and attempts to refresh the stations view if present.
+ *
+ * @param stationId - The `station_id` of the station to edit, or `null` to create a new station
+ */
 export async function openStationModal(stationId: number | null = null): Promise<void> {
     const isEdit = !!stationId;
     openModal(isEdit ? 'Modifica Distributore' : 'Nuovo Distributore');
@@ -213,6 +227,14 @@ export async function openStationModal(stationId: number | null = null): Promise
     }
 }
 
+/**
+ * Prompt for confirmation and delete the fuel station with the given ID.
+ *
+ * On success dispatches a `stations-updated` event and attempts to refresh the stations view
+ * inside the admin content area. On failure shows an error toast with the failure message.
+ *
+ * @param stationId - The `station_id` of the fuel station to delete
+ */
 export async function deleteStation(stationId: number): Promise<void> {
     if (!await openConfirmModal('Sei sicuro di voler eliminare questo distributore?')) { return; }
     try {

@@ -12,10 +12,11 @@ export interface KPIDataValue {
 export type KPIData = Record<string, KPIDataValue>;
 
 /**
- * Render KPI cards based on user configuration
- * @param config - Dashboard configuration {kpiLayout, gridColumns}
- * @param kpiData - KPI data values {venduto: {value, subtitle}, erogato:  {...}, ...}
- * @returns HTML for KPI cards
+ * Generate HTML markup for dashboard KPI cards from configuration and KPI data.
+ *
+ * @param config - Dashboard configuration containing a `kpiLayout` array that defines which KPIs to render and their presentation (order, size, visibility)
+ * @param kpiData - Mapping from KPI id to its displayed values (`value` and `subtitle`)
+ * @returns A string of HTML containing the rendered KPI cards; returns an empty string if `config.kpiLayout` is missing, not an array, or if no valid KPIs can be rendered
  */
 export function renderKpiCards(config: DashboardConfig, kpiData: KPIData): string {
     if (!config || !config.kpiLayout || !Array.isArray(config.kpiLayout)) {

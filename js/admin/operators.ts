@@ -33,7 +33,16 @@ interface FuelStation {
     station_name: string;
 }
 
-// --- MAIN FUNCTION ---
+/**
+ * Render the Operators administration view into the given container and attach interaction handlers.
+ *
+ * Fetches operator records (including station relations), renders a responsive table with name, email, role,
+ * assigned station and action buttons (edit, assign station, delete), and binds the corresponding UI event handlers.
+ * If provided, the actionsContainer receives a "New Operator" button that opens the creation modal.
+ *
+ * @param container - The HTMLElement where the operators list and table will be rendered
+ * @param actionsContainer - Optional container to receive contextual action controls (e.g., "New Operator" button)
+ */
 
 export async function showOperatorsTab(container: HTMLElement, actionsContainer: HTMLElement | null): Promise<void> {
     showLoadingMessage(container);
@@ -145,6 +154,13 @@ export async function showOperatorsTab(container: HTMLElement, actionsContainer:
     }
 }
 
+/**
+ * Delete an operator after confirming with the user and refresh the operators list.
+ *
+ * @param userId - The ID of the user to delete
+ * @param container - The element where the operators UI is rendered; used to reload the list after deletion
+ * @param actionsContainer - The container for action controls (may be null); passed through when reloading the list
+ */
 export async function deleteUser(userId: string, container: HTMLElement, actionsContainer: HTMLElement | null): Promise<void> {
     const confirmed = await openConfirmModal('Sei sicuro di voler eliminare questo operatore? Questa azione è irreversibile e rimuoverà tutte le sue assegnazioni.');
     if (!confirmed) {
@@ -167,6 +183,13 @@ export async function deleteUser(userId: string, container: HTMLElement, actions
     }
 }
 
+/**
+ * Open a modal to create a new operator or edit an existing one and handle submission.
+ *
+ * If `userId` is provided the modal is initialized for editing that user; otherwise it creates a new user. On successful submit the input is validated, the operator is created or updated, the modal is closed, a `operators-updated` event is dispatched, and the operators list is refreshed if visible.
+ *
+ * @param userId - The user ID to edit, or `null` to open the modal for creating a new operator
+ */
 export async function openOperatorModal(userId: string | null = null): Promise<void> {
     const isEdit = !!userId;
     openModal(isEdit ? 'Modifica Operatore' : 'Nuovo Operatore');
@@ -278,6 +301,13 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
     }
 }
 
+/**
+ * Open a modal that lets an admin assign or unassign a fuel station for the specified user.
+ *
+ * Renders a station selector populated with available stations and the user's current assignment; on submit updates the assignment via a server-side RPC, closes the modal, shows a success toast, and refreshes the operators list if present.
+ *
+ * @param userId - The identifier of the user to assign or unassign a station for
+ */
 export async function openAssignStationModal(userId: string): Promise<void> {
     openModal('Assegna Stazione');
     const target = document.getElementById('modal-body');
@@ -340,4 +370,3 @@ export async function openAssignStationModal(userId: string): Promise<void> {
         });
     }
 }
-

@@ -13,8 +13,11 @@ import {
 import '../ui/components/ShiftOpener.js';
 
 /**
- * Aggiorna il badge di stato apertura nel menu principale
- * @param {number | string} stationId - ID della stazione
+ * Update the main-menu opening status badge to reflect the current opening state for a station.
+ *
+ * If an active opening exists, the badge is updated to indicate open or partial and its title shows who opened it and when; otherwise the badge is set to closed.
+ *
+ * @param stationId - The station identifier whose opening status should be reflected in the badge
  */
 export async function updateOpeningStatus(stationId: number | string): Promise<void> {
     const badge = document.getElementById('opening-status');
@@ -36,9 +39,10 @@ export async function updateOpeningStatus(stationId: number | string): Promise<v
 }
 
 /**
- * Controlla se esiste un'apertura attiva per la stazione
- * @param {number | string} stationId - ID della stazione
- * @returns {Promise<Shift | null>} Dati apertura attiva o null
+ * Determine whether a station has an active (not closed) opening shift.
+ *
+ * @param stationId - Identifier of the station to check for an active shift
+ * @returns The active `Shift` for the station, or `null` if no active opening exists
  */
 export async function checkOpeningStatus(stationId: number | string): Promise<Shift | null> {
     try {
@@ -63,9 +67,14 @@ export async function checkOpeningStatus(stationId: number | string): Promise<Sh
 }
 
 /**
- * Mostra il form per l'apertura turno
- * @param {number | string} stationId - ID della stazione
- * @param {string} userId - ID dell'operatore (UUID)
+ * Display a modal to initiate a new shift for a station, or show a warning if a shift is already active.
+ *
+ * If an active opening exists for the given station, the function shows a warning modal with the opening details.
+ * Otherwise it opens a modal that renders the ShiftOpener component and handles its cancel and success events;
+ * on success it may refresh UI icons/status.
+ *
+ * @param stationId - Identifier of the station (number or string)
+ * @param userId - UUID of the operator initiating the opening
  */
 export async function showAperturaForm(stationId: number | string, userId: string): Promise<void> {
     try {

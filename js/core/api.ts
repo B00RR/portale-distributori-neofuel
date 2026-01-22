@@ -37,8 +37,12 @@ if (!(globalThis as any).__supabaseClient) {
 // ========== HELPER FUNCTIONS ==========
 
 /**
- * Standardized error handling for Supabase queries
- * Modified to handle offline queue for mutations (insert, update, upsert, delete)
+ * Wraps a Supabase query with standardized error handling and enqueues mutations for offline sync when needed.
+ *
+ * @param queryFn - A function that executes a Supabase query and resolves to a SupabaseQueryResult
+ * @param errorMessage - Fallback error message used when the query result does not include a descriptive message
+ * @returns A SupabaseQueryResult<T>. When a mutation is saved for later synchronization, returns an object with `offline: true`, `data: null`, and `error: null`.
+ * @throws Re-throws the original error when the query fails and the operation is not enqueued for offline handling
  */
 export async function safeSupabaseQuery<T = any>(
     queryFn: QueryFunction,
@@ -79,8 +83,11 @@ export async function safeSupabaseQuery<T = any>(
 }
 
 /**
- * Attempts to extract data from query function to save offline
- * @param _queryFn - The query function to queue (unused in current implementation)
+ * Save a failed mutation placeholder for later retry and notify the user.
+ *
+ * Displays a warning toast to the user and enqueues a `mutation_retry` entry in the offline DB.
+ *
+ * @param _queryFn - Optional query function; currently not persisted or re-executed but accepted for future payload extraction or retry metadata.
  */
 async function handleOfflineMutation(_queryFn: QueryFunction): Promise<void> {
     const { offlineDB } = await import("./offline-db.js");
@@ -107,7 +114,12 @@ async function handleOfflineMutation(_queryFn: QueryFunction): Promise<void> {
 }
 
 /**
- * Load station name (with caching)
+ * Retrieves a fuel station's display name, using a cached value when available.
+ *
+ * If `stationId` is falsy returns `#<stationId>`. Otherwise fetches the station_name from the `fuel_stations` table and caches the result for 10 minutes.
+ *
+ * @param stationId - Station identifier used to look up the name (string or number).
+ * @returns The station's name if found, otherwise a fallback string in the form `#<stationId>`.
  */
 export async function getStationName(stationId: string | number): Promise<string> {
     if (!stationId) return `#${stationId}`;

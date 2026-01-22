@@ -12,9 +12,14 @@ import { createErrorMessage, createFormActions } from './ui-components.js';
 import { Customer } from '../types.js';
 
 /**
- * Mostra il menu per la richiesta fatture
- * @param {number | string} stationId - ID della stazione
- * @param {string} userId - ID dell'operatore
+ * Open the invoice request modal and start the customer/invoice request workflow for a station operator.
+ *
+ * Verifies there is an active opening for the given station and then renders the customer selection flow
+ * (new or existing customer) and the invoice request form; shows a warning if no opening is active or an
+ * error message if loading fails.
+ *
+ * @param stationId - Identifier of the station where the request is being created
+ * @param userId - Identifier of the operator initiating the request
  */
 export async function showInvoiceMenu(stationId: number | string, userId: string): Promise<void> {
     openModal('Richiesta Fattura');
@@ -54,7 +59,10 @@ export async function showInvoiceMenu(stationId: number | string, userId: string
 }
 
 /**
- * Renderizza la scelta tra nuovo cliente e cliente esistente
+ * Render the customer-type selection UI inside the given container.
+ *
+ * Displays options to create a new customer, choose an existing customer, or cancel;
+ * wires click handlers so the buttons open the corresponding forms or close the modal.
  */
 function renderCustomerChoice(container: HTMLElement, stationId: number | string, userId: string): void {
     container.innerHTML = `
@@ -95,7 +103,13 @@ function renderCustomerChoice(container: HTMLElement, stationId: number | string
 }
 
 /**
- * Renderizza il form per nuovo cliente
+ * Render the form used to create or update a billing customer and continue to the invoice form.
+ *
+ * Validates the entered customer data, inserts or updates the customer record in the backend, and then opens the invoice request form for the resulting customer.
+ *
+ * @param container - The DOM element where the form will be rendered
+ * @param stationId - Identifier of the station associated with the invoice request
+ * @param userId - Identifier of the operator performing the action
  */
 function renderNewCustomerForm(container: HTMLElement, stationId: number | string, userId: string): void {
     container.innerHTML = `
@@ -214,7 +228,14 @@ function renderNewCustomerForm(container: HTMLElement, stationId: number | strin
 }
 
 /**
- * Renderizza il form per cliente esistente con autocompletamento
+ * Render a customer-selection form with live autocomplete for existing billing customers and advance to the invoice form on selection.
+ *
+ * The UI lets the operator search and pick an existing customer; when a customer is selected and the form is submitted,
+ * the full customer record is retrieved and the invoice form workflow is started.
+ *
+ * @param container - Root element where the form UI will be rendered
+ * @param stationId - Station identifier used for the invoice workflow
+ * @param userId - Operator identifier initiating the request
  */
 function renderExistingCustomerForm(container: HTMLElement, stationId: number | string, userId: string): void {
     container.innerHTML = `
@@ -350,7 +371,17 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
 }
 
 /**
- * Renderizza il form per la richiesta fattura
+ * Render the invoice request form for a specific customer and wire its UI interactions.
+ *
+ * Renders form fields (amount, payment method, product category, optional product note, notes),
+ * toggles the product-note field when "Altro" is selected, validates required inputs on submit,
+ * sends a new invoice request to the backend, and shows success or error feedback.
+ *
+ * @param container - DOM element where the form will be rendered
+ * @param stationId - Identifier of the station where the request originates
+ * @param userId - Identifier of the operator submitting the request
+ * @param clienteId - Identifier of the billing customer record to associate with the request
+ * @param customerName - Display name of the customer shown in the form heading and used in the request
  */
 function renderInvoiceForm(container: HTMLElement, stationId: number | string, userId: string, clienteId: number | string, customerName: string): void {
     container.innerHTML = `

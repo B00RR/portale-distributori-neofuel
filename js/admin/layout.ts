@@ -41,7 +41,12 @@ const ROLE_LABELS: Record<string, string> = {
 // ========== FUNCTIONS ==========
 
 /**
- * Render the admin shell layout
+ * Render the admin shell (sidebar, header, breadcrumbs, and content area) into the provided container.
+ *
+ * Renders a role-aware sidebar and main layout, inserts it into `container`, and attaches navigation and logout handlers.
+ *
+ * @param container - The root HTMLElement where the admin shell will be rendered.
+ * @param onTabChange - Callback invoked with the target tab identifier when a navigation button is activated.
  */
 export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeCallback): void {
     const user = store.getUser();
@@ -121,7 +126,13 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
 }
 
 /**
- * Render breadcrumbs navigation
+ * Update the breadcrumb trail for the given admin tab and optional subpath in the element with id "breadcrumbs".
+ *
+ * If the container is present, replaces its contents with a Home link, the tab label (if not dashboard), and an optional subpath,
+ * then attaches click handlers to breadcrumb links to navigate to the selected tab.
+ *
+ * @param tab - The current admin tab to show in the breadcrumb trail
+ * @param subPath - Optional secondary label to append as an active breadcrumb segment
  */
 export function renderBreadcrumbs(tab: AdminTab, subPath: string = ''): void {
     const container = document.getElementById('breadcrumbs');
@@ -158,7 +169,9 @@ export function renderBreadcrumbs(tab: AdminTab, subPath: string = ''): void {
 }
 
 /**
- * Attach navigation event listeners
+ * Wires click handlers on sidebar navigation buttons so selecting a button triggers a tab change.
+ *
+ * @param onTabChange - Callback invoked with the `data-tab` value from the clicked `.nav-btn` element
  */
 function attachNavigationListeners(onTabChange: TabChangeCallback): void {
     const navBtns = document.querySelectorAll('.nav-btn[data-tab]');
@@ -173,7 +186,11 @@ function attachNavigationListeners(onTabChange: TabChangeCallback): void {
 }
 
 /**
- * Attach logout listener
+ * Wires the admin logout button to a confirmation flow that clears the session and reloads the page.
+ *
+ * If an element with id `admin-logout` exists, clicking it opens a confirmation modal (Italian prompt).
+ * When the user confirms, the session is cleared, execution pauses briefly (~100ms), and the browser navigates
+ * to the current path to effectively reload the app. If the logout element is not present, the function does nothing.
  */
 function attachLogoutListener(): void {
     const logoutBtn = document.getElementById('admin-logout');
@@ -190,7 +207,10 @@ function attachLogoutListener(): void {
 }
 
 /**
- * Get human-readable role label
+ * Get the human-readable label for a user role.
+ *
+ * @param role - Internal role key (e.g., 'admin', 'operator', 'billing')
+ * @returns The human-readable label for `role` (for example, 'Amministratore'); returns `'Utente'` if the role is not recognized
  */
 function getRoleLabel(role: string): string {
     return ROLE_LABELS[role] || 'Utente';

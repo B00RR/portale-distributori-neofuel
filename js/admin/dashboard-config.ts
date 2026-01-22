@@ -104,7 +104,9 @@ export const CARD_SIZES: CardSizeDefinition[] = [
 // ============================================================================
 
 /**
- * Helper to get current user id reliably
+ * Retrieve the current user's identifier, preferring the Supabase auth UUID.
+ *
+ * @returns The Supabase auth user's UUID string if available; otherwise the internal numeric user id; `null` if no user id can be determined.
  */
 async function getCurrentUserId(): Promise<string | number | null> {
     // Priority: Supabase Auth UUID (required for user_dashboard_config table which uses uuid type)
@@ -118,8 +120,13 @@ async function getCurrentUserId(): Promise<string | number | null> {
 }
 
 /**
- * Load dashboard configuration for current user
- * Creates default config if none exists
+ * Load the current user's dashboard configuration, creating and persisting a default when none exists.
+ *
+ * If no user is logged in or the user identifier is not a UUID, this returns the default configuration.
+ * When a stored configuration is not found the default configuration will be ensured/persisted for the user.
+ * On unexpected errors the function shows an error toast and returns the default configuration.
+ *
+ * @returns The user's DashboardConfig (kpiLayout and gridColumns); when missing or on error a default configuration is returned.
  */
 export async function loadDashboardConfig(): Promise<DashboardConfig> {
     const userId = await getCurrentUserId();
@@ -170,7 +177,12 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
 }
 
 /**
- * Save dashboard configuration for current user
+ * Persist the given dashboard configuration for the current user.
+ *
+ * If there is no authenticated user the function shows an error toast and returns `false`.
+ *
+ * @param config - Dashboard layout and grid settings to save for the current user
+ * @returns `true` if the configuration was persisted successfully, `false` otherwise
  */
 export async function saveDashboardConfig(config: DashboardConfig): Promise<boolean> {
     const userId = await getCurrentUserId();
@@ -204,7 +216,11 @@ export async function saveDashboardConfig(config: DashboardConfig): Promise<bool
 }
 
 /**
- * Reset dashboard configuration to default
+ * Restore the current user's dashboard configuration to the default layout and settings.
+ *
+ * Attempts to persist the default configuration for the authenticated user.
+ *
+ * @returns `true` if the default configuration was saved successfully, `false` otherwise (including when no authenticated user is available).
  */
 export async function resetDashboardConfig(): Promise<boolean> {
     const userId = await getCurrentUserId();
@@ -239,7 +255,11 @@ export async function resetDashboardConfig(): Promise<boolean> {
 }
 
 /**
- * Ensure default config exists for user (called on first load)
+ * Ensure the current user has a default dashboard configuration.
+ *
+ * If a user is available, inserts the default DashboardConfig into the
+ * `user_dashboard_config` table. Duplicate-key conflicts are ignored;
+ * other errors are written to the console.
  */
 async function ensureDefaultConfig(): Promise<void> {
     const userId = await getCurrentUserId();
@@ -263,7 +283,9 @@ async function ensureDefaultConfig(): Promise<void> {
 }
 
 /**
- * Get default dashboard configuration
+ * Build the default dashboard configuration based on the KPI catalog.
+ *
+ * @returns A DashboardConfig where `kpiLayout` contains one entry per KPI from `KPI_CATALOG` using each KPI's `defaultVisible`, `defaultSize`, and sequential `order` with positions starting at row 0; `gridColumns` is set to 4.
  */
 function getDefaultConfig(): DashboardConfig {
     return {
@@ -283,8 +305,9 @@ function getDefaultConfig(): DashboardConfig {
 // ============================================================================
 
 /**
- * Open dashboard configuration modal
- * Allows visual customization of KPI layout
+ * Open the dashboard configuration modal and render the configuration panel.
+ *
+ * If the modal container exists in the DOM, the function injects the configuration UI into it.
  */
 export function showDashboardConfigPanel(): void {
     openModal('Configura Dashboard');
@@ -295,8 +318,11 @@ export function showDashboardConfigPanel(): void {
 }
 
 /**
- * Render configuration panel content
- * @param container - Target container to render into
+ * Renders the dashboard configuration panel into the provided container.
+ *
+ * Loads the current dashboard configuration, injects the configuration UI (grid column selector, KPI list, and action buttons) into the container, and initializes interaction handlers.
+ *
+ * @param container - Target DOM element to render the configuration panel into
  */
 export async function renderConfigPanel(container: HTMLElement): Promise<void> {
     if (!container) {
@@ -361,7 +387,12 @@ export async function renderConfigPanel(container: HTMLElement): Promise<void> {
 }
 
 /**
- * Render individual KPI configuration items
+ * Generate the HTML markup for the list of KPI configuration items used in the dashboard config panel.
+ *
+ * The produced markup contains one entry per KPI config (sorted by `order`), omitting any KPI whose metadata is not found in the catalog.
+ *
+ * @param kpiLayout - Array of KPI configuration items to render
+ * @returns A concatenated HTML string representing the KPI configuration entries, with visibility and current size reflected and size options sourced from the available card sizes
  */
 function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
     return kpiLayout
@@ -418,7 +449,13 @@ function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
 }
 
 /**
- * Initialize all event handlers for configuration panel
+ * Attach interactive handlers to the dashboard configuration panel elements.
+ *
+ * Sets up UI behavior for grid-column selection, KPI visibility toggles, card size dropdowns and selection,
+ * drag-and-drop reordering, and Save/Reset actions so the provided configuration can be edited in-place.
+ *
+ * @param initialConfig - The current dashboard configuration used to initialize the panel (a working clone will be created).
+ * @param container - The DOM element that contains the rendered configuration panel UI.
  */
 function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTMLElement): void {
     const currentConfig: DashboardConfig = JSON.parse(JSON.stringify(initialConfig)); // Deep clone
@@ -536,7 +573,12 @@ function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTM
 }
 
 /**
- * Initialize SortableJS for drag-and-drop reordering
+ * Enables drag-and-drop reordering of KPI items and updates the provided dashboard config to reflect changes.
+ *
+ * @param config - The DashboardConfig object whose `kpiLayout` order will be updated after items are reordered.
+ * @param container - The container element that contains the `#kpi-config-list` element to make sortable.
+ *
+ * Note: If the KPI list element is not found or the SortableJS library is not loaded, the function does nothing.
  */
 function initializeSortable(config: DashboardConfig, container: HTMLElement): void {
     const list = container ? container.querySelector('#kpi-config-list') : document.getElementById('kpi-config-list');
@@ -561,7 +603,15 @@ function initializeSortable(config: DashboardConfig, container: HTMLElement): vo
 }
 
 /**
- * Update configuration order based on DOM elements
+ * Synchronizes KPI configuration order with the DOM order of the configuration list.
+ *
+ * Updates each matching entry in `config.kpiLayout` with its index based on the children of the
+ * `#kpi-config-list` element, then sorts `config.kpiLayout` by the new `order` values.
+ *
+ * @param config - The dashboard configuration whose `kpiLayout` will be updated
+ * @param container - The container element that hosts the `#kpi-config-list`; if that element
+ * is not found within `container`, the document root is queried. If the list cannot be found,
+ * the function returns without modifying `config`.
  */
 function updateKpiOrder(config: DashboardConfig, container: HTMLElement): void {
     const list = container ? container.querySelector('#kpi-config-list') : document.getElementById('kpi-config-list');

@@ -56,7 +56,9 @@ export const closureState: ClosureState = {
 };
 
 /**
- * Resetta lo stato del wizard
+ * Reset the shared closure wizard state to its initial defaults.
+ *
+ * Restores default values for all state fields (step, data, activeOpening, stationId, userId, pistole, prezzi, movimenti, openingCounters, allowPartialClosure, tankLinks, closureCounters, and calculations).
  */
 export function resetClosureState(): void {
     closureState.step = 1;
@@ -75,7 +77,11 @@ export function resetClosureState(): void {
 }
 
 /**
- * Imposta i dati iniziali del wizard
+ * Initialize the closure wizard state with the given station, user, and active opening.
+ *
+ * @param stationId - Identifier of the station (number or string)
+ * @param userId - Identifier of the user
+ * @param activeOpening - The active opening (shift) to associate with the state
  */
 export function initClosureState(stationId: number | string, userId: string, activeOpening: Shift): void {
     resetClosureState();
@@ -85,21 +91,29 @@ export function initClosureState(stationId: number | string, userId: string, act
 }
 
 /**
- * Aggiorna lo step corrente
+ * Set the current wizard step for the closure process.
+ *
+ * @param step - The new step index (1-based) to set as current
  */
 export function setClosureStep(step: number): void {
     closureState.step = step;
 }
 
 /**
- * Salva i contatori di chiusura inseriti
+ * Store the user-entered counters for the closure process.
+ *
+ * Replaces the current closure counters in the shared state with a shallow copy of the provided mapping.
+ *
+ * @param counters - Mapping from counter identifier to the entered numeric value
  */
 export function setClosureCounters(counters: Record<number, number>): void {
     closureState.closureCounters = { ...counters };
 }
 
 /**
- * Salva i calcoli
+ * Store calculation results in the shared closure state.
+ *
+ * @param calculations - Computed results or summary data to save on the closure state
  */
 export function setCalculations(calculations: any): void {
     closureState.calculations = calculations;

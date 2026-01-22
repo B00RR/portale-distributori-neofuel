@@ -33,7 +33,10 @@ const executors: Map<string, ActionExecutor> = new Map();
 // ========== INITIALIZATION ==========
 
 /**
- * Initialize the IndexedDB database
+ * Initialize and open the IndexedDB database used to persist offline queued actions.
+ *
+ * Creates the object store for pending actions if it does not exist and assigns the opened
+ * database to the module-level `db` variable.
  */
 export async function initOfflineQueue(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -63,7 +66,11 @@ export async function initOfflineQueue(): Promise<void> {
 // ========== QUEUE OPERATIONS ==========
 
 /**
- * Add an action to the offline queue
+ * Enqueues an action in the offline queue for later synchronization.
+ *
+ * @param type - The action type to queue (e.g., `voucher_redeem`, `shift_close`, `movement_create`, `generic`)
+ * @param payload - The data required to perform the action when it is processed
+ * @returns The generated id for the queued action
  */
 export async function queueAction(
     type: QueuedAction['type'],
@@ -100,7 +107,9 @@ export async function queueAction(
 }
 
 /**
- * Get all pending actions from the queue
+ * Retrieve all queued actions pending synchronization.
+ *
+ * @returns An array of queued actions pending synchronization.
  */
 export async function getPendingActions(): Promise<QueuedAction[]> {
     if (!db) {
@@ -123,7 +132,12 @@ export async function getPendingActions(): Promise<QueuedAction[]> {
 }
 
 /**
- * Remove an action from the queue
+ * Remove the queued action with the given id.
+ *
+ * If the offline queue has not been initialized, this function returns without error.
+ *
+ * @param id - The id of the queued action to remove
+ * @throws Rejects with the underlying IndexedDB error if the delete operation fails
  */
 export async function removeAction(id: string): Promise<void> {
     if (!db) return;
@@ -145,7 +159,9 @@ export async function removeAction(id: string): Promise<void> {
 }
 
 /**
- * Update retry count for an action
+ * Increment the stored retry count for a queued action and persist the update to IndexedDB.
+ *
+ * @param action - The queued action whose `retryCount` will be incremented and saved
  */
 async function incrementRetry(action: QueuedAction): Promise<void> {
     if (!db) return;
@@ -165,7 +181,10 @@ async function incrementRetry(action: QueuedAction): Promise<void> {
 // ========== EXECUTORS ==========
 
 /**
- * Register an executor for a specific action type
+ * Registers an executor function to handle queued actions of a given type.
+ *
+ * @param type - The queued action type to associate with the executor
+ * @param executor - Function invoked with a queued action; should resolve to `true` on success and `false` otherwise
  */
 export function registerExecutor(type: QueuedAction['type'], executor: ActionExecutor): void {
     executors.set(type, executor);
@@ -175,7 +194,17 @@ export function registerExecutor(type: QueuedAction['type'], executor: ActionExe
 // ========== SYNC LOGIC ==========
 
 /**
- * Process all pending actions (called when back online)
+ * Process all queued offline actions by invoking their registered executors and updating the queue.
+ *
+ * For each pending action this function looks up a registered executor and runs it. If the executor
+ * resolves to `true` the action is removed from the queue and counted as successful. If the executor
+ * resolves to `false` or throws, the action's `retryCount` is incremented; actions that reach
+ * `MAX_RETRIES` are removed from the queue. The function also shows user-facing toasts for progress,
+ * success, and warnings, and dispatches a `CustomEvent` named `offline-sync-complete` with
+ * `{ success, failed }` in `event.detail` when at least one action succeeds.
+ *
+ * @returns An object containing the number of successfully processed actions (`success`) and the
+ * number of actions that failed or were deferred (`failed`).
  */
 export async function syncPendingActions(): Promise<{ success: number; failed: number }> {
     const pending = await getPendingActions();
@@ -240,7 +269,9 @@ export async function syncPendingActions(): Promise<{ success: number; failed: n
 // ========== ONLINE/OFFLINE LISTENERS ==========
 
 /**
- * Setup automatic sync when coming back online
+ * Register listeners that automatically synchronize pending queued actions when network connectivity changes.
+ *
+ * When the browser becomes online this triggers a synchronization of pending actions; when it goes offline it notifies the user that actions will be saved locally. If the page is already online when called, a one-time delayed sync is scheduled to process any pending actions from prior sessions.
  */
 export function setupAutoSync(): void {
     window.addEventListener('online', () => {
@@ -263,14 +294,18 @@ export function setupAutoSync(): void {
 // ========== UTILITY ==========
 
 /**
- * Check if we're currently offline
+ * Determine whether the application is currently offline.
+ *
+ * @returns `true` if the runtime reports no network connectivity, `false` otherwise.
  */
 export function isOffline(): boolean {
     return !navigator.onLine;
 }
 
 /**
- * Get count of pending actions
+ * Get the number of actions currently queued for synchronization.
+ *
+ * @returns The number of pending queued actions
  */
 export async function getPendingCount(): Promise<number> {
     const pending = await getPendingActions();

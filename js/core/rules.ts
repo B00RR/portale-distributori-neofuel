@@ -64,7 +64,12 @@ export interface CashResult {
 // ========== FUNCTIONS ==========
 
 /**
- * Validates a voucher object against business rules.
+ * Determines whether a voucher is valid according to business rules.
+ *
+ * Checks existence, redeemed status, and expiration and returns a structured result.
+ *
+ * @param voucher - The voucher to validate; may be `null` or `undefined` to represent a missing voucher.
+ * @returns A ValidationResult object. `valid` is `true` when the voucher can be used; otherwise includes `error`, `reason` (`not_found`, `redeemed`, or `expired`), and optional `details.date`.
  */
 export function validateVoucher(voucher: Voucher | null | undefined): ValidationResult {
     if (!voucher) {
@@ -106,7 +111,14 @@ export function validateVoucher(voucher: Voucher | null | undefined): Validation
 }
 
 /**
- * Summarizes movements by type
+ * Aggregate a list of movements into totals for credits, vouchers, refunds, and extra cash.
+ *
+ * @param movimenti - Array of movements to summarize
+ * @returns An object with:
+ *  - `credits`: sum of movements classified as credits (tipo `"credito"` or descrizione containing "credito", excluding tipo `"incasso"`),
+ *  - `vouchers`: sum of movements classified as vouchers or points (tipo `"voucher"` or `"punti"` or descrizione containing "voucher" or "punti"),
+ *  - `refunds`: sum of movements classified as refunds (tipo `"pagamento"` or `"uscita"` or descrizione containing "rimborso"),
+ *  - `extra_cash`: sum of movements with tipo `"incasso"`
  */
 export function summarizeMovimenti(movimenti: Movement[] = []): MovimentiSummary {
     const normalize = (value: number | string | undefined): number => Number(value) || 0;
@@ -124,7 +136,13 @@ export function summarizeMovimenti(movimenti: Movement[] = []): MovimentiSummary
 }
 
 /**
- * Calculates theoretic revenue for a shift
+ * Compute the expected revenue from two fuel types for a shift.
+ *
+ * @param litersB - Liters sold of fuel type B
+ * @param litersG - Liters sold of fuel type G
+ * @param priceB - Unit price for fuel type B
+ * @param priceG - Unit price for fuel type G
+ * @returns The revenue (liters * price summed across both fuels), rounded to two decimals
  */
 export function calculateTheoreticRevenue({ litersB, litersG, priceB, priceG }: RevenueParams): number {
     const round = (val: number): number => Math.round((val || 0) * 100) / 100;
@@ -132,7 +150,13 @@ export function calculateTheoreticRevenue({ litersB, litersG, priceB, priceG }: 
 }
 
 /**
- * Calculates expected cash for a shift
+ * Compute the expected cash at shift end and compare it to the reported cash.
+ *
+ * @param params - Input totals and adjustments used to derive expected cash (see `CashParams`), including an optional `tolerance` (default 5) for validity check
+ * @returns An object with:
+ *  - `expected_cash`: the rounded expected cash for the shift,
+ *  - `cash_diff`: the rounded difference between reported cash and `expected_cash`,
+ *  - `is_valid`: `true` if the absolute `cash_diff` is less than or equal to `tolerance`, `false` otherwise
  */
 export function calculateExpectedCash(params: CashParams): CashResult {
     const {

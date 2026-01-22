@@ -23,6 +23,15 @@ declare global {
 
 export type CheckActiveFunction = () => boolean;
 
+/**
+ * Render and initialize the interactive dashboard UI inside the given container, optionally scoped to a specific station.
+ *
+ * Fetches current data, computes and displays KPI cards, a tanks status panel, and a sales trend chart; enables drag-and-drop and persistence of dashboard layout and panel sizes.
+ *
+ * @param container - The HTMLElement where the dashboard will be rendered.
+ * @param stationId - Optional station identifier to filter displayed data; pass `null` to show global data.
+ * @param checkActiveFn - Optional no-argument function called at key points to determine if rendering should continue; if it returns `false`, the operation aborts early.
+ */
 export async function showDashboard(
     container: HTMLElement,
     stationId: string | number | null = null,
@@ -334,7 +343,15 @@ export async function showDashboard(
 
 // ------------------------------------------------------------------
 // HELPERS (Internal)
-// ------------------------------------------------------------------
+/**
+ * Renders a 30-day sales trend line chart into the canvas with id "sales-trend-chart".
+ *
+ * Queries closures and station metadata for the last 30 days, aggregates daily revenue per station,
+ * and draws a per-station dataset using Chart.js. If Chart.js or the target canvas is not available,
+ * the function exits without rendering.
+ *
+ * @param stationId - Optional station identifier to restrict the chart to a single station; pass `null` to include all stations
+ */
 
 async function renderSalesChart(stationId: string | number | null): Promise<void> {
     // Recupera le chiusure degli ultimi 30 giorni
@@ -480,7 +497,15 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
 
 // ------------------------------------------------------------------
 // DRAG & DROP FOR PANELS (Replaces Split.js)
-// ------------------------------------------------------------------
+/**
+ * Enables drag-and-drop and resize persistence for dashboard panels.
+ *
+ * Initializes a Sortable instance on the element with id `dashboard-container` (if present)
+ * to allow dragging panels by their `.panel-title`, observes child panel size changes
+ * and debounces saving the layout, and restores any previously saved panel state.
+ *
+ * This function is a no-op if the dashboard container is missing or the global `Sortable` is not available.
+ */
 function initDashboardPanelsDrag() {
     const container = document.getElementById('dashboard-container');
     if (!container || !window.Sortable) { return; }
@@ -512,6 +537,11 @@ function initDashboardPanelsDrag() {
     restoreDashboardState();
 }
 
+/**
+ * Persist the current dashboard panel order and size state to localStorage.
+ *
+ * If an element with id "dashboard-container" exists, collects each child panel's id, inline width, inline height, and flex style, then stores the array as JSON under the key "dashboard_panels_state". If the container is not present, the function does nothing.
+ */
 function saveDashboardState() {
     const container = document.getElementById('dashboard-container');
     if (!container) { return; }
@@ -526,6 +556,15 @@ function saveDashboardState() {
     localStorage.setItem('dashboard_panels_state', JSON.stringify(state));
 }
 
+/**
+ * Restore dashboard panels' order and explicit sizes from localStorage.
+ *
+ * Reads the 'dashboard_panels_state' entry, and for each saved item moves the corresponding
+ * element into the saved order and reapplies saved `width` and `height`. If a size is restored,
+ * the element's `flex` is set to `"none"` to preserve the explicit dimensions.
+ *
+ * No action is taken if the dashboard container or a valid saved state is not present.
+ */
 function restoreDashboardState() {
     const container = document.getElementById('dashboard-container');
     const savedStateStr = localStorage.getItem('dashboard_panels_state');

@@ -56,18 +56,29 @@ let loginFormInitialized = false;
 export let loggedUser: LoggedUserData | null = null;
 let onLoginSuccessCallback: LoginSuccessCallback | null = null;
 
-// ========== PUBLIC FUNCTIONS ==========
+/**
+ * Register a callback to be invoked when a user successfully logs in.
+ *
+ * @param callback - Function called with the authenticated user's `LoggedUserData`
+ */
 
 export function setOnLoginSuccess(callback: LoginSuccessCallback): void {
     onLoginSuccessCallback = callback;
 }
 
+/**
+ * Update the module's in-memory currently authenticated user.
+ *
+ * @param user - The LoggedUserData object to store as the current logged user
+ */
 export function setLoggedUser(user: LoggedUserData): void {
     loggedUser = user;
 }
 
 /**
- * Initialize login DOM elements when ready
+ * Prepare and cache login-related DOM elements and set up the login form once when available.
+ *
+ * Locates elements with IDs `login-form`, `login-container`, `app-container`, and `login-error`, stores them in module-level variables, and on first discovery initializes form behavior by invoking setupLoginForm. If a different `login-form` element is later found, the initialization is reset so the new form will be set up.
  */
 export function initLoginElements(): void {
     const form = document.getElementById('login-form') as HTMLFormElement | null;
@@ -96,7 +107,9 @@ export function initLoginElements(): void {
 }
 
 /**
- * Setup login form event listeners
+ * Initialize and attach event handlers for the login UI.
+ *
+ * Attaches a password visibility toggle and a submit handler that validates credentials, enforces per-email rate limiting, performs authentication, resolves or constructs user data, updates in-memory session state, switches the UI to the authenticated view, applies role-based layout adjustments, invokes the post-login callback when present, and resets rate limits on successful login.
  */
 export function setupLoginForm(): void {
     if (!loginForm) return;
@@ -296,7 +309,16 @@ export function setupLoginForm(): void {
 }
 
 /**
- * Load existing session
+ * Reconstructs the current authenticated user's data from the active Supabase session.
+ *
+ * If a session exists, attempts to load the user's record (including related `user_stations`
+ * and `fuel_stations`) from the `users` table. If no DB record is found, attempts a secure
+ * RPC to derive a legacy `user_id` and otherwise builds a minimal user object from session
+ * metadata. Always ensures `role` is set (defaults to `"operator"`) and populates
+ * `assignedStations` from `user_stations` or as an empty array.
+ *
+ * @returns The populated `LoggedUserData` for the active session, or `null` if there is no
+ * active session, a password-reset session is present, or an error occurs while loading the session.
  */
 export async function loadSession(): Promise<LoggedUserData | null> {
     try {
@@ -367,7 +389,10 @@ export async function loadSession(): Promise<LoggedUserData | null> {
 }
 
 /**
- * Clear current session and logout
+ * Terminate the current authentication session and clear local session state.
+ *
+ * Signs out from Supabase, removes Supabase-related keys from localStorage and sessionStorage,
+ * and resets the in-memory `loggedUser` to `null`.
  */
 export async function clearSession(): Promise<void> {
     try {
@@ -396,7 +421,10 @@ export async function clearSession(): Promise<void> {
 }
 
 /**
- * Request password reset email
+ * Initiates a password reset for the specified email and opens the OTP reset UI.
+ *
+ * @param email - The email address of the account to reset
+ * @returns An object with `success: true` on success, or `success: false` and `error` with a message on failure
  */
 export async function requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
     try {
@@ -423,7 +451,9 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
 }
 
 /**
- * Show OTP reset form
+ * Render an OTP-based password reset UI, validate the 6-digit code, verify it with Supabase, and advance to the password reset form.
+ *
+ * If verification succeeds the function sets session/local storage flags that indicate a password reset flow, removes the saved reset email when consumed, and calls showResetPasswordForm. If no saved email is found it prompts the user to provide one before verifying the OTP. Validation and verification errors are displayed in the form's error element.
  */
 export function showOTPResetForm(): void {
     initLoginElements();
@@ -515,7 +545,9 @@ export function showOTPResetForm(): void {
 }
 
 /**
- * Show reset password form
+ * Render and manage the reset-password form used to set a new password after account recovery.
+ *
+ * Validates the new password (minimum 6 characters) and confirmation, updates the user's password via Supabase, clears password-reset session flags, signs the user out on success, shows a success toast, and reloads the page. Validation and server errors are displayed in the form's error element.
  */
 export function showResetPasswordForm(): void {
     initLoginElements();
@@ -586,7 +618,7 @@ export function showResetPasswordForm(): void {
 }
 
 /**
- * Handle password reset callback
+ * Handle an incoming password-reset callback by presenting the reset password UI.
  */
 export async function handlePasswordReset(): Promise<void> {
     showResetPasswordForm();

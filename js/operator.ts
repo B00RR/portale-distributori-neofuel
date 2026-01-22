@@ -8,9 +8,12 @@ import { router, OperatorView } from './operator/router.js';
 import { store } from './shared/state.js';
 
 /**
- * Mostra il menu principale dell'operatore
- * @param userId - ID dell'operatore
- * @param stationId - ID della stazione
+ * Initialize and display the Operator Area UI for a given operator and station.
+ *
+ * Synchronizes the stored user's station_id with the provided stationId when present, sets up navigation handlers for the operator layout, and renders the operator shell into the page's `main-content` container. If the container is not found, the function exits without side effects.
+ *
+ * @param userId - Operator identifier used for initialization context
+ * @param stationId - Station identifier (may be a string or number); when present, the stored user's `station_id` will be updated to match this value
  */
 export async function showOperatorMenu(userId: string, stationId: string | number): Promise<void> {
     const mainContent = document.getElementById('main-content');
