@@ -152,15 +152,12 @@ export async function deleteUser(userId: string, container: HTMLElement, actions
     }
 
     try {
-        // First, delete associated user_stations records
-        await safeSupabaseQuery(() => supabase.from('user_stations').delete().eq('user_id', userId));
+        // Use server-side RPC function for secure cascade delete
+        const { error } = await supabase.rpc('admin_delete_user', {
+            p_user_id: userId
+        });
 
-        // Then, delete the user from the users table
-        await safeSupabaseQuery(() => supabase.from('users').delete().eq('user_id', userId));
-
-        // Optionally, if you want to delete from Supabase Auth as well (requires service role key or admin context)
-        // const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-        // if (authError) throw authError;
+        if (error) { throw error; }
 
         Toast.show('Operatore eliminato con successo!', 'success');
         showOperatorsTab(container, actionsContainer); // Reload the list
