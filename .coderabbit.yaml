@@ -1,0 +1,12 @@
+# CodeRabbit Configuration
+reviews:
+  # Increase file limit for large project audit
+  max_files: 250
+  # Enable review on non-default branches if needed
+  auto_review:
+    enabled: true
+    base_branches:
+      - main
+      - coderabbit-root-clean
+      - AUDIT-EMPTY-TRUE
+      - AUDIT-WORK-SHARED
