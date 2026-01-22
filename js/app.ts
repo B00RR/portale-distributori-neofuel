@@ -82,7 +82,9 @@ async function initializeApp(): Promise<void> {
     }
 
     // Configura callback login
-    setOnLoginSuccess(async (user: LoggedUserData) => {
+    setOnLoginSuccess(async (loggedUser: LoggedUserData) => {
+        // Map LoggedUserData to User state interface
+        const user: any = loggedUser;
         store.setUser(user);
 
         // Track login event

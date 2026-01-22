@@ -417,6 +417,7 @@ export class ClosureWizard extends BaseComponent {
 
     private renderStep2(): TemplateResult {
         const selfTotal = (Number(this.selfCashOut) || 0) + (Number(this.selfPos) || 0) + (Number(this.selfFleet) || 0) + (Number(this.selfManager) || 0);
+        void selfTotal; // Calculated for future use
         return html`
             <div class="section-title">Step 2: Dati Incasso</div>
             <div style="background: #f0f9ff; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem;">

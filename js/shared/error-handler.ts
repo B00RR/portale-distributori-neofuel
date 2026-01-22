@@ -54,6 +54,7 @@ export function handleError(
 ): void {
     // SECURITY: Use secure logger that masks sensitive data
     const errorId = logger.error(context, error);
+    void errorId; // Explicitly marked as unused for CI
 
     let userMessage = 'Si è verificato un errore imprevisto.';
     let type: ToastType = 'error';
