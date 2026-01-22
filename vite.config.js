@@ -141,6 +141,13 @@ export default defineConfig({
         cssCodeSplit: true
     },
 
+    define: {
+        'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://ahlmgafaurossyghimxc.supabase.co'),
+        'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFobG1nYWZhdXJvc3N5Z2hpbXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NzU3OTIsImV4cCI6MjA3NzE1MTc5Mn0.f2PIG3qksNyz-Z3RKBjZ4OdV-suB8kUmjyPhrmrA6G4'),
+        'import.meta.env.VITE_SENTRY_DSN': JSON.stringify('https://0580c04527bb12461646d57877923780@o4510754556346368.ingest.de.sentry.io/4510754574827600'),
+        'import.meta.env.VITE_APP_VERSION': JSON.stringify('1.0.1')
+    },
+
     resolve: {
         alias: {
             '@': resolve(__dirname, 'js'),
