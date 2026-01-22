@@ -131,12 +131,7 @@ export default defineConfig({
         outDir: 'dist',
         assetsDir: 'assets',
         sourcemap: false,
-
-        // rollupOptions: { ... } (Removed for debugging)
-
-        minify: false, // Disabled terser for debugging
-        // terserOptions: { ... }
-
+        minify: false,
         chunkSizeWarningLimit: 500,
         cssCodeSplit: true
     },
