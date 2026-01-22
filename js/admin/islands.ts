@@ -206,7 +206,7 @@ async function openIslandForm(stationId: number | string, islandId: number | nul
                 closeModal();
                 showIslandsModal(stationId);
             } catch (err) {
-                (Toast as any).show('Errore: ' + (err as Error).message, 'error');
+                Toast.show('Errore: ' + (err as Error).message, 'error');
             }
         });
     }
@@ -221,7 +221,7 @@ async function deleteIsland(islandId: number, stationId: number | string): Promi
             .eq('island_id', islandId);
 
         if (guns && guns.length > 0) {
-            (Toast as any).show(`Impossibile eliminare: l'isola ha ${guns.length} pistol${guns.length !== 1 ? 'e' : 'a'} associate. Rimuovile prima.`, 'warning');
+            Toast.show(`Impossibile eliminare: l'isola ha ${guns.length} pistol${guns.length !== 1 ? 'e' : 'a'} associate. Rimuovile prima.`, 'warning');
             return;
         }
 
@@ -234,6 +234,6 @@ async function deleteIsland(islandId: number, stationId: number | string): Promi
         showInfoModal('Isola eliminata con successo!');
         showIslandsModal(stationId);
     } catch (err) {
-        (Toast as any).show('Errore eliminazione: ' + (err as Error).message, 'error');
+        Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
     }
 }

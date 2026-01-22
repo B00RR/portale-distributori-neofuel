@@ -205,7 +205,7 @@ export async function openStationModal(stationId: number | null = null): Promise
 
             } catch (err) {
                 // Cast error to handle potential varying error types
-                (Toast as any).show('Errore salvataggio: ' + (err as Error).message, 'error');
+                Toast.show('Errore salvataggio: ' + (err as Error).message, 'error');
             } finally {
                 setButtonLoading(submitBtn, false);
             }
@@ -227,6 +227,6 @@ export async function deleteStation(stationId: number): Promise<void> {
             showStationsTab(adminContent, headerActions);
         }
     } catch (err) {
-        (Toast as any).show('Errore eliminazione: ' + (err as Error).message, 'error');
+        Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
     }
 }

@@ -546,7 +546,7 @@ async function handleModuleCreation(event: Event): Promise<void> {
         showInfoModal('Modulo creato con successo!', 'Calcoli e funzioni');
         await refreshSettingsTab();
     } catch (err: any) {
-        (Toast as any).show(err.message || 'Errore durante la creazione del modulo.', 'error');
+        Toast.show(err.message || 'Errore durante la creazione del modulo.', 'error');
         console.error('Errore creazione modulo:', err);
     } finally {
         if (submitBtn) { submitBtn.disabled = false; }
@@ -598,7 +598,7 @@ function openDslEditorModal(module: CalculationModule, version: CalculationVersi
             JSON.parse(value);
             showInfoModal('DSL valido.', 'Validazione');
         } catch (err: any) {
-            (Toast as any).show('DSL non valido: ' + err.message, 'error');
+            Toast.show('DSL non valido: ' + err.message, 'error');
         }
     });
 
@@ -678,7 +678,7 @@ async function handleVersionCreation(event: Event, module: CalculationModule, ne
         showInfoModal(`Versione v${nextVersion} creata!`, 'Calcoli e funzioni');
         await refreshSettingsTab();
     } catch (err: any) {
-        (Toast as any).show(err.message || 'Errore durante la creazione della versione.', 'error');
+        Toast.show(err.message || 'Errore durante la creazione della versione.', 'error');
         console.error('Errore creazione versione:', err);
     } finally {
         if (submitBtn) { submitBtn.disabled = false; }
@@ -705,7 +705,7 @@ async function handlePublishVersion(module: CalculationModule, version: Calculat
         showInfoModal(`Versione v${version.version} pubblicata e impostata come attiva.`, 'Calcoli e funzioni');
         await refreshSettingsTab();
     } catch (err: any) {
-        (Toast as any).show(err.message || 'Errore durante la pubblicazione.', 'error');
+        Toast.show(err.message || 'Errore durante la pubblicazione.', 'error');
         console.error('Errore publish versione:', err);
     }
 }

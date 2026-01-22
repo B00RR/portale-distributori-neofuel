@@ -182,7 +182,7 @@ async function loadCustomers(): Promise<void> {
         voucherState.customers = (data as Customer[]) || [];
     } catch (err) {
         console.error('Error loading customers:', err);
-        (Toast as any).show('Errore caricamento clienti', 'error');
+        Toast.show('Errore caricamento clienti', 'error');
     }
 }
 
@@ -314,7 +314,7 @@ async function handleGeneration(e: Event): Promise<void> {
 
         if (vouchersError) { throw vouchersError; }
 
-        (Toast as any).show('Voucher generati con successo!', 'success');
+        Toast.show('Voucher generati con successo!', 'success');
 
         // Redirect to Print Tab
         voucherState.activeTab = 'dashboard';
@@ -325,7 +325,7 @@ async function handleGeneration(e: Event): Promise<void> {
         console.error(err);
         const content = document.getElementById('voucher-content');
         if (content) renderGenerator(content); // Reset UI
-        (Toast as any).show('Errore Generazione: ' + (err.message || ''), 'error');
+        Toast.show('Errore Generazione: ' + (err.message || ''), 'error');
     }
 }
 
@@ -751,9 +751,9 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
 
                 try {
                     await renderDashboard(container);
-                    (Toast as any).show('Dashboard aggiornata', 'success');
+                    Toast.show('Dashboard aggiornata', 'success');
                 } catch (error) {
-                    (Toast as any).show('Errore durante l\'aggiornamento', 'error');
+                    Toast.show('Errore durante l\'aggiornamento', 'error');
                     console.error(error);
                 } finally {
                     if (icon) icon.classList.remove('fa-spin');
@@ -920,11 +920,11 @@ async function handleDeleteBatch(batchId: string): Promise<void> {
             .eq('id', batchId);
 
         if (error) { throw error; }
-        (Toast as any).show('Lotto eliminato correttamente.', 'success');
+        Toast.show('Lotto eliminato correttamente.', 'success');
         renderActiveTab();
     } catch (err: any) {
         console.error(err);
-        (Toast as any).show('Errore eliminazione: ' + err.message, 'error');
+        Toast.show('Errore eliminazione: ' + err.message, 'error');
     }
 }
 
@@ -961,7 +961,7 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
 
     } catch (err: any) {
         console.error(err);
-        (Toast as any).show('Errore recupero voucher: ' + err.message, 'error');
+        Toast.show('Errore recupero voucher: ' + err.message, 'error');
         if (container) renderDashboard(container); // Reset UI
 
         // Show error in popup

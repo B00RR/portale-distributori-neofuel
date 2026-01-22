@@ -398,7 +398,7 @@ export async function openExportModal(closureId: string | number): Promise<void>
         const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id);
         await generateClosureExcel(metrics);
     } catch (err: any) {
-        (Toast as any).show('Errore export: ' + (err?.message || err), 'error');
+        Toast.show('Errore export: ' + (err?.message || err), 'error');
         console.error('Errore export:', err);
     }
 }
@@ -516,7 +516,7 @@ async function openBulkExportModal(): Promise<void> {
 
             // Validation
             if (type === 'date_range' && (!dateFrom || !dateTo)) {
-                (Toast as any).show('Seleziona entrambe le date.', 'error');
+                Toast.show('Seleziona entrambe le date.', 'error');
                 return;
             }
 
@@ -537,7 +537,7 @@ async function openBulkExportModal(): Promise<void> {
                 closeModal();
             } catch (err: any) {
                 console.error(err);
-                (Toast as any).show('Errore durante export multiplo: ' + err.message, 'error');
+                Toast.show('Errore durante export multiplo: ' + err.message, 'error');
             } finally {
                 if (loadingDiv) loadingDiv.classList.add('hidden');
                 btnElement.disabled = false;
@@ -598,11 +598,12 @@ export async function deleteClosure(
 
         if (error) { throw error; }
 
-        (Toast as any).show('Chiusura eliminata con successo', 'success');
+        Toast.show('Chiusura eliminata con successo', 'success');
         if (onSuccessCallback) { onSuccessCallback(); }
 
     } catch (err) {
         handleError(err as Error, 'deleteClosure');
     }
 }
+
 

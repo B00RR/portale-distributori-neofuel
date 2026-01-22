@@ -316,7 +316,7 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
                 closeModal();
                 showGunsModal(islandId, islandName, stationId);
             } catch (err) {
-                (Toast as any).show('Errore: ' + (err as Error).message, 'error');
+                Toast.show('Errore: ' + (err as Error).message, 'error');
             }
         });
     }
@@ -380,7 +380,7 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
             const numeroLitri = Math.round(parseGunCounter(numeroLitriStr) * 100) / 100;
 
             if (numeroLitri < 0) {
-                (Toast as any).show('Il numeratore non può essere negativo!', 'warning');
+                Toast.show('Il numeratore non può essere negativo!', 'warning');
                 return;
             }
 
@@ -446,7 +446,7 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
                 closeModal();
                 showGunsModal(islandId, islandName, stationId);
             } catch (err) {
-                (Toast as any).show('Errore: ' + (err as Error).message, 'error');
+                Toast.show('Errore: ' + (err as Error).message, 'error');
             }
         });
     }
@@ -463,6 +463,6 @@ async function deleteGun(gunId: number, islandId: number, islandName: string, st
         showInfoModal('Pistola eliminata con successo!');
         showGunsModal(islandId, islandName, stationId);
     } catch (err) {
-        (Toast as any).show('Errore eliminazione: ' + (err as Error).message, 'error');
+        Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
     }
 }

@@ -164,7 +164,7 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
         };
     } catch (err: any) {
         console.error('[Dashboard Config] Error loading:', err);
-        (Toast as any).show('Errore caricamento configurazione dashboard', 'error');
+        Toast.show('Errore caricamento configurazione dashboard', 'error');
         return getDefaultConfig();
     }
 }
@@ -176,7 +176,7 @@ export async function saveDashboardConfig(config: DashboardConfig): Promise<bool
     const userId = await getCurrentUserId();
 
     if (!userId) {
-        (Toast as any).show('Utente non autenticato', 'error');
+        Toast.show('Utente non autenticato', 'error');
         return false;
     }
 
@@ -194,11 +194,11 @@ export async function saveDashboardConfig(config: DashboardConfig): Promise<bool
 
         if (error) { throw error; }
 
-        (Toast as any).show('Configurazione dashboard salvata!', 'success');
+        Toast.show('Configurazione dashboard salvata!', 'success');
         return true;
     } catch (err: any) {
         console.error('[Dashboard Config] Error saving:', err);
-        (Toast as any).show('Errore salvataggio configurazione: ' + err.message, 'error');
+        Toast.show('Errore salvataggio configurazione: ' + err.message, 'error');
         return false;
     }
 }
@@ -210,7 +210,7 @@ export async function resetDashboardConfig(): Promise<boolean> {
     const userId = await getCurrentUserId();
 
     if (!userId) {
-        (Toast as any).show('Utente non autenticato', 'error');
+        Toast.show('Utente non autenticato', 'error');
         return false;
     }
 
@@ -229,11 +229,11 @@ export async function resetDashboardConfig(): Promise<boolean> {
 
         if (error) { throw error; }
 
-        (Toast as any).show('Configurazione ripristinata ai valori predefiniti', 'success');
+        Toast.show('Configurazione ripristinata ai valori predefiniti', 'success');
         return true;
     } catch (err: any) {
         console.error('[Dashboard Config] Error resetting:', err);
-        (Toast as any).show('Errore ripristino configurazione: ' + err.message, 'error');
+        Toast.show('Errore ripristino configurazione: ' + err.message, 'error');
         return false;
     }
 }

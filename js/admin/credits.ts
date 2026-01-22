@@ -177,7 +177,7 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
                 saldo: [Validators.number]
             });
             if (errors) {
-                (Toast as any).show('Errore validazione: ' + formatErrorMessages(errors), 'error');
+                Toast.show('Errore validazione: ' + formatErrorMessages(errors), 'error');
                 return;
             }
 
@@ -194,7 +194,7 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
                     }]));
                 }
                 closeModal();
-                (Toast as any).show(isEdit ? 'Cliente aggiornato' : 'Cliente creato', 'success');
+                Toast.show(isEdit ? 'Cliente aggiornato' : 'Cliente creato', 'success');
                 refreshCreditsTab();
             } catch (err) {
                 handleError(err, 'saveCustomer');
@@ -209,7 +209,7 @@ async function deleteCustomer(customerId: number): Promise<void> {
     if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) { return; }
     try {
         await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
-        (Toast as any).show('Cliente eliminato', 'success');
+        Toast.show('Cliente eliminato', 'success');
         refreshCreditsTab();
     } catch (err) {
         handleError(err, 'deleteCustomer');

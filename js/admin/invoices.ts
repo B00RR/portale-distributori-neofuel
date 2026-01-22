@@ -216,7 +216,7 @@ async function toggleInvoiceStatus(id: number, newStatus: InvoiceStatus): Promis
 
         if (error) throw error;
 
-        (Toast as any).show('Stato fattura aggiornato', 'success');
+        Toast.show('Stato fattura aggiornato', 'success');
 
         // Refresh Current View (requires re-calling logic essentially, but simplify by reloading tab via triggering router or just hack for now)
         // Since we are inside the module, we can't easily access the "router" to reload the tab cleanly without import cycle.
@@ -227,6 +227,6 @@ async function toggleInvoiceStatus(id: number, newStatus: InvoiceStatus): Promis
 
     } catch (err) {
         console.error(err);
-        (Toast as any).show('Errore aggiornamento stato', 'error');
+        Toast.show('Errore aggiornamento stato', 'error');
     }
 }

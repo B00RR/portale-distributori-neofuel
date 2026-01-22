@@ -162,11 +162,11 @@ export async function deleteUser(userId: string, container: HTMLElement, actions
         // const { error: authError } = await supabase.auth.admin.deleteUser(userId);
         // if (authError) throw authError;
 
-        (Toast as any).show('Operatore eliminato con successo!', 'success');
+        Toast.show('Operatore eliminato con successo!', 'success');
         showOperatorsTab(container, actionsContainer); // Reload the list
     } catch (err) {
         handleError(err, 'deleteUser');
-        (Toast as any).show('Errore durante l\'eliminazione dell\'operatore.', 'error');
+        Toast.show('Errore durante l\'eliminazione dell\'operatore.', 'error');
     }
 }
 
@@ -237,7 +237,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
             }
 
             if (!validation.success) {
-                (Toast as any).show('Dati non validi: ' + validation.error, 'error');
+                Toast.show('Dati non validi: ' + validation.error, 'error');
                 return;
             }
 
@@ -257,7 +257,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
                     if (fnError) { throw fnError; }
                     if (fnData?.error) { throw new Error(fnData.error); }
 
-                    (Toast as any).show('Utente creato con successo (email pre-confermata)!', 'success');
+                    Toast.show('Utente creato con successo (email pre-confermata)!', 'success');
                 }
                 closeModal();
 
@@ -328,7 +328,7 @@ export async function openAssignStationModal(userId: string): Promise<void> {
                 if (error) { throw error; }
 
                 closeModal();
-                (Toast as any).show('Assegnazione salvata', 'success');
+                Toast.show('Assegnazione salvata', 'success');
                 // Reload
                 const adminContent = document.getElementById('admin-content');
                 if (adminContent && adminContent.querySelector('.edit-operator')) {
@@ -343,3 +343,4 @@ export async function openAssignStationModal(userId: string): Promise<void> {
         });
     }
 }
+

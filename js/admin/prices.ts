@@ -91,7 +91,7 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
                     if (error) { throw error; }
 
                     closeModal();
-                    (Toast as any).show('Prezzi aggiornati!', 'success');
+                    Toast.show('Prezzi aggiornati!', 'success');
                 } catch (err) {
                     handleError(err, 'savePrices');
                 }
@@ -112,3 +112,4 @@ export async function showPricesTab(container: HTMLElement, headerActions: HTMLE
         </div>
     `;
 }
+
