@@ -4,8 +4,8 @@
  */
 import * as Sentry from '@sentry/browser';
 
-const SENTRY_DSN: string = (import.meta as any).env.VITE_SENTRY_DSN || '';
-const ENVIRONMENT: string = (import.meta as any).env.MODE || 'development';
+const SENTRY_DSN: string = import.meta.env.VITE_SENTRY_DSN || '';
+const ENVIRONMENT: string = import.meta.env.MODE || 'development';
 
 /**
  * Initialize Sentry error tracking
@@ -24,6 +24,8 @@ export function initSentry(): void {
 
         // Performance monitoring
         tracesSampleRate: 0.1, // 10% of transactions
+        replaysSessionSampleRate: 0.1,
+        replaysOnErrorSampleRate: 1.0,
 
         // Error filtering
         beforeSend(event, hint) {
@@ -32,9 +34,9 @@ export function initSentry(): void {
                 return null;
             }
 
-            // Filter out network errors from ad blockers
-            const error = hint.originalException as Error;
-            if (error && error.message && error.message.includes('adsbygoogle')) {
+            // Filter out network errors from ad blockers or extensions
+            const error = hint.originalException;
+            if (error instanceof Error && error.message && error.message.includes('adsbygoogle')) {
                 return null;
             }
 
@@ -57,10 +59,15 @@ export function initSentry(): void {
         ],
 
         // Release tracking
-        release: `neofuel-portal@${(import.meta as any).env.VITE_APP_VERSION || '1.0.0'}`
+        release: `neofuel-portal@${import.meta.env.VITE_APP_VERSION || '1.0.0'}`
     });
 
     console.info('[Sentry] Initialized successfully');
+
+    // Install global error handlers if not automatically captured
+    window.addEventListener('unhandledrejection', (event) => {
+        Sentry.captureException(event.reason);
+    });
 }
 
 /**

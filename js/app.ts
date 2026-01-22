@@ -8,6 +8,7 @@ import {
     initLoginElements, loadSession, setLoggedUser, setOnLoginSuccess,
     handlePasswordReset, requestPasswordReset
 } from './core/auth.js';
+import { initSentry, setSentryUser } from './core/sentry.js'; // Import Sentry
 import { showOperatorMenu } from './operator.js';
 import { store } from './shared/state.js';
 import { Toast } from './ui/toast.js';
@@ -23,6 +24,7 @@ customWindow.requestPasswordReset = requestPasswordReset;
 
 async function initializeApp(): Promise<void> {
     // Initialize monitoring and analytics
+    initSentry(); // Initialize Sentry first
     initAnalytics();
 
     initializeCalculationPresets();
@@ -84,6 +86,7 @@ async function initializeApp(): Promise<void> {
     // Configura callback login
     setOnLoginSuccess(async (user: LoggedUserData) => {
         store.setUser(user);
+        setSentryUser({ id: user.id || user.user_id, email: user.email, role: user.role }); // Track user in Sentry
 
         // Track login event
         trackLogin(user.role);
