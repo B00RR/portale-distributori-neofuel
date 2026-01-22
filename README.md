@@ -23,56 +23,56 @@ Sistema di gestione per distributori di carburante Neofuel con focus su sicurezz
 graph TB
     subgraph "Client Layer"
         WebApp[Web Application<br/>TypeScript + Lit Components]
+        OfflineDB[IndexedDB<br/>Offline Queue]
     end
     
     subgraph "Authentication"
         Auth[Supabase Auth<br/>JWT + Row Level Security]
     end
     
-    subgraph "Edge Functions Layer"
-        EF1[validate-shift-closure<br/>Server-side Validation]
-        EF2[rate-limiter<br/>Centralized Rate Limiting]
-        EF3[redeem-voucher<br/>Secure Voucher Redemption]
+    subgraph "Server-Side Logic"
+        RPC[PostgreSQL RPC Functions<br/>Secure Admin Actions]
+        EF1[validate-shift-closure]
+        EF2[redeem-voucher]
     end
     
     subgraph "Database Layer"
         DB[(PostgreSQL + RLS<br/>Row Level Security)]
-        Cache[Query Cache]
     end
     
     WebApp -->|JWT Token| Auth
     WebApp -->|Anon Key + RLS| DB
+    WebApp -->|RPC Call| RPC
     WebApp -->|POST /functions/v1/*| EF1
     WebApp -->|POST /functions/v1/*| EF2
-    WebApp -->|POST /functions/v1/*| EF3
     
+    RPC -->|Perform Logic| DB
     EF1 -->|Service Role Key| DB
     EF2 -->|Service Role Key| DB
-    EF3 -->|Service Role Key| DB
     
     Auth -.->|Validates| DB
-    DB --> Cache
+    WebApp <-->|Sync| OfflineDB
     
     style WebApp fill:#e1f5ff
     style Auth fill:#ffe1e1
     style DB fill:#e1ffe1
+    style RPC fill:#fff4e1
     style EF1 fill:#fff4e1
     style EF2 fill:#fff4e1
-    style EF3 fill:#fff4e1
 ```
 
 ### Security Layers
 
 1. **Client Layer**: Type-safe TypeScript, input sanitization, client-side rate limiting
 2. **Authentication**: JWT verification, session management, role-based access
-3. **Edge Functions**: Server-side validation, business logic isolation, rate limiting
+3. **Server-Side logic**: RPC Functions for admin actions, Edge Functions for complex logic
 4. **Database**: Row Level Security (RLS), foreign key constraints, audit logging
 
 ### Code Structure
 
 ```
 js/
-├── core/       # Core services, API layer (100% TS)
+├── core/       # Core services, API layer, Auth (100% TS)
 ├── admin/      # Admin modules (100% TS)
 ├── operator/   # Operator modules (100% TS)
 ├── shared/     # State management, error handling (100% TS)
@@ -81,13 +81,20 @@ js/
 └── types.ts    # Global type definitions
 
 supabase/
-└── functions/  # Edge Functions (Deno + TypeScript)
-    ├── validate-shift-closure/
-    ├── rate-limiter/
-    └── redeem-voucher/
+├── functions/  # Edge Functions (Deno + TypeScript)
+├── migrations/ # SQL Migrations & RPC Definitions
+└── ...
 ```
 
-### Edge Functions API
+### Server-Side API (RPC & Edge Functions)
+
+#### `RPC: admin_delete_closure`
+**Purpose**: Secure cascade delete of shift closures
+**Auth**: Admin required
+
+#### `RPC: admin_update_price`
+**Purpose**: Secure price update with validation
+**Auth**: Admin required
 
 #### `POST /functions/v1/validate-shift-closure`
 **Purpose**: Server-side validation of shift closure totals  
@@ -98,46 +105,13 @@ supabase/
 // Request
 {
   "shift_id": number,
-  "submitted_totals": {
-    "total_teorico": number,
-    "contanti_in": number,
-    "contanti_out": number,
-    "carte": number,
-    "crediti": number,
-    "voucher": number
-  }
+  "submitted_totals": { ... }
 }
 
-// Response (200 OK)
+// Response
 {
   "valid": boolean,
-  "recalculated_totals": { ...totals },
-  "discrepancies"?: { ...details } // Only if valid=false
-}
-```
-
-#### `POST /functions/v1/rate-limiter`
-**Purpose**: Centralized rate limiting check/reset  
-**Auth**: Optional (public endpoint)  
-**Rate Limit**: None (rate limiter itself)
-
-```typescript
-// Request
-{
-  "action": "check" | "reset",
-  "identifier": string, // user_id, email, or IP
-  "endpoint": string,    // operation name
-  "max_attempts"?: number,
-  "window_seconds"?: number
-}
-
-// Response (200 OK or 429 Too Many Requests)
-{
-  "allowed": boolean,
-  "attempts": number,
-  "remaining": number,
-  "reset_at": timestamp,
-  "retry_after_seconds"?: number
+  "discrepancies"?: { ... }
 }
 ```
 
@@ -153,17 +127,10 @@ supabase/
   "station_id": number
 }
 
-// Response (200 OK)
+// Response
 {
   "success": boolean,
-  "amount": number,
-  "code": string
-}
-
-// Error Response (429 Too Many Requests)
-{
-  "error": "Rate limit exceeded",
-  "retry_after": number
+  "amount": number
 }
 ```
 
@@ -304,4 +271,4 @@ Sviluppato con ❤️ dal team Neofuel
 
 ---
 
-**Status**: TypeScript Migration (Phase 10) - In Progress ⚙️
+**Status**: Remediation & Improvements (Phase 11) - In Progress 🚀
