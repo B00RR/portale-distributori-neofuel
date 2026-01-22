@@ -1,12 +1,18 @@
 # CodeRabbit Configuration
 reviews:
-  # Increase file limit for large project audit
-  max_files: 250
-  # Enable review on non-default branches if needed
+  # Aiming to get under the 150 file limit by excluding non-essential paths
+  max_files: 300 
   auto_review:
     enabled: true
-    base_branches:
-      - main
-      - coderabbit-root-clean
-      - AUDIT-EMPTY-TRUE
-      - AUDIT-WORK-SHARED
+  path_filters:
+    - "!public/**/*"
+    - "!assets/**/*"
+    - "!docs/**/*"
+    - "!sql/**/*"
+    - "!tests/**/*"
+    - "!package-lock.json"
+    - "!**/*.md"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.svg"
+    - "!**/*.pdf"
