@@ -13,6 +13,7 @@ interface Voucher {
     code: string;
     amount: number;
     voucher_batches?: { customer_name?: string };
+    customer_name?: string;
     // Add other fields as needed based on DB schema
     id?: string;
     status?: string;

@@ -71,7 +71,7 @@ export function safeParse<T>(schema: z.ZodSchema<T>, data: unknown): { success: 
         return { success: true, data: result.data };
     }
     // Format error messages
-    const errorMessages = result.error.errors.map(e => e.message).join(', ');
+    const errorMessages = result.error.issues.map(e => e.message).join(', ');
     return { success: false, error: errorMessages };
 }
 
