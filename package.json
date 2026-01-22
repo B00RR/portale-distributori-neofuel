@@ -53,6 +53,7 @@
     "@sentry/browser": "^10.32.1",
     "canvas": "^3.2.1",
     "vite-plugin-pwa": "^1.2.0",
-    "workbox-window": "^7.4.0"
+    "workbox-window": "^7.4.0",
+    "zod": "^4.3.5"
   }
 }

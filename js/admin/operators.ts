@@ -221,18 +221,23 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
             const role = fd.get('role')?.toString();
             const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
 
-            const schema: Record<string, any[]> = {
-                full_name: [Validators.required],
-                role: [Validators.required]
-            };
-            if (!isEdit) {
-                schema.email = [Validators.required, Validators.email];
-                schema.password = [Validators.required, Validators.minLength(6)];
+            // SECURITY: Validate with Zod schema
+            const { CreateUserSchema, UpdateUserSchema, safeParse } = await import('../core/schemas.js');
+
+            let validation;
+            if (isEdit) {
+                validation = safeParse(UpdateUserSchema, { full_name: fullName, role });
+            } else {
+                validation = safeParse(CreateUserSchema, {
+                    email,
+                    password,
+                    full_name: fullName,
+                    role
+                });
             }
 
-            const errors = validateForm({ full_name: fullName, email, password, role }, schema);
-            if (errors) {
-                (Toast as any).show('Dati non validi:\n' + formatErrorMessages(errors), 'error');
+            if (!validation.success) {
+                (Toast as any).show('Dati non validi: ' + validation.error, 'error');
                 return;
             }
 
@@ -240,13 +245,13 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
                 setButtonLoading(submitBtn, true, 'Salvataggio...');
                 if (isEdit && userId) {
                     await safeSupabaseQuery(() => supabase.from('users').update({
-                        full_name: fullName,
-                        role: role
+                        full_name: validation.data.full_name,
+                        role: validation.data.role
                     }).eq('user_id', userId));
                 } else {
                     // Usa la Edge Function per creare l'utente senza perdere la sessione Admin
                     const { data: fnData, error: fnError } = await supabase.functions.invoke('admin_create_user_v2', {
-                        body: { email, password, full_name: fullName, role }
+                        body: validation.data // Already validated by Zod
                     });
 
                     if (fnError) { throw fnError; }
@@ -313,12 +318,15 @@ export async function openAssignStationModal(userId: string): Promise<void> {
 
             try {
                 setButtonLoading(submitBtn, true, 'Salvataggio...');
-                // Rimuovi precedente
-                await supabase.from('user_stations').delete().eq('user_id', userId);
 
-                if (stationId) {
-                    await safeSupabaseQuery(() => supabase.from('user_stations').insert([{ user_id: userId, station_id: parseInt(stationId, 10) }]));
-                }
+                // Use server-side RPC function for secure station assignment
+                const { error } = await supabase.rpc('admin_assign_station', {
+                    p_user_id: userId,
+                    p_station_id: stationId ? parseInt(stationId, 10) : null
+                });
+
+                if (error) { throw error; }
+
                 closeModal();
                 (Toast as any).show('Assegnazione salvata', 'success');
                 // Reload

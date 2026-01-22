@@ -5,6 +5,7 @@
 
 import { Toast } from "../ui/toast.js";
 import { escapeHtml } from "../utils/utils.js";
+import { logger } from "../core/logger.js";
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -41,7 +42,7 @@ export class AppError extends Error {
 
 /**
  * Handles errors centrally by showing a Toast and logging to console
- * SECURITY: Sanitizes logs to prevent sensitive information disclosure
+ * SECURITY: Uses logger module to prevent sensitive information disclosure
  * @param error - The caught error object
  * @param context - The context where the error occurred (e.g., function name)
  * @param renderTarget - Optional element where to display the error persistently
@@ -51,18 +52,8 @@ export function handleError(
     context: string = '',
     renderTarget: HTMLElement | null = null
 ): void {
-    // SECURITY: Only log full error details in development mode
-    const isDevelopment = import.meta.env?.MODE === 'development' ||
-        window.location.hostname === 'localhost';
-
-    if (isDevelopment) {
-        // Development: Full error details for debugging
-        console.error(`[${context}] Error:`, error);
-    } else {
-        // Production: Sanitized error logging
-        const sanitizedError = sanitizeErrorForLogging(error);
-        console.error(`[${context}] Error:`, sanitizedError);
-    }
+    // SECURITY: Use secure logger that masks sensitive data
+    const errorId = logger.error(context, error);
 
     let userMessage = 'Si è verificato un errore imprevisto.';
     let type: ToastType = 'error';

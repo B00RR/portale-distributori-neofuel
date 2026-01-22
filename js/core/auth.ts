@@ -138,17 +138,23 @@ export function setupLoginForm(): void {
         const passwordInput = loginForm?.querySelector('#password') as HTMLInputElement | null;
 
         if (!emailInput || !passwordInput) {
-            console.error('Email or password input not found');
+            console.error('[AUTH] Form inputs not found');
             return;
         }
 
-        const email = emailInput.value?.trim().toLowerCase();
-        const password = passwordInput.value;
+        // SECURITY: Validate input with Zod schema
+        const { LoginSchema, safeParse } = await import('./schemas.js');
+        const validation = safeParse(LoginSchema, {
+            email: emailInput.value,
+            password: passwordInput.value
+        });
 
-        if (!email || !password) {
-            if (errorElement) errorElement.textContent = "Inserisci email e password.";
+        if (!validation.success) {
+            if (errorElement) errorElement.textContent = validation.error;
             return;
         }
+
+        const { email, password } = validation.data;
 
         // SECURITY: Rate limiting - prevent brute force attacks
         const rateLimitKey = `login:${email}`;

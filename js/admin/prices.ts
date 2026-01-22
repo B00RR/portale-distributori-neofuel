@@ -76,17 +76,20 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
                     // For now, it defaults to now
                 }
 
-                const payload = {
-                    station_id: stationId,
-                    prezzo_benzina: parseFloat(fd.get('benzina')?.toString() || '0') || 0,
-                    prezzo_gasolio: parseFloat(fd.get('gasolio')?.toString() || '0') || 0,
-                    prezzo_gpl: null,
-                    prezzo_metano: null,
-                    data_validita: dataValidita.toISOString()
-                };
+                const benzina = parseFloat(fd.get('benzina')?.toString() || '0') || 0;
+                const gasolio = parseFloat(fd.get('gasolio')?.toString() || '0') || 0;
 
                 try {
-                    await safeSupabaseQuery(() => supabase.from('prezzi_distributore').insert([payload]));
+                    // Use server-side RPC function for secure price update
+                    const { error } = await supabase.rpc('admin_update_price', {
+                        p_station_id: Number(stationId),
+                        p_benzina: benzina,
+                        p_gasolio: gasolio,
+                        p_data_validita: dataValidita.toISOString()
+                    });
+
+                    if (error) { throw error; }
+
                     closeModal();
                     (Toast as any).show('Prezzi aggiornati!', 'success');
                 } catch (err) {

@@ -591,14 +591,11 @@ export async function deleteClosure(
     if (!confirmed) { return; }
 
     try {
-        // 1. Elimina dati correlati
-        await Promise.all([
-            supabase.from('shift_pistols').delete().eq('shift_id', closureId),
-            supabase.from('tank_pump_usages').delete().eq('shift_id', closureId)
-        ]);
+        // Use server-side RPC function for secure cascade delete
+        const { error } = await supabase.rpc('admin_delete_closure', {
+            closure_id: Number(closureId)
+        });
 
-        // 2. Elimina il record principale
-        const { error } = await supabase.from('shifts').delete().eq('id', closureId);
         if (error) { throw error; }
 
         (Toast as any).show('Chiusura eliminata con successo', 'success');
@@ -608,3 +605,4 @@ export async function deleteClosure(
         handleError(err as Error, 'deleteClosure');
     }
 }
+
