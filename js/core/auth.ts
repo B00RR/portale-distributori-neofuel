@@ -170,9 +170,9 @@ export function setupLoginForm(): void {
         try {
             showFullScreenLoader();
             const submitBtn = loginForm?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-            (setButtonLoading as any)(submitBtn, true, 'Accesso in corso...');
+            setButtonLoading(submitBtn, true, 'Accesso in corso...');
 
-            const { data: authData, error: authError } = await (supabase as any).auth.signInWithPassword({
+            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email: email,
                 password: password
             });
@@ -206,7 +206,7 @@ export function setupLoginForm(): void {
                 return;
             }
 
-            let { data: userData, error: userError } = await (supabase as any)
+            let { data: userData, error: userError } = await supabase
                 .from('users')
                 .select(`
                     *,
@@ -222,7 +222,7 @@ export function setupLoginForm(): void {
 
             if (!userData) {
                 console.warn('User not found via standard SELECT. Attempting Secure RPC lookup...');
-                const { data: rpcId, error: rpcError } = await (supabase as any).rpc('get_current_user_id');
+                const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
 
                 if (rpcId && !rpcError) {
                     userData = {
@@ -290,7 +290,7 @@ export function setupLoginForm(): void {
         } finally {
             hideFullScreenLoader();
             const submitBtn = loginForm?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-            (setButtonLoading as any)(submitBtn, false);
+            setButtonLoading(submitBtn, false);
         }
     });
 }
@@ -305,11 +305,11 @@ export async function loadSession(): Promise<LoggedUserData | null> {
             return null;
         }
 
-        const { data: { session }, error } = await (supabase as any).auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
         if (error || !session?.user) return null;
 
         const email = session.user.email;
-        let { data: userData } = await (supabase as any)
+        let { data: userData } = await supabase
             .from('users')
             .select(`
                 *,
@@ -323,7 +323,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
 
         if (!userData) {
             console.warn('Session User not found via SELECT. Attempting Secure RPC...');
-            const { data: rpcId, error: rpcError } = await (supabase as any).rpc('get_current_user_id');
+            const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
 
             if (rpcId && !rpcError) {
                 userData = {
@@ -371,7 +371,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
  */
 export async function clearSession(): Promise<void> {
     try {
-        const { error } = await (supabase as any).auth.signOut();
+        const { error } = await supabase.auth.signOut();
         if (error) {
             console.error('Errore nel logout:', error);
         }
@@ -404,20 +404,20 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
 
         localStorage.setItem('password_reset_email', email);
 
-        const { error } = await (supabase as any).auth.resetPasswordForEmail(email, {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
             redirectTo: redirectUrl
         });
 
         if (error) throw error;
 
-        (Toast as any).show('Email di reset password inviata! Usa il codice OTP a 6 cifre ricevuto via email.', 'success', 5000);
+        Toast.show('Email di reset password inviata! Usa il codice OTP a 6 cifre ricevuto via email.', 'success', 5000);
 
         showOTPResetForm();
 
         return { success: true };
     } catch (error: any) {
         console.error('Errore durante la richiesta di reset password:', error);
-        (Toast as any).show('Errore durante l\'invio dell\'email di reset password: ' + error.message, 'error');
+        Toast.show('Errore durante l\'invio dell\'email di reset password: ' + error.message, 'error');
         return { success: false, error: error.message };
     }
 }
@@ -476,13 +476,13 @@ export function showOTPResetForm(): void {
             const savedEmail = localStorage.getItem('password_reset_email');
 
             if (!savedEmail) {
-                const email = await (showPromptModal as any)('Inserisci la tua email per verificare il codice:', 'email@esempio.com', 'Email Richiesta');
+                const email = await showPromptModal('Inserisci la tua email per verificare il codice:', 'email@esempio.com', 'Email Richiesta');
                 if (!email) {
                     errorElement.textContent = 'Email richiesta per verificare il codice.';
                     return;
                 }
                 sessionStorage.setItem('password_reset_in_progress', 'true');
-                const { error } = await (supabase as any).auth.verifyOtp({ email: email, token: otpCode, type: 'recovery' });
+                const { error } = await supabase.auth.verifyOtp({ email: email, token: otpCode, type: 'recovery' });
                 if (error) {
                     errorElement.textContent = 'Codice non valido o scaduto: ' + error.message;
                     return;
@@ -492,7 +492,7 @@ export function showOTPResetForm(): void {
                 showResetPasswordForm();
             } else {
                 sessionStorage.setItem('password_reset_in_progress', 'true');
-                const { error } = await (supabase as any).auth.verifyOtp({ email: savedEmail, token: otpCode, type: 'recovery' });
+                const { error } = await supabase.auth.verifyOtp({ email: savedEmail, token: otpCode, type: 'recovery' });
                 if (error) {
                     errorElement.textContent = 'Codice non valido o scaduto: ' + error.message;
                     return;
@@ -569,15 +569,15 @@ export function showResetPasswordForm(): void {
         }
 
         try {
-            const { error } = await (supabase as any).auth.updateUser({ password: newPassword });
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
             if (error) {
                 errorElement.textContent = 'Errore durante l\'aggiornamento della password: ' + error.message;
                 return;
             }
             sessionStorage.removeItem('password_reset_in_progress');
             localStorage.removeItem('password_reset_session');
-            await (supabase as any).auth.signOut();
-            (Toast as any).show('Password aggiornata con successo! Ora puoi effettuare il login.', 'success');
+            await supabase.auth.signOut();
+            Toast.show('Password aggiornata con successo! Ora puoi effettuare il login.', 'success');
             window.location.href = window.location.pathname;
         } catch (err: any) {
             errorElement.textContent = 'Errore imprevisto: ' + err.message;

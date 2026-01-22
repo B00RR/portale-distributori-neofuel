@@ -83,7 +83,7 @@ async function initializeApp(): Promise<void> {
 
     // Configura callback login
     setOnLoginSuccess(async (user: LoggedUserData) => {
-        store.setUser(user as any);
+        store.setUser(user);
 
         // Track login event
         trackLogin(user.role);
@@ -100,7 +100,7 @@ async function initializeApp(): Promise<void> {
             if (stId) {
                 // Update the user object in store with the fresh station_id
                 const freshUser = { ...user, station_id: stId };
-                store.setUser(freshUser as any);
+                store.setUser(freshUser);
                 showOperatorMenu(String(user.id), stId);
             } else {
                 Toast.show('Nessuna stazione assegnata all\'utente', 'error');
@@ -122,7 +122,7 @@ async function initializeApp(): Promise<void> {
     const user = await loadSession();
     if (user) {
         setLoggedUser(user);
-        store.setUser(user as any);
+        store.setUser(user);
 
         const loginContainer = document.getElementById('login-container');
         const appContainer = document.getElementById('app-container');
@@ -145,7 +145,7 @@ async function initializeApp(): Promise<void> {
             if (stId) {
                 // Update the user object in store with the fresh station_id
                 const freshUser = { ...user, station_id: stId };
-                store.setUser(freshUser as any);
+                store.setUser(freshUser);
                 showOperatorMenu(String(user.id), stId);
             } else {
                 Toast.show('Nessuna stazione assegnata all\'utente', 'error');
