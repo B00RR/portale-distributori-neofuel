@@ -172,6 +172,11 @@ export function setupLoginForm(): void {
             const submitBtn = loginForm?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
             setButtonLoading(submitBtn, true, 'Accesso in corso...');
 
+            // Get UI containers for later use
+            const loginContainer = document.getElementById('login-container');
+            const appContainer = document.getElementById('app-container');
+
+
             const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email: email,
                 password: password
