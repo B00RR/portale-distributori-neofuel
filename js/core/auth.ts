@@ -254,28 +254,37 @@ export function setupLoginForm(): void {
 
                 if (dbUserData) {
                     userData = dbUserData;
-                    userData.id = authData.user.id;
+                    // Add Auth UUID if available, otherwise use user_id
+                    if (authData?.user) {
+                        userData.id = authData.user.id;
+                    } else {
+                        userData.id = userData.user_id?.toString() || userData.email;
+                    }
                 } else {
                     console.warn('User not found via standard SELECT. Attempting Secure RPC lookup...');
-                    const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
 
-                    if (rpcId && !rpcError) {
-                        userData = {
-                            id: authData.user.id,
-                            user_id: rpcId,
-                            email: authData.user.email,
-                            full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
-                            role: authData.user.user_metadata?.role || 'operator'
-                        };
-                    } else {
-                        console.error('RPC lookup failed:', rpcError);
-                        userData = {
-                            id: authData.user.id,
-                            user_id: authData.user.id,
-                            email: authData.user.email,
-                            full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
-                            role: authData.user.user_metadata?.role || 'operator'
-                        };
+                    // Only try RPC if we have authData.user
+                    if (authData?.user) {
+                        const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
+
+                        if (rpcId && !rpcError) {
+                            userData = {
+                                id: authData.user.id,
+                                user_id: rpcId,
+                                email: authData.user.email,
+                                full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
+                                role: authData.user.user_metadata?.role || 'operator'
+                            };
+                        } else {
+                            console.error('RPC lookup failed:', rpcError);
+                            userData = {
+                                id: authData.user.id,
+                                user_id: authData.user.id,
+                                email: authData.user.email,
+                                full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
+                                role: authData.user.user_metadata?.role || 'operator'
+                            };
+                        }
                     }
                 }
             }
