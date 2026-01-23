@@ -11,6 +11,13 @@ export const SUPABASE_KEY: string = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 // Validation: Fail fast if credentials are missing
 console.log('[CONFIG] Loading Supabase configuration...');
+console.log('[CONFIG] Debug info:', {
+    URL_EXISTS: !!import.meta.env.VITE_SUPABASE_URL,
+    KEY_EXISTS: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+    ALL_ENV_KEYS: Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')),
+    MODE: import.meta.env.MODE
+});
+
 if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.error(
         '[CONFIG] Missing Supabase credentials. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env'
