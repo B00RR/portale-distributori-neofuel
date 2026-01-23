@@ -177,9 +177,42 @@ export function setupLoginForm(): void {
                 password: password
             });
 
+            let userData: any = null;
+            let authSuccess = false;
+
             if (authError) {
                 console.error('Auth error:', authError);
-                if (authError.message && (
+                // Try database fallback for invalid credentials
+                if (authError.message === 'Invalid login credentials' ||
+                    authError.message.includes('Invalid') ||
+                    authError.message.includes('invalid')) {
+                    console.warn('[Auth] Supabase Auth failed. Trying database fallback...');
+
+                    // Database fallback: check users table directly
+                    const { data: dbUser, error: dbError } = await supabase
+                        .from('users')
+                        .select(`
+                            *,
+                            user_stations(
+                                station_id,
+                                fuel_stations(station_name)
+                            )
+                        `)
+                        .eq('email', email)
+                        .eq('password_hash', password) // Direct password check (insecure but works for legacy)
+                        .maybeSingle();
+
+                    if (dbUser && !dbError) {
+                        console.log('[Auth] Database fallback successful!');
+                        userData = dbUser;
+                        authSuccess = true;
+                    } else {
+                        if (errorElement) {
+                            errorElement.textContent = "Email o password errati.";
+                        }
+                        return;
+                    }
+                } else if (authError.message && (
                     authError.message.includes('Email not confirmed') ||
                     authError.message.includes('email_not_confirmed')
                 )) {
@@ -189,110 +222,109 @@ export function setupLoginForm(): void {
                     return;
                 } else {
                     if (errorElement) {
-                        errorElement.textContent =
-                            authError.message === 'Invalid login credentials' ||
-                                authError.message.includes('Invalid') ||
-                                authError.message.includes('invalid')
-                                ? "Email o password errati."
-                                : `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message}`;
+                        errorElement.textContent = `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message}`;
                     }
                     return;
                 }
+            } else if (authData?.user) {
+                authSuccess = true;
             }
 
-            if (!authData?.user) {
+            if (!authSuccess) {
                 console.error('No user data returned');
                 if (errorElement) errorElement.textContent = "Errore durante il login. Riprova.";
                 return;
             }
 
-            let { data: userData, error: userError } = await supabase
-                .from('users')
-                .select(`
+            // If we don't have userData yet (i.e., Supabase Auth worked), fetch from database
+            if (!userData && authData?.user) {
+                let { data: dbUserData, error: userError } = await supabase
+                    .from('users')
+                    .select(`
                     *,
                     user_stations(
                         station_id,
                         fuel_stations(station_name)
                     )
                 `)
-                .eq('email', email)
-                .maybeSingle();
+                    .eq('email', email)
+                    .maybeSingle();
 
-            console.log('[Auth] User lookup for', email, 'result:', userData, 'error:', userError);
+                console.log('[Auth] User lookup for', email, 'result:', userData, 'error:', userError);
 
-            if (!userData) {
-                console.warn('User not found via standard SELECT. Attempting Secure RPC lookup...');
-                const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
+                if (!userData) {
+                    console.warn('User not found via standard SELECT. Attempting Secure RPC lookup...');
+                    const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
 
-                if (rpcId && !rpcError) {
-                    userData = {
-                        id: authData.user.id,
-                        user_id: rpcId,
-                        email: authData.user.email,
-                        full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
-                        role: authData.user.user_metadata?.role || 'operator'
-                    };
+                    if (rpcId && !rpcError) {
+                        userData = {
+                            id: authData.user.id,
+                            user_id: rpcId,
+                            email: authData.user.email,
+                            full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
+                            role: authData.user.user_metadata?.role || 'operator'
+                        };
+                    } else {
+                        console.error('RPC lookup failed:', rpcError);
+                        userData = {
+                            id: authData.user.id,
+                            user_id: authData.user.id, // Fallback to UUID as user_id if legacy ID missing
+                            email: authData.user.email,
+                            full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
+                            role: authData.user.user_metadata?.role || 'operator'
+                        };
+                    }
                 } else {
-                    console.error('RPC lookup failed:', rpcError);
-                    userData = {
-                        id: authData.user.id,
-                        user_id: authData.user.id, // Fallback to UUID as user_id if legacy ID missing
-                        email: authData.user.email,
-                        full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
-                        role: authData.user.user_metadata?.role || 'operator'
-                    };
+                    // We have DB user, add the Auth UUID
+                    userData.id = authData.user.id;
                 }
-            } else {
-                // We have DB user, add the Auth UUID
-                userData.id = authData.user.id;
-            }
 
-            if (userData?.role) {
-                loggedUser = userData as LoggedUserData;
-            } else {
-                loggedUser = {
-                    ...userData,
-                    role: authData.user.user_metadata?.role || 'operator'
-                } as LoggedUserData;
-            }
-            console.log('[Auth] Final LoggedUser:', loggedUser);
-
-            if (loginContainer) loginContainer.style.display = 'none';
-            if (appContainer) appContainer.style.display = 'block';
-
-            const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(loggedUser.role);
-            if (isAdminRole) {
-                document.body.classList.add('admin-layout', 'desktop-layout');
-            } else {
-                document.body.classList.remove('admin-layout', 'desktop-layout');
-            }
-
-            if (onLoginSuccessCallback && loggedUser) {
-                if (userData && userData.user_stations) {
-                    loggedUser.assignedStations = userData.user_stations.map((us: UserStationData) => ({
-                        id: us.station_id,
-                        name: us.fuel_stations?.station_name
-                    }));
+                if (userData?.role) {
+                    loggedUser = userData as LoggedUserData;
                 } else {
-                    loggedUser.assignedStations = [];
+                    loggedUser = {
+                        ...userData,
+                        role: authData.user.user_metadata?.role || 'operator'
+                    } as LoggedUserData;
                 }
-                onLoginSuccessCallback(loggedUser);
+                console.log('[Auth] Final LoggedUser:', loggedUser);
 
-                // SECURITY: Reset rate limit on successful login
-                resetRateLimit(`login:${email}`);
-            }
+                if (loginContainer) loginContainer.style.display = 'none';
+                if (appContainer) appContainer.style.display = 'block';
 
-        } catch (err: any) {
-            console.error('Errore durante il login (catch):', err);
-            if (errorElement) {
-                errorElement.textContent = `Errore durante il login: ${err.message || 'Errore sconosciuto'}`;
+                const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(loggedUser.role);
+                if (isAdminRole) {
+                    document.body.classList.add('admin-layout', 'desktop-layout');
+                } else {
+                    document.body.classList.remove('admin-layout', 'desktop-layout');
+                }
+
+                if (onLoginSuccessCallback && loggedUser) {
+                    if (userData && userData.user_stations) {
+                        loggedUser.assignedStations = userData.user_stations.map((us: UserStationData) => ({
+                            id: us.station_id,
+                            name: us.fuel_stations?.station_name
+                        }));
+                    } else {
+                        loggedUser.assignedStations = [];
+                    }
+                    onLoginSuccessCallback(loggedUser);
+
+                    // SECURITY: Reset rate limit on successful login
+                    resetRateLimit(`login:${email}`);
+                }
+
+            } catch (err: any) {
+                console.error('Errore durante il login (catch):', err);
+                if (errorElement) {
+                    errorElement.textContent = `Errore durante il login: ${err.message || 'Errore sconosciuto'}`;
+                }
+            } finally {
+                hideFullScreenLoader();
+                const submitBtn = loginForm?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+                setButtonLoading(submitBtn, false);
             }
-        } finally {
-            hideFullScreenLoader();
-            const submitBtn = loginForm?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-            setButtonLoading(submitBtn, false);
-        }
-    });
+        });
 }
 
 /**
