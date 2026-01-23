@@ -109,6 +109,12 @@ textarea:focus {
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
+/* Accessibility: Show focus ring only for keyboard navigation */
+:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+}
+
 .form-group {
     margin-bottom: 16px;
 }

@@ -134,8 +134,8 @@ export default defineConfig({
         target: 'es2022',
         outDir: 'dist',
         assetsDir: 'assets',
-        sourcemap: false,
-        minify: false,
+        sourcemap: true, // Useful for debugging errors in production
+        minify: 'esbuild', // Enable minification for production
         chunkSizeWarningLimit: 500,
         cssCodeSplit: true
     },
