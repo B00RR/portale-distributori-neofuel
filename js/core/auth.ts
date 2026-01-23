@@ -291,8 +291,14 @@ export function setupLoginForm(): void {
                 window.history.replaceState({}, document.title, cleanUrl);
             }
 
-            if (loginContainer) loginContainer.style.display = 'none';
-            if (appContainer) appContainer.style.display = 'block';
+            if (loginContainer) {
+                loginContainer.style.display = 'none';
+                loginContainer.classList.add('hidden');
+            }
+            if (appContainer) {
+                appContainer.classList.remove('hidden');
+                appContainer.style.display = 'block';
+            }
 
             const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(loggedUser.role);
             if (isAdminRole) {
