@@ -178,41 +178,12 @@ export function setupLoginForm(): void {
             });
 
             let userData: any = null;
-            let authSuccess = false;
 
             if (authError) {
                 console.error('Auth error:', authError);
-                // Try database fallback for invalid credentials
-                if (authError.message === 'Invalid login credentials' ||
-                    authError.message.includes('Invalid') ||
-                    authError.message.includes('invalid')) {
-                    console.warn('[Auth] Supabase Auth failed. Trying database fallback...');
 
-                    // Database fallback: check users table directly
-                    const { data: dbUser, error: dbError } = await supabase
-                        .from('users')
-                        .select(`
-                            *,
-                            user_stations(
-                                station_id,
-                                fuel_stations(station_name)
-                            )
-                        `)
-                        .eq('email', email)
-                        .eq('password_hash', password) // Direct password check (insecure but works for legacy)
-                        .maybeSingle();
-
-                    if (dbUser && !dbError) {
-                        console.log('[Auth] Database fallback successful!');
-                        userData = dbUser;
-                        authSuccess = true;
-                    } else {
-                        if (errorElement) {
-                            errorElement.textContent = "Email o password errati.";
-                        }
-                        return;
-                    }
-                } else if (authError.message && (
+                // Email not confirmed error
+                if (authError.message && (
                     authError.message.includes('Email not confirmed') ||
                     authError.message.includes('email_not_confirmed')
                 )) {
@@ -220,24 +191,27 @@ export function setupLoginForm(): void {
                         errorElement.textContent = "Email non confermata. Contatta l'amministratore per la convalida.";
                     }
                     return;
-                } else {
-                    if (errorElement) {
-                        errorElement.textContent = `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message}`;
-                    }
-                    return;
                 }
-            } else if (authData?.user) {
-                authSuccess = true;
+
+                // Invalid credentials or other errors - NO DATABASE FALLBACK
+                if (errorElement) {
+                    errorElement.textContent = authError.message === 'Invalid login credentials' ||
+                        authError.message.includes('Invalid') ||
+                        authError.message.includes('invalid')
+                        ? "Email o password errati."
+                        : `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message}`;
+                }
+                return;
             }
 
-            if (!authSuccess) {
+            if (!authData?.user) {
                 console.error('No user data returned');
                 if (errorElement) errorElement.textContent = "Errore durante il login. Riprova.";
                 return;
             }
 
-            // If we don't have userData yet (i.e., Supabase Auth worked), fetch from database
-            if (!userData && authData?.user) {
+            // Fetch user data from database using authenticated user's email
+            if (authData?.user) {
                 let { data: dbUserData, error: userError } = await supabase
                     .from('users')
                     .select(`
