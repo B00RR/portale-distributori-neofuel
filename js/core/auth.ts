@@ -306,6 +306,12 @@ export function setupLoginForm(): void {
             }
             console.log('[Auth] Final LoggedUser:', loggedUser);
 
+            // SECURITY: Clean URL to remove any credentials that may have leaked
+            if (window.location.search || window.location.hash) {
+                const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+
             if (loginContainer) loginContainer.style.display = 'none';
             if (appContainer) appContainer.style.display = 'block';
 
