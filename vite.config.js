@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { VitePWA } from 'vite-plugin-pwa';
