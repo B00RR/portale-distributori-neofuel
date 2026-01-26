@@ -4,7 +4,6 @@ import { handleError } from '../shared/error-handler.js';
 import { store } from '../shared/state.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
-// @ts-ignore
 import {
     fetchClosureExportData,
     generateClosureExcel,
@@ -165,7 +164,7 @@ export async function showChiusureTab(
             // Re-render pagination with new count
             pagination.render();
 
-            const filteredClosures: Shift[] = (closures as any[]) || [];
+            const filteredClosures: Shift[] = (closures as unknown as Shift[]) || [];
 
             if (filteredClosures.length === 0) {
                 dataContainer.innerHTML = '<p>Nessuna chiusura trovata.</p>';
