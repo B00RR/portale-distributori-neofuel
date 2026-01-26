@@ -937,7 +937,7 @@ async function handleDeleteBatch(batchId: string): Promise<void> {
     }
 }
 
-import QRCode from 'qrcode';
+
 
 export async function openPrintView(batchId: string | undefined): Promise<void> {
     if (!batchId) return;
@@ -984,6 +984,16 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
     const frontBg = 'assets/templates/template_voucher_pagina 1.jpg';
     const backBg = 'assets/templates/template_voucher_pagina 2.jpg';
 
+    // Dynamic import to avoid startup crashes if bundling fails
+    let QRCode: any;
+    try {
+        // @ts-ignore
+        const module = await import('qrcode');
+        QRCode = module.default || module;
+    } catch (e) {
+        console.error('Failed to load QRCode library', e);
+    }
+
     // 1. Pre-build HTML content in the main thread (Safest)
     let pagesHtml = '';
 
@@ -994,22 +1004,25 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
 
         // Generate all QR Codes in parallel first
         const qrCodeMap: Record<string, string> = {};
-        await Promise.all(vouchers.map(async (v) => {
-            try {
-                qrCodeMap[v.code] = await QRCode.toDataURL(v.code, {
-                    errorCorrectionLevel: 'H',
-                    margin: 0,
-                    width: 160,
-                    color: {
-                        dark: '#000000',
-                        light: '#ffffff00' // Transparent background
-                    }
-                });
-            } catch (err) {
-                console.error('QR Generation failed for', v.code, err);
-                qrCodeMap[v.code] = ''; // Handle gracefully
-            }
-        }));
+
+        if (QRCode) {
+            await Promise.all(vouchers.map(async (v) => {
+                try {
+                    qrCodeMap[v.code] = await QRCode.toDataURL(v.code, {
+                        errorCorrectionLevel: 'H',
+                        margin: 0,
+                        width: 160,
+                        color: {
+                            dark: '#000000',
+                            light: '#ffffff00' // Transparent background
+                        }
+                    });
+                } catch (err) {
+                    console.error('QR Generation failed for', v.code, err);
+                    qrCodeMap[v.code] = ''; // Handle gracefully
+                }
+            }));
+        }
 
         for (let i = 0; i < vouchers.length; i += chunkSize) {
             const chunk = vouchers.slice(i, i + chunkSize);
@@ -1112,6 +1125,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                             z-index: 10;
                             letter-spacing: 2px;
                             text-transform: uppercase; 
+                            /* STICKER EFFECT: 1px White Border + 5px Blue Shadow */
                             text-shadow: 
                                 -1px -1px 0 #fff,  
                                  1px -1px 0 #fff,
