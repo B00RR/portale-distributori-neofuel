@@ -563,4 +563,160 @@ export const UI_SETTINGS_STYLES = `
         width: 100%;
       }
     }
+
+    /* ============================================
+       BUSINESS LOGIC SECTION (PREMIUM)
+       ============================================ */
+    .ui-business-rules-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .ui-business-rule-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        display: flex;
+        gap: 20px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ui-business-rule-card:hover {
+        border-color: var(--accent-color);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-4px);
+    }
+
+    .ui-rule-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: rgba(var(--accent-rgb, 141, 198, 63), 0.1);
+        color: var(--accent-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .ui-rule-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .ui-rule-label {
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .ui-rule-desc {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .ui-rule-control {
+        margin-top: 12px;
+    }
+
+    .ui-number-input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-body);
+        padding: 8px 12px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        transition: border-color 0.2s;
+    }
+
+    .ui-number-input-wrapper:focus-within {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(10, 35, 66, 0.1);
+    }
+
+    .ui-rule-input {
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        font-weight: 600;
+        font-size: 1rem;
+        width: 100%;
+        outline: none;
+    }
+
+    .ui-input-unit {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        background: var(--border-color);
+        padding: 2px 8px;
+        border-radius: 4px;
+    }
+
+    .ui-toggle {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 24px;
+    }
+
+    .ui-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .ui-toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--border-color);
+        transition: .4s;
+        border-radius: 24px;
+    }
+
+    .ui-toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    input:checked + .ui-toggle-slider {
+        background-color: var(--accent-color);
+    }
+
+    input:checked + .ui-toggle-slider:before {
+        transform: translateX(24px);
+    }
+
+    .ui-rule-actions {
+        margin-top: 32px;
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 24px;
+        border-top: 1px solid var(--border-color);
+    }
 `;

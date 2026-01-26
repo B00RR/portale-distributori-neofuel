@@ -5,6 +5,7 @@ import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal } from '../ui/ui.js';
 import { escapeHtml, escapeNumber } from '../utils/utils.js';
+import { BusinessLogicManager } from '../core/business-logic-manager.js';
 
 // --- INTERFACES ---
 
@@ -81,6 +82,12 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
                 const gasolio = parseFloat(fd.get('gasolio')?.toString() || '0') || 0;
 
                 try {
+                    // Business Logic Guardrail: Price Ceiling
+                    const rules = await BusinessLogicManager.loadRules();
+                    if (benzina > rules.max_price_limit || gasolio > rules.max_price_limit) {
+                        Toast.show(`Il prezzo non può superare il tetto di sicurezza di €${rules.max_price_limit.toFixed(2)}`, 'warning');
+                        return;
+                    }
                     // Use server-side RPC function for secure price update
                     const { error } = await supabase.rpc('admin_update_price', {
                         p_station_id: Number(stationId),

@@ -6,6 +6,8 @@ import { Toast } from '../toast.js';
 import { formatEuro } from '../../utils/utils.js';
 import { Pistola, Island, Shift } from '../../types.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
+import { BusinessLogicManager } from '../../core/business-logic-manager.js';
+import { type BusinessRules, DEFAULT_BUSINESS_RULES } from '../../core/business-rules-schema.js';
 
 interface ClosureWizardState {
     step: 1 | 2 | 3;
@@ -50,6 +52,7 @@ export class ClosureWizard extends BaseComponent {
     // UI State
     @state() private closureType: 'partial' | 'final' = 'final';
     @state() private includeCounters: boolean = true;
+    @state() private businessRules: BusinessRules = DEFAULT_BUSINESS_RULES;
 
     static override styles: CSSResultGroup = [
         BaseComponent.styles,
@@ -230,11 +233,12 @@ export class ClosureWizard extends BaseComponent {
             }
             this.activeOpening = shiftResult as unknown as Shift;
 
-            const [islandsRes, prezziRes, configRes, countersRes] = await Promise.all([
+            const [islandsRes, prezziRes, configRes, countersRes, rules] = await Promise.all([
                 supabase.from('islands').select('island_id, nome, island_name').eq('station_id', this.stationId).order('island_id'),
                 supabase.from('prezzi_distributore').select('*').eq('station_id', this.stationId).order('data_validita', { ascending: false }).limit(1).maybeSingle(),
                 supabase.from('fuel_stations').select('allow_partial_closure').eq('station_id', this.stationId).single(),
-                supabase.from('shift_pistols').select('pistola_id, opened_at_counter').eq('shift_id', this.activeOpening.id)
+                supabase.from('shift_pistols').select('pistola_id, opened_at_counter').eq('shift_id', this.activeOpening.id),
+                BusinessLogicManager.loadRules()
             ]);
 
             if (islandsRes.error) throw islandsRes.error;
@@ -247,6 +251,7 @@ export class ClosureWizard extends BaseComponent {
 
             this.prezzi = prezziRes.data;
             this.stationConfig = configRes.data;
+            this.businessRules = rules;
 
             const islandIds = this.islands.map(i => i.island_id);
             const { data: pData, error: pError } = await supabase
@@ -429,14 +434,28 @@ export class ClosureWizard extends BaseComponent {
     private renderStep3(): TemplateResult {
         const totalIncassi = (Number(this.selfCashIn) - Number(this.selfCashOut)) + Number(this.operatorCash) + Number(this.selfPos) + Number(this.operatorPos) + Number(this.selfFleet) + Number(this.operatorUta);
         const discrepancy = totalIncassi - this.ricavoTeorico;
-        const isValid = Math.abs(discrepancy) < 50;
+        const absDiscrepancy = Math.abs(discrepancy);
+        const isWarning = absDiscrepancy > this.businessRules.cash_error_threshold;
+        const isCritical = absDiscrepancy > this.businessRules.critical_discrepancy_alert;
+
         if (this.wizardState.mode === 'submitting') return html`<div style="text-align:center; padding: 3rem;"><i class="fas fa-spinner fa-spin fa-3x mb-4"></i><p>Salvataggio...</p></div>`;
         return html`
             <div class="section-title">Step 3: Conferma</div>
+            
+            ${isWarning ? html`
+                <div style="background: ${isCritical ? '#fef2f2' : '#fffbeb'}; border: 1px solid ${isCritical ? '#fecaca' : '#fef3c7'}; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; color: ${isCritical ? '#991b1b' : '#92400e'}; display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fas ${isCritical ? 'fa-exclamation-circle' : 'fa-exclamation-triangle'} fa-lg"></i>
+                    <div>
+                        <strong>Attenzione: Discrepanza Rilevata</strong><br>
+                        La differenza di ${formatEuro(discrepancy)} supera la soglia consentita di ${formatEuro(this.businessRules.cash_error_threshold)}.
+                    </div>
+                </div>
+            ` : ''}
+
             <div style="background: #f8fafc; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid #e2e8f0;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;"><span>Teorico:</span><strong>${formatEuro(this.ricavoTeorico)}</strong></div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;"><span>Reale:</span><strong>${formatEuro(totalIncassi)}</strong></div>
-                <div style="display: flex; justify-content: space-between; font-size: 1.25rem;"><span>Differenza:</span><strong style="color: ${isValid ? '#059669' : '#dc2626'};">${formatEuro(discrepancy)}</strong></div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.25rem;"><span>Differenza:</span><strong style="color: ${!isWarning ? '#059669' : isCritical ? '#dc2626' : '#d97706'};">${formatEuro(discrepancy)}</strong></div>
             </div>
             <div class="btn-group">
                 <button class="btn btn-secondary" @click=${() => this.wizardState = { ...this.wizardState, step: 2 }}>Indietro</button>

@@ -5,8 +5,8 @@ import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
-import { loadDashboardConfig, saveDashboardConfig } from './dashboard-config.js';
 import { renderKpiCards, KPIData } from './dashboard-helpers.js';
+import { BusinessLogicManager } from '../core/business-logic-manager.js';
 
 // Global libraries types (assumed loaded via CDN or scripts)
 declare global {
@@ -44,7 +44,8 @@ export async function showDashboard(
             operatorsRes,
             closuresRes,
             tanksRes,
-            todayClosuresRes
+            todayClosuresRes,
+            businessRules
         ] = await Promise.all([
             // 1. Stations Count
             stationId
@@ -78,7 +79,10 @@ export async function showDashboard(
                     .eq('status', 'closed');
                 if (stationId) { q = q.eq('station_id', stationId); }
                 return q;
-            })()
+            })(),
+
+            // 6. Business Rules
+            BusinessLogicManager.loadRules()
         ]);
 
         // EXTRACT RESULTS
@@ -126,10 +130,14 @@ export async function showDashboard(
 
                 let levelClass = 'tank-level-ok';
                 let statusLabel = '(OK)';
-                if (levelPerc < 10) {
+
+                // Logic based on dynamic business rule (fuel_reserve_alert_liters)
+                // If liters < businessRules.fuel_reserve_alert_liters => CRIT
+                // If liters < businessRules.fuel_reserve_alert_liters * 1.5 => LOW (pre-warning)
+                if (liters < businessRules.fuel_reserve_alert_liters) {
                     levelClass = 'tank-level-crit';
                     statusLabel = '(CRIT)';
-                } else if (levelPerc < 30) {
+                } else if (liters < businessRules.fuel_reserve_alert_liters * 1.5) {
                     levelClass = 'tank-level-low';
                     statusLabel = '(LOW)';
                 }

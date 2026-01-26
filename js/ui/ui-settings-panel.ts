@@ -16,9 +16,11 @@ import {
   OPERATOR_LAYOUT_FIELDS,
   PREDEFINED_THEMES,
   DEFAULT_SETTINGS,
-  UiField
+  UiField,
+  BUSINESS_LOGIC_FIELDS
 } from './ui-settings-constants.js';
 import { UI_SETTINGS_STYLES } from './ui-settings-styles.js';
+import { BusinessLogicManager } from '../core/business-logic-manager.js';
 
 let cachedSettings: Record<string, string> | null = null;
 
@@ -391,6 +393,10 @@ async function renderAppearancePanel(panel: HTMLElement): Promise<void> {
           <i class="fas fa-chart-line"></i>
           <span>Dashboard</span>
         </button>
+        <button class="ui-appearance-tab" data-appearance-section="business-logic">
+          <i class="fas fa-briefcase"></i>
+          <span>Logica Business</span>
+        </button>
         <button class="ui-appearance-tab" data-appearance-section="advanced">
           <i class="fas fa-cog"></i>
           <span>Avanzate</span>
@@ -459,6 +465,19 @@ async function renderAppearancePanel(panel: HTMLElement): Promise<void> {
         <div class="ui-appearance-section" data-appearance-section-content="dashboard">
         </div>
 
+        <div class="ui-appearance-section" data-appearance-section-content="business-logic">
+          <div class="ui-section-box">
+             <h4 class="ui-section-title">
+               <i class="fas fa-briefcase"></i>
+               <span>Regole di Business</span>
+             </h4>
+             <p class="ui-section-hint">Configura le soglie di sicurezza e le policy operative della stazione.</p>
+             <div class="ui-business-logic-wrapper" id="business-rules-container">
+                <p class="ui-loading-hint">Caricamento regole dal vault...</p>
+             </div>
+          </div>
+        </div>
+
         <div class="ui-appearance-section" data-appearance-section-content="advanced">
           ${renderAdvancedSection(settings)}
         </div>
@@ -493,7 +512,12 @@ async function renderAppearancePanel(panel: HTMLElement): Promise<void> {
       panel.querySelectorAll('.ui-appearance-tab').forEach((t) => t.classList.remove('active'));
       panel.querySelectorAll('.ui-appearance-section').forEach((s) => s.classList.remove('active'));
       tab.classList.add('active');
-      panel.querySelector(`[data-appearance-section-content="${section}"]`)?.classList.add('active');
+      const sectionContent = panel.querySelector(`[data-appearance-section-content="${section}"]`);
+      sectionContent?.classList.add('active');
+
+      if (section === 'business-logic') {
+        renderBusinessLogicFields(panel.querySelector('#business-rules-container') as HTMLElement);
+      }
     });
   });
 
@@ -1328,6 +1352,89 @@ function injectStyles(): void {
   style.id = 'ui-appearance-style';
   style.textContent = UI_SETTINGS_STYLES;
   document.head.appendChild(style);
+}
+
+/**
+ * Render Business Logic Section
+ */
+async function renderBusinessLogicFields(container: HTMLElement): Promise<void> {
+  if (!container) return;
+
+  try {
+    container.innerHTML = '<p class="ui-loading-hint"><i class="fas fa-spinner fa-spin"></i> Sincronizzazione con il vault...</p>';
+
+    const rules = await BusinessLogicManager.loadRules();
+
+    let html = '<div class="ui-business-rules-grid">';
+
+    BUSINESS_LOGIC_FIELDS.forEach(field => {
+      const value = (rules as any)[field.key] ?? field.defaultValue;
+
+      html += `
+                <div class="ui-business-rule-card">
+                    <div class="ui-rule-icon">
+                        <i class="${field.icon || 'fas fa-cog'}"></i>
+                    </div>
+                    <div class="ui-rule-content">
+                        <label class="ui-rule-label">${field.label}</label>
+                        <p class="ui-rule-desc">${field.description}</p>
+                        <div class="ui-rule-control">
+                            ${field.type === 'number' ? `
+                                <div class="ui-number-input-wrapper">
+                                    <input type="number" step="any" name="br_${field.key}" value="${value}" class="ui-rule-input" />
+                                    ${field.unit ? `<span class="ui-input-unit">${field.unit}</span>` : ''}
+                                </div>
+                            ` : field.type === 'boolean' ? `
+                                <label class="ui-toggle">
+                                    <input type="checkbox" name="br_${field.key}" ${value ? 'checked' : ''} />
+                                    <span class="ui-toggle-slider"></span>
+                                </label>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+    });
+
+    html += '</div>';
+    html += `
+            <div class="ui-rule-actions">
+                <button type="button" class="menu-button primary" id="save-business-rules-btn">
+                    <i class="fas fa-save"></i> Salva Regole Operative
+                </button>
+            </div>
+        `;
+
+    container.innerHTML = html;
+
+    // Setup Submit Handler
+    const saveBtn = container.querySelector('#save-business-rules-btn');
+    saveBtn?.addEventListener('click', async () => {
+      const payload: any = {};
+      BUSINESS_LOGIC_FIELDS.forEach(field => {
+        const el = container.querySelector(`[name="br_${field.key}"]`) as HTMLInputElement;
+        if (el) {
+          if (field.type === 'number') {
+            payload[field.key] = parseFloat(el.value);
+          } else if (field.type === 'boolean') {
+            payload[field.key] = el.checked;
+          }
+        }
+      });
+
+      try {
+        saveBtn.classList.add('pending');
+        await BusinessLogicManager.saveRules(payload);
+      } catch (err) {
+        // Toast shown by manager
+      } finally {
+        saveBtn.classList.remove('pending');
+      }
+    });
+
+  } catch (err) {
+    container.innerHTML = `<p class="ui-error-hint">Errore nel caricamento delle regole: ${err}</p>`;
+  }
 }
 
 // Inizializzazione

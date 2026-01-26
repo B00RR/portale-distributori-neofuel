@@ -3,6 +3,7 @@ import { supabase } from '../core/api.js';
 import { handleError } from '../shared/error-handler.js';
 import { store } from '../shared/state.js';
 import { Toast } from '../ui/toast.js';
+import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { showLoadingMessage, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import {
     fetchClosureExportData,
@@ -130,6 +131,9 @@ export async function showChiusureTab(
         showLoadingMessage(dataContainer);
 
         try {
+            // Load business rules
+            const businessRules = await BusinessLogicManager.loadRules();
+
             // Build Query
             let query = supabase.from('shifts')
                 .select(`
@@ -193,6 +197,18 @@ export async function showChiusureTab(
                 const operatorName = c.users?.full_name || `#${c.operator_id}`;
                 const closingData = c.closing_data || {};
                 const isFinal = c.status === 'closed' || closingData.is_final === true;
+
+                // Stale Shift Logic
+                let staleIndicator = '';
+                if (!isFinal) {
+                    const createdAt = new Date(c.created_at).getTime();
+                    const now = new Date().getTime();
+                    const hoursOpen = (now - createdAt) / (1000 * 60 * 60);
+                    if (hoursOpen > businessRules.force_close_hours_threshold) {
+                        staleIndicator = `<span class="badge badge-danger" style="margin-left: 5px;" title="Turno aperto da oltre ${businessRules.force_close_hours_threshold} ore">STALE</span>`;
+                    }
+                }
+
                 const closureType = isFinal ? 'Finale' : 'Parziale';
                 const closureClass = isFinal ? 'badge-success' : 'badge-warning';
                 const totalValue = closingData.ricavo_teorico || closingData.totale_atteso || 0;
@@ -203,7 +219,7 @@ export async function showChiusureTab(
                   <td>${dateStr}</td>
                   <td>${escapeHtml(stationName)}</td>
                   <td>${escapeHtml(operatorName)}</td>
-                  <td><span class="badge ${closureClass}">${closureType}</span></td>
+                  <td><span class="badge ${closureClass}">${closureType}</span>${staleIndicator}</td>
                   <td>${total}</td>
                   <td>
                     <button class="icon-btn view-closure" data-id="${c.id}" title="Dettagli"><i class="fas fa-eye"></i></button>
