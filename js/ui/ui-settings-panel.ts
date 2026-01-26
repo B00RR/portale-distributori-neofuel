@@ -5,38 +5,52 @@
 
 import { BUSINESS_LOGIC_FIELDS } from './ui-settings-constants.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
+import { loadDashboardConfig, saveDashboardConfig, KPI_CATALOG } from '../admin/dashboard-config.js';
 
 export async function renderSettingsPanel(container: HTMLElement): Promise<void> {
   if (!container) return;
 
-  // Render Header
+  // Render Skeleton Structure
   container.innerHTML = `
     <div class="settings-header mb-4">
       <h2>Impostazioni Applicazione</h2>
-      <p class="text-secondary">Configura le regole operative e le soglie di sicurezza.</p>
+      <p class="text-secondary">Configura le regole operative e i KPI della dashboard.</p>
     </div>
-    <div id="business-rules-grid" class="d-flex gap-3" style="flex-wrap: wrap; display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
-        <!-- Cards will be injected here -->
+
+    <!-- BUSINESS RULES SECTION -->
+    <h3 class="mb-3" style="font-size: 1.1rem; color: var(--primary-color);">Regole Operative</h3>
+    <div id="business-rules-grid" class="d-flex gap-3 mb-5" style="flex-wrap: wrap; display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
         <p class="ui-loading-hint"><i class="fas fa-spinner fa-spin"></i> Caricamento impostazioni...</p>
     </div>
-    <div class="mt-4 text-right">
-        <button type="button" class="menu-button primary" id="save-business-rules-btn">
-            <i class="fas fa-save"></i> Salva Modifiche
+
+    <!-- DASHBOARD CONFIG SECTION -->
+    <h3 class="mb-3" style="font-size: 1.1rem; color: var(--primary-color);">Personalizzazione Dashboard</h3>
+    <div id="dashboard-config-grid" class="d-flex gap-3 mb-5" style="flex-wrap: wrap; display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
+        <p class="ui-loading-hint"><i class="fas fa-spinner fa-spin"></i> Caricamento configurazione dashboard...</p>
+    </div>
+
+    <div class="mt-4 text-right" style="position: sticky; bottom: 20px; background: var(--bg-body); padding: 15px; border-top: 1px solid var(--border-color); z-index: 10;">
+        <button type="button" class="menu-button primary" id="save-settings-btn">
+            <i class="fas fa-save"></i> Salva Tutto
         </button>
     </div>
   `;
 
-  const grid = container.querySelector('#business-rules-grid') as HTMLElement;
-  if (!grid) return;
+  const rulesGrid = container.querySelector('#business-rules-grid') as HTMLElement;
+  const dashGrid = container.querySelector('#dashboard-config-grid') as HTMLElement;
 
   try {
-    const rules = await BusinessLogicManager.loadRules();
-    let cardsHtml = '';
+    // Parallel Fetch
+    const [rules, dashConfig] = await Promise.all([
+      BusinessLogicManager.loadRules(),
+      loadDashboardConfig()
+    ]);
 
+    // 1. RENDER BUSINESS RULES
+    let rulesHtml = '';
     BUSINESS_LOGIC_FIELDS.forEach(field => {
       const value = (rules as any)[field.key] ?? field.defaultValue;
 
-      // Determine input HTML based on type
       let inputHtml = '';
       if (field.type === 'number') {
         inputHtml = `
@@ -54,7 +68,7 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
         `;
       }
 
-      cardsHtml += `
+      rulesHtml += `
         <div class="card" style="display: flex; flex-direction: column; height: 100%;">
             <div class="card-header" style="border-bottom: none; padding-bottom: 0;">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
@@ -73,44 +87,102 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
         </div>
       `;
     });
+    rulesGrid.innerHTML = rulesHtml || '<p>Nessuna impostazione disponibile.</p>';
 
-    grid.innerHTML = cardsHtml || '<p>Nessuna impostazione disponibile.</p>';
 
-    // Setup Submit Handler
-    const saveBtn = container.querySelector('#save-business-rules-btn');
+    // 2. RENDER DASHBOARD KPI SELECTOR
+    // Sort items by current order to keep logic consistent
+    const sortedKpis = dashConfig.kpiLayout.sort((a, b) => a.order - b.order);
+
+    let kpiListHtml = '';
+    sortedKpis.forEach(item => {
+      const meta = KPI_CATALOG[item.id];
+      if (!meta) return;
+
+      kpiListHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--bg-body); border-radius: 8px; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas ${meta.icon} text-secondary"></i>
+                    <div>
+                        <strong>${meta.title}</strong>
+                        <p style="font-size: 0.8em; margin: 0; color: var(--text-secondary);">${meta.description}</p>
+                    </div>
+                </div>
+                <label class="ui-toggle" style="cursor: pointer;">
+                    <input type="checkbox" name="kpi_${item.id}" ${item.visible ? 'checked' : ''} style="width: 18px; height: 18px;" />
+                </label>
+            </div>
+        `;
+    });
+
+    dashGrid.innerHTML = `
+        <div class="card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <h4 class="card-title"><i class="fas fa-eye"></i> Visibilità KPI Dashboard</h4>
+                <p class="text-secondary" style="font-size: 0.9em;">Seleziona quali metriche mostrare nella schermata principale.</p>
+            </div>
+            <div class="card-body">
+                ${kpiListHtml}
+            </div>
+        </div>
+    `;
+
+    // 3. HANDLE SAVE
+    const saveBtn = container.querySelector('#save-settings-btn');
     saveBtn?.addEventListener('click', async () => {
-      const payload: any = {};
-      BUSINESS_LOGIC_FIELDS.forEach(field => {
-        const el = container.querySelector(`[name="br_${field.key}"]`) as HTMLInputElement;
-        if (el) {
-          if (field.type === 'number') {
-            payload[field.key] = parseFloat(el.value);
-          } else if (field.type === 'boolean') {
-            payload[field.key] = el.checked;
-          }
-        }
-      });
+      const btn = saveBtn as HTMLButtonElement;
+      const originalText = btn.innerHTML;
 
       try {
-        const btn = saveBtn as HTMLButtonElement;
-        const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
 
-        await BusinessLogicManager.saveRules(payload);
+        // A. Collect Business Rules
+        const rulesPayload: any = {};
+        BUSINESS_LOGIC_FIELDS.forEach(field => {
+          const el = container.querySelector(`[name="br_${field.key}"]`) as HTMLInputElement;
+          if (el) {
+            if (field.type === 'number') {
+              rulesPayload[field.key] = parseFloat(el.value);
+            } else if (field.type === 'boolean') {
+              rulesPayload[field.key] = el.checked;
+            }
+          }
+        });
+
+        // B. Collect Dashboard Config (update visibility in existing layout)
+        const newLayout = dashConfig.kpiLayout.map(item => {
+          const el = container.querySelector(`[name="kpi_${item.id}"]`) as HTMLInputElement;
+          if (el) {
+            return { ...item, visible: el.checked };
+          }
+          return item;
+        });
+        dashConfig.kpiLayout = newLayout;
+
+        // C. Save All
+        await Promise.all([
+          BusinessLogicManager.saveRules(rulesPayload),
+          saveDashboardConfig(dashConfig)
+        ]);
 
         btn.innerHTML = '<i class="fas fa-check"></i> Salvato!';
         setTimeout(() => {
           btn.innerHTML = originalText;
           btn.disabled = false;
         }, 2000);
+
       } catch (err) {
-        // Toast shown by manager
-        (saveBtn as HTMLButtonElement).disabled = false;
+        btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Errore';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }, 3000);
+        console.error(err);
       }
     });
 
   } catch (err) {
-    grid.innerHTML = `<div class="error-box"><p>Errore nel caricamento delle regole: ${err}</p></div>`;
+    rulesGrid.innerHTML = `<div class="error-box"><p>Errore nel caricamento delle impostazioni: ${err}</p></div>`;
   }
 }

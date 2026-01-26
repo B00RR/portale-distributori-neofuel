@@ -67,7 +67,6 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
                     ${(isFullAdmin || userRole === 'accounting') ? `
                         <button class="nav-btn" data-tab="vouchers" data-testid="nav-vouchers"><i class="fas fa-ticket-alt"></i> Gestione Voucher</button>
                         <button class="nav-btn" data-tab="shifts" data-testid="nav-shifts"><i class="fas fa-clock"></i> Turni e Chiusure</button>
-                        <button class="nav-btn" data-tab="analytics" data-testid="nav-analytics"><i class="fas fa-chart-pie"></i> Analytics</button>
                         <button class="nav-btn" data-tab="crediti" data-testid="nav-crediti"><i class="fas fa-credit-card"></i> Crediti</button>
                     ` : ''}
 
