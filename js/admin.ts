@@ -22,7 +22,7 @@ export function showAdminArea(): void {
     const userRole = user?.role || 'operator';
     const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
 
-    console.log('[Admin] showAdminArea role:', userRole, 'isFullAdmin:', isFullAdmin, 'userObj:', user);
+    console.log('[Admin] showAdminArea role:', userRole, 'isFullAdmin:', isFullAdmin);
 
     // Initialize router with user role
     router.init(userRole);

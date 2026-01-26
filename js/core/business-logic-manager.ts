@@ -3,7 +3,7 @@ import { BusinessRulesSchema, DEFAULT_BUSINESS_RULES, type BusinessRules } from 
 import { Toast } from '../ui/toast.js';
 
 const BUCKET_NAME = 'system';
-const FILE_PATH = 'configs/business_rules.json';
+const FILE_PATH = 'configs/business_rules.json'; // Ensure no spaces
 
 let cachedRules: BusinessRules | null = null;
 
