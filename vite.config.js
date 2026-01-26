@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => {
             VitePWA({
                 injectRegister: null, // Disable auto injection, we handle it manually in app.ts
                 registerType: 'prompt',
+                filename: 'manifest.json', // USE STANDARD FILENAME explicitly
                 devOptions: {
                     enabled: true
                 },
@@ -39,22 +40,29 @@ export default defineConfig(({ mode }) => {
                 manifest: {
                     name: 'Neofuel Portal - Distributori',
                     short_name: 'Neofuel',
-                    description: 'Gestione distributori di carburante Neofuel',
+                    description: 'Portale Distributori Neofuel - Gestione stazioni di servizio',
                     theme_color: '#0A2342',
-                    background_color: '#0A2342',
+                    background_color: '#0A2342', // Match theme color for smooth launch
                     display: 'standalone',
+                    orientation: 'portrait',
+                    start_url: './', // Relative start URL
+                    scope: './',
+                    id: '/',
                     icons: [
                         {
-                            src: '/icons/icon-192x192.png',
+                            src: 'icons/icon-192x192.png',
                             sizes: '192x192',
-                            type: 'image/png'
+                            type: 'image/png',
+                            purpose: 'any maskable' // BEST PRACTICE
                         },
                         {
-                            src: '/icons/icon-512x512.png',
+                            src: 'icons/icon-512x512.png',
                             sizes: '512x512',
-                            type: 'image/png'
+                            type: 'image/png',
+                            purpose: 'any maskable' // BEST PRACTICE
                         }
-                    ]
+                    ],
+                    categories: ['business', 'productivity', 'finance']
                 },
 
                 workbox: {
