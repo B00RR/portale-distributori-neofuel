@@ -8,6 +8,7 @@ import { escapeHtml, formatEuro } from '../utils/utils.js';
 import { loadDashboardConfig, saveDashboardConfig } from './dashboard-config.js';
 import { renderKpiCards, KPIData } from './dashboard-helpers.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
+import { fetchAnalyticsData, renderRevenueChart, renderVolumeChart, renderPaymentChart, renderFuelMixChart } from './dashboard-charts.js';
 
 // Global libraries types (assumed loaded via CDN or scripts)
 declare global {
@@ -256,7 +257,7 @@ export async function showDashboard(
             }
         };
 
-        import { fetchAnalyticsData, renderRevenueChart, renderVolumeChart, renderPaymentChart, renderFuelMixChart } from './dashboard-charts.js';
+
 
         // ... (imports remain)
 
