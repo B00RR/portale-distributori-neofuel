@@ -176,8 +176,14 @@ if (document.readyState === 'loading') {
 }
 
 // PWA Update Handler
+// PWA Update Handler
+let updateToastShown = false;
+
 const updateSW = registerSW({
     onNeedRefresh() {
+        if (updateToastShown) return;
+        updateToastShown = true;
+
         Toast.show('Nuova versione disponibile!', 'info', 0, {
             action: {
                 text: 'AGGIORNA',
