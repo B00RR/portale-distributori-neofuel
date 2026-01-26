@@ -937,6 +937,8 @@ async function handleDeleteBatch(batchId: string): Promise<void> {
     }
 }
 
+import QRCode from 'qrcode';
+
 export async function openPrintView(batchId: string | undefined): Promise<void> {
     if (!batchId) return;
 
@@ -948,7 +950,7 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
     }
 
     // 2. Show Loading State in the new window
-    printWindow.document.write('<html><head><title>Caricamento...</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;"><h2>Generazione Voucher in corso...</h2><p>Attendere prego.</p></body></html>');
+    printWindow.document.write('<html><head><title>Caricamento...</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;"><h2>Generazione Voucher in corso...</h2><p>Attendere prego...</p></body></html>');
 
     const container = document.getElementById('voucher-content');
     if (container) showLoadingMessage(container); // Loader in parent too
@@ -966,7 +968,7 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
         renderActiveTab(); // Refresh list to update icons if needed
 
         // 4. Update Window Content
-        generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
+        await generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
 
     } catch (err: any) {
         console.error(err);
@@ -989,6 +991,26 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
         pagesHtml = '<div style="text-align:center; padding: 50px;"><h3>Nessun voucher da stampare in questo lotto.</h3></div>';
     } else {
         const chunkSize = 1; // 1 Voucher per Page
+
+        // Generate all QR Codes in parallel first
+        const qrCodeMap: Record<string, string> = {};
+        await Promise.all(vouchers.map(async (v) => {
+            try {
+                qrCodeMap[v.code] = await QRCode.toDataURL(v.code, {
+                    errorCorrectionLevel: 'H',
+                    margin: 0,
+                    width: 160,
+                    color: {
+                        dark: '#000000',
+                        light: '#ffffff00' // Transparent background
+                    }
+                });
+            } catch (err) {
+                console.error('QR Generation failed for', v.code, err);
+                qrCodeMap[v.code] = ''; // Handle gracefully
+            }
+        }));
+
         for (let i = 0; i < vouchers.length; i += chunkSize) {
             const chunk = vouchers.slice(i, i + chunkSize);
 
@@ -998,13 +1020,18 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                 const date = v.expiration_date ? new Date(v.expiration_date).toLocaleDateString('it-IT') : 'Illimitata';
                 const amount = Math.floor(v.amount) + ' euro';
                 const visibleCode = v.code.substring(0, 4);
+                const qrSrc = qrCodeMap[v.code] || '';
 
                 frontContent += `
                     <div class="voucher-front">
                         <div class="voucher-amount">${amount}</div>
                         <div class="voucher-code">${visibleCode}</div>
-                        <!-- Container for QR Code -->
-                        <div id="qr-${v.code}" class="qr-code" data-code="${v.code}"></div>
+                        
+                        <!-- QR Code Image directly embedded -->
+                        <div class="qr-code">
+                            ${qrSrc ? `<img src="${qrSrc}" alt="QR Code" style="width:100%;height:100%;">` : '<span style="color:red;font-size:10px">QR Error</span>'}
+                        </div>
+                        
                         <div class="voucher-expiry">${date}</div>
                     </div>
                 `;
@@ -1023,7 +1050,6 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                 <head>
                     <base href="${window.location.origin}/">
                     <title>Stampa Voucher Neofuel</title>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
                     <style>
                         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&family=Oswald:wght@700&display=swap');
 
@@ -1049,7 +1075,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
                             padding: 0; 
                             box-sizing: border-box;
-                            display: block; /* Block layout for single item */
+                            display: block; 
                             page-break-after: always;
                             position: relative;
                             background-size: 100% 100%;
@@ -1075,7 +1101,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                         /* DATA POSITIONS (Relative to full A4 Page) */
                         .voucher-amount {
                             position: absolute;
-                            top: 30.6%; /* Centered precisely */
+                            top: 30.6%;
                             left: 0;
                             width: 100%;
                             text-align: center;
@@ -1086,7 +1112,6 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                             z-index: 10;
                             letter-spacing: 2px;
                             text-transform: uppercase; 
-                            /* STICKER EFFECT: 1px White Border + 5px Blue Shadow */
                             text-shadow: 
                                 -1px -1px 0 #fff,  
                                  1px -1px 0 #fff,
@@ -1097,7 +1122,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
 
                         .qr-code {
                             position: absolute;
-                            top: 38%; /* Moved UP slightly */
+                            top: 38%;
                             left: 0; 
                             right: 0;
                             margin: auto;
@@ -1106,15 +1131,10 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                             z-index: 10;
                         }
                         
-                        .qr-code img {
-                            width: 100%;
-                            height: 100%;
-                        }
-
                         .voucher-code {
                             position: absolute;
                             top: 54.2%;
-                            left: 43.5%; /* Moved Left slightly */
+                            left: 43.5%;
                             font-family: 'JetBrains Mono', monospace;
                             font-size: 22px; 
                             font-weight: bold;
@@ -1127,7 +1147,8 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                             top: 58%; 
                             left: 0;
                             width: 100%;
-                            text-align: center; 
+                            /* text-align: center; REMOVED center if reusing left align from screenshot, but logic kept centered per previous CSS */
+                            text-align: center;
                             font-size: 26px; 
                             font-weight: bold;
                             color: #333;
@@ -1136,34 +1157,15 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                 </head>
                 <body>
                     <div id="print-container">${pagesHtml}</div>
-                    <script>
-                        window.onload = function() {
-                            try {
-                                const qrElements = document.querySelectorAll('.qr-code');
-                                qrElements.forEach(el => {
-                                   const code = el.getAttribute('data-code');
-                                   if (code && typeof QRCode !== 'undefined') {
-                                       new QRCode(el, {
-                                            text: code,
-                                            width: 128,
-                                            height: 128,
-                                            colorDark : "#000000",
-                                            colorLight : "#ffffff",
-                                            correctLevel : QRCode.CorrectLevel.H
-                                        });
-                                   } else if (typeof QRCode === 'undefined') {
-                                      el.innerHTML = '<p style="color:red; font-size:10px;">QR Lib Missing</p>';
-                                   }
-                                });
-                            } catch (e) {
-                                console.error('Print QR generation error:', e);
-                            }
-                        };
-                    </script>
                 </body>
             </html>`;
 
     win.document.open();
     win.document.write(html);
     win.document.close();
+
+    // Auto-trigger print after short delay to ensure images render
+    setTimeout(() => {
+        // win.print(); // Optional: User might prefer manual control
+    }, 1000);
 }
