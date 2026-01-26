@@ -5,6 +5,7 @@ import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
+import { loadDashboardConfig, saveDashboardConfig } from './dashboard-config.js';
 import { renderKpiCards, KPIData } from './dashboard-helpers.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 
