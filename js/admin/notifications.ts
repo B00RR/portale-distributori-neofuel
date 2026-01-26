@@ -22,6 +22,17 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
             supabase.from('shifts').select('id, created_at, status, station_id, fuel_stations(station_name)').eq('status', 'open')
         ]);
 
+        // Check if notifications are globally enabled
+        if (!rules.notifications_enabled) {
+            container.innerHTML = `
+                <div class="empty-notifications">
+                    <i class="fas fa-bell-slash" style="color: var(--text-secondary); font-size: 2rem; margin-bottom: 1rem;"></i>
+                    <p>Le notifiche critiche sono disabilitate nelle impostazioni.</p>
+                </div>
+            `;
+            return;
+        }
+
         const alerts: string[] = [];
 
         // 1. Check Fuel Reserves
