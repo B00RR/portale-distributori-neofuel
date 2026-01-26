@@ -34,6 +34,87 @@
 <body>
   <!-- Header rimosso per interfaccia full-width -->
 
+
+  <!-- ERROR BOUNDARY & RECOVERY SYSTEM -->
+  <div id="global-error-boundary"
+    style="display: none; position: fixed; inset: 0; background: #fff; z-index: 99999; padding: 2rem; text-align: center; font-family: system-ui, -apple-system, sans-serif;">
+    <div
+      style="max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; height: 100%; justify-content: center; align-items: center;">
+      <h2 style="color: #e11d48; margin-bottom: 1rem;">Si è verificato un problema</h2>
+      <p style="color: #475569; margin-bottom: 2rem;">L'applicazione non è riuscita ad avviarsi correttamente. Questo
+        potrebbe essere dovuto a un aggiornamento incompleto o dati corrotti.</p>
+
+      <button id="btn-force-reset"
+        style="background: #e11d48; color: white; border: none; padding: 1rem 2rem; border-radius: 0.5rem; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+        RIPRISTINA APP
+      </button>
+
+      <p style="margin-top: 2rem; font-size: 0.8rem; color: #94a3b8;">Codice Errore: <span
+          id="error-code-display">Unknown</span></p>
+    </div>
+  </div>
+
+  <script>
+    // SAFETY NET SCRIPT
+    // Catch-all for startup errors
+    (function () {
+      var boundary = document.getElementById('global-error-boundary');
+      var btn = document.getElementById('btn-force-reset');
+      var codeDisplay = document.getElementById('error-code-display');
+
+      function showError(msg) {
+        if (boundary) boundary.style.display = 'block';
+        if (codeDisplay) codeDisplay.textContent = msg || 'Startup Failure';
+        console.error('CRITICAL STARTUP ERROR:', msg);
+      }
+
+      window.onerror = function (msg, source, lineno, colno, error) {
+        // Ignore simple resize errors or extensions
+        if (msg && typeof msg === 'string' && msg.indexOf('ResizeObserver') !== -1) return;
+        showError(msg);
+      };
+
+      window.addEventListener('unhandledrejection', function (event) {
+        showError(event.reason ? event.reason.message : 'Unhandled Promise Rejection');
+      });
+
+      // Force Reset Handler
+      if (btn) {
+        btn.onclick = function () {
+          btn.textContent = 'Pulizia in corso...';
+          btn.disabled = true;
+
+          // 1. Unregister Service Workers
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (registrations) {
+              for (let registration of registrations) {
+                registration.unregister();
+              }
+            });
+          }
+
+          // 2. Clear Storage
+          localStorage.clear();
+          sessionStorage.clear();
+
+          // 3. Clear Caches
+          if ('caches' in window) {
+            caches.keys().then(function (names) {
+              for (let name of names) {
+                caches.delete(name);
+              }
+            });
+          }
+
+          // 4. Reload after short delay
+          setTimeout(function () {
+            window.location.reload(true);
+          }, 1000);
+        };
+      }
+    })();
+  </script>
+
   <div class="login-container" id="login-container">
     <form id="login-form" method="post">
       <div class="login-header">
