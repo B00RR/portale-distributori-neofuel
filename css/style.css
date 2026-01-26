@@ -4571,3 +4571,28 @@ button:active {
   font-size: 0.7rem;
   color: #cbd5e1;
 }
+
+/* --- ANALYTICS CHART WIDGETS --- */
+.chart-widget {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+}
+
+.kpi-chart-title {
+    margin: 0 0 10px 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.kpi-chart-container {
+    flex: 1;
+    position: relative;
+    min-height: 150px; /* Minimum height for charts */
+    width: 100%;
+}

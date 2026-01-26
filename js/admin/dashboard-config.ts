@@ -88,6 +88,39 @@ export const KPI_CATALOG: Record<string, KPIMetadata> = {
         description: 'Numero di chiusure registrate',
         defaultSize: '1x1',
         defaultVisible: true
+    },
+    // ANALYTICS CHARTS (Migrated)
+    andamento_ricavi: {
+        id: 'andamento_ricavi',
+        title: 'Andamento Ricavi (Grafico)',
+        icon: 'fa-chart-line',
+        description: 'Grafico trend vendite ultimi 30GG',
+        defaultSize: '2x1',
+        defaultVisible: false
+    },
+    volume_erogato: {
+        id: 'volume_erogato',
+        title: 'Volume Erogato (Grafico)',
+        icon: 'fa-chart-bar',
+        description: 'Istogramma litri erogati ultimi 30GG',
+        defaultSize: '2x1',
+        defaultVisible: false
+    },
+    metodi_pagamento: {
+        id: 'metodi_pagamento',
+        title: 'Metodi di Pagamento',
+        icon: 'fa-chart-pie',
+        description: 'Distribuzione incassi per tipo',
+        defaultSize: '1x1',
+        defaultVisible: false
+    },
+    mix_carburanti: {
+        id: 'mix_carburanti',
+        title: 'Mix Carburanti',
+        icon: 'fa-gas-pump',
+        description: 'Rapporto Benzina vs Gasolio',
+        defaultSize: '1x1',
+        defaultVisible: false
     }
 };
 
@@ -158,8 +191,26 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
             return getDefaultConfig();
         }
 
+        let layout = data.kpi_layout || [];
+
+        // SYNC: Add any new items from KPI_CATALOG that are missing in the stored layout
+        const storedIds = new Set(layout.map((k: any) => k.id));
+        const missingItems = Object.values(KPI_CATALOG).filter(cat => !storedIds.has(cat.id));
+
+        if (missingItems.length > 0) {
+            const nextOrder = layout.length > 0 ? Math.max(...layout.map((k: any) => k.order)) + 1 : 0;
+            const newItems = missingItems.map((meta, idx) => ({
+                id: meta.id,
+                visible: meta.defaultVisible,
+                order: nextOrder + idx,
+                size: meta.defaultSize,
+                position: { row: 0, col: 0 } // Position is auto-flow usually
+            }));
+            layout = [...layout, ...newItems];
+        }
+
         return {
-            kpiLayout: data.kpi_layout || [],
+            kpiLayout: layout,
             gridColumns: data.grid_columns || 4
         };
     } catch (err: any) {

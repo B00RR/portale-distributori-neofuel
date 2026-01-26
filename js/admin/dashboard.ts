@@ -256,7 +256,11 @@ export async function showDashboard(
             }
         };
 
-        // Render KPI cards dynamically
+        import { fetchAnalyticsData, renderRevenueChart, renderVolumeChart, renderPaymentChart, renderFuelMixChart } from './dashboard-charts.js';
+
+        // ... (imports remain)
+
+        // Render KPI cards dynamically (Now includes charts placeholders)
         const kpiHtml = renderKpiCards(dashboardConfig, kpiData);
 
         // RACE CONDITION CHECK: Stop if user switched tab
@@ -269,6 +273,7 @@ export async function showDashboard(
       </section>
 
       <section class="dashboard-panels" id="dashboard-container">
+        <!-- Panels omitted for brevity as they are appended below -->
         <article class="panel-card" id="panel-tanks">
           <h3 class="panel-title">Stato Cisterne Rete in Tempo Reale</h3>
           <p class="panel-subtitle">Panoramica livelli percentuali su tutte le stazioni.</p>
@@ -288,16 +293,24 @@ export async function showDashboard(
             </table>
           </div>
         </article>
-
-        <article class="panel-card" id="panel-sales">
-          <h3 class="panel-title">Andamento Vendite</h3>
-          <p class="panel-subtitle">Trend vendite giornaliere per distributore (valore in €).</p>
-          <div class="prices-chart-wrapper">
-            <canvas id="sales-trend-chart"></canvas>
-          </div>
-        </article>
       </section>
     `;
+
+        // ------------------------------------------------------------------
+        // RENDER ANALYTICS CHARTS (If present in grid)
+        // ------------------------------------------------------------------
+        const visibleKpis = dashboardConfig.kpiLayout.filter(k => k.visible !== false).map(k => k.id);
+        const hasCharts = visibleKpis.some(id => ['andamento_ricavi', 'volume_erogato', 'metodi_pagamento', 'mix_carburanti'].includes(id));
+
+        if (hasCharts) {
+            // Fetch only if needed
+            fetchAnalyticsData(stationId).then(analyticsData => {
+                if (visibleKpis.includes('andamento_ricavi')) renderRevenueChart(analyticsData, 'chart-andamento_ricavi');
+                if (visibleKpis.includes('volume_erogato')) renderVolumeChart(analyticsData, 'chart-volume_erogato');
+                if (visibleKpis.includes('metodi_pagamento')) renderPaymentChart(analyticsData, 'chart-metodi_pagamento');
+                if (visibleKpis.includes('mix_carburanti')) renderFuelMixChart(analyticsData, 'chart-mix_carburanti');
+            });
+        }
 
         // Initialize Sortable for dashboard grid
         const gridEl = document.getElementById('dashboard-kpi-grid');
