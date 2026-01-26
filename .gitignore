@@ -39,9 +39,17 @@ supabase/
 
 # Debug artifacts
 .gemini/
+debug_output*.txt
+e2e_*.json
+operator_debug.json
 
 # Test files with hardcoded credentials
 test_db.html
 debug_data.html
 verifica_progetto_esistente.html
 .cursorrules
+
+# Playwright
+playwright-report/
+test-results/
+dev-dist/

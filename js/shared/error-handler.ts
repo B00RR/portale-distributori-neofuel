@@ -6,6 +6,7 @@
 import { Toast } from "../ui/toast.js";
 import { escapeHtml } from "../utils/utils.js";
 import { logger } from "../core/logger.js";
+const isDevelopment = import.meta.env.DEV;
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -100,44 +101,6 @@ export function handleError(
     }
 }
 
-/**
- * Sanitize error object for secure logging
- * SECURITY: Removes sensitive information like passwords, tokens, PII
- */
-function sanitizeErrorForLogging(error: unknown): unknown {
-    if (error == null) return null;
 
-    if (typeof error === 'string') {
-        // Remove potential sensitive patterns
-        return error.replace(/[\w\-\.]+@[\w\-\.]+/g, '[EMAIL]')
-            .replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE]')
-            .replace(/password[=:]\s*[\w]+/gi, 'password=[REDACTED]')
-            .replace(/token[=:]\s*[\w\-\.]+/gi, 'token=[REDACTED]');
-    }
-
-    if (error instanceof Error) {
-        return {
-            name: error.name,
-            message: sanitizeErrorForLogging(error.message),
-            // Don't include stack trace in production logs
-            stack: '[REDACTED]'
-        };
-    }
-
-    if (typeof error === 'object') {
-        const sanitized: Record<string, any> = {};
-        for (const [key, value] of Object.entries(error)) {
-            // Skip sensitive keys
-            if (['password', 'token', 'secret', 'apiKey', 'authorization'].includes(key.toLowerCase())) {
-                sanitized[key] = '[REDACTED]';
-            } else {
-                sanitized[key] = sanitizeErrorForLogging(value);
-            }
-        }
-        return sanitized;
-    }
-
-    return error;
-}
 
 // Helper escapeHtml rimosso in favore di import centralizzato da ../utils/utils.js

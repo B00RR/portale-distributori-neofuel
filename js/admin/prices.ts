@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// @ts-ignore - Export present in module but resolution failing in some contexts
 import { supabase, safeSupabaseQuery, getStationName } from '../core/api.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';

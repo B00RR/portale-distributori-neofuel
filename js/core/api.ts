@@ -109,7 +109,7 @@ async function handleOfflineMutation(_queryFn: QueryFunction): Promise<void> {
 /**
  * Load station name (with caching)
  */
-export async function getStationName(stationId: string | number): Promise<string> {
+const getStationName = async (stationId: string | number): Promise<string> => {
     if (!stationId) return `#${stationId}`;
 
     const cacheKey = `${CACHE_KEYS.STATION_PREFIX}${stationId}`;
@@ -129,5 +129,4 @@ export async function getStationName(stationId: string | number): Promise<string
     }, 10 * 60 * 1000); // Cache for 10 minutes
 }
 
-// Re-export Cache for direct use
-export { Cache, CACHE_KEYS };
+export { Cache, CACHE_KEYS, getStationName };

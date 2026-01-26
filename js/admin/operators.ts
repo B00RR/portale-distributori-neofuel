@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, safeSupabaseQuery } from '../core/api.js';
 import { handleError } from '../shared/error-handler.js';
-import { Validators, validateForm, formatErrorMessages } from '../shared/validators.js';
+
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from '../ui/ui.js';
 import { escapeHtml } from '../utils/utils.js';

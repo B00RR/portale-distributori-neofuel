@@ -52,36 +52,36 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
 
     container.innerHTML = `
         <div class="admin-container">
-            <aside class="admin-sidebar">
+            <aside class="admin-sidebar" data-testid="admin-sidebar">
                 <div class="sidebar-header">
                     <p class="sidebar-subtitle">Control Center</p>
                 </div>
                 <nav class="sidebar-nav">
-                    <button class="nav-btn active" data-tab="dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
+                    <button class="nav-btn active" data-tab="dashboard" data-testid="nav-dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
                     
                     ${isFullAdmin ? `
-                        <button class="nav-btn" data-tab="stations"><i class="fas fa-gas-pump"></i> Distributori</button>
-                        <button class="nav-btn" data-tab="operators"><i class="fas fa-users-cog"></i> Gestione Operatori</button>
+                        <button class="nav-btn" data-tab="stations" data-testid="nav-stations"><i class="fas fa-gas-pump"></i> Distributori</button>
+                        <button class="nav-btn" data-tab="operators" data-testid="nav-operators"><i class="fas fa-users-cog"></i> Gestione Operatori</button>
                     ` : ''}
 
                     ${(isFullAdmin || userRole === 'accounting') ? `
-                        <button class="nav-btn" data-tab="vouchers"><i class="fas fa-ticket-alt"></i> Gestione Voucher</button>
-                        <button class="nav-btn" data-tab="shifts"><i class="fas fa-clock"></i> Turni e Chiusure</button>
-                        <button class="nav-btn" data-tab="analytics"><i class="fas fa-chart-pie"></i> Analytics</button>
-                        <button class="nav-btn" data-tab="crediti"><i class="fas fa-credit-card"></i> Crediti</button>
+                        <button class="nav-btn" data-tab="vouchers" data-testid="nav-vouchers"><i class="fas fa-ticket-alt"></i> Gestione Voucher</button>
+                        <button class="nav-btn" data-tab="shifts" data-testid="nav-shifts"><i class="fas fa-clock"></i> Turni e Chiusure</button>
+                        <button class="nav-btn" data-tab="analytics" data-testid="nav-analytics"><i class="fas fa-chart-pie"></i> Analytics</button>
+                        <button class="nav-btn" data-tab="crediti" data-testid="nav-crediti"><i class="fas fa-credit-card"></i> Crediti</button>
                     ` : ''}
 
                     ${(isFullAdmin || userRole === 'billing' || userRole === 'accounting') ? `
-                        <button class="nav-btn" data-tab="invoices"><i class="fas fa-file-invoice"></i> Fatture</button>
+                        <button class="nav-btn" data-tab="invoices" data-testid="nav-invoices"><i class="fas fa-file-invoice"></i> Fatture</button>
                     ` : ''}
 
-                    <button class="nav-btn" data-tab="notifiche"><i class="fas fa-bell"></i> Notifiche</button>
+                    <button class="nav-btn" data-tab="notifiche" data-testid="nav-notifiche"><i class="fas fa-bell"></i> Notifiche</button>
                     
                     ${isFullAdmin ? `
-                        <button class="nav-btn" data-tab="settings"><i class="fas fa-cog"></i> Impostazioni</button>
+                        <button class="nav-btn" data-tab="settings" data-testid="nav-settings"><i class="fas fa-cog"></i> Impostazioni</button>
                     ` : ''}
 
-                    <button class="nav-btn logout-btn" id="admin-logout"><i class="fas fa-sign-out-alt"></i> Esci</button>
+                    <button class="nav-btn logout-btn" id="admin-logout" data-testid="nav-logout"><i class="fas fa-sign-out-alt"></i> Esci</button>
                 </nav>
                 <div class="sidebar-footer">
                     <div class="sidebar-footer-avatar">

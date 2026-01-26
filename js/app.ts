@@ -9,8 +9,9 @@ import {
     handlePasswordReset, requestPasswordReset
 } from './core/auth.js';
 import { showOperatorMenu } from './operator.js';
-import { store } from './shared/state.js';
+import { store, User as StateUser } from './shared/state.js';
 import { Toast } from './ui/toast.js';
+import './ui/ui-settings-panel.js';
 import { initializeCalculationPresets } from './utils/calculation-presets.js';
 import { registerSW } from 'virtual:pwa-register';
 import { CustomWindow } from './types.js';
@@ -86,16 +87,14 @@ async function initializeApp(): Promise<void> {
     setOnLoginSuccess(async (loggedUser: LoggedUserData) => {
         // Explicitly map LoggedUserData to the User interface required by store
         // We ensure all required properties are present
-        const userForStore: typeof store.state.user = {
+        const userForStore: StateUser = {
             id: loggedUser.id,
-            user_id: loggedUser.user_id,
+            user_id: String(loggedUser.user_id),
             email: loggedUser.email,
             full_name: loggedUser.full_name,
-            role: loggedUser.role,
-            station_id: loggedUser.station_id,
-            is_active: true, // Defaulting as active on login
-            created_at: new Date().toISOString()
-        };
+            role: loggedUser.role as StateUser['role'],
+            station_id: loggedUser.station_id
+        } as StateUser;
 
         store.setUser(userForStore);
 
@@ -133,10 +132,10 @@ async function initializeApp(): Promise<void> {
     }
 
     // Controllo sessione esistente
-    const user = await loadSession();
-    if (user) {
-        setLoggedUser(user);
-        store.setUser(user);
+    const loggedUser = await loadSession();
+    if (loggedUser) {
+        setLoggedUser(loggedUser);
+        store.setUser(loggedUser as unknown as StateUser);
 
         const loginContainer = document.getElementById('login-container');
         const appContainer = document.getElementById('app-container');
@@ -144,7 +143,7 @@ async function initializeApp(): Promise<void> {
         if (loginContainer) { loginContainer.style.display = 'none'; }
         if (appContainer) { appContainer.style.display = 'block'; }
 
-        const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(user.role);
+        const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(loggedUser.role);
         if (isAdminRole) {
             document.body.classList.add('admin-layout', 'desktop-layout');
             showAdminArea();
@@ -153,14 +152,13 @@ async function initializeApp(): Promise<void> {
 
             // ALWAYS fetch the authoritative station_id from DB
             let stId: number | null = null;
-            const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', user.user_id).maybeSingle();
+            const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', String(loggedUser.user_id)).maybeSingle();
             stId = us?.station_id;
 
             if (stId) {
-                // Update the user object in store with the fresh station_id
-                const freshUser = { ...user, station_id: stId };
+                const freshUser = { ...loggedUser, station_id: stId } as unknown as StateUser;
                 store.setUser(freshUser);
-                showOperatorMenu(String(user.id), stId);
+                showOperatorMenu(String(loggedUser.id), stId);
             } else {
                 Toast.show('Nessuna stazione assegnata all\'utente', 'error');
             }

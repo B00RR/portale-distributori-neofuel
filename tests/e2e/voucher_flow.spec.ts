@@ -9,54 +9,89 @@ test.describe('Voucher Management Flow', () => {
 
     // Mock successful admin login
     test.beforeEach(async ({ page }) => {
-        // Mock Supabase Auth Response for Admin
-        await page.route('**/auth/v1/token?grant_type=password', async route => {
-            const json = {
-                access_token: "mock_access_token_admin",
-                token_type: "bearer",
-                expires_in: 3600,
-                refresh_token: "mock_refresh_token",
-                user: {
-                    id: "admin_uuid_456",
-                    aud: "authenticated",
-                    role: "authenticated",
-                    email: "admin@neofuel.it",
-                    app_metadata: { role: "admin" },
-                    user_metadata: { full_name: "Test Admin" }
+        page.on('console', msg => console.log(`[BROWSER] ${msg.type()}: ${msg.text()}`));
+        page.on('request', req => console.log(`[REQUEST] ${req.method()} ${req.url()}`));
+
+        // Auth Token
+        await page.route(/.*\/auth\/v1\/token.*/, async route => {
+            await route.fulfill({
+                json: {
+                    access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.signature",
+                    token_type: "bearer",
+                    expires_in: 3600,
+                    refresh_token: "mock_refresh_token",
+                    user: {
+                        id: "admin_uuid_456",
+                        aud: "authenticated",
+                        role: "authenticated",
+                        email: "admin@neofuel.it",
+                        app_metadata: { role: "admin" },
+                        user_metadata: { full_name: "Test Admin" }
+                    }
                 }
-            };
-            await route.fulfill({ json });
+            });
         });
 
-        // Mock users table lookup
-        await page.route('**/rest/v1/users*', async route => {
+        // Users
+        await page.route(/.*\/rest\/v1\/users.*/, async route => {
             await route.fulfill({
-                json: [{
+                json: {
                     id: "admin_uuid_456",
                     user_id: 2,
                     email: "admin@neofuel.it",
                     full_name: "Test Admin",
                     role: "admin"
+                }
+            });
+        });
+
+        // Fuel Stations
+        await page.route(/.*\/rest\/v1\/fuel_stations.*/, async route => {
+            await route.fulfill({ json: [{ station_id: 1, station_name: 'Stazione Test' }] });
+        });
+
+        // Tanks
+        await page.route(/.*\/rest\/v1\/tanks.*/, async route => {
+            await route.fulfill({ json: [] });
+        });
+
+        // Shifts (Catch all shifts requests)
+        await page.route(/.*\/rest\/v1\/shifts.*/, async route => {
+            await route.fulfill({
+                json: [{
+                    id: 1,
+                    opened_at: new Date().toISOString(),
+                    operator_id: 'operator_uuid_123',
+                    status: 'open'
                 }]
             });
         });
 
-        // Mock fuel_stations
-        await page.route('**/rest/v1/fuel_stations*', async route => {
+        // Calculation Modules (KPIs)
+        await page.route(/.*\/rest\/v1\/calculation_modules.*/, async route => {
+            await route.fulfill({ json: [] });
+        });
+
+        // Crediti Clienti
+        await page.route(/.*\/rest\/v1\/crediti_clienti.*/, async route => {
             await route.fulfill({
-                json: [{ station_id: 1, station_name: 'Stazione Test' }]
+                json: [
+                    { id: 1, cliente: "Cliente Test" },
+                    { id: 2, cliente: "Cliente B" }
+                ]
             });
         });
 
-        // Mock vouchers table
-        await page.route('**/rest/v1/vouchers*', async route => {
+        // Vouchers (Generic)
+        await page.route(/.*\/rest\/v1\/vouchers.*/, async route => {
             if (route.request().method() === 'GET') {
                 await route.fulfill({
                     json: [
                         {
                             id: 1,
+                            batch_id: "batch-uuid-1",
                             code: 'TEST-VOUCHER-001',
-                            value: 50.00,
+                            amount: 50.00,
                             status: 'active',
                             created_at: new Date().toISOString(),
                             redeemed_at: null
@@ -68,8 +103,21 @@ test.describe('Voucher Management Flow', () => {
             }
         });
 
-        // Mock UI settings
-        await page.route('**/rest/v1/ui_settings*', async route => {
+        // Voucher Batches
+        await page.route(/.*\/rest\/v1\/voucher_batches.*/, async route => {
+            await route.fulfill({
+                json: [{
+                    id: "batch-uuid-1",
+                    description: "Batch Test",
+                    customer_name: "Cliente Test",
+                    expiration_date: null,
+                    created_at: new Date().toISOString()
+                }]
+            });
+        });
+
+        // UI Settings
+        await page.route(/.*\/rest\/v1\/ui_settings.*/, async route => {
             await route.fulfill({ json: [] });
         });
     });
@@ -84,7 +132,7 @@ test.describe('Voucher Management Flow', () => {
         await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
 
         // Admin sidebar should be visible
-        await expect(page.locator('.sidebar, .admin-sidebar, [class*="sidebar"]')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('[data-testid="admin-sidebar"]')).toBeVisible({ timeout: 10000 });
     });
 
     test('should navigate to voucher management section', async ({ page }) => {
@@ -95,11 +143,14 @@ test.describe('Voucher Management Flow', () => {
 
         await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
 
+        // Check dashboard first to ensure sidebar loaded
+        await expect(page.locator('[data-testid="nav-dashboard"]')).toBeVisible();
+
         // Click on Voucher menu item
-        await page.click('text=Voucher');
+        await page.click('[data-testid="nav-vouchers"]');
 
         // Voucher management content should appear
-        await expect(page.locator('text=Gestione Voucher, voucher-manager, [data-section="vouchers"]')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('[data-testid="voucher-admin-panel"]')).toBeVisible({ timeout: 10000 });
     });
 
     test('should display voucher list with status indicators', async ({ page }) => {
@@ -111,10 +162,18 @@ test.describe('Voucher Management Flow', () => {
         await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
 
         // Navigate to vouchers
-        await page.click('text=Voucher');
+        await expect(page.locator('[data-testid="nav-dashboard"]')).toBeVisible();
+        await page.click('[data-testid="nav-vouchers"]');
 
-        // Should display the mocked voucher
-        await expect(page.locator('text=TEST-VOUCHER-001')).toBeVisible({ timeout: 10000 });
+        // Should display the mocked voucher inside the component
+        await expect(page.locator('[data-testid="voucher-admin-panel"]')).toBeVisible();
+
+        // Switch to Dashboard tab (Ensure we click the TAB, not the sidebar)
+        await page.click('.tab-btn-large[data-tab="dashboard"]');
+
+        await expect(page.locator('text=Cliente Test')).toBeVisible({ timeout: 10000 });
+
+        await expect(page.locator('text=Cliente Test')).toBeVisible({ timeout: 10000 });
     });
 });
 
@@ -124,7 +183,7 @@ test.describe('Voucher Redemption Flow (Operator)', () => {
         // Mock Supabase Auth Response for Operator
         await page.route('**/auth/v1/token?grant_type=password', async route => {
             const json = {
-                access_token: "mock_access_token_operator",
+                access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.signature",
                 token_type: "bearer",
                 expires_in: 3600,
                 refresh_token: "mock_refresh_token",
@@ -140,16 +199,16 @@ test.describe('Voucher Redemption Flow (Operator)', () => {
             await route.fulfill({ json });
         });
 
-        // Mock users
+        // Mock users (Object for single result)
         await page.route('**/rest/v1/users*', async route => {
             await route.fulfill({
-                json: [{
+                json: {
                     id: "operator_uuid_123",
                     user_id: 1,
                     email: "operatore@neofuel.it",
                     full_name: "Test Operatore",
                     role: "operator"
-                }]
+                }
             });
         });
 
@@ -201,10 +260,18 @@ test.describe('Voucher Redemption Flow (Operator)', () => {
 
         await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
 
-        // Click on Voucher/Riscatto menu item
-        await page.click('text=Voucher');
+        // Click on Movimenti accordion to expand
+        await page.click('[data-testid="btn-movimenti"]');
+
+        // Wait for submenu to be visible
+        const btnVoucher = page.locator('[data-testid="btn-voucher"]');
+        await expect(btnVoucher).toBeVisible();
+
+        // Click on Voucher
+        await btnVoucher.click();
 
         // Voucher manager or redemption UI should appear
-        await expect(page.locator('.modal, voucher-manager, [data-section="vouchers"]')).toBeVisible({ timeout: 10000 });
+        // Note: In operator view it is inside a modal
+        await expect(page.locator('voucher-manager')).toBeVisible({ timeout: 10000 });
     });
 });

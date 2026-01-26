@@ -36,6 +36,7 @@ export interface LoggedUserData {
     email: string;
     full_name: string;
     role: UserRole;
+    station_id?: string | number | null;
     user_stations?: UserStationData[];
     assignedStations?: AssignedStation[];
 }

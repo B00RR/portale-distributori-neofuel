@@ -87,9 +87,10 @@ const voucherState: VoucherState = {
 
 // --- INITIALIZATION ---
 export async function showVoucherAdminTab(container: HTMLElement, _headerActions?: HTMLElement | null): Promise<void> {
+    console.log('[APP] showVoucherAdminTab called. activeTab:', voucherState.activeTab);
     // V3 REBOOT: Clean Flexbox Structure
     container.innerHTML = `
-        <div class="app-container" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
+        <div class="app-container" data-testid="voucher-admin-panel" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
             <div class="top-bar-title">
                 <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher V3</h2>
             </div>
@@ -145,16 +146,22 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
         </div>
     `;
 
-    // Bind Tabs
-    const tabButtons = container.querySelectorAll('.tab-btn-large');
-    tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabId = (btn as HTMLElement).dataset.tab as 'generator' | 'dashboard';
-            voucherState.activeTab = tabId;
-            // Re-render the tab structure to update styles
-            showVoucherAdminTab(container);
-        });
+    // Bind Tabs (Event Delegation)
+
+    container.addEventListener('click', (e) => {
+
+        const btn = (e.target as HTMLElement).closest('.tab-btn-large');
+        if (!btn) return;
+
+        const tabId = (btn as HTMLElement).dataset.tab as 'generator' | 'dashboard';
+        if (!tabId || tabId === voucherState.activeTab) return; // Ignore if same tab
+
+
+        voucherState.activeTab = tabId;
+        // Re-render the tab structure to update styles
+        showVoucherAdminTab(container);
     });
+
 
     // Listen for offline sync completion to auto-refresh
     const syncHandler = () => {
@@ -166,7 +173,9 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
     window.addEventListener('offline-sync-complete', syncHandler);
 
     // Load dependencies
+
     await loadCustomers();
+
     renderActiveTab();
 }
 

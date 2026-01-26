@@ -61,45 +61,45 @@ export async function renderOperatorShell(container: HTMLElement, handlers: Oper
                 </div>
             </header>
             
-            <div class="operator-menu">
-                <button class="op-menu-item primary" id="btn-turno">
+            <div class="operator-menu" data-testid="operator-menu">
+                <button class="op-menu-item primary" id="btn-turno" data-testid="btn-turno">
                     <i class="fas fa-door-open" id="turno-icon"></i>
                     <span id="turno-text">Apertura</span>
                     <span class="status-badge" id="opening-status"></span>
                 </button>
 
-                <div class="op-menu-accordion">
-                    <button class="op-menu-item accordion-trigger" id="btn-movimenti">
+                <div class="op-menu-accordion" data-testid="menu-accordion-movements">
+                    <button class="op-menu-item accordion-trigger" id="btn-movimenti" data-testid="btn-movimenti">
                         <i class="fas fa-exchange-alt"></i>
                         <span>Movimenti</span>
                         <i class="fas fa-chevron-down accordion-icon"></i>
                     </button>
                     <div class="accordion-content" id="movimenti-content">
-                        <button class="op-submenu-item" id="btn-crediti">
+                        <button class="op-submenu-item" id="btn-crediti" data-testid="btn-crediti">
                             <i class="fas fa-credit-card"></i>
                             <span>Crediti</span>
                         </button>
-                        <button class="op-submenu-item" id="btn-voucher">
+                        <button class="op-submenu-item" id="btn-voucher" data-testid="btn-voucher">
                             <i class="fas fa-ticket-alt"></i>
                             <span>Voucher</span>
                         </button>
-                        <button class="op-submenu-item" id="btn-uscite">
+                        <button class="op-submenu-item" id="btn-uscite" data-testid="btn-uscite">
                             <i class="fas fa-hand-holding-usd"></i>
                             <span>Uscite</span>
                         </button>
-                        <button class="op-submenu-item" id="btn-incassi">
+                        <button class="op-submenu-item" id="btn-incassi" data-testid="btn-incassi">
                             <i class="fas fa-cash-register"></i>
                             <span>Incassi</span>
                         </button>
                     </div>
                 </div>
 
-                <button class="op-menu-item" id="btn-fatture">
+                <button class="op-menu-item" id="btn-fatture" data-testid="btn-fatture">
                     <i class="fas fa-file-invoice"></i>
                     <span>Fatture</span>
                 </button>
 
-                <button class="op-menu-item" id="btn-prezzi">
+                <button class="op-menu-item" id="btn-prezzi" data-testid="btn-prezzi">
                     <i class="fas fa-tags"></i>
                     <span>Prezzi</span>
                 </button>

@@ -30,9 +30,7 @@ export class ClosureWizard extends BaseComponent {
     @state() private openingCounters: Record<number, number> = {};
     @state() private finalCounters: Record<number, number> = {};
     @state() private prezzi: any = null;
-    @state() private movimenti: any[] = [];
     @state() private stationConfig: any = null;
-    @state() private tankLinksByPump: Record<number, any[]> = {};
 
     // Data from Step 2
     @state() private selfCashIn: string = '';
@@ -232,13 +230,11 @@ export class ClosureWizard extends BaseComponent {
             }
             this.activeOpening = shiftResult as unknown as Shift;
 
-            const [islandsRes, prezziRes, configRes, linksRes, countersRes, movesRes] = await Promise.all([
+            const [islandsRes, prezziRes, configRes, countersRes] = await Promise.all([
                 supabase.from('islands').select('island_id, nome, island_name').eq('station_id', this.stationId).order('island_id'),
                 supabase.from('prezzi_distributore').select('*').eq('station_id', this.stationId).order('data_validita', { ascending: false }).limit(1).maybeSingle(),
                 supabase.from('fuel_stations').select('allow_partial_closure').eq('station_id', this.stationId).single(),
-                supabase.from('tank_pump_links').select('*, tanks(name, fuel_type)').eq('station_id', this.stationId).eq('is_active', true),
-                supabase.from('shift_pistols').select('pistola_id, opened_at_counter').eq('shift_id', this.activeOpening.id),
-                supabase.from('movimenti_cassa').select('*').eq('station_id', this.stationId).gte('created_at', this.activeOpening.opened_at)
+                supabase.from('shift_pistols').select('pistola_id, opened_at_counter').eq('shift_id', this.activeOpening.id)
             ]);
 
             if (islandsRes.error) throw islandsRes.error;
@@ -267,26 +263,6 @@ export class ClosureWizard extends BaseComponent {
                 countersMap[c.pistola_id] = Number(c.opened_at_counter) || 0;
             });
             this.openingCounters = countersMap;
-
-            const linksMap: Record<number, any[]> = {};
-            (linksRes.data || []).forEach((link: any) => {
-                if (!linksMap[link.pump_id]) linksMap[link.pump_id] = [];
-                linksMap[link.pump_id].push({
-                    ...link,
-                    tankName: link.tanks?.name || `Cisterna #${link.tank_id}`
-                });
-            });
-            this.tankLinksByPump = linksMap;
-
-            const movesRaw = movesRes.data || [];
-            const movesMap = new Map();
-            movesRaw.forEach((m: any) => {
-                const dateKey = m.created_at ? new Date(m.created_at).setMilliseconds(0).toString() : '';
-                const key = `${m.tipo}_${m.importo}_${dateKey}`;
-                if (!movesMap.has(key)) movesMap.set(key, m);
-            });
-            this.movimenti = Array.from(movesMap.values());
-
             this.wizardState = { ...this.wizardState, mode: 'form', step: 1 };
         } catch (error: any) {
             console.error('Error loading ClosureWizard data:', error);

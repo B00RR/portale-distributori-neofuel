@@ -93,10 +93,11 @@ test.describe('Operator Shift Flow', () => {
         await page.click('button[type="submit"]');
 
         // Wait for operator menu to appear
-        await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('[data-testid="operator-menu"]')).toBeVisible({ timeout: 15000 });
 
-        // Menu items should be visible (apertura, chiusura, etc.)
-        await expect(page.locator('text=Apertura')).toBeVisible({ timeout: 10000 });
+        // Menu items should be visible (apertura, chiusura, etc. via data-testid)
+        await expect(page.locator('[data-testid="btn-turno"]')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('text=Apertura')).toBeVisible();
     });
 
     test('should open shift opener component when clicking Apertura', async ({ page }) => {
@@ -106,13 +107,13 @@ test.describe('Operator Shift Flow', () => {
         await page.click('button[type="submit"]');
 
         // Wait for operator menu
-        await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('[data-testid="operator-menu"]')).toBeVisible({ timeout: 15000 });
 
-        // Click on Apertura button/menu item
-        await page.click('text=Apertura');
+        // Click on Apertura button
+        await page.click('[data-testid="btn-turno"]');
 
         // Modal with shift-opener component should appear
-        await expect(page.locator('.modal, shift-opener')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('shift-opener')).toBeVisible({ timeout: 10000 });
     });
 
     test('should show closure wizard when clicking Chiusura with active shift', async ({ page }) => {
@@ -134,12 +135,12 @@ test.describe('Operator Shift Flow', () => {
         await page.fill('#password', 'password123');
         await page.click('button[type="submit"]');
 
-        await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('[data-testid="operator-menu"]')).toBeVisible({ timeout: 15000 });
 
-        // Click on Chiusura
-        await page.click('text=Chiusura');
+        // Click on Chiusura (Dynamically updated button)
+        await page.click('[data-testid="btn-turno"]');
 
         // Closure wizard should appear
-        await expect(page.locator('.modal, closure-wizard')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('closure-wizard')).toBeVisible({ timeout: 10000 });
     });
 });
