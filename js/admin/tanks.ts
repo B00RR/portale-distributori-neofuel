@@ -10,65 +10,65 @@ import { escapeHtml, formatNumberIt } from '../utils/utils.js';
 type FuelType = 'Benzina' | 'Gasolio' | 'AdBlue' | string;
 
 interface Tank {
-    id: number;
-    station_id: number;
-    name: string;
-    fuel_type: FuelType;
-    capacity: number;
+  id: number;
+  station_id: number;
+  name: string;
+  fuel_type: FuelType;
+  capacity: number;
 }
 
 interface IslandNested {
-    island_id: number;
-    nome: string;
-    station_id: number;
+  island_id: number;
+  nome: string;
+  station_id: number;
 }
 
 interface Pump {
-    id: number;
-    nome: string;
-    tipo_carburante: FuelType;
-    islands?: IslandNested; // joined via islands!inner or similar
+  id: number;
+  nome: string;
+  tipo_carburante: FuelType;
+  islands?: IslandNested; // joined via islands!inner or similar
 }
 
 type LinkMode = 'auto' | 'manual';
 
 interface TankPumpLink {
-    id: number;
-    station_id: number;
-    tank_id: number;
-    pump_id: number;
-    mode: LinkMode;
-    ratio: number | null;
-    priority: number | null;
-    is_active: boolean;
-    notes: string | null;
+  id: number;
+  station_id: number;
+  tank_id: number;
+  pump_id: number;
+  mode: LinkMode;
+  ratio: number | null;
+  priority: number | null;
+  is_active: boolean;
+  notes: string | null;
 
-    // Joins
-    tanks?: Tank;
-    pistole?: Pump;
+  // Joins
+  tanks?: Tank;
+  pistole?: Pump;
 }
 
 // --- MAIN FUNCTIONS ---
 
 export async function showTanksAdminModal(stationId: number | string): Promise<void> {
-    const stationName = await getStationName(stationId);
-    openModal(`Gestione Cisterne - ${escapeHtml(stationName)}`);
-    const target = document.getElementById('modal-body');
-    if (!target) return;
+  const stationName = await getStationName(stationId);
+  openModal(`Gestione Cisterne - ${escapeHtml(stationName)}`);
+  const target = document.getElementById('modal-body');
+  if (!target) return;
 
-    const renderTanks = async () => {
-        target.innerHTML = '<p class="loading-text">Caricamento cisterne e connessioni...</p>';
+  const renderTanks = async () => {
+    target.innerHTML = '<p class="loading-text">Caricamento cisterne e connessioni...</p>';
 
-        try {
-            const [tanksResult, linksResult, pumpsResult] = await Promise.all([
-                supabase
-                    .from('tanks')
-                    .select('*')
-                    .eq('station_id', stationId)
-                    .order('name'),
-                supabase
-                    .from('tank_pump_links')
-                    .select(`
+    try {
+      const [tanksResult, linksResult, pumpsResult] = await Promise.all([
+        supabase
+          .from('tanks')
+          .select('*')
+          .eq('station_id', stationId)
+          .order('name'),
+        supabase
+          .from('tank_pump_links')
+          .select(`
                       id,
                       station_id,
                       tank_id,
@@ -81,54 +81,54 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
                       tanks ( id, name, fuel_type ),
                       pistole ( id, nome, tipo_carburante, islands(nome) )
                     `)
-                    .eq('station_id', stationId)
-                    .order('pump_id'),
-                supabase
-                    .from('pistole')
-                    .select('id, nome, tipo_carburante, islands!inner(island_id, nome, station_id)')
-                    .eq('islands.station_id', stationId)
-                    .order('nome')
-            ]);
+          .eq('station_id', stationId)
+          .order('pump_id'),
+        supabase
+          .from('pistole')
+          .select('id, nome, tipo_carburante, islands!inner(island_id, nome, station_id)')
+          .eq('islands.station_id', stationId)
+          .order('nome')
+      ]);
 
-            const { data: tanks, error: tanksError } = tanksResult;
-            if (tanksError) {
-                handleError(tanksError, 'renderTanks', target);
-                return;
-            }
+      const { data: tanks, error: tanksError } = tanksResult;
+      if (tanksError) {
+        handleError(tanksError, 'renderTanks', target);
+        return;
+      }
 
-            let tankLinks: TankPumpLink[] = [];
-            if (linksResult.data) {
-                tankLinks = linksResult.data as unknown as TankPumpLink[];
-            }
-            if (linksResult.error) {
-                // Ignore 42P01 (relation doesnt exist yet?) or unexpected errors
-                if (linksResult.error.code !== '42P01') {
-                    handleError(linksResult.error, 'renderTanks_links', target);
-                    // Continue but links empty
-                    tankLinks = [];
-                }
-            }
+      let tankLinks: TankPumpLink[] = [];
+      if (linksResult.data) {
+        tankLinks = linksResult.data as unknown as TankPumpLink[];
+      }
+      if (linksResult.error) {
+        // Ignore 42P01 (relation doesnt exist yet?) or unexpected errors
+        if (linksResult.error.code !== '42P01') {
+          handleError(linksResult.error, 'renderTanks_links', target);
+          // Continue but links empty
+          tankLinks = [];
+        }
+      }
 
-            const { data: pumps, error: pumpsError } = pumpsResult;
-            if (pumpsError) {
-                handleError(pumpsError, 'renderTanks_pumps', target);
-                return;
-            }
+      const { data: pumps, error: pumpsError } = pumpsResult;
+      if (pumpsError) {
+        handleError(pumpsError, 'renderTanks_pumps', target);
+        return;
+      }
 
-            const tanksData = tanks as Tank[];
-            const pumpsData = pumps as Pump[];
+      const tanksData = tanks as Tank[];
+      const pumpsData = pumps as Pump[];
 
-            const formatPumpLabel = (pump: Partial<Pump>) => {
-                const labelParts = [
-                    pump.nome || `Pistola #${pump.id}`,
-                    pump.islands?.nome ? `Isola ${pump.islands.nome}` : null,
-                    pump.tipo_carburante ? pump.tipo_carburante.toUpperCase() : null
-                ].filter(Boolean);
-                return labelParts.join(' · ');
-            };
+      const formatPumpLabel = (pump: Partial<Pump>) => {
+        const labelParts = [
+          pump.nome || `Pistola #${pump.id}`,
+          pump.islands?.nome ? `Isola ${pump.islands.nome}` : null,
+          pump.tipo_carburante ? pump.tipo_carburante.toUpperCase() : null
+        ].filter(Boolean);
+        return labelParts.join(' · ');
+      };
 
-            const tanksList = tanksData && tanksData.length
-                ? tanksData.map(t => `
+      const tanksList = tanksData && tanksData.length
+        ? tanksData.map(t => `
               <li class="list-item tank-row">
                 <div>
                   <strong>${escapeHtml(t.name)}</strong>
@@ -140,23 +140,23 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
                 </button>
               </li>
             `).join('')
-                : '<p>Nessuna cisterna configurata.</p>';
+        : '<p>Nessuna cisterna configurata.</p>';
 
-            const linkRows = tankLinks && tankLinks.length
-                ? tankLinks.map(link => {
-                    const pumpLabel = formatPumpLabel(link.pistole || {});
-                    const tankLabel = link.tanks?.name ? `${link.tanks.name} (${link.tanks.fuel_type || '-'})` : `Cisterna #${link.tank_id}`;
-                    const modeBadge = link.mode === 'manual'
-                        ? '<span class="badge badge-warning">Manuale</span>'
-                        : '<span class="badge badge-info">Automatica</span>';
-                    const metaValue = link.mode === 'manual'
-                        ? `Priorità ${link.priority || 1}`
-                        : `${link.ratio || 0}%`;
-                    const statusBadge = link.is_active
-                        ? '<span class="badge badge-success">Attiva</span>'
-                        : '<span class="badge badge-muted">Disattiva</span>';
-                    const noteText = link.notes ? `<div class="tank-link-note">${escapeHtml(link.notes)}</div>` : '';
-                    return `
+      const linkRows = tankLinks && tankLinks.length
+        ? tankLinks.map(link => {
+          const pumpLabel = formatPumpLabel(link.pistole || {});
+          const tankLabel = link.tanks?.name ? `${link.tanks.name} (${link.tanks.fuel_type || '-'})` : `Cisterna #${link.tank_id}`;
+          const modeBadge = link.mode === 'manual'
+            ? '<span class="badge badge-warning">Manuale</span>'
+            : '<span class="badge badge-info">Automatica</span>';
+          const metaValue = link.mode === 'manual'
+            ? `Priorità ${link.priority || 1}`
+            : `${link.ratio || 0}%`;
+          const statusBadge = link.is_active
+            ? '<span class="badge badge-success">Attiva</span>'
+            : '<span class="badge badge-muted">Disattiva</span>';
+          const noteText = link.notes ? `<div class="tank-link-note">${escapeHtml(link.notes)}</div>` : '';
+          return `
                 <tr>
                   <td>${escapeHtml(pumpLabel)}</td>
                   <td>${escapeHtml(tankLabel)}</td>
@@ -176,20 +176,20 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
                   </td>
                 </tr>
               `;
-                }).join('')
-                : '<tr><td colspan="6">Nessuna associazione configurata.</td></tr>';
+        }).join('')
+        : '<tr><td colspan="6">Nessuna associazione configurata.</td></tr>';
 
-            const pumpOptions = pumpsData && pumpsData.length
-                ? pumpsData.map(p => `<option value="${p.id}">${escapeHtml(formatPumpLabel(p))}</option>`).join('')
-                : '<option value="">Nessuna pistola disponibile</option>';
+      const pumpOptions = pumpsData && pumpsData.length
+        ? pumpsData.map(p => `<option value="${p.id}">${escapeHtml(formatPumpLabel(p))}</option>`).join('')
+        : '<option value="">Nessuna pistola disponibile</option>';
 
-            const tankOptions = tanksData && tanksData.length
-                ? tanksData.map(t => `<option value="${t.id}">${escapeHtml(`${t.name} (${t.fuel_type || '-'})`)}</option>`).join('')
-                : '<option value="">Nessuna cisterna disponibile</option>';
+      const tankOptions = tanksData && tanksData.length
+        ? tanksData.map(t => `<option value="${t.id}">${escapeHtml(`${t.name} (${t.fuel_type || '-'})`)}</option>`).join('')
+        : '<option value="">Nessuna cisterna disponibile</option>';
 
-            const formDisabled = !(pumpsData?.length && tanksData?.length);
+      const formDisabled = !(pumpsData?.length && tanksData?.length);
 
-            target.innerHTML = `
+      target.innerHTML = `
           <div class="tanks-list">
             <h4>Cisterne Esistenti</h4>
             <ul class="list-group">
@@ -299,136 +299,136 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
           </div>
         `;
 
-            // Listeners per cisterne
-            target.querySelectorAll('.delete-tank').forEach(btnElement => {
-                const btn = btnElement as HTMLElement;
-                btn.addEventListener('click', async () => {
-                    const confirmed = await openConfirmModal('Eliminare questa cisterna?');
-                    if (!confirmed) { return; }
-                    // Fix: use id from dataset
-                    const id = btn.dataset.id;
-                    if (id) {
-                        await safeSupabaseQuery(() => supabase.from('tanks').delete().eq('id', id));
-                        renderTanks();
-                    }
-                });
-            });
+      // Listeners per cisterne
+      target.querySelectorAll('.delete-tank').forEach(btnElement => {
+        const btn = btnElement as HTMLElement;
+        btn.addEventListener('click', async () => {
+          const confirmed = await openConfirmModal('Eliminare questa cisterna?');
+          if (!confirmed) { return; }
+          // Fix: use id from dataset
+          const id = btn.dataset.id;
+          if (id) {
+            await safeSupabaseQuery(() => supabase.from('tanks').delete().eq('id', id));
+            renderTanks();
+          }
+        });
+      });
 
-            const addTankForm = document.getElementById('add-tank-form');
-            addTankForm?.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const form = e.target as HTMLFormElement;
-                const fd = new FormData(form);
-                const payload = {
-                    station_id: stationId,
-                    name: fd.get('name')?.toString() || '',
-                    fuel_type: fd.get('fuel_type')?.toString() || '',
-                    capacity: parseFloat(fd.get('capacity')?.toString() || '0')
-                };
+      const addTankForm = document.getElementById('add-tank-form');
+      addTankForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target as HTMLFormElement;
+        const fd = new FormData(form);
+        const payload = {
+          station_id: stationId,
+          name: fd.get('name')?.toString() || '',
+          fuel_type: fd.get('fuel_type')?.toString() || '',
+          capacity: parseFloat(fd.get('capacity')?.toString() || '0')
+        };
 
-                try {
-                    await safeSupabaseQuery(() => supabase.from('tanks').insert([payload]));
-                    form.reset();
-                    renderTanks();
-                } catch (err) {
-                    handleError(err, 'addTank');
-                }
-            });
-
-            // Gestione associazioni
-            const linkForm = document.getElementById('tank-link-form');
-            const modeSelect = document.getElementById('tank-link-mode') as HTMLSelectElement;
-            const ratioGroup = linkForm?.querySelector('[data-role="ratio-group"]') as HTMLElement;
-            const priorityGroup = linkForm?.querySelector('[data-role="priority-group"]') as HTMLElement;
-
-            const refreshModeFields = () => {
-                if (!modeSelect || !ratioGroup || !priorityGroup) { return; }
-                const mode = modeSelect.value;
-                const isFormDisabled = linkForm?.classList.contains('form-disabled');
-                const ratioInput = ratioGroup.querySelector('input');
-                const priorityInput = priorityGroup.querySelector('input');
-
-                if (mode === 'manual') {
-                    ratioGroup.style.display = 'none';
-                    if (ratioInput) { ratioInput.disabled = true; }
-                    priorityGroup.style.display = 'block';
-                    if (priorityInput) { priorityInput.disabled = isFormDisabled ? true : false; }
-                } else {
-                    ratioGroup.style.display = 'block';
-                    if (ratioInput) { ratioInput.disabled = isFormDisabled ? true : false; }
-                    priorityGroup.style.display = 'none';
-                    if (priorityInput) { priorityInput.disabled = true; }
-                }
-            };
-
-            modeSelect?.addEventListener('change', refreshModeFields);
-            refreshModeFields();
-
-            linkForm?.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const form = e.target as HTMLFormElement;
-                const fd = new FormData(form);
-                const mode = fd.get('mode')?.toString() || 'auto';
-                const payload = {
-                    station_id: stationId,
-                    pump_id: parseInt(fd.get('pump_id')?.toString() || '0', 10),
-                    tank_id: parseInt(fd.get('tank_id')?.toString() || '0', 10),
-                    mode,
-                    ratio: mode === 'auto' ? (parseFloat(fd.get('ratio')?.toString() || '0') || 0) : null,
-                    priority: mode === 'manual' ? (parseInt(fd.get('priority')?.toString() || '0', 10) || 1) : null,
-                    is_active: fd.get('is_active') !== null,
-                    notes: fd.get('notes')?.toString().trim() || null
-                };
-
-                try {
-                    await safeSupabaseQuery(() => supabase.from('tank_pump_links').insert([payload]));
-                    form.reset();
-                    refreshModeFields();
-                    renderTanks();
-                } catch (err) {
-                    handleError(err, 'addTankLink');
-                }
-            });
-
-            // Toggle stato associazione
-            target.querySelectorAll('.tank-link-toggle').forEach(btnElement => {
-                const btn = btnElement as HTMLElement;
-                btn.addEventListener('click', async () => {
-                    const id = btn.dataset.id;
-                    const current = btn.dataset.active === 'true';
-                    if (id) {
-                        await safeSupabaseQuery(() => supabase.from('tank_pump_links').update({ is_active: !current }).eq('id', id));
-                        renderTanks();
-                    }
-                });
-            });
-
-            // Elimina associazione
-            target.querySelectorAll('.tank-link-delete').forEach(btnElement => {
-                const btn = btnElement as HTMLElement;
-                btn.addEventListener('click', async () => {
-                    const confirmed = await openConfirmModal('Rimuovere questa associazione pistola/cisterna?');
-                    if (!confirmed) { return; }
-                    const id = btn.dataset.id;
-                    if (id) {
-                        await safeSupabaseQuery(() => supabase.from('tank_pump_links').delete().eq('id', id));
-                        renderTanks();
-                    }
-                });
-            });
-
+        try {
+          await safeSupabaseQuery(() => supabase.from('tanks').insert([payload]));
+          form.reset();
+          renderTanks();
         } catch (err) {
-            // Main error handler for the modal loading
-            handleError(err as Error, 'renderTanks_main', target);
+          handleError(err, 'addTank');
         }
-    };
+      });
 
-    renderTanks();
+      // Gestione associazioni
+      const linkForm = document.getElementById('tank-link-form');
+      const modeSelect = document.getElementById('tank-link-mode') as HTMLSelectElement;
+      const ratioGroup = linkForm?.querySelector('[data-role="ratio-group"]') as HTMLElement;
+      const priorityGroup = linkForm?.querySelector('[data-role="priority-group"]') as HTMLElement;
+
+      const refreshModeFields = () => {
+        if (!modeSelect || !ratioGroup || !priorityGroup) { return; }
+        const mode = modeSelect.value;
+        const isFormDisabled = linkForm?.classList.contains('form-disabled');
+        const ratioInput = ratioGroup.querySelector('input');
+        const priorityInput = priorityGroup.querySelector('input');
+
+        if (mode === 'manual') {
+          ratioGroup.style.display = 'none';
+          if (ratioInput) { ratioInput.disabled = true; }
+          priorityGroup.style.display = 'block';
+          if (priorityInput) { priorityInput.disabled = isFormDisabled ? true : false; }
+        } else {
+          ratioGroup.style.display = 'block';
+          if (ratioInput) { ratioInput.disabled = isFormDisabled ? true : false; }
+          priorityGroup.style.display = 'none';
+          if (priorityInput) { priorityInput.disabled = true; }
+        }
+      };
+
+      modeSelect?.addEventListener('change', refreshModeFields);
+      refreshModeFields();
+
+      linkForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target as HTMLFormElement;
+        const fd = new FormData(form);
+        const mode = fd.get('mode')?.toString() || 'auto';
+        const payload = {
+          station_id: stationId,
+          pump_id: parseInt(fd.get('pump_id')?.toString() || '0', 10),
+          tank_id: parseInt(fd.get('tank_id')?.toString() || '0', 10),
+          mode,
+          ratio: mode === 'auto' ? (parseFloat(fd.get('ratio')?.toString() || '0') || 0) : null,
+          priority: mode === 'manual' ? (parseInt(fd.get('priority')?.toString() || '0', 10) || 1) : null,
+          is_active: fd.get('is_active') !== null,
+          notes: fd.get('notes')?.toString().trim() || null
+        };
+
+        try {
+          await safeSupabaseQuery(() => supabase.from('tank_pump_links').insert([payload]));
+          form.reset();
+          refreshModeFields();
+          renderTanks();
+        } catch (err) {
+          handleError(err, 'addTankLink');
+        }
+      });
+
+      // Toggle stato associazione
+      target.querySelectorAll('.tank-link-toggle').forEach(btnElement => {
+        const btn = btnElement as HTMLElement;
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const current = btn.dataset.active === 'true';
+          if (id) {
+            await safeSupabaseQuery(() => supabase.from('tank_pump_links').update({ is_active: !current }).eq('id', id));
+            renderTanks();
+          }
+        });
+      });
+
+      // Elimina associazione
+      target.querySelectorAll('.tank-link-delete').forEach(btnElement => {
+        const btn = btnElement as HTMLElement;
+        btn.addEventListener('click', async () => {
+          const confirmed = await openConfirmModal('Rimuovere questa associazione pistola/cisterna?');
+          if (!confirmed) { return; }
+          const id = btn.dataset.id;
+          if (id) {
+            await safeSupabaseQuery(() => supabase.from('tank_pump_links').delete().eq('id', id));
+            renderTanks();
+          }
+        });
+      });
+
+    } catch (err) {
+      // Main error handler for the modal loading
+      handleError(err as Error, 'renderTanks_main', target);
+    }
+  };
+
+  await renderTanks();
 }
 
 export async function showTanksTab(container: HTMLElement, headerActions: HTMLElement | null): Promise<void> {
-    if (headerActions) { headerActions.innerHTML = ''; }
-    container.innerHTML = `
+  if (headerActions) { headerActions.innerHTML = ''; }
+  container.innerHTML = `
         <div class="content-box">
             <h3>Gestione Cisterne</h3>
             <p>Seleziona un distributore dalla sezione "Distributori" per gestirne le cisterne.</p>

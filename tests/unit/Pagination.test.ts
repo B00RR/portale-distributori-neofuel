@@ -136,5 +136,53 @@ describe('Pagination Component', () => {
             const container = document.getElementById('test-pagination');
             expect(container?.textContent).toContain('21-25');
         });
+        it('should handle prev button click', () => {
+            vi.mocked(store.getPagination).mockReturnValue({
+                page: 1,
+                pageSize: 10,
+                totalCount: 50
+            });
+
+            const pagination = new Pagination('test-pagination');
+            pagination.render();
+
+            const prevBtn = document.querySelector('.btn-prev') as HTMLButtonElement;
+            prevBtn.click();
+
+            expect(store.setPagination).toHaveBeenCalledWith({ page: 0 });
+        });
+
+        it('should handle next button click', () => {
+            vi.mocked(store.getPagination).mockReturnValue({
+                page: 0,
+                pageSize: 10,
+                totalCount: 50
+            });
+
+            const pagination = new Pagination('test-pagination');
+            pagination.render();
+
+            const nextBtn = document.querySelector('.btn-next') as HTMLButtonElement;
+            nextBtn.click();
+
+            expect(store.setPagination).toHaveBeenCalledWith({ page: 1 });
+        });
+
+        it('should NOT attach listeners if buttons are disabled', () => {
+            vi.mocked(store.getPagination).mockReturnValue({
+                page: 0,
+                pageSize: 10,
+                totalCount: 50
+            });
+
+            const pagination = new Pagination('test-pagination');
+            pagination.render();
+
+            const prevBtn = document.querySelector('.btn-prev') as HTMLButtonElement;
+            // Prev is disabled on page 0
+            prevBtn.click();
+
+            expect(store.setPagination).not.toHaveBeenCalled();
+        });
     });
 });
