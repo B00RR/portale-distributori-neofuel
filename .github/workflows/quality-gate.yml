@@ -160,4 +160,4 @@ jobs:
           echo "✅ All quality gates passed!"
           echo "Unit Tests: ${{ needs.unit-tests.result }}"
           echo "E2E Tests: ${{ needs.e2e-tests.result }}"
-          echo "Build: ${{ needs.build-verification.result }}"
+          echo "Build: ${{ needs.build-check.result }}"
