@@ -26,6 +26,7 @@ interface Voucher {
 export class VoucherManager extends BaseComponent {
     @property({ type: String }) stationId: string = '';
     @property({ type: String }) userId: string = '';
+    @property({ type: String }) shiftId: string = '';
 
     @state() private mode: 'menu' | 'scan' | 'manual' | 'loading' | 'verify' | 'result' | 'success' | 'error' = 'menu';
     @state() private errorMessage: string = '';
@@ -211,12 +212,7 @@ export class VoucherManager extends BaseComponent {
 
     constructor() {
         super();
-        // Load Html5Qrcode if needed
-        if (!window.Html5Qrcode && !document.querySelector('script[src*="html5-qrcode"]')) {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/html5-qrcode';
-            document.head.appendChild(script);
-        }
+        // Html5Qrcode will be loaded on-demand in startScanner()
     }
 
     override createRenderRoot() {
@@ -232,6 +228,13 @@ export class VoucherManager extends BaseComponent {
         this.mode = 'scan';
         // Small delay to allow render
         await this.updateComplete;
+
+        // Load Html5Qrcode library on-demand if not already loaded
+        if (!window.Html5Qrcode && !document.querySelector('script[src*="html5-qrcode"]')) {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/html5-qrcode';
+            document.head.appendChild(script);
+        }
 
         // Check if library is loaded with retries
         let retries = 0;

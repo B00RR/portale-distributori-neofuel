@@ -53,3 +53,6 @@ verifica_progetto_esistente.html
 playwright-report/
 test-results/
 dev-dist/
+
+# Test coverage
+coverage/

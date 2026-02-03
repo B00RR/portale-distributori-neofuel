@@ -46,7 +46,8 @@ export function formatNumberIt(value: number | string, fractionDigits: number = 
     const safeNum = Number.isFinite(num) ? num : 0;
     return new Intl.NumberFormat('it-IT', {
         minimumFractionDigits: fractionDigits,
-        maximumFractionDigits: fractionDigits
+        maximumFractionDigits: fractionDigits,
+        useGrouping: true  // Explicitly enable thousands separator
     }).format(safeNum);
 }
 

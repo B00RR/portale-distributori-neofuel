@@ -38,6 +38,33 @@ vi.mock('../../js/core/offline-db.js', () => ({
     }
 }));
 
+// Mock business rules schema to avoid HTTPS CDN import
+vi.mock('../../js/core/business-rules-schema.js', () => ({
+    BusinessRulesSchema: {},
+    DEFAULT_BUSINESS_RULES: {
+        cash_error_threshold: 10,
+        max_price_limit: 2.5,
+        fuel_reserve_alert_liters: 2000,
+        force_close_hours_threshold: 24,
+        notifications_enabled: true,
+        critical_discrepancy_alert: 50
+    }
+}));
+
+// Mock business logic manager
+vi.mock('../../js/core/business-logic-manager.js', () => ({
+    BusinessLogicManager: {
+        loadRules: vi.fn(() => Promise.resolve({
+            cash_error_threshold: 10,
+            max_price_limit: 2.5,
+            fuel_reserve_alert_liters: 2000,
+            force_close_hours_threshold: 24,
+            notifications_enabled: true,
+            critical_discrepancy_alert: 50
+        }))
+    }
+}));
+
 describe('ClosureWizard Component', () => {
 
     describe('Component Structure', () => {
@@ -60,7 +87,7 @@ describe('ClosureWizard Component', () => {
             const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as any;
             const element = new ClosureWizard();
 
-            expect((element as any).currentStep).toBe(1);
+            expect((element as any).wizardState.step).toBe(1);
         });
 
         it('should have 3 total steps', async () => {

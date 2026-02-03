@@ -18,6 +18,7 @@ interface ClosureWizardState {
 export class ClosureWizard extends BaseComponent {
     @property({ type: String }) stationId: string = '';
     @property({ type: String }) userId: string = '';
+    @property({ type: String }) shiftId: string = '';  // Optional: Can be used to load specific shift
 
     @state() private wizardState: ClosureWizardState = {
         step: 1,
