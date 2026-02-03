@@ -78,9 +78,17 @@ describe('Utils Module', () => {
 
     describe('Parsing', () => {
         it('parseGunCounter should handle IT format', () => {
+            // Flexible check for thousands separator (dot or space)
             expect(parseGunCounter('1.234,56')).toBe(1234.56);
+            expect(parseGunCounter('1 234,56')).toBe(1234.56);
             expect(parseGunCounter('1000')).toBe(1000);
             expect(parseGunCounter(10.5)).toBe(10.5);
+        });
+
+        it('formatGunCounter should handle IT format with robust spacing check', () => {
+            // CI might use narrow non-breaking space or standard space
+            const result = formatGunCounter(1234.56);
+            expect(result).toMatch(/1[.\s\u202F\u00A0]?234,56/);
         });
 
         it('parseNumberFlexible should handle various inputs', () => {
