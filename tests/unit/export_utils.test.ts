@@ -188,18 +188,56 @@ describe('Export Utils Module', () => {
             expect(metrics.meta.stationSlug).toBe('stazione');
         });
 
-        it('should classify fuel types correctly', async () => {
+        it('should classify all fuel types correctly', async () => {
             const closure = {
                 shift_pistols: [
                     { pistol_id: 1, liters_dispensed: 1, end_price: 1, pistols: { pistol_name: 'Benzina' } },
-                    { pistol_id: 2, liters_dispensed: 1, end_price: 1, pistols: { pistol_name: 'AdBlue' } }
+                    { pistol_id: 2, liters_dispensed: 1, end_price: 1, pistols: { pistol_name: 'AdBlue' } },
+                    { pistol_id: 3, liters_dispensed: 1, end_price: 1, pistols: { pistol_name: 'Supreme Diesel' } },
+                    { pistol_id: 4, liters_dispensed: 1, end_price: 1, pistols: { pistol_name: 'GPL' } },
+                    { pistol_id: 5, liters_dispensed: 1, end_price: 1, pistols: { pistol_name: 'Metano' } },
+                    { pistol_id: 6, liters_dispensed: 1, end_price: 1, pistols: { pistol_name: 'XYZ' } } // Fallback to 'other'
                 ]
             };
             const clientMock = { from: vi.fn() };
             const metrics = await computeExportSummaryMetrics(clientMock as any, closure, null);
 
+            // Check meta totals aggregation
             expect(metrics.meta.totals.ltBenzina).toBe(1);
-            expect(metrics.meta.totals.ltOther).toBe(1);
+            expect(metrics.meta.totals.ltOther).toBe(5); // AdBlue + Supreme + GPL + Metano + XYZ
+
+            // Verify section details (siglas)
+            const p = metrics.sections[0].pistole;
+            // Benzina -> B
+            expect(p.find(x => x.label.includes('Benzina'))?.tipoSigla).toBe('B');
+            // AdBlue -> A
+            expect(p.find(x => x.label.includes('AdBlue'))?.tipoSigla).toBe('A');
+            // Supreme -> S
+            expect(p.find(x => x.label.includes('Supreme'))?.tipoSigla).toBe('S');
+            // GPL -> G
+            expect(p.find(x => x.label.includes('GPL'))?.tipoSigla).toBe('G');
+            // Metano -> M
+            expect(p.find(x => x.label.includes('Metano'))?.tipoSigla).toBe('M');
+            // XYZ -> ''
+            expect(p.find(x => x.label.includes('XYZ'))?.tipoSigla).toBe('');
+        });
+
+        it('should handle broken pistol references', async () => {
+            const closure = {
+                shift_pistols: [
+                    {
+                        pistol_id: 99,
+                        liters_dispensed: 0,
+                        end_price: 0,
+                        pistols: null // Broken usage
+                    }
+                ]
+            };
+            const clientMock = { from: vi.fn() };
+            const metrics = await computeExportSummaryMetrics(clientMock as any, closure, null);
+
+            expect(metrics.sections[0].pistole[0].label).toContain('Pistola 99');
+            expect(metrics.sections[0].label).toBe('Isola ?');
         });
     });
 

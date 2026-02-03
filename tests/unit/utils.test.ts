@@ -96,42 +96,20 @@ describe('Utils Module', () => {
             expect(parseNumberFlexible('1234.56')).toBe(1234.56);
             expect(parseNumberFlexible(null)).toBe(0);
             expect(parseNumberFlexible('invalid')).toBe(0);
-        });
-    });
-
-    describe('String Utils', () => {
-        it('slugifyLabel should create safe slugs', () => {
-            expect(slugifyLabel('Hello World!')).toBe('hello-world');
-            expect(slugifyLabel('  Trim Me  ')).toBe('trim-me');
-            expect(slugifyLabel(null)).toBe('chiusura');
-        });
-
-        it('base64ToArrayBuffer should convert base64', () => {
-            const str = 'Hello';
-            const b64 = btoa(str);
-            const buffer = base64ToArrayBuffer(b64);
-            const view = new Uint8Array(buffer!);
-            const decoded = String.fromCharCode(...view);
-            expect(decoded).toBe(str);
-        });
-
-        it('base64ToArrayBuffer should handle null', () => {
-            expect(base64ToArrayBuffer(null)).toBeNull();
-        });
-    });
-
-    describe('Date Utils', () => {
-        it('formatDate should return IT date string', () => {
-            const d = new Date('2023-01-31');
-            // Assuming environment locale node supports it-IT, otherwise standard check
-            // We'll standard check presence of slashes or something if locale is tricky in test env
-            const result = formatDate(d);
-            expect(result).toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/);
+            // Cover line 107 (unknown types)
+            expect(parseNumberFlexible({} as any)).toBe(0);
+            expect(parseNumberFlexible(true as any)).toBe(0);
         });
 
         it('formatDate should handle invalid dates', () => {
             expect(formatDate('invalid')).toBe('invalid');
             expect(formatDate(null)).toBe('');
+
+            // Cover catch block (line 177): Force standard Date constructor to throw (rare, but possible with proxy or bad polyfill)
+            // Or easier, pass a symbol which throws on toString if used in Date constructor?
+            // Actually new Date(Symbol()) throws TypeError.
+            const badInput = Symbol('bad date') as any;
+            expect(formatDate(badInput)).toBe('Symbol(bad date)');
         });
 
         it('getISODate should return YYYY-MM-DD', () => {

@@ -89,12 +89,12 @@ export interface ExportMetrics {
 
 function inferFuelTypeFromNameExport(nomePistola: string = ''): string {
     const n = nomePistola.toLowerCase();
-    if (n.includes('gasolio') || n.includes('diesel')) { return 'gasolio'; }
+    if (n.includes('adblue')) { return 'adblue'; }
     if (n.includes('blue') || n.includes('supreme') || n.includes('hiq')) { return 'supreme'; }
+    if (n.includes('gasolio') || n.includes('diesel')) { return 'gasolio'; }
     if (n.includes('benzina') || n.includes('verde')) { return 'benzina'; }
     if (n.includes('gpl')) { return 'gpl'; }
     if (n.includes('metano')) { return 'metano'; }
-    if (n.includes('adblue')) { return 'adblue'; }
     return 'altro';
 }
 
