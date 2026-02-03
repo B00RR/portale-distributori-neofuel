@@ -12,7 +12,7 @@ declare global {
 
 // Hack: Cast window to 'any' to silence the editor error about 'Chart' missing
 // We access it via window because it's loaded via CDN in index.html
-const Chart = (window as any).Chart;
+// Chart accessed lazily from window to support async loading and testing
 
 interface ClosingData {
     ricavo_teorico?: number | string | null;
@@ -149,22 +149,22 @@ async function updateCharts(
     stationId: number | null,
     dateRange: DateRange
 ): Promise<void> {
-    // 1. Calculate Date Range
+    // 1. Calculate Date Range (Use UTC to match database/ISO strings)
     const endDate = new Date();
     const startDate = new Date();
 
     if (dateRange === '7d') {
-        startDate.setDate(endDate.getDate() - 7);
+        startDate.setUTCDate(endDate.getUTCDate() - 7);
     } else if (dateRange === '30d') {
-        startDate.setDate(endDate.getDate() - 30);
+        startDate.setUTCDate(endDate.getUTCDate() - 30);
     } else if (dateRange === 'month') {
-        startDate.setDate(1); // First day of current month
+        startDate.setUTCDate(1); // First day of current month
     } else if (dateRange === 'year') {
-        startDate.setMonth(0, 1);
+        startDate.setUTCMonth(0, 1);
     }
 
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(23, 59, 59, 999);
+    startDate.setUTCHours(0, 0, 0, 0);
+    endDate.setUTCHours(23, 59, 59, 999);
 
     try {
         // 2. Fetch Data from Shifts (Closed)
@@ -187,6 +187,7 @@ async function updateCharts(
         const aggregated = processAnalyticsData(shifts as ShiftData[], startDate, endDate);
 
         // 4. Render Charts (Lazy load Chart.js logic if needed, but assuming global Chart)
+        const Chart = (window as any).Chart;
         if (Chart) {
             renderRevenueChart(aggregated);
             renderVolumeChart(aggregated);
@@ -230,7 +231,7 @@ function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Dat
             liters_benzina: 0,
             liters_gasolio: 0
         };
-        currentDate.setDate(currentDate.getDate() + 1);
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
         loopCount++;
     }
 
@@ -283,6 +284,7 @@ function renderRevenueChart(data: AnalyticsResult): void {
     const ctx = getChartContext('revenue-chart');
     if (!ctx) { return; }
 
+    const Chart = (window as any).Chart;
     charts['revenue-chart'] = new Chart(ctx, {
         type: 'line',
         data: {
@@ -310,6 +312,7 @@ function renderVolumeChart(data: AnalyticsResult): void {
     const ctx = getChartContext('volume-chart');
     if (!ctx) { return; }
 
+    const Chart = (window as any).Chart;
     charts['volume-chart'] = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -346,6 +349,7 @@ function renderPaymentChart(data: AnalyticsResult): void {
     const ctx = getChartContext('payments-chart');
     if (!ctx) { return; }
 
+    const Chart = (window as any).Chart;
     charts['payments-chart'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -369,6 +373,7 @@ function renderFuelMixChart(data: AnalyticsResult): void {
     const ctx = getChartContext('fuels-chart');
     if (!ctx) { return; }
 
+    const Chart = (window as any).Chart;
     charts['fuels-chart'] = new Chart(ctx, {
         type: 'pie',
         data: {
