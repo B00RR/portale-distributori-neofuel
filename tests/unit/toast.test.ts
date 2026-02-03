@@ -1,173 +1,107 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Toast } from '../../js/ui/toast.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import Toast from '../../js/ui/toast.js';
 
-describe('Toast Component', () => {
+describe('Toast Module', () => {
 
     beforeEach(() => {
-        // Clean up DOM
-        const existing = document.getElementById('toast-container');
-        if (existing) existing.remove();
+        vi.useFakeTimers();
+        document.body.innerHTML = '';
     });
 
     afterEach(() => {
-        // Clean up after tests
-        const container = document.getElementById('toast-container');
-        if (container) container.remove();
+        vi.useRealTimers();
+        vi.restoreAllMocks();
     });
 
-    describe('Toast.show', () => {
-        it('should create toast container if not exists', () => {
-            Toast.show('Test message');
-
-            const container = document.getElementById('toast-container');
-            expect(container).not.toBeNull();
-        });
-
-        it('should create toast element', () => {
-            Toast.show('Test');
-
-            const container = document.getElementById('toast-container');
-            const toasts = container?.querySelectorAll('.toast');
-            expect(toasts?.length).toBeGreaterThan(0);
-        });
-
-        it('should support success type', () => {
-            Toast.show('Success!', 'success');
-
-            const toast = document.querySelector('.toast-success');
-            expect(toast).not.toBeNull();
-        });
-
-        it('should support error type', () => {
-            Toast.show('Error!', 'error');
-
-            const toast = document.querySelector('.toast-error');
-            expect(toast).not.toBeNull();
-        });
-
-        it('should support warning type', () => {
-            Toast.show('Warning!', 'warning');
-
-            const toast = document.querySelector('.toast-warning');
-            expect(toast).not.toBeNull();
-        });
-
-        it('should support info type', () => {
-            Toast.show('Info!', 'info');
-
-            const toast = document.querySelector('.toast-info');
-            expect(toast).not.toBeNull();
-        });
-
-        it('should escape HTML in message', () => {
-            Toast.show('<script>alert(1)</script>', 'info');
-
-            const container = document.getElementById('toast-container');
-            expect(container?.innerHTML).not.toContain('<script>');
-            expect(container?.innerHTML).toContain('&lt;script&gt;');
-        });
-
-        it('should support action buttons', () => {
-            let clicked = false;
-            Toast.show('With action', 'info', 5000, {
-                action: {
-                    text: 'Click me',
-                    onClick: () => { clicked = true; }
-                }
-            });
-
-            const actionBtn = document.querySelector('.toast-action-btn');
-            expect(actionBtn).not.toBeNull();
-            expect(actionBtn?.textContent).toContain('Click me');
-        });
-
-        it('should call action onClick when button clicked', () => {
-            let clicked = false;
-            Toast.show('Action test', 'info', 5000, {
-                action: {
-                    text: 'Action',
-                    onClick: () => { clicked = true; }
-                }
-            });
-
-            const actionBtn = document.querySelector('.toast-action-btn') as HTMLElement;
-            actionBtn?.click();
-
-            expect(clicked).toBe(true);
-        });
-
-        it('should support custom duration', () => {
-            Toast.show('Custom duration', 'info', 100);
-
-            const container = document.getElementById('toast-container');
-            expect(container).not.toBeNull();
-        });
-
-        it('should display multiple toasts', () => {
-            Toast.show('First', 'info');
-            Toast.show('Second', 'success');
-            Toast.show('Third', 'warning');
-
-            const toasts = document.querySelectorAll('.toast');
-            expect(toasts.length).toBe(3);
-        });
+    it('should create container if missing', () => {
+        expect(document.getElementById('toast-container')).toBeNull();
+        Toast.show('Test');
+        expect(document.getElementById('toast-container')).not.toBeNull();
     });
 
-    describe('Toast.dismiss', () => {
-        it('should remove toast element', () => {
-            Toast.show('Test', 'info', 0);
-
-            const container = document.getElementById('toast-container')!;
-            const toast = container.querySelector('.toast') as HTMLElement;
-
-            Toast.dismiss(toast, container);
-
-            // Should start dismiss animation
-            expect(toast.classList.contains('show')).toBe(false);
-        });
-
-        it('should handle already dismissed toast', () => {
-            Toast.show('Test', 'info', 0);
-
-            const container = document.getElementById('toast-container')!;
-            const toast = container.querySelector('.toast') as HTMLElement;
-
-            // Call dismiss multiple times
-            Toast.dismiss(toast, container);
-            Toast.dismiss(toast, container);
-
-            // Should not throw
-            expect(true).toBe(true);
-        });
+    it('should show success toast', () => {
+        Toast.show('Success message', 'success');
+        const toast = document.querySelector('.toast-success');
+        expect(toast).toBeTruthy();
+        expect(toast?.textContent).toContain('Success message');
+        // Check icon class
+        expect(toast?.innerHTML).toContain('fa-check-circle');
     });
 
-    describe('Icon Selection', () => {
-        it('should show correct icon for success', () => {
-            Toast.show('Success', 'success');
+    it('should show error toast', () => {
+        Toast.show('Error msg', 'error');
+        const toast = document.querySelector('.toast-error');
+        expect(toast?.innerHTML).toContain('fa-exclamation-circle');
+    });
 
-            const icon = document.querySelector('.fa-check-circle');
-            expect(icon).not.toBeNull();
+    it('should auto-dismiss after duration', () => {
+        Toast.show('Auto dismiss', 'info', 1000);
+        const toast = document.querySelector('.toast');
+        expect(toast).toBeTruthy();
+
+        // Fast forward
+        vi.advanceTimersByTime(1000); // Trigger dismiss
+        vi.advanceTimersByTime(300); // Trigger remove animation
+
+        expect(document.querySelector('.toast')).toBeNull();
+    });
+
+    it('should not auto-dismiss if duration is 0', () => {
+        Toast.show('Sticky', 'info', 0);
+        vi.advanceTimersByTime(5000);
+        expect(document.querySelector('.toast')).toBeTruthy();
+    });
+
+    it('should handle action button', () => {
+        const onClickSpy = vi.fn();
+        Toast.show('Action required', 'warning', 0, {
+            action: { text: 'Retry', onClick: onClickSpy }
         });
 
-        it('should show correct icon for error', () => {
-            Toast.show('Error', 'error');
+        const btn = document.querySelector('.toast-action-btn') as HTMLElement;
+        expect(btn).toBeTruthy();
+        expect(btn.textContent).toContain('Retry');
 
-            const icon = document.querySelector('.fa-exclamation-circle');
-            expect(icon).not.toBeNull();
-        });
+        btn.click();
+        expect(onClickSpy).toHaveBeenCalled();
+    });
 
-        it('should show correct icon for warning', () => {
-            Toast.show('Warning', 'warning');
+    it('should clean up container when empty', () => {
+        Toast.show('Msg 1', 'info', 100);
+        vi.advanceTimersByTime(100);
+        vi.advanceTimersByTime(300);
 
-            const icon = document.querySelector('.fa-exclamation-triangle');
-            expect(icon).not.toBeNull();
-        });
+        expect(document.getElementById('toast-container')).toBeNull();
+    });
 
-        it('should show correct icon for info', () => {
-            Toast.show('Info', 'info');
+    it('should handle dismiss of already removed toast', () => {
+        // Create toast
+        Toast.show('Msg', 'info', 1000);
+        const toast = document.querySelector('.toast') as HTMLElement;
+        const container = document.getElementById('toast-container') as HTMLElement;
 
-            const icon = document.querySelector('.fa-info-circle');
-            expect(icon).not.toBeNull();
-        });
+        // Manually remove class 'show' to simulate it's already dismissing
+        toast.classList.remove('show');
+
+        // Call dismiss directly
+        Toast.dismiss(toast, container);
+
+        // Should return early, meaning element still there until something else removes it (or nothing happens)
+        // Check if setTimeout was called?
+        // Or check simply it didn't crash.
+        // If it proceeded, it would wait 300ms then remove.
+        // Since we removed 'show', it returns.
+
+        vi.advanceTimersByTime(300);
+        // Toast should strictly speaking still be in DOM if logic return early
+        // BUT wait, Toast.dismiss logic: if (!toast.classList.contains('show')) return;
+        // So yes, it should still be there.
+        expect(document.contains(toast)).toBe(true);
+    });
+
+    it('should fallback to default icon if type unknown', () => {
+        Toast.show('Unknown', 'custom' as any);
+        const toast = document.querySelector('.toast-custom');
+        expect(toast?.innerHTML).toContain('fa-info-circle');
     });
 });

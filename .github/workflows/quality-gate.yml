@@ -86,6 +86,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
       
       - name: Upload Test Results
         if: failure()
@@ -116,36 +118,41 @@ jobs:
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-  build-verification:
-    name: 🏗️ Build Check
-    runs-on: ubuntu-latest
-    needs: [unit-tests]
-    steps:
-      - uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      
-      - name: Install Dependencies
-        run: npm ci
-      
-      - name: Build Application
-        run: npm run build
-      
-      - name: Archive Production Build
+      - name: Upload Security Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist/
+          name: security-report
+          path: security-report.txt
+
+  build-check:
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, security-scan]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - run: npm ci
+    - name: Build Application
+      run: npm run build
+      env:
+        VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
+    
+    - name: Archive Production Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/
 
   report:
     name: 📊 Test Summary
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, e2e-tests, security-scan, build-verification]
+    needs: [lint, unit-tests, e2e-tests, security-scan, build-check]
     if: always()
     steps:
       - name: Check Results
