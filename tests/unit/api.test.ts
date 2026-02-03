@@ -38,7 +38,7 @@ vi.mock('../../js/core/config.js', () => ({
 }));
 
 // Mock Supabase Client
-vi.mock('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm', () => ({
+vi.mock('../../js/core/supabase-client.js', () => ({
     createClient: () => mockSupabase
 }));
 

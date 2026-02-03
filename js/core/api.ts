@@ -4,8 +4,8 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// @ts-ignore - External CDN module
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm";
+// @ts-ignore
+import { createClient } from "./supabase-client";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
 import { Cache, CACHE_KEYS } from "../utils/cache.js";
 

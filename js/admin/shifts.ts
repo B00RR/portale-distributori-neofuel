@@ -418,7 +418,7 @@ export async function openExportModal(closureId: string | number): Promise<void>
     }
 }
 
-async function openBulkExportModal(): Promise<void> {
+export async function openBulkExportModal(): Promise<void> {
     openModal('Export Multiplo Chiusure');
     const target = document.getElementById('modal-body');
     if (!target) return;
@@ -561,41 +561,45 @@ async function openBulkExportModal(): Promise<void> {
     }
 }
 
-async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
-    // 1. Fetch Data
-    let query = supabase.from('shifts')
-        .select(`
+export async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
+    try {
+        // 1. Fetch Data
+        let query = supabase.from('shifts')
+            .select(`
             *,
             fuel_stations(station_name),
             users(full_name)
         `)
-        .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false });
 
-    if (opts.stationId) { query = query.eq('station_id', opts.stationId); }
+        if (opts.stationId) { query = query.eq('station_id', opts.stationId); }
 
-    if (opts.type === 'last_n') {
-        query = query.limit(opts.limit);
-    } else {
-        if (!opts.dateFrom || !opts.dateTo) throw new Error("Range date mancante");
-        query = query.gte('created_at', opts.dateFrom)
-            .lte('created_at', opts.dateTo + 'T23:59:59');
+        if (opts.type === 'last_n') {
+            query = query.limit(opts.limit);
+        } else {
+            if (!opts.dateFrom || !opts.dateTo) throw new Error("Range date mancante");
+            query = query.gte('created_at', opts.dateFrom)
+                .lte('created_at', opts.dateTo + 'T23:59:59');
+        }
+
+        const { data: closures, error } = await query;
+        if (error) { throw error; }
+        if (!closures || closures.length === 0) {
+            throw new Error('Nessuna chiusura trovata con i criteri selezionati.');
+        }
+
+        // 2. Process Data for Template
+        const processedClosures = [];
+        for (const c of closures) {
+            const metrics = await computeExportSummaryMetrics(supabase, c, c.station_id);
+            processedClosures.push(metrics);
+        }
+
+        // 3. Generate Excel
+        await generateMultiClosureExcel(processedClosures);
+    } catch (err) {
+        handleError(err as Error, 'handleBulkExport');
     }
-
-    const { data: closures, error } = await query;
-    if (error) { throw error; }
-    if (!closures || closures.length === 0) {
-        throw new Error('Nessuna chiusura trovata con i criteri selezionati.');
-    }
-
-    // 2. Process Data for Template
-    const processedClosures = [];
-    for (const c of closures) {
-        const metrics = await computeExportSummaryMetrics(supabase, c, c.station_id);
-        processedClosures.push(metrics);
-    }
-
-    // 3. Generate Excel
-    await generateMultiClosureExcel(processedClosures);
 }
 
 export async function deleteClosure(

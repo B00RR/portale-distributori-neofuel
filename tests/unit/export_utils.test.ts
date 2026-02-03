@@ -239,6 +239,48 @@ describe('Export Utils Module', () => {
             expect(metrics.sections[0].pistole[0].label).toContain('Pistola 99');
             expect(metrics.sections[0].label).toBe('Isola ?');
         });
+
+        it('should fetch and join data if shift_pistols is missing', async () => {
+            const closure = { id: 123, created_at: '2023-01-01T12:00:00Z' };
+            const clientMock = {
+                from: vi.fn((table: string) => ({
+                    select: vi.fn(() => ({
+                        eq: vi.fn(() => {
+                            if (table === 'fuel_stations') return { single: () => Promise.resolve({ data: { station_name: 'Test Station' } }) };
+                            if (table === 'shift_pistols') return Promise.resolve({ data: [{ pistol_id: 10, liters_dispensed: 50, end_counter: 100 }] });
+                            return { single: () => Promise.resolve({ data: null }) };
+                        }),
+                        in: vi.fn(() => {
+                            if (table === 'pistols') return Promise.resolve({ data: [{ pistol_id: 10, pistol_name: 'Super Diesel', pump_id: 1 }] });
+                            if (table === 'fuel_pumps') return Promise.resolve({ data: [{ pump_id: 1, pump_name: 'P1', island_id: 11 }] });
+                            if (table === 'islands') return Promise.resolve({ data: [{ island_id: 11, island_name: 'Main Island' }] });
+                            return Promise.resolve({ data: [] });
+                        })
+                    }))
+                }))
+            };
+
+            const metrics = await computeExportSummaryMetrics(clientMock as any, closure, 'ST1');
+
+            expect(metrics.meta.stationSlug).toBe('test-station');
+            expect(metrics.sections.length).toBe(1);
+            expect(metrics.sections[0].label).toBe('Main Island');
+        });
+    });
+
+    describe('Individual Export Functions', () => {
+        it('generateClosureExcel should trigger download', async () => {
+            const metrics: ExportMetrics = {
+                meta: { dateSlug: '2023-01-01', totals: { ltGasolio: 0, ltBenzina: 0, ltOther: 0, totalEuro: 0 }, prices: {} } as any,
+                sections: [],
+                summary: {} as any
+            };
+            const { generateClosureExcel } = await import('../../js/utils/export_utils.js');
+            await generateClosureExcel(metrics);
+
+            expect(mockWorkbook.outputAsync).toHaveBeenCalled();
+            expect(document.body.appendChild).toHaveBeenCalled();
+        });
     });
 
     describe('generateMultiClosureExcel', () => {
