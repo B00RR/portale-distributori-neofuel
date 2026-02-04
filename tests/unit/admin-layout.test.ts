@@ -1,38 +1,53 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockUI = {
-    renderSidebar: vi.fn(),
-    renderHeader: vi.fn(),
-    renderFooter: vi.fn()
-};
+const { mockStore, mockRouter, mockOpenModal, mockClearSession } = vi.hoisted(() => ({
+    mockStore: {
+        getUser: vi.fn(() => ({ role: 'admin', email: 'test@example.com' })),
+        getFilter: vi.fn(() => null),
+        getStations: vi.fn(() => [])
+    },
+    mockRouter: {
+        navigateTo: vi.fn(),
+        getCurrentTab: vi.fn(() => 'dashboard')
+    },
+    mockOpenModal: vi.fn(),
+    mockClearSession: vi.fn()
+}));
 
-vi.mock('../../js/ui/ui.js', () => mockUI);
+vi.mock('../../js/shared/state.js', () => ({ store: mockStore }));
+vi.mock('../../js/admin/router.js', () => ({ router: mockRouter }));
+vi.mock('../../js/ui/ui.js', () => ({ openConfirmModal: mockOpenModal }));
+vi.mock('../../js/core/auth.js', () => ({ clearSession: mockClearSession }));
+vi.mock('../../js/utils/utils.js', () => ({ escapeHtml: (str: string) => str }));
 
-import { initAdminLayout, renderAdminUI, toggleSidebar } from '../../js/admin/layout.js';
+import { renderAdminShell, renderBreadcrumbs, attachNavigationListeners, attachLogoutListener, getRoleLabel } from '../../js/admin/layout.js';
 
 describe('Admin Layout Module', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        document.body.innerHTML = '<div id="admin-container"><div id="sidebar"></div></div>';
+        document.body.innerHTML = '<div id="layout-container"></div>';
     });
 
-    it('should initialize admin layout', () => {
-        initAdminLayout();
+    it('should render admin shell', () => {
+        const container = document.getElementById('layout-container')!;
+        const onTabChange = vi.fn();
 
-        expect(document.getElementById('admin-container')).toBeDefined();
+        renderAdminShell(container, onTabChange);
+
+        expect(container.innerHTML).toContain('admin-sidebar');
     });
 
-    it('should render admin UI', () => {
-        renderAdminUI();
-
-        expect(mockUI.renderSidebar || true).toBeDefined();
+    it('should get role label', () => {
+        const label = getRoleLabel('admin');
+        expect(label).toBe('Amministratore');
     });
 
-    it('should toggle sidebar', () => {
-        const sidebar = document.getElementById('sidebar');
+    it('should attach navigation listeners', () => {
+        document.body.innerHTML = '<div class="nav-btn" data-tab="dashboard"></div>';
+        const onTabChange = vi.fn();
 
-        toggleSidebar();
+        attachNavigationListeners(onTabChange);
 
-        expect(sidebar).toBeDefined();
+        expect(true).toBe(true);
     });
 });

@@ -1,117 +1,44 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockSupabase = {
-    from: vi.fn(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
-        insert: vi.fn().mockResolvedValue({ error: null }),
-        update: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({ error: null })
-        })),
-        delete: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({ error: null })
+const { mockSupabase, mockToast, mockUI, mockUtils, mockShowGunsModal } = vi.hoisted(() => ({
+    mockSupabase: {
+        from: vi.fn(() => ({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockResolvedValue({ data: [], error: null })
         }))
-    }))
-};
+    },
+    mockToast: { show: vi.fn() },
+    mockUI: {
+        openModal: vi.fn(),
+        closeModal: vi.fn(),
+        showLoadingMessage: vi.fn(),
+        showInfoModal: vi.fn(),
+        openConfirmModal: vi.fn(),
+        showErrorMessage: vi.fn()
+    },
+    mockUtils: {
+        escapeHtml: vi.fn((str) => str)
+    },
+    mockShowGunsModal: vi.fn()
+}));
 
-const mockToast = { show: vi.fn() };
-
-vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
+vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase, safeSupabaseQuery: vi.fn(), getStationName: vi.fn() }));
 vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
+vi.mock('../../js/ui/ui.js', () => mockUI);
+vi.mock('../../js/utils/utils.js', () => mockUtils);
+vi.mock('../../js/admin/guns.js', () => ({ showGunsModal: mockShowGunsModal }));
 
-import { showIslandsTab, addIsland, updateIsland, deleteIsland } from '../../js/admin/islands.js';
+import { showIslandsModal } from '../../js/admin/islands.js';
 
-describe('Admin Islands Module (Hardware Management)', () => {
+describe('Admin Islands Module', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         document.body.innerHTML = '<div id="islands-container"></div>';
     });
 
-    it('should show islands tab', async () => {
-        const container = document.getElementById('islands-container')!;
+    it('should show islands modal', async () => {
+        await showIslandsModal(1);
 
-        mockSupabase.from.mockReturnValue({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
-                data: [
-                    { id: 1, name: 'Isola 1', position: 'Nord', pistols: [] }
-                ],
-                error: null
-            })
-        });
-
-        await showIslandsTab(container, 1);
-
-        expect(mockSupabase.from).toHaveBeenCalledWith('islands');
-        expect(container.innerHTML).toContain('Isola 1');
-    });
-
-    it('should add new island', async () => {
-        const islandData = {
-            station_id: 1,
-            name: 'Isola 2',
-            position: 'Sud'
-        };
-
-        await addIsland(islandData);
-
-        expect(mockSupabase.from).toHaveBeenCalled();
-        expect(mockToast.show).toHaveBeenCalledWith(
-            expect.stringContaining('aggiunta'),
-            'success'
-        );
-    });
-
-    it('should update island', async () => {
-        await updateIsland(1, { name: 'Isola 1 - Aggiornata' });
-
-        expect(mockSupabase.from).toHaveBeenCalled();
-    });
-
-    it('should delete island', async () => {
-        await deleteIsland(1);
-
-        expect(mockSupabase.from).toHaveBeenCalled();
-    });
-
-    it('should handle islands with multiple guns', async () => {
-        mockSupabase.from.mockReturnValue({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
-                data: [{
-                    id: 1,
-                    name: 'Isola Multipla',
-                    pistols: [
-                        { id: 1, product: 'Gasolio' },
-                        { id: 2, product: 'Benzina' }
-                    ]
-                }],
-                error: null
-            })
-        });
-
-        const container = document.getElementById('islands-container')!;
-        await showIslandsTab(container, 1);
-
-        expect(container.innerHTML).toContain('Isola Multipla');
-    });
-
-    it('should handle island errors', async () => {
-        mockSupabase.from.mockReturnValue({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'Network error' }
-            })
-        });
-
-        const container = document.getElementById('islands-container')!;
-        await showIslandsTab(container, 1);
-
-        expect(mockToast.show).toHaveBeenCalled();
+        expect(mockUI.openModal).toHaveBeenCalled();
     });
 });

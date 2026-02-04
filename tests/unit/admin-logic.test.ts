@@ -1,37 +1,34 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockSupabase = { from: vi.fn(), rpc: vi.fn() };
-vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
+const { mockRenderSettingsPanel } = vi.hoisted(() => ({
+    mockRenderSettingsPanel: vi.fn()
+}));
 
-import { applyBusinessRules, validateOperation, processLogic } from '../../js/admin/logic.js';
+vi.mock('../../js/ui/ui-settings-panel.js', () => ({
+    renderSettingsPanel: mockRenderSettingsPanel
+}));
+
+import { showSettingsTab } from '../../js/admin/logic.js';
 
 describe('Admin Logic Module', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        document.body.innerHTML = '<div id="settings-container"></div>';
     });
 
-    it('should apply business rules', () => {
-        const rules = { minAmount: 10, maxAmount: 1000 };
-        const data = { amount: 500 };
+    it('should show settings tab', async () => {
+        const container = document.getElementById('settings-container')!;
 
-        const result = applyBusinessRules(rules, data);
+        await showSettingsTab(container, null);
 
-        expect(result).toBeDefined();
+        expect(mockRenderSettingsPanel).toHaveBeenCalled();
     });
 
-    it('should validate operation', () => {
-        const operation = { type: 'shift_close', data: {} };
+    it('should render settings shell', async () => {
+        const container = document.getElementById('settings-container')!;
 
-        const result = validateOperation(operation);
+        await showSettingsTab(container, null);
 
-        expect(result).toBeDefined();
-    });
-
-    it('should process logic', async () => {
-        mockSupabase.rpc.mockResolvedValue({ data: { success: true }, error: null });
-
-        const result = await processLogic({ action: 'calculate' });
-
-        expect(result).toBeDefined();
+        expect(container.innerHTML).toContain('settings-shell');
     });
 });

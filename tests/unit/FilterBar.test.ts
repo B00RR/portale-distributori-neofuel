@@ -1,70 +1,57 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { mockStore, mockUI } = vi.hoisted(() => ({
+    mockStore: {
+        getFilters: vi.fn(() => ({ rangeLabel: 'all', dateFrom: null, dateTo: null })),
+        getStations: vi.fn(() => [{ station_id: 1, station_name: 'Station 1' }]),
+        getFilter: vi.fn(() => null),
+        setStationFilter: vi.fn(),
+        setFilters: vi.fn()
+    },
+    mockUI: {
+        openModal: vi.fn(),
+        closeModal: vi.fn()
+    }
+}));
+
+vi.mock('../../shared/state.js', () => ({ store: mockStore }));
+vi.mock('../../ui/ui.js', () => mockUI);
 
 import { FilterBar } from '../../js/admin/components/FilterBar.js';
 
 describe('FilterBar Component', () => {
     beforeEach(() => {
-        document.body.innerHTML = '<div id="filter-container"></div>';
+        vi.clearAllMocks();
+        document.body.innerHTML = '<div id="filter-bar-container"></div>';
     });
 
-    describe('THE SPECIALIST - Component Rendering', () => {
-        it('should render filter bar in DOM', () => {
-            const container = document.getElementById('filter-container')!;
+    it('should create FilterBar instance', () => {
+        const filterBar = new FilterBar('filter-bar-container');
+        expect(filterBar).toBeDefined();
+    });
 
-            const filterBar = new FilterBar({
-                filters: ['date', 'station', 'status'],
-                onFilterChange: () => { }
-            });
+    it('should render filter bar', () => {
+        const filterBar = new FilterBar('filter-bar-container');
+        filterBar.render();
 
-            filterBar.render(container);
+        const container = document.getElementById('filter-bar-container');
+        expect(container?.innerHTML).toContain('filter-bar');
+    });
 
-            expect(container.querySelector('.filter-bar')).not.toBeNull();
-        });
+    it('should render station select', () => {
+        const filterBar = new FilterBar('filter-bar-container');
+        filterBar.render();
 
-        it('should render date filter', () => {
-            const container = document.getElementById('filter-container')!;
+        const select = document.getElementById('station-filter-select');
+        expect(select).not.toBeNull();
+    });
 
-            const filterBar = new FilterBar({
-                filters: ['date'],
-                onFilterChange: () => { }
-            });
+    it('should render date chips', () => {
+        const filterBar = new FilterBar('filter-bar-container');
+        filterBar.render();
 
-            filterBar.render(container);
-
-            const dateInput = container.querySelector('input[type="date"]');
-            expect(dateInput).not.toBeNull();
-        });
-
-        it('should render station filter dropdown', () => {
-            const container = document.getElementById('filter-container')!;
-
-            const filterBar = new FilterBar({
-                filters: ['station'],
-                stations: [
-                    { id: 1, name: 'Station 1' },
-                    { id: 2, name: 'Station 2' }
-                ],
-                onFilterChange: () => { }
-            });
-
-            filterBar.render(container);
-
-            const select = container.querySelector('select');
-            expect(select).not.toBeNull();
-            expect(container.innerHTML).toContain('Station 1');
-        });
-
-        it('should render status filter', () => {
-            const container = document.getElementById('filter-container')!;
-
-            const filterBar = new FilterBar({
-                filters: ['status'],
-                onFilterChange: () => { }
-            });
-
-            filterBar.render(container);
-
-            expect(container.innerHTML).toContain('Status');
-        });
+        const container = document.getElementById('filter-bar-container');
+        expect(container?.innerHTML).toContain('Oggi');
+        expect(container?.innerHTML).toContain('Settimana');
     });
 });

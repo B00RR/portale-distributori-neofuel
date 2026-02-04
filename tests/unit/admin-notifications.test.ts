@@ -1,23 +1,24 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockSupabase = {
-    from: vi.fn(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
-        insert: vi.fn().mockResolvedValue({ error: null }),
-        update: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({ error: null })
+const { mockSupabase, mockBusinessLogic, mockHandleError, mockFormatNumber } = vi.hoisted(() => ({
+    mockSupabase: {
+        from: vi.fn(() => ({
+            select: vi.fn().mockResolvedValue({ data: [], error: null })
         }))
-    }))
-};
-
-const mockToast = { show: vi.fn() };
+    },
+    mockBusinessLogic: {
+        loadRules: vi.fn().mockResolvedValue({ notifications_enabled: true, fuel_reserve_alert_liters: 1000, force_close_hours_threshold: 24 })
+    },
+    mockHandleError: vi.fn(),
+    mockFormatNumber: vi.fn((n) => n.toLocaleString())
+}));
 
 vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
-vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
+vi.mock('../../js/core/business-logic-manager.js', () => ({ BusinessLogicManager: mockBusinessLogic }));
+vi.mock('../../js/shared/error-handler.js', () => ({ handleError: mockHandleError }));
+vi.mock('../../js/utils/utils.js', () => ({ formatNumberIt: mockFormatNumber }));
 
-import { showNotifications, createNotification, markAsRead, deleteNotification } from '../../js/admin/notifications.js';
+import { showNotificheAdmin } from '../../js/admin/notifications.js';
 
 describe('Admin Notifications Module', () => {
     beforeEach(() => {
@@ -25,44 +26,19 @@ describe('Admin Notifications Module', () => {
         document.body.innerHTML = '<div id="notifications-container"></div>';
     });
 
-    it('should show notifications', async () => {
+    it('should display notifications', async () => {
         const container = document.getElementById('notifications-container')!;
 
-        mockSupabase.from.mockReturnValue({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
-                data: [{ id: 1, message: 'Test notification', read: false }],
-                error: null
-            })
-        });
+        await showNotificheAdmin(container);
 
-        await showNotifications(container);
-
-        expect(mockSupabase.from).toHaveBeenCalledWith('notifications');
+        expect(container.innerHTML).toBeTruthy();
     });
 
-    it('should create notification', async () => {
-        await createNotification('Test message', 'info');
+    it('should load business rules', async () => {
+        const container = document.getElementById('notifications-container')!;
 
-        expect(mockSupabase.from).toHaveBeenCalled();
-    });
+        await showNotificheAdmin(container);
 
-    it('should mark notification as read', async () => {
-        await markAsRead(1);
-
-        expect(mockSupabase.from).toHaveBeenCalled();
-    });
-
-    it('should delete notification', async () => {
-        mockSupabase.from.mockReturnValue({
-            delete: vi.fn(() => ({
-                eq: vi.fn().mockResolvedValue({ error: null })
-            }))
-        });
-
-        await deleteNotification(1);
-
-        expect(mockSupabase.from).toHaveBeenCalled();
+        expect(mockBusinessLogic.loadRules).toHaveBeenCalled();
     });
 });

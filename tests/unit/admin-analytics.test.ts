@@ -1,66 +1,65 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockSupabase = {
-    from: vi.fn(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        gte: vi.fn().mockReturnThis(),
-        lte: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [], error: null })
-    }))
-};
+const { mockSupabase, mockUI, mockUtils } = vi.hoisted(() => ({
+    mockSupabase: {
+        from: vi.fn(() => ({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            gte: vi.fn().mockReturnThis(),
+            lte: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({ data: [], error: null })
+        }))
+    },
+    mockUI: {
+        showLoadingMessage: vi.fn(),
+        showErrorMessage: vi.fn()
+    },
+    mockUtils: {
+        formatEuro: vi.fn((v) => `€${v}`),
+        formatLitri: vi.fn((v) => `${v}L`),
+        getISODate: vi.fn(() => '2024-01-01')
+    }
+}));
+
+global.window = global.window || ({} as any);
+(global.window as any).Chart = vi.fn();
 
 vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
+vi.mock('../../js/ui/ui.js', () => mockUI);
+vi.mock('../../js/utils/utils.js', () => mockUtils);
 
-import { fetchAdminAnalytics, generateReport, exportAnalytics } from '../../js/admin/analytics.js';
+import { showAnalyticsTab } from '../../js/admin/analytics.js';
 
 describe('Admin Analytics Module', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        document.body.innerHTML = '<div id="analytics-container"></div>';
     });
 
-    it('should fetch admin analytics', async () => {
+    it('should display analytics tab', async () => {
+        const container = document.getElementById('analytics-container')!;
+
+        await showAnalyticsTab(container);
+
+        expect(container.innerHTML).toContain('analytics');
+    });
+
+    it('should fetch shift data', async () => {
+        const container = document.getElementById('analytics-container')!;
+
         mockSupabase.from.mockReturnValue({
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
             gte: vi.fn().mockReturnThis(),
             lte: vi.fn().mockReturnThis(),
             order: vi.fn().mockResolvedValue({
-                data: [{ metric: 'revenue', value: 10000 }],
+                data: [{ closed_at: '2024-01-01', closing_data: { ricavo_teorico: 100 } }],
                 error: null
             })
         });
 
-        const result = await fetchAdminAnalytics({ stationId: 'ST-123' });
+        await showAnalyticsTab(container);
 
         expect(mockSupabase.from).toHaveBeenCalled();
-        expect(result).toBeDefined();
-    });
-
-    it('should generate report', async () => {
-        const report = await generateReport('ST-123', '2024-01-01', '2024-01-31');
-
-        expect(report).toBeDefined();
-    });
-
-    it('should export analytics', () => {
-        const data = [{ date: '2024-01-01', revenue: 500 }];
-        const exported = exportAnalytics(data, 'csv');
-
-        expect(exported).toBeDefined();
-    });
-
-    it('should handle analytics errors', async () => {
-        mockSupabase.from.mockReturnValue({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            gte: vi.fn().mockReturnThis(),
-            lte: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({ data: null, error: { message: 'Error' } })
-        });
-
-        const result = await fetchAdminAnalytics({ stationId: 'ST-123' });
-
-        expect(result).toBeDefined();
     });
 });

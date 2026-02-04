@@ -1,114 +1,72 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
-vi.mock('../../js/ui/ui.js', () => ({
-    showInfoModal: vi.fn(),
-    closeModal: vi.fn()
-}));
-
-import { renderButton, renderInput, renderCard, renderAlert } from '../../js/operator/ui-components.js';
+import {
+    createWarningMessage,
+    createSuccessMessage,
+    createErrorMessage,
+    createBackButton,
+    createFormActions,
+    createPistolaCard,
+    createSummaryBox,
+    createSummaryRow,
+    createContentBox,
+    createDivider
+} from '../../js/operator/ui-components.js';
 
 describe('Operator UI Components Module', () => {
-    beforeEach(() => {
-        document.body.innerHTML = '<div id="test-container"></div>';
+    it('should create warning message', () => {
+        const html = createWarningMessage('Warning', 'Test warning');
+        expect(html).toContain('Warning');
+        expect(html).toContain('Test warning');
     });
 
-    describe('THE SPECIALIST - DOM Rendering Tests', () => {
-        it('should render button in DOM', () => {
-            const container = document.getElementById('test-container')!;
+    it('should create success message', () => {
+        const html = createSuccessMessage('Success', 'Operation complete');
+        expect(html).toContain('Success');
+        expect(html).toContain('Operation complete');
+    });
 
-            const button = renderButton({
-                text: 'Click Me',
-                className: 'primary',
-                onClick: vi.fn()
-            });
+    it('should create error message', () => {
+        const error = { message: 'Test error', code: 'ERR001' };
+        const html = createErrorMessage('Error Title', error);
+        expect(html).toContain('Error Title');
+        expect(html).toContain('Test error');
+    });
 
-            container.appendChild(button);
+    it('should create back button', () => {
+        const html = createBackButton('btn-test');
+        expect(html).toContain('btn-test');
+        expect(html).toContain('Torna al Menu');
+    });
 
-            const rendered = container.querySelector('button');
-            expect(rendered).not.toBeNull();
-            expect(rendered?.textContent).toContain('Click Me');
-            expect(rendered?.className).toContain('primary');
-        });
+    it('should create form actions', () => {
+        const html = createFormActions({ cancelText: 'Cancel', confirmText: 'OK' });
+        expect(html).toContain('Cancel');
+        expect(html).toContain('OK');
+    });
 
-        it('should render input field in DOM', () => {
-            const container = document.getElementById('test-container')!;
+    it('should create pistola card', () => {
+        const pistola: any = { id: 1, nome: 'P1', islands: { nome: 'Isola 1' } };
+        const html = createPistolaCard(pistola, 1000, 1500);
+        expect(html).toContain('P1');
+        expect(html).toContain('1000');
+    });
 
-            const input = renderInput({
-                type: 'text',
-                placeholder: 'Enter value',
-                name: 'test-input'
-            });
+    it('should create summary box', () => {
+        const rows = [createSummaryRow('Total', '€100')];
+        const html = createSummaryBox('Summary', rows);
+        expect(html).toContain('Summary');
+        expect(html).toContain('Total');
+    });
 
-            container.appendChild(input);
+    it('should create content box', () => {
+        const html = createContentBox('Test content');
+        expect(html).toContain('content-box');
+        expect(html).toContain('Test content');
+    });
 
-            const rendered = container.querySelector('input');
-            expect(rendered).not.toBeNull();
-            expect(rendered?.type).toBe('text');
-            expect(rendered?.placeholder).toBe('Enter value');
-        });
-
-        it('should render card component in DOM', () => {
-            const container = document.getElementById('test-container')!;
-
-            const card = renderCard({
-                title: 'Test Card',
-                content: 'Card content here',
-                footer: 'Footer text'
-            });
-
-            container.appendChild(card);
-
-            expect(container.innerHTML).toContain('Test Card');
-            expect(container.innerHTML).toContain('Card content here');
-        });
-
-        it('should render alert component in DOM', () => {
-            const container = document.getElementById('test-container')!;
-
-            const alert = renderAlert({
-                type: 'warning',
-                message: 'This is a warning'
-            });
-
-            container.appendChild(alert);
-
-            expect(container.innerHTML).toContain('This is a warning');
-            expect(container.querySelector('.alert')).not.toBeNull();
-        });
-
-        it('should handle button click interaction', () => {
-            const container = document.getElementById('test-container')!;
-            const onClick = vi.fn();
-
-            const button = renderButton({
-                text: 'Interactive',
-                onClick
-            });
-
-            container.appendChild(button);
-
-            const rendered = container.querySelector('button');
-            rendered?.click();
-
-            expect(onClick).toHaveBeenCalled();
-        });
-
-        it('should handle input value changes', () => {
-            const container = document.getElementById('test-container')!;
-            const onInput = vi.fn();
-
-            const input = renderInput({
-                type: 'text',
-                onInput
-            });
-
-            container.appendChild(input);
-
-            const rendered = container.querySelector('input') as HTMLInputElement;
-            rendered.value = 'test value';
-            rendered.dispatchEvent(new Event('input'));
-
-            expect(onInput).toHaveBeenCalled();
-        });
+    it('should create divider', () => {
+        const html = createDivider();
+        expect(html).toContain('section-divider');
     });
 });

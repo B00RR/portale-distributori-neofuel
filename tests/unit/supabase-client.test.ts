@@ -1,27 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
-vi.mock('@supabase/supabase-js', () => ({
-    createClient: vi.fn(() => ({
-        auth: { getSession: vi.fn() },
-        from: vi.fn()
-    }))
-}));
-
-import { initSupabaseClient, getSupabaseClient } from '../../js/core/supabase-client.js';
+import { createClient } from '../../js/core/supabase-client.js';
 
 describe('Supabase Client Module', () => {
-    it('should initialize supabase client', () => {
-        const client = initSupabaseClient('url', 'key');
-        expect(client).toBeDefined();
+    it('should export createClient from supabase', () => {
+        expect(createClient).toBeDefined();
+        expect(typeof createClient).toBe('function');
     });
 
-    it('should get supabase client instance', () => {
-        const client = getSupabaseClient();
-        expect(client).toBeDefined();
-    });
+    it('should create a client instance', () => {
+        const client = createClient('https://test.supabase.co', 'test-key');
 
-    it('should handle missing client gracefully', () => {
-        const client = getSupabaseClient();
         expect(client).toBeDefined();
+        expect(client.auth).toBeDefined();
     });
 });

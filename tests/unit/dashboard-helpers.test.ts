@@ -1,38 +1,42 @@
 import { describe, it, expect } from 'vitest';
 
-import { formatDashboardData, calculateKPIs, aggregateMetrics, filterByDateRange } from '../../js/admin/dashboard-helpers.js';
+import { renderKpiCards, KPIData } from '../../js/admin/dashboard-helpers.js';
 
 describe('Dashboard Helpers Module', () => {
-    it('should format dashboard data', () => {
-        const raw = [{ amount: 100, date: '2024-01-01' }];
-        const formatted = formatDashboardData(raw);
+    it('should render KPI cards', () => {
+        const config: any = {
+            kpiLayout: [
+                { id: 'venduto', visible: true, order: 1, size: '1x1' }
+            ],
+            gridColumns: 4
+        };
 
-        expect(formatted).toBeDefined();
+        const kpiData: KPIData = {
+            venduto: { value: '€1000', subtitle: 'Today' }
+        };
+
+        const html = renderKpiCards(config, kpiData);
+
+        expect(html).toContain('venduto');
+        expect(html).toContain('€1000');
     });
 
-    it('should calculate KPIs', () => {
-        const data = { revenue: 10000, volume: 5000 };
-        const kpis = calculateKPIs(data);
+    it('should filter invisible KPIs', () => {
+        const config: any = {
+            kpiLayout: [
+                { id: 'visible', visible: true },
+                { id: 'hidden', visible: false }
+            ]
+        };
 
-        expect(kpis).toBeDefined();
-    });
+        const kpiData: KPIData = {
+            visible: { value: '100', subtitle: 'test' },
+            hidden: { value: '200', subtitle: 'test' }
+        };
 
-    it('should aggregate metrics', () => {
-        const metrics = [{ value: 10 }, { value: 20 }, { value: 30 }];
-        const aggregated = aggregateMetrics(metrics);
+        const html = renderKpiCards(config, kpiData);
 
-        expect(aggregated).toBeDefined();
-    });
-
-    it('should filter by date range', () => {
-        const data = [
-            { date: '2024-01-01', value: 100 },
-            { date: '2024-01-15', value: 200 },
-            { date: '2024-02-01', value: 300 }
-        ];
-
-        const filtered = filterByDateRange(data, '2024-01-01', '2024-01-31');
-
-        expect(filtered).toBeDefined();
+        expect(html).toContain('visible');
+        expect(html).not.toContain('hidden');
     });
 });

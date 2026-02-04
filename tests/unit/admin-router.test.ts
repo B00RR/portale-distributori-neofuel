@@ -1,35 +1,20 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
-const mockRouter = {
-    navigateTo: vi.fn(),
-    getCurrentRoute: vi.fn(() => '/dashboard')
-};
-
-vi.mock('../../js/ui/router.js', () => mockRouter);
-
-import { initAdminRouter, navigateToTab, handleNavigation } from '../../js/admin/router.js';
+import { router } from '../../js/admin/router.js';
 
 describe('Admin Router Module', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        document.body.innerHTML = '<div id="admin-content"></div>';
+    it('should export router singleton', () => {
+        expect(router).toBeDefined();
+        expect(router.getCurrentTab).toBeDefined();
     });
 
-    it('should initialize admin router', () => {
-        initAdminRouter();
-
-        expect(mockRouter.getCurrentRoute).toBeDefined();
+    it('should initialize router with role', () => {
+        router.init('admin');
+        expect(router.getCurrentTab()).toBe('dashboard');
     });
 
-    it('should navigate to tab', () => {
-        navigateToTab('dashboard');
-
-        expect(mockRouter.navigateTo || true).toBeDefined();
-    });
-
-    it('should handle navigation', () => {
-        handleNavigation({ tab: 'stations' });
-
-        expect(true).toBe(true);
+    it('should get current tab', () => {
+        const tab = router.getCurrentTab();
+        expect(tab).toBeDefined();
     });
 });
