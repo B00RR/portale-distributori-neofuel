@@ -1,122 +1,110 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock IndexedDB in test environment
-const mockIDB = vi.hoisted(() => {
-    const stores = new Map();
-    return {
-        stores,
-        open: vi.fn((name, version) => ({
-            result: {
-                objectStoreNames: { contains: vi.fn(() => false) },
-                createObjectStore: vi.fn((storeName, opts) => {
-                    stores.set(storeName, new Map());
-                    return {};
-                }),
-                transaction: vi.fn((storeNames, mode) => ({
-                    objectStore: vi.fn((storeName) => {
-                        const store = stores.get(storeName) || new Map();
-                        return {
-                            add: vi.fn((item) => ({
-                                result: Date.now(),
-                                onsuccess: null as any,
-                                onerror: null as any
-                            })),
-                            getAll: vi.fn(() => ({
-                                result: Array.from(store.values()),
-                                onsuccess: null as any,
-                                onerror: null as any
-                            })),
-                            delete: vi.fn(() => ({
-                                onsuccess: null as any,
-                                onerror: null as any
-                            })),
-                            count: vi.fn(() => ({
-                                result: store.size,
-                                onsuccess: null as any,
-                                onerror: null as any
-                            }))
-                        };
+// 1. Hoist Mock IDB
+const { smartIDB } = vi.hoisted(() => {
+    const store = new Map();
+    let idCounter = 1;
+
+    const smartIDB = {
+        open: vi.fn(() => {
+            const req: any = {};
+            setTimeout(() => {
+                req.result = {
+                    objectStoreNames: { contains: () => true },
+                    createObjectStore: () => { },
+                    transaction: () => ({
+                        objectStore: () => ({
+                            add: (val: any) => {
+                                const id = val.id || idCounter++;
+                                // Auto-assign ID if autoIncrement is assumed (OfflineDB uses autoIncrement: true)
+                                const stored = { ...val, id };
+                                store.set(id, stored);
+                                const r: any = {};
+                                setTimeout(() => {
+                                    r.result = id;
+                                    if (r.onsuccess) r.onsuccess({ target: { result: id } });
+                                }, 0);
+                                return r;
+                            },
+                            getAll: () => {
+                                const list = Array.from(store.values());
+                                const r: any = {};
+                                setTimeout(() => {
+                                    r.result = list;
+                                    if (r.onsuccess) r.onsuccess({ target: { result: list } });
+                                }, 0);
+                                return r;
+                            },
+                            delete: (id: any) => {
+                                store.delete(id);
+                                const r: any = {};
+                                setTimeout(() => r.onsuccess && r.onsuccess(), 0);
+                                return r;
+                            },
+                            count: () => {
+                                const r: any = {};
+                                setTimeout(() => {
+                                    r.result = store.size;
+                                    if (r.onsuccess) r.onsuccess({ target: { result: store.size } });
+                                }, 0);
+                                return r;
+                            }
+                        })
                     })
-                }))
-            },
-            onsuccess: null as any,
-            onerror: null as any,
-            onupgradeneeded: null as any
-        }))
+                };
+                if (req.onsuccess) req.onsuccess({ target: { result: req.result } });
+            }, 0);
+            return req;
+        }),
+        _reset: () => { store.clear(); idCounter = 1; }
     };
+    return { smartIDB };
 });
 
-global.indexedDB = {
-    open: mockIDB.open
-} as any;
-
-import { offlineDB } from '../../js/core/offline-db.js';
+// Stub Global
+vi.stubGlobal('indexedDB', smartIDB);
 
 describe('Offline DB Module', () => {
-    beforeEach(() => {
+    let offlineDB: any;
+
+    beforeEach(async () => {
         vi.clearAllMocks();
-        mockIDB.stores.clear();
+        vi.resetModules();
+        smartIDB._reset();
+
+        // Re-stub to be safe
+        vi.stubGlobal('indexedDB', smartIDB);
+
+        // Dynamic Import
+        const module = await import('../../js/core/offline-db.js');
+        offlineDB = module.offlineDB;
+
+        // Wait for DB init
+        await new Promise(r => setTimeout(r, 10));
     });
 
-    describe('enqueue', () => {
-        it('should add mutation to queue', async () => {
-            const mutation = { table: 'shifts', action: 'insert', data: { id: 1 } };
+    it('should enqueue mutation', async () => {
+        const id = await offlineDB.enqueue({ table: 'test', action: 'insert', data: {} });
+        expect(id).toBe(1);
 
-            const request = mockIDB.open().result.transaction().objectStore().add(mutation);
-            request.onsuccess = vi.fn();
-
-            setTimeout(() => request.onsuccess?.(), 0);
-
-            await new Promise(resolve => setTimeout(resolve, 10));
-            expect(request.onsuccess).toHaveBeenCalled();
-        });
-
-        it('should reject if DB not initialized', async () => {
-            // Test handled by real implementation
-            expect(offlineDB).toBeDefined();
-        });
+        const count = await offlineDB.getQueueCount();
+        expect(count).toBe(1);
     });
 
-    describe('getQueue', () => {
-        it('should return all queued mutations', async () => {
-            const request = mockIDB.open().result.transaction().objectStore().getAll();
-            request.result = [{ id: 1 }, { id: 2 }];
-            request.onsuccess = vi.fn();
+    it('should get queue', async () => {
+        await offlineDB.enqueue({ table: 't1', action: 'a1' });
+        await offlineDB.enqueue({ table: 't2', action: 'a2' });
 
-            setTimeout(() => request.onsuccess?.(), 0);
-
-            await new Promise(resolve => setTimeout(resolve, 10));
-            expect(request.result).toHaveLength(2);
-        });
+        const queue = await offlineDB.getQueue();
+        expect(queue).toHaveLength(2);
+        expect(queue[0].table).toBe('t1');
     });
 
-    describe('dequeue', () => {
-        it('should remove mutation from queue', async () => {
-            const request = mockIDB.open().result.transaction().objectStore().delete(1);
-            request.onsuccess = vi.fn();
+    it('should dequeue mutation', async () => {
+        const id = await offlineDB.enqueue({ table: 't1' });
+        await offlineDB.dequeue(id);
 
-            setTimeout(() => request.onsuccess?.(), 0);
-
-            await new Promise(resolve => setTimeout(resolve, 10));
-            expect(request.onsuccess).toHaveBeenCalled();
-        });
-    });
-
-    describe('getQueueCount', () => {
-        it('should return queue count', async () => {
-            const request = mockIDB.open().result.transaction().objectStore().count();
-            request.result = 5;
-            request.onsuccess = vi.fn();
-
-            setTimeout(() => request.onsuccess?.(), 0);
-
-            await new Promise(resolve => setTimeout(resolve, 10));
-            expect(request.result).toBe(5);
-        });
-
-        it('should return 0 if DB not initialized', async () => {
-            // Covered by implementation
-            expect(true).toBe(true);
-        });
+        const count = await offlineDB.getQueueCount();
+        expect(count).toBe(0);
     });
 });

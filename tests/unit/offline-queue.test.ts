@@ -1,67 +1,98 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Use vi.hoisted for map
-const { mockDB } = vi.hoisted(() => ({
-    mockDB: new Map()
-}));
+const { mockToast, smartIDB } = vi.hoisted(() => {
+    const store = new Map();
+    let idCounter = 1;
 
-const mockIndexedDB = {
-    open: vi.fn(() => ({
-        result: {
-            objectStoreNames: { contains: vi.fn(() => false) },
-            createObjectStore: vi.fn(),
-            transaction: vi.fn(() => ({
-                objectStore: vi.fn(() => ({
-                    add: vi.fn((action) => {
-                        mockDB.set(action.id, action);
-                        const req = { onsuccess: null as any };
-                        setTimeout(() => req.onsuccess?.(), 0);
-                        return req;
-                    }),
-                    getAll: vi.fn(() => {
-                        const all = Array.from(mockDB.values());
-                        const req = { onsuccess: null as any, result: all };
-                        setTimeout(() => req.onsuccess?.(), 0);
-                        return req;
-                    }),
-                    delete: vi.fn((id) => {
-                        mockDB.delete(id);
-                        const req = { onsuccess: null as any };
-                        setTimeout(() => req.onsuccess?.(), 0);
-                        return req;
-                    }),
-                    put: vi.fn()
-                }))
-            }))
-        },
-        onsuccess: null as any
-    }))
-};
+    const smartIDB = {
+        open: vi.fn(() => {
+            const req: any = {};
+            setTimeout(() => {
+                req.result = {
+                    objectStoreNames: { contains: () => true },
+                    createObjectStore: () => { },
+                    transaction: () => ({
+                        objectStore: () => ({
+                            add: (val: any) => {
+                                const id = val.id || `auto-${idCounter++}`;
+                                store.set(id, val);
+                                const r: any = {};
+                                setTimeout(() => {
+                                    r.result = id; // Fix: Set result on request
+                                    if (r.onsuccess) r.onsuccess({ target: { result: id } });
+                                }, 0);
+                                return r;
+                            },
+                            getAll: () => {
+                                const list = Array.from(store.values());
+                                const r: any = {};
+                                setTimeout(() => {
+                                    r.result = list; // Fix: Set result on request
+                                    if (r.onsuccess) r.onsuccess({ target: { result: list } });
+                                }, 0);
+                                return r;
+                            },
+                            delete: (id: any) => {
+                                store.delete(id);
+                                const r: any = {};
+                                setTimeout(() => {
+                                    r.result = undefined;
+                                    if (r.onsuccess) r.onsuccess();
+                                }, 0);
+                                return r;
+                            },
+                            put: (val: any) => {
+                                store.set(val.id, val);
+                                const r: any = {};
+                                setTimeout(() => {
+                                    r.result = val.id;
+                                    if (r.onsuccess) r.onsuccess({ target: { result: val.id } });
+                                }, 0);
+                                return r;
+                            }
+                        })
+                    })
+                };
+                if (req.onsuccess) req.onsuccess({ target: { result: req.result } });
+            }, 0);
+            return req;
+        }),
+        _reset: () => { store.clear(); idCounter = 1; }
+    };
 
-global.indexedDB = mockIndexedDB as any;
-vi.mock('../../js/ui/toast.js', () => ({ Toast: { show: vi.fn() } }));
+    return {
+        mockToast: { show: vi.fn() },
+        smartIDB
+    };
+});
 
-import { initOfflineQueue, queueAction, syncPendingActions, registerExecutor } from '../../js/core/offline-queue.js';
+vi.stubGlobal('indexedDB', smartIDB);
+vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
 
 describe('Offline Queue Module', () => {
+    let offlineQueue: any;
+
     beforeEach(async () => {
         vi.clearAllMocks();
-        mockDB.clear();
-        await initOfflineQueue();
+        vi.resetModules();
+        smartIDB._reset();
+        vi.stubGlobal('indexedDB', smartIDB);
+
+        offlineQueue = await import('../../js/core/offline-queue.js');
+        await offlineQueue.initOfflineQueue();
     });
 
-    it('should sync pending actions', async () => {
+    it('should queue and sync actions', async () => {
         const executor = vi.fn().mockResolvedValue(true);
-        registerExecutor('mock-action', executor);
+        offlineQueue.registerExecutor('generic', executor);
 
-        // Add action
-        await queueAction('mock-action', { data: 123 });
+        await offlineQueue.queueAction('generic', { a: 1 });
+        await new Promise(r => setTimeout(r, 20));
 
-        // Ensure async operations complete
-        await new Promise(r => setTimeout(r, 10));
+        const pending = await offlineQueue.getPendingActions();
+        expect(pending.length).toBeGreaterThan(0);
 
-        const result = await syncPendingActions();
-
+        const result = await offlineQueue.syncPendingActions();
         expect(result.success).toBe(1);
         expect(executor).toHaveBeenCalled();
     });

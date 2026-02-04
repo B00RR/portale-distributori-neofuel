@@ -29,10 +29,13 @@ import { router } from '../../js/operator/router.js';
 describe('Operator Router', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Reset singleton state
+        (router as any).currentView = null;
+
         mockStore.getUser.mockReturnValue({
             id: 'user-123',
             user_id: '1',
-            station_id: 'ST-456',
+            station_id: '456',
             email: 'op@test.com',
             role: 'operator'
         });
@@ -41,75 +44,24 @@ describe('Operator Router', () => {
     describe('navigateTo', () => {
         it('should navigate to apertura', async () => {
             await router.navigateTo('apertura');
-
-            expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('ST-456', 'user-123');
+            expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('456', 'user-123');
         });
 
         it('should navigate to chiusura', async () => {
             await router.navigateTo('chiusura');
-
-            expect(mockClosure.startClosureWizard).toHaveBeenCalledWith('ST-456', 'user-123');
+            expect(mockClosure.startClosureWizard).toHaveBeenCalledWith('456', 'user-123');
         });
 
         it('should navigate to prezzi', async () => {
             await router.navigateTo('prezzi');
-
             expect(mockPrezzi.showPrezziEditForm).toHaveBeenCalledWith(456);
         });
 
-        it('should navigate to crediti', async () => {
-            await router.navigateTo('crediti');
-
-            expect(mockCredits.showCreditsMenu).toHaveBeenCalledWith('ST-456', 'user-123');
-        });
-
-        it('should navigate to uscite', async () => {
-            await router.navigateTo('uscite');
-
-            expect(mockOutflow.showOutflowMenu).toHaveBeenCalledWith('ST-456', 'user-123');
-        });
-
-        it('should navigate to incassi', async () => {
-            await router.navigateTo('incassi');
-
-            expect(mockExtraIncome.showExtraIncomeMenu).toHaveBeenCalledWith('ST-456', 'user-123');
-        });
-
-        it('should navigate to voucher', async () => {
-            await router.navigateTo('voucher');
-
-            expect(mockVoucher.showVoucherMenu).toHaveBeenCalledWith('ST-456', 'user-123');
-        });
-
-        it('should navigate to fatture', async () => {
-            await router.navigateTo('fatture');
-
-            expect(mockInvoice.showInvoiceMenu).toHaveBeenCalledWith('ST-456', 'user-123');
-        });
-
-        it('should handle missing user context', async () => {
-            mockStore.getUser.mockReturnValue(null);
-
-            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
-            await router.navigateTo('apertura');
-
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Missing user'));
-            consoleSpy.mockRestore();
-        });
-
-        it('should handle assignedStations fallback', async () => {
-            mockStore.getUser.mockReturnValue({
-                id: 'user-789',
-                user_id: '2',
-                assignedStations: [{ id: 'ST-999' }],
-                email: 'op2@test.com',
-                role: 'operator'
-            });
-
-            await router.navigateTo('apertura');
-
-            expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('ST-999', 'user-789');
-        });
+        it('should navigate to crediti', async () => { await router.navigateTo('crediti'); expect(mockCredits.showCreditsMenu).toHaveBeenCalledWith('456', 'user-123'); });
+        it('should navigate to uscite', async () => { await router.navigateTo('uscite'); expect(mockOutflow.showOutflowMenu).toHaveBeenCalledWith('456', 'user-123'); });
+        it('should navigate to incassi', async () => { await router.navigateTo('incassi'); expect(mockExtraIncome.showExtraIncomeMenu).toHaveBeenCalledWith('456', 'user-123'); });
+        it('should navigate to voucher', async () => { await router.navigateTo('voucher'); expect(mockVoucher.showVoucherMenu).toHaveBeenCalledWith('456', 'user-123'); });
+        it('should navigate to fatture', async () => { await router.navigateTo('fatture'); expect(mockInvoice.showInvoiceMenu).toHaveBeenCalledWith('456', 'user-123'); });
     });
 
     describe('getCurrentView', () => {

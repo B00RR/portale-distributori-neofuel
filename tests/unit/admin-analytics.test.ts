@@ -1,37 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Use vi.hoisted for variables used in mocks
-const { mockSupabase, mockUI, mockCharts, mockUtils } = vi.hoisted(() => ({
-    mockSupabase: {
-        from: vi.fn(() => ({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            gte: vi.fn().mockReturnThis(),
-            lte: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({ data: [], error: null })
-        }))
-    },
-    mockUI: {
-        showLoadingMessage: vi.fn(),
-        showErrorMessage: vi.fn()
-    },
-    mockCharts: {
-        fetchAnalyticsData: vi.fn().mockResolvedValue({ daily: [] }),
-        renderRevenueChart: vi.fn(),
-        renderVolumeChart: vi.fn(),
-        renderPaymentChart: vi.fn(),
-        renderFuelMixChart: vi.fn()
-    },
-    mockUtils: {
-        formatEuro: vi.fn(v => `€${v}`),
-        formatLitri: vi.fn(v => `${v}L`),
-        getISODate: vi.fn(() => '2024-01-01')
-    }
-}));
+const { mockSupabase, mockUI, mockUtils } = vi.hoisted(() => {
+    const queryBuilder: any = {};
+    const chain = vi.fn((...args) => queryBuilder);
+    const analyticsResult = { data: [{ closing_data: { ricavo_teorico: 100 }, closed_at: '2024-01-01' }], error: null };
+    Object.assign(queryBuilder, {
+        select: chain, eq: chain, gte: chain, lte: chain, order: chain, in: chain,
+        then: (resolve: any) => resolve(analyticsResult)
+    });
+
+    return {
+        mockSupabase: { from: vi.fn(() => queryBuilder) },
+        mockUI: {
+            showLoadingMessage: vi.fn(),
+            showErrorMessage: vi.fn((c, e) => console.log('[MockUI] Error:', e))
+        },
+        mockUtils: {
+            formatEuro: vi.fn(v => `€${v}`),
+            formatLitri: vi.fn(v => `${v}L`),
+            getISODate: vi.fn(() => '2024-01-01')
+        }
+    };
+});
 
 vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
 vi.mock('../../js/ui/ui.js', () => mockUI);
-vi.mock('../../js/admin/dashboard-charts.js', () => mockCharts);
 vi.mock('../../js/utils/utils.js', () => mockUtils);
 
 import { showAnalyticsTab } from '../../js/admin/analytics.js';
@@ -39,26 +32,38 @@ import { showAnalyticsTab } from '../../js/admin/analytics.js';
 describe('Admin Analytics Module', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.resetModules();
         document.body.innerHTML = '<div id="analytics-container"></div>';
+
+        HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+            fillRect: vi.fn(), stroke: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(),
+            fill: vi.fn(), closePath: vi.fn(), strokeRect: vi.fn(), clearRect: vi.fn(), save: vi.fn(),
+            restore: vi.fn(), createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+            measureText: vi.fn(() => ({ width: 10 }))
+        }) as any;
+
+        global.window = global.window || ({} as any);
+        // Correct Mock: Chart should be a Class (Constructor)
+        (global.window as any).Chart = vi.fn().mockImplementation(() => ({
+            destroy: vi.fn(),
+            update: vi.fn()
+        }));
     });
 
     it('should display analytics structure', async () => {
         const container = document.getElementById('analytics-container')!;
         await showAnalyticsTab(container);
 
-        expect(container.innerHTML).toContain('analytics-filters');
+        await new Promise(r => setTimeout(r, 10));
+
+        expect(container.innerHTML).toContain('analytics-wrapper');
     });
 
     it('should fetch analytics data', async () => {
         const container = document.getElementById('analytics-container')!;
         await showAnalyticsTab(container);
+        await new Promise(r => setTimeout(r, 10));
 
-        // Wait for async
-        await new Promise(r => setTimeout(r, 0));
-
-        // Either supabase directly or via dashboard-charts fetchAnalyticsData
-        // analytics.ts usually calls fetchAnalyticsData or manual query
-        // Let's assume manual query based on previous read
-        expect(mockSupabase.from).toHaveBeenCalled();
+        expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
     });
 });
