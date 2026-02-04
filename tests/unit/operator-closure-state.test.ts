@@ -1,125 +1,79 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockLocalStorage = {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-    removeItem: vi.fn()
-};
-
-Object.defineProperty(window, 'localStorage', {
-    value: mockLocalStorage,
-    writable: true
-});
-
-import { ClosureState, saveClosureState, loadClosureState, clearClosureState, mergePistolData } from '../../js/operator/closure-state.js';
+import { closureState, resetClosureState, initClosureState, setClosureStep, setClosureCounters, setCalculations } from '../../js/operator/closure-state.js';
 
 describe('Operator Closure State Module', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        resetClosureState();
     });
 
-    it('should save closure state to localStorage', () => {
-        const state: ClosureState = {
-            shiftId: 'shift-123',
-            pistols: [
-                { id: 1, finalCounter: 1000, initialCounter: 500 }
-            ],
-            cashDeclared: 500.50,
-            timestamp: new Date().toISOString()
+    it('should export closureState object', () => {
+        expect(closureState).toBeDefined();
+        expect(closureState.step).toBe(1);
+    });
+
+    it('should reset closure state', () => {
+        closureState.step = 5;
+        closureState.stationId = 'ST-123';
+
+        resetClosureState();
+
+        expect(closureState.step).toBe(1);
+        expect(closureState.stationId).toBeNull();
+    });
+
+    it('should initialize closure state with shift data', () => {
+        const mockShift = {
+            id: 1,
+            station_id: 123,
+            user_id: 'user-456',
+            data_apertura: '2024-01-01T08:00:00Z'
+        } as any;
+
+        initClosureState('ST-123', 'user-456', mockShift);
+
+        expect(closureState.stationId).toBe('ST-123');
+        expect(closureState.userId).toBe('user-456');
+        expect(closureState.activeOpening).toEqual(mockShift);
+    });
+
+    it('should set closure step', () => {
+        setClosureStep(3);
+
+        expect(closureState.step).toBe(3);
+    });
+
+    it('should set closure counters', () => {
+        const counters = {
+            1: 1500,
+            2: 2000
         };
 
-        saveClosureState(state);
+        setClosureCounters(counters);
 
-        expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-            'closure_state',
-            expect.stringContaining('shift-123')
-        );
+        expect(closureState.closureCounters).toEqual(counters);
     });
 
-    it('should load closure state from localStorage', () => {
-        const savedState = {
-            shiftId: 'shift-456',
-            pistols: [],
-            cashDeclared: 0,
-            timestamp: new Date().toISOString()
+    it('should set calculations', () => {
+        const calculations = {
+            totalRevenue: 5000,
+            totalVolume: 3000
         };
 
-        mockLocalStorage.getItem.mockReturnValue(JSON.stringify(savedState));
+        setCalculations(calculations);
 
-        const loaded = loadClosureState();
-
-        expect(loaded).toEqual(savedState);
-        expect(mockLocalStorage.getItem).toHaveBeenCalledWith('closure_state');
+        expect(closureState.calculations).toEqual(calculations);
     });
 
-    it('should return null if no state exists', () => {
-        mockLocalStorage.getItem.mockReturnValue(null);
+    it('should persist state across multiple updates', () => {
+        const mockShift = { id: 1 } as any;
 
-        const loaded = loadClosureState();
+        initClosureState('ST-789', 'user-789', mockShift);
+        setClosureStep(2);
+        setClosureCounters({ 1: 1000 });
 
-        expect(loaded).toBeNull();
-    });
-
-    it('should clear closure state', () => {
-        clearClosureState();
-
-        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('closure_state');
-    });
-
-    it('should persist state across refresh', () => {
-        const initialState: ClosureState = {
-            shiftId: 'shift-789',
-            pistols: [{ id: 1, finalCounter: 2000, initialCounter: 1000 }],
-            cashDeclared: 1500.75,
-            timestamp: new Date().toISOString()
-        };
-
-        saveClosureState(initialState);
-
-        // Simulate page refresh
-        mockLocalStorage.getItem.mockReturnValue(
-            mockLocalStorage.setItem.mock.calls[0][1]
-        );
-
-        const reloaded = loadClosureState();
-
-        expect(reloaded?.shiftId).toBe('shift-789');
-        expect(reloaded?.cashDeclared).toBe(1500.75);
-    });
-
-    it('should merge pistol data correctly', () => {
-        const existing = [
-            { id: 1, finalCounter: 1000, initialCounter: 500 }
-        ];
-
-        const newData = [
-            { id: 1, finalCounter: 1500, initialCounter: 500 },
-            { id: 2, finalCounter: 800, initialCounter: 400 }
-        ];
-
-        const merged = mergePistolData(existing, newData);
-
-        expect(merged).toHaveLength(2);
-        expect(merged.find(p => p.id === 1)?.finalCounter).toBe(1500);
-    });
-
-    it('should handle decimal precision for cash amounts', () => {
-        const state: ClosureState = {
-            shiftId: 'shift-decimal',
-            pistols: [],
-            cashDeclared: 123.456, // 3 decimals
-            timestamp: new Date().toISOString()
-        };
-
-        saveClosureState(state);
-
-        mockLocalStorage.getItem.mockReturnValue(
-            mockLocalStorage.setItem.mock.calls[0][1]
-        );
-
-        const loaded = loadClosureState();
-
-        // Should maintain decimal precision
-        expect(loaded?.cashDeclared).toBeCloseTo(123.456, 3);
+        expect(closureState.stationId).toBe('ST-789');
+        expect(closureState.step).toBe(2);
+        expect(closureState.closureCounters[1]).toBe(1000);
     });
 });
