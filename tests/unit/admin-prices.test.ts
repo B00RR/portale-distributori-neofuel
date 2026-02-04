@@ -1,35 +1,51 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockSupabase = { from: vi.fn() };
-vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
+const { mockSupabase, mockToast, mockUI, mockHandleError, mockUtils, mockBusinessLogic } = vi.hoisted(() => ({
+    mockSupabase: {
+        from: vi.fn(() => ({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: { prezzo_benzina: 1.5, prezzo_gasolio: 1.3 }, error: null })
+        })),
+        rpc: vi.fn().mockResolvedValue({ error: null })
+    },
+    mockToast: { show: vi.fn() },
+    mockUI: { openModal: vi.fn(), closeModal: vi.fn() },
+    mockHandleError: vi.fn(),
+    mockUtils: {
+        escapeHtml: vi.fn((str) => str),
+        escapeNumber: vi.fn((n) => n?.toString() || '0')
+    },
+    mockBusinessLogic: {
+        loadRules: vi.fn().mockResolvedValue({ max_price_limit: 5.0 })
+    }
+}));
 
-import { showPricesTab, updatePrices } from '../../js/admin/prices.js';
+vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase, safeSupabaseQuery: vi.fn(), getStationName: vi.fn(() => 'Test Station') }));
+vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
+vi.mock('../../js/ui/ui.js', () => mockUI);
+vi.mock('../../js/shared/error-handler.js', () => ({ handleError: mockHandleError }));
+vi.mock('../../js/utils/utils.js', () => mockUtils);
+vi.mock('../../js/core/business-logic-manager.js', () => ({ BusinessLogicManager: mockBusinessLogic }));
+
+import { showPrezziAdminModal, showPricesTab } from '../../js/admin/prices.js';
 
 describe('Admin Prices Module', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        document.body.innerHTML = '<div id="container"></div>';
+        document.body.innerHTML = '<div id="modal-body"></div><div id="prices-container"></div>';
     });
 
-    it('should render prices tab', async () => {
-        const container = document.getElementById('container')!;
-        mockSupabase.from.mockReturnValue({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn().mockResolvedValue({ data: {}, error: null })
-        });
-
-        await showPricesTab(container);
-        expect(mockSupabase.from).toHaveBeenCalled();
+    it('should show prices modal', async () => {
+        await showPrezziAdminModal(1);
+        expect(mockUI.openModal).toHaveBeenCalled();
     });
 
-    it('should update prices', async () => {
-        mockSupabase.from.mockReturnValue({
-            update: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockResolvedValue({ error: null })
-        });
-
-        await updatePrices(1, { gasolio: 1.50 });
-        expect(mockSupabase.from).toHaveBeenCalled();
+    it('should show prices tab', async () => {
+        const container = document.getElementById('prices-container')!;
+        await showPricesTab(container, null);
+        expect(container.innerHTML).toContain('Gestione Prezzi');
     });
 });
