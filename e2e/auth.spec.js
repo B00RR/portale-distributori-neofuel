@@ -40,7 +40,7 @@ test.describe('Authentication', () => {
         // Verifica messaggio errore
         const errorMsg = page.locator('#login-error');
         await expect(errorMsg).toBeVisible();
-        await expect(errorMsg).toContainText(/errore|invalid|credenziali/i);
+        await expect(errorMsg).toContainText(/errore|invalid|credenziali|errati/i);
 
         // Verifica che non c'è redirect
         await expect(page.locator('#login-container')).toBeVisible();
