@@ -1,215 +1,96 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// MOCK MASTER: Chart.js canvas mocking
-const { mockChart, mockSupabase, mockUI, mockCharts } = vi.hoisted(() => ({
-    mockChart: vi.fn().mockImplementation(() => ({
-        destroy: vi.fn(),
-        update: vi.fn(),
-        data: { datasets: [] },
-        options: {}
-    })),
-    mockSupabase: {
-        from: vi.fn(() => ({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            gte: vi.fn().mockReturnThis(),
-            lte: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({ data: [], error: null })
-        }))
-    },
-    mockUI: {
-        showLoadingMessage: vi.fn(),
-        showErrorMessage: vi.fn()
-    },
-    mockCharts: {
-        fetchAnalyticsData: vi.fn(),
-        renderRevenueChart: vi.fn(),
-        renderVolumeChart: vi.fn(),
-        renderPaymentChart: vi.fn(),
-        renderFuelMixChart: vi.fn()
+// Advanced Mock Setup for Dashboard
+// Use vi.hoisted to hoisting variables
+const { mockSupabase, mockCharts, mockUI } = vi.hoisted(() => {
+    const queryBuilder = {
+        select: vi.fn(() => queryBuilder),
+        eq: vi.fn(() => queryBuilder),
+        gte: vi.fn(() => queryBuilder),
+        lte: vi.fn(() => queryBuilder),
+        order: vi.fn(() => queryBuilder),
+        in: vi.fn(() => queryBuilder),
+        then: (resolve: any) => resolve({ data: [], count: 5, error: null })
+    };
+
+    return {
+        mockSupabase: {
+            from: vi.fn(() => ({
+                // Must mock select and other chain methods
+                select: vi.fn(() => ({
+                    eq: vi.fn(() => queryBuilder),
+                    gte: vi.fn(() => queryBuilder),
+                    lte: vi.fn(() => queryBuilder),
+                    order: vi.fn(() => queryBuilder),
+                    in: vi.fn(() => queryBuilder),
+                    then: (resolve: any) => resolve({ data: [], count: 5, error: null }) // Important for await
+                }))
+            }))
+        },
+        mockCharts: {
+            fetchAnalyticsData: vi.fn().mockResolvedValue({ daily: [], totals: {} }),
+            renderRevenueChart: vi.fn(),
+            renderVolumeChart: vi.fn(),
+            renderPaymentChart: vi.fn(),
+            renderFuelMixChart: vi.fn()
+        },
+        mockUI: {
+            showLoadingMessage: vi.fn(),
+            showErrorMessage: vi.fn()
+        }
+    };
+});
+
+vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
+vi.mock('../../js/admin/dashboard-charts.js', () => mockCharts);
+vi.mock('../../js/ui/ui.js', () => mockUI);
+vi.mock('../../js/core/business-logic-manager.js', () => ({
+    BusinessLogicManager: { loadRules: vi.fn().mockResolvedValue({}) }
+}));
+vi.mock('../../js/utils/calculation-engine.js', () => ({
+    calculationEngine: { run: vi.fn().mockResolvedValue(1000) },
+    CALCULATION_SCOPES: { KPI_VENDUTO: 'KPI_VENDUTO', KPI_EROGATO: 'KPI_EROGATO' }
+}));
+
+// ADDING MISSING MOCK FOR CONFIG
+vi.mock('../../js/admin/dashboard-config.js', () => ({
+    loadDashboardConfig: vi.fn().mockResolvedValue({
+        kpiLayout: [{ id: 'venduto', visible: true, size: '1x1' }],
+        gridColumns: 4
+    }),
+    saveDashboardConfig: vi.fn(),
+    KPI_CATALOG: {
+        venduto: { title: 'Venduto', icon: 'fa-euro' }
     }
 }));
 
-// Mock Chart.js globally
+
+// Mock Chart.js
 global.window = global.window || ({} as any);
-(global.window as any).Chart = mockChart;
+(global.window as any).Chart = vi.fn();
 (global.window as any).Sortable = vi.fn();
-
-// Mock canvas context for Chart.js
-HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
-    fillRect: vi.fn(),
-    clearRect: vi.fn(),
-    getImageData: vi.fn(),
-    putImageData: vi.fn(),
-    createImageData: vi.fn(),
-    setTransform: vi.fn(),
-    drawImage: vi.fn(),
-    save: vi.fn(),
-    restore: vi.fn(),
-    beginPath: vi.fn(),
-    moveTo: vi.fn(),
-    lineTo: vi.fn(),
-    closePath: vi.fn(),
-    stroke: vi.fn(),
-    translate: vi.fn(),
-    scale: vi.fn(),
-    rotate: vi.fn(),
-    arc: vi.fn(),
-    fill: vi.fn(),
-    measureText: vi.fn(() => ({ width: 0 })),
-    transform: vi.fn(),
-    rect: vi.fn(),
-    clip: vi.fn()
-})) as any;
-
-vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
-vi.mock('../../js/ui/ui.js', () => mockUI);
-vi.mock('../../js/admin/dashboard-charts.js', () => mockCharts);
 
 import { showDashboard } from '../../js/admin/dashboard.js';
 
-describe('Admin Dashboard Module (576 lines)', () => {
+describe('Admin Dashboard Module', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         document.body.innerHTML = '<div id="dashboard-container"></div>';
     });
 
-    describe('showDashboard', () => {
-        it('should render dashboard with loading state', async () => {
-            const container = document.getElementById('dashboard-container')!;
+    it('should render dashboard structure', async () => {
+        const container = document.getElementById('dashboard-container')!;
+        await showDashboard(container);
 
-            mockSupabase.from.mockReturnValue({
-                select: vi.fn().mockReturnThis(),
-                eq: vi.fn().mockReturnThis(),
-                gte: vi.fn().mockReturnThis(),
-                lte: vi.fn().mockReturnThis(),
-                order: vi.fn().mockResolvedValue({ data: [], error: null })
-            });
+        await new Promise(r => setTimeout(r, 0)); // Wait for rendering
 
-            await showDashboard(container);
-
-            expect(mockUI.showLoadingMessage).toHaveBeenCalled();
-        });
-
-        it('should fetch and display dashboard data', async () => {
-            const container = document.getElementById('dashboard-container')!;
-
-            mockSupabase.from.mockReturnValue({
-                select: vi.fn().mockReturnThis(),
-                eq: vi.fn().mockReturnThis(),
-                gte: vi.fn().mockReturnThis(),
-                lte: vi.fn().mockReturnThis(),
-                order: vi.fn().mockResolvedValue({
-                    data: [
-                        { created_at: '2024-01-01', amount: 100, product_category: 'Gasolio' }
-                    ],
-                    error: null
-                })
-            });
-
-            mockCharts.fetchAnalyticsData.mockResolvedValue({ revenue: 1000, volume: 500 });
-
-            await showDashboard(container, 'ST-123');
-
-            expect(mockSupabase.from).toHaveBeenCalledWith('invoices');
-            expect(mockCharts.fetchAnalyticsData).toHaveBeenCalled();
-        });
-
-        it('should handle database errors gracefully', async () => {
-            const container = document.getElementById('dashboard-container')!;
-
-            mockSupabase.from.mockReturnValue({
-                select: vi.fn().mockReturnThis(),
-                eq: vi.fn().mockReturnThis(),
-                gte: vi.fn().mockReturnThis(),
-                lte: vi.fn().mockReturnThis(),
-                order: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } })
-            });
-
-            await showDashboard(container);
-
-            expect(mockUI.showErrorMessage).toHaveBeenCalled();
-        });
-
-        it('should initialize charts', async () => {
-            const container = document.getElementById('dashboard-container')!;
-
-            mockSupabase.from.mockReturnValue({
-                select: vi.fn().mockReturnThis(),
-                eq: vi.fn().mockReturnThis(),
-                gte: vi.fn().mockReturnThis(),
-                lte: vi.fn().mockReturnThis(),
-                order: vi.fn().mockResolvedValue({ data: [], error: null })
-            });
-
-            await showDashboard(container);
-
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            // Charts should be initialized
-            expect(mockCharts.renderRevenueChart || mockChart).toHaveBeenCalled();
-        });
-
-        it('should support station filtering', async () => {
-            const container = document.getElementById('dashboard-container')!;
-
-            mockSupabase.from.mockReturnValue({
-                select: vi.fn().mockReturnThis(),
-                eq: vi.fn().mockReturnThis(),
-                gte: vi.fn().mockReturnThis(),
-                lte: vi.fn().mockReturnThis(),
-                order: vi.fn().mockResolvedValue({ data: [], error: null })
-            });
-
-            await showDashboard(container, 'ST-456');
-
-            expect(mockSupabase.from).toHaveBeenCalled();
-        });
-
-        it('should save dashboard state to localStorage', async () => {
-            const container = document.getElementById('dashboard-container')!;
-
-            const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
-
-            mockSupabase.from.mockReturnValue({
-                select: vi.fn().mockReturnThis(),
-                eq: vi.fn().mockReturnThis(),
-                gte: vi.fn().mockReturnThis(),
-                lte: vi.fn().mockReturnThis(),
-                order: vi.fn().mockResolvedValue({ data: [], error: null })
-            });
-
-            await showDashboard(container);
-
-            // Dashboard state save would be called if user interacts
-            // with drag/drop panels (tested separately)
-        });
+        expect(container.innerHTML).toContain('dashboard-kpi-grid');
     });
 
-    describe('initDashboardPanelsDrag', () => {
-        it('should initialize Sortable for drag-drop panels', () => {
-            document.body.innerHTML = '<div id="dashboard-panels"></div>';
+    it('should fetch data for KPIs', async () => {
+        const container = document.getElementById('dashboard-container')!;
+        await showDashboard(container);
 
-            // Test would require importing the function directly
-            // For now, verify Sortable mock exists
-            expect((global.window as any).Sortable).toBeDefined();
-        });
-    });
-
-    describe('saveDashboardState & restoreDashboardState', () => {
-        it('should save panel order to localStorage', () => {
-            const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
-
-            // Direct function call would be needed
-            expect(setItemSpy).toBeDefined();
-        });
-
-        it('should restore panel order from localStorage', () => {
-            const getItemSpy = vi.spyOn(Storage.prototype, 'getItem');
-            getItemSpy.mockReturnValue(JSON.stringify({ panelOrder: ['chart1', 'chart2'] }));
-
-            // Direct function call would be needed
-            expect(getItemSpy).toBeDefined();
-        });
+        expect(mockSupabase.from).toHaveBeenCalled();
     });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockSupabase, mockUI, mockUtils } = vi.hoisted(() => ({
+// Use vi.hoisted for variables used in mocks
+const { mockSupabase, mockUI, mockCharts, mockUtils } = vi.hoisted(() => ({
     mockSupabase: {
         from: vi.fn(() => ({
             select: vi.fn().mockReturnThis(),
@@ -14,18 +15,23 @@ const { mockSupabase, mockUI, mockUtils } = vi.hoisted(() => ({
         showLoadingMessage: vi.fn(),
         showErrorMessage: vi.fn()
     },
+    mockCharts: {
+        fetchAnalyticsData: vi.fn().mockResolvedValue({ daily: [] }),
+        renderRevenueChart: vi.fn(),
+        renderVolumeChart: vi.fn(),
+        renderPaymentChart: vi.fn(),
+        renderFuelMixChart: vi.fn()
+    },
     mockUtils: {
-        formatEuro: vi.fn((v) => `€${v}`),
-        formatLitri: vi.fn((v) => `${v}L`),
+        formatEuro: vi.fn(v => `€${v}`),
+        formatLitri: vi.fn(v => `${v}L`),
         getISODate: vi.fn(() => '2024-01-01')
     }
 }));
 
-global.window = global.window || ({} as any);
-(global.window as any).Chart = vi.fn();
-
 vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
 vi.mock('../../js/ui/ui.js', () => mockUI);
+vi.mock('../../js/admin/dashboard-charts.js', () => mockCharts);
 vi.mock('../../js/utils/utils.js', () => mockUtils);
 
 import { showAnalyticsTab } from '../../js/admin/analytics.js';
@@ -36,30 +42,23 @@ describe('Admin Analytics Module', () => {
         document.body.innerHTML = '<div id="analytics-container"></div>';
     });
 
-    it('should display analytics tab', async () => {
+    it('should display analytics structure', async () => {
         const container = document.getElementById('analytics-container')!;
-
         await showAnalyticsTab(container);
 
-        expect(container.innerHTML).toContain('analytics');
+        expect(container.innerHTML).toContain('analytics-filters');
     });
 
-    it('should fetch shift data', async () => {
+    it('should fetch analytics data', async () => {
         const container = document.getElementById('analytics-container')!;
-
-        mockSupabase.from.mockReturnValue({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            gte: vi.fn().mockReturnThis(),
-            lte: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
-                data: [{ closed_at: '2024-01-01', closing_data: { ricavo_teorico: 100 } }],
-                error: null
-            })
-        });
-
         await showAnalyticsTab(container);
 
+        // Wait for async
+        await new Promise(r => setTimeout(r, 0));
+
+        // Either supabase directly or via dashboard-charts fetchAnalyticsData
+        // analytics.ts usually calls fetchAnalyticsData or manual query
+        // Let's assume manual query based on previous read
         expect(mockSupabase.from).toHaveBeenCalled();
     });
 });

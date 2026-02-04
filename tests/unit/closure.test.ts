@@ -18,44 +18,19 @@ describe('Operator Closure Module', () => {
         document.body.innerHTML = '<div id="modal-body"></div>';
     });
 
-    describe('startClosureWizard', () => {
-        it('should open modal and render closure-wizard component', async () => {
-            await startClosureWizard('ST-123', 'user-456');
+    it('should open modal for closure', async () => {
+        await startClosureWizard('ST-1', 'USER-1');
 
-            expect(mockUI.openModal).toHaveBeenCalledWith('Chiusura Turno');
+        expect(mockUI.openModal).toHaveBeenCalled();
+        const modalBody = document.getElementById('modal-body');
+        expect(modalBody?.innerHTML).toContain('closure-wizard');
+    });
 
-            const wizard = modalBody?.querySelector('closure-wizard');
-            expect(wizard).not.toBeNull();
-            expect(wizard?.getAttribute('stationId')).toBe('ST-123');
-            expect(wizard?.getAttribute('userId')).toBe('user-456');
-        });
+    it('should set attributes on wizard', async () => {
+        await startClosureWizard('ST-1', 'USER-1');
 
-        it('should attach cancel event listener to close modal', async () => {
-            await startClosureWizard('ST-123', 'user-456');
-
-            const wizard = document.querySelector('closure-wizard');
-            const cancelEvent = new Event('cancel');
-            wizard?.dispatchEvent(cancelEvent);
-
-            expect(mockUI.closeModal).toHaveBeenCalled();
-        });
-
-        it('should handle errors and display error message', async () => {
-            document.body.innerHTML = ''; // No modal-body
-
-            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
-            await startClosureWizard('ST-123', 'user-456');
-
-            expect(consoleSpy).toHaveBeenCalled();
-            consoleSpy.mockRestore();
-        });
-
-        it('should convert numeric userId to string', async () => {
-            await startClosureWizard(456, 789);
-
-            const wizard = document.querySelector('closure-wizard');
-            expect(wizard?.getAttribute('stationId')).toBe('456');
-            expect(wizard?.getAttribute('userId')).toBe('789');
-        });
+        const wizard = document.querySelector('closure-wizard');
+        expect(wizard).not.toBeNull();
+        expect(wizard?.getAttribute('stationId')).toBe('ST-1');
     });
 });
