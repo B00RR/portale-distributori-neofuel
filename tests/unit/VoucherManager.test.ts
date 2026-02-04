@@ -1,146 +1,85 @@
-/**
- * Unit Tests for VoucherManager Lit Component
- * Tests voucher scanning, validation, and redemption flow
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock Supabase before importing component
-vi.mock('../../js/core/api.js', () => ({
-    supabase: {
+const { mockSupabase, mockToast, mockUtils, mockOfflineQueue, mockRules } = vi.hoisted(() => ({
+    mockSupabase: {
         from: vi.fn(() => ({
-            select: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                    single: vi.fn(() => Promise.resolve({ data: null, error: null }))
-                }))
-            })),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
             update: vi.fn(() => ({
-                eq: vi.fn(() => Promise.resolve({ data: null, error: null }))
-            }))
+                eq: vi.fn().mockResolvedValue({ error: null })
+            })),
+            insert: vi.fn().mockResolvedValue({ error: null })
         })),
-        rpc: vi.fn(() => Promise.resolve({ data: null, error: null }))
+        rpc: vi.fn().mockResolvedValue({ data: {}, error: null })
+    },
+    mockToast: { show: vi.fn() },
+    mockUtils: {
+        formatEuro: vi.fn((val) => `€${val.toFixed(2)}`),
+        formatDate: vi.fn((d) => d)
+    },
+    mockOfflineQueue: {
+        isOffline: vi.fn(() => false),
+        queueAction: vi.fn()
+    },
+    mockRules: {
+        validateVoucher: vi.fn(() => true)
     }
 }));
 
-// Mock Toast
-vi.mock('../../js/ui/toast.js', () => ({
-    Toast: {
-        show: vi.fn()
-    }
+global.window = global.window || ({} as any);
+(global.window as any).Html5Qrcode = vi.fn().mockImplementation(() => ({
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn()
 }));
 
-// Mock offline queue
-vi.mock('../../js/core/offline-db.js', () => ({
-    offlineDB: {
-        enqueue: vi.fn(() => Promise.resolve())
-    }
-}));
+vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
+vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
+vi.mock('../../js/utils/utils.js', () => mockUtils);
+vi.mock('../../js/core/offline-queue.js', () => mockOfflineQueue);
+vi.mock('../../js/core/rules.js', () => mockRules);
 
-describe('VoucherManager Component', () => {
+import '../../js/ui/components/VoucherManager.js';
 
-    describe('Component Structure', () => {
-        it('should be defined as a custom element', async () => {
-            await import('../../js/ui/components/VoucherManager.js');
-            expect(customElements.get('voucher-manager')).toBeDefined();
-        });
+describe('VoucherManager (523 lines)', () => {
+    let element: any;
 
-        it('should have required properties', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-            const element = new VoucherManager();
-
-            expect(element).toHaveProperty('stationId');
-            expect(element).toHaveProperty('userId');
-            expect(element).toHaveProperty('shiftId');
-        });
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        document.body.innerHTML = `<voucher-manager stationId="ST-123" userId="user-456"></voucher-manager>`;
+        element = document.querySelector('voucher-manager');
+        await new Promise(resolve => setTimeout(resolve, 10));
     });
 
-    describe('UI Modes', () => {
-        it('should start in menu mode', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-            const element = new VoucherManager();
-
-            expect((element as any).mode).toBe('menu');
-        });
-
-        it('should support scan mode', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-            const element = new VoucherManager();
-
-            (element as any).mode = 'scan';
-            expect((element as any).mode).toBe('scan');
-        });
-
-        it('should support manual mode', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-            const element = new VoucherManager();
-
-            (element as any).mode = 'manual';
-            expect((element as any).mode).toBe('manual');
-        });
-
-        it('should support verify mode', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-            const element = new VoucherManager();
-
-            (element as any).mode = 'verify';
-            expect((element as any).mode).toBe('verify');
-        });
+    it('should register', () => {
+        expect(customElements.get('voucher-manager')).toBeDefined();
     });
 
-    describe('Voucher Code Validation', () => {
-        it('should have empty voucher code initially', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-            const element = new VoucherManager();
-
-            expect((element as any).voucherCode || '').toBe('');
+    it('should process valid voucher', async () => {
+        mockSupabase.from.mockReturnValue({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: 1, code: 'V123', amount: 50, status: 'active', expires_at: '2025-12-31' },
+                error: null
+            })
         });
+
+        await element.processCode('V123');
+        expect(element.state.scannedVoucher?.code).toBe('V123');
     });
 
-    describe('CSS Styles', () => {
-        it('should have static styles defined', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-
-            expect(VoucherManager.styles).toBeDefined();
-        });
+    it('should redeem voucher', async () => {
+        element.state.scannedVoucher = { id: 1, code: 'V123', amount: 100 };
+        await element.confirmRedeem();
+        expect(mockSupabase.rpc).toHaveBeenCalled();
     });
 
-    describe('Render Method', () => {
-        it('should render menu mode without throwing', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-            const element = new VoucherManager();
-            element.stationId = '1';
-            element.userId = 'test-user';
-            element.shiftId = '1';
-
-            expect(() => element.render()).not.toThrow();
-        });
-
-        it('should render different modes based on state', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-            const element = new VoucherManager();
-            element.stationId = '1';
-            element.userId = 'test-user';
-            element.shiftId = '1';
-
-            const modes = ['menu', 'scan', 'manual', 'loading', 'verify', 'success', 'error'];
-
-            for (const mode of modes) {
-                (element as any).mode = mode;
-                expect(() => element.render()).not.toThrow();
-            }
-        });
+    it('should handle offline queue', async () => {
+        mockOfflineQueue.isOffline.mockReturnValue(true);
+        element.state.scannedVoucher = { id: 1, code: 'OFF', amount: 25 };
+        await element.confirmRedeem();
+        expect(mockOfflineQueue.queueAction).toHaveBeenCalled();
     });
-
-    describe('Close Handler', () => {
-        it('should have onClose callback property', async () => {
-            const { VoucherManager } = await import('../../js/ui/components/VoucherManager.js') as any;
-            const element = new VoucherManager();
-
-            const mockCallback = vi.fn();
-            element.onClose = mockCallback;
-
-            expect(element.onClose).toBe(mockCallback);
-        });
-    });
-
 });

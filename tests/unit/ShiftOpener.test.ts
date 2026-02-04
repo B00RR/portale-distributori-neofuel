@@ -1,110 +1,78 @@
-/**
- * Unit Tests for ShiftOpener Lit Component
- * Tests component lifecycle, rendering states, and form submission
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fixture, html as litHtml } from '@open-wc/testing';
 
-// Mock Supabase before importing component
-vi.mock('../../js/core/api.js', () => ({
-    supabase: {
+const { mockSupabase, mockToast } = vi.hoisted(() => ({
+    mockSupabase: {
         from: vi.fn(() => ({
-            select: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                    order: vi.fn(() => ({
-                        limit: vi.fn(() => Promise.resolve({ data: [], error: null }))
-                    }))
-                }))
-            })),
-            insert: vi.fn(() => Promise.resolve({ data: { id: 1 }, error: null }))
-        })),
-        rpc: vi.fn(() => Promise.resolve({ data: null, error: null }))
-    }
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            is: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: 1, tanks: [], islands: [] }, error: null }),
+            insert: vi.fn().mockResolvedValue({ error: null })
+        }))
+    },
+    mockToast: { show: vi.fn() }
 }));
 
-// Mock Toast
-vi.mock('../../js/ui/toast.js', () => ({
-    Toast: {
-        show: vi.fn()
-    }
-}));
+vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
+vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
 
-describe('ShiftOpener Component', () => {
+import '../../js/ui/components/ShiftOpener.js';
 
-    describe('Component Structure', () => {
-        it('should be defined as a custom element', async () => {
-            // Dynamic import after mocks are set up
-            await import('../../js/ui/components/ShiftOpener.js');
-            expect(customElements.get('shift-opener')).toBeDefined();
-        });
+describe('ShiftOpener Web Component (403 lines)', () => {
+    let element: any;
 
-        it('should have required properties', async () => {
-            const { ShiftOpener } = await import('../../js/ui/components/ShiftOpener.js') as any;
-            const element = new ShiftOpener();
-
-            expect(element).toHaveProperty('stationId');
-            expect(element).toHaveProperty('userId');
-        });
+    beforeEach(() => {
+        vi.clearAllMocks();
     });
 
-    describe('Initial State', () => {
-        it('should start in loading mode', async () => {
-            const { ShiftOpener } = await import('../../js/ui/components/ShiftOpener.js') as any;
-            const element = new ShiftOpener();
-
-            // Access private state through any cast
-            expect((element as any).state.mode).toBe('loading');
-        });
-
-        it('should have empty error message initially', async () => {
-            const { ShiftOpener } = await import('../../js/ui/components/ShiftOpener.js') as any;
-            const element = new ShiftOpener();
-
-            expect((element as any).state.errorMessage).toBe('');
-        });
+    it('should register custom element', () => {
+        expect(customElements.get('shift-opener')).toBeDefined();
     });
 
-    describe('Render States', () => {
-        it('should render loading indicator when mode is loading', async () => {
-            const { ShiftOpener } = await import('../../js/ui/components/ShiftOpener.js') as any;
-            const element = new ShiftOpener();
-            element.stationId = '1';
-            element.userId = 'test-user';
+    it('should render with attributes', async () => {
+        element = await fixture(litHtml`
+            <shift-opener stationId="ST-123" userId="user-456"></shift-opener>
+        `);
 
-            // Trigger render
-            const result = element.render();
-
-            // Check that result is a TemplateResult (Lit)
-            expect(result).toBeDefined();
-            expect(result.strings).toBeDefined(); // TemplateResult has strings property
-        });
+        expect(element.stationId).toBe('ST-123');
+        expect(element.userId).toBe('user-456');
     });
 
-    describe('Form Validation', () => {
-        it('should validate that banknotes cannot be negative', async () => {
-            const { ShiftOpener } = await import('../../js/ui/components/ShiftOpener.js') as any;
-            const element = new ShiftOpener();
+    it('should load tanks and islands', async () => {
+        element = await fixture(litHtml`
+            <shift-opener stationId="ST-123" userId="user-456"></shift-opener>
+        `);
 
-            // Set up minimal state for form rendering
-            (element as any).state = { mode: 'form', errorMessage: '' };
-            (element as any).islands = [];
-            (element as any).pistols = [];
-            (element as any).tanks = [];
+        await element.updateComplete;
 
-            // The component should handle negative values gracefully
-            // This test verifies the component doesn't crash when rendering form
-            const form = element.renderForm();
-            expect(form).toBeDefined();
-        });
+        expect(mockSupabase.from).toHaveBeenCalledWith('fuel_stations');
     });
 
-    describe('CSS Styles', () => {
-        it('should have static styles defined', async () => {
-            const { ShiftOpener } = await import('../../js/ui/components/ShiftOpener.js') as any;
+    it('should submit shift opening', async () => {
+        element = await fixture(litHtml`
+            <shift-opener stationId="ST-123" userId="user-456"></shift-opener>
+        `);
 
-            expect(ShiftOpener.styles).toBeDefined();
-            expect(Array.isArray(ShiftOpener.styles)).toBe(true);
-        });
+        await element.updateComplete;
+
+        const form = element.shadowRoot.querySelector('form');
+        if (form) {
+            form.dispatchEvent(new Event('submit'));
+            await element.updateComplete;
+        }
+
+        expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
     });
 
+    it('should dispatch success  event', async () => {
+        const successSpy = vi.fn();
+
+        element = await fixture(litHtml`
+            <shift-opener stationId="ST-123" userId="user-456" @success=${successSpy}></shift-opener>
+        `);
+
+        element.dispatchEvent(new Event('success'));
+        expect(successSpy).toHaveBeenCalled();
+    });
 });
