@@ -66,7 +66,15 @@ export function showAdminArea(): void {
 
         const finalFilter = store.getFilter();
 
-        container.innerHTML = `
+        // Use a dedicated wrapper for the filter to avoid overwriting actions
+        let filterWrapper = document.getElementById('global-filter-container');
+        if (!filterWrapper) {
+            filterWrapper = document.createElement('div');
+            filterWrapper.id = 'global-filter-container';
+            container.prepend(filterWrapper); // Filter on the left, buttons on the right
+        }
+
+        filterWrapper.innerHTML = `
             <div class="global-filter-wrapper">
                 <i class="fas fa-filter filter-icon"></i>
                 <select id="global-station-filter" class="global-filter-select">

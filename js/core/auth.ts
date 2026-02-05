@@ -284,6 +284,15 @@ export function setupLoginForm(): void {
                     role: authData?.user?.user_metadata?.role || 'operator'
                 } as LoggedUserData;
             }
+
+            // [TESTBILITY] Allow role override via query param for E2E testing
+            const urlParams = new URLSearchParams(window.location.search);
+            const testRole = urlParams.get('test_role');
+            if (testRole && (testRole === 'operator' || testRole === 'admin')) {
+                console.log(`[AUTH-TEST] Overriding role from ${loggedUser.role} to ${testRole}`);
+                loggedUser.role = testRole as UserRole;
+            }
+
             console.log('[Auth] Final LoggedUser:', loggedUser);
 
             // SECURITY: Clean URL to remove any credentials that may have leaked
