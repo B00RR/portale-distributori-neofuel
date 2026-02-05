@@ -84,7 +84,10 @@ export async function showDashboard(
             })(),
 
             // 6. Business Rules
-            BusinessLogicManager.loadRules()
+            BusinessLogicManager.loadRules().catch(err => {
+                console.warn('[Dashboard] Failed to load rules, using defaults', err);
+                return {};
+            })
         ]);
 
         // EXTRACT RESULTS

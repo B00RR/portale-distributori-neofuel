@@ -5,12 +5,15 @@
 
 import { test, expect } from '@playwright/test';
 
+test.describe.configure({ mode: 'serial' });
+
+
 // Helper function per login
 async function login(page, role = 'operator') {
     await page.goto('/');
 
     const credentials = {
-        operator: { email: 'operator@neofuel.it', password: 'test-password' },
+        operator: { email: 'test_operator@neofuel.it', password: '123na123' },
         admin: { email: 'admin@neofuel.it', password: 'admin-password' }
     };
 
@@ -19,6 +22,9 @@ async function login(page, role = 'operator') {
     await page.fill('#email', email);
     await page.fill('#password', password);
     await page.click('button[type="submit"]');
+
+    // Forward console logs
+    page.on('console', msg => console.log(`[BROWSER] ${msg.text()}`));
 
     // Attendi caricamento dashboard
     await expect(page.locator('#app-container')).toBeVisible({ timeout: 5000 });
@@ -31,7 +37,7 @@ test.describe('Apertura Turno', () => {
 
     test('completa apertura turno con contatori pistole', async ({ page }) => {
         // Click su apertura turno
-        await page.click('text=Apertura');
+        await page.click('#btn-turno');
 
         // Attendi caricamento modal
         await expect(page.locator('#app-modal')).toBeVisible();
@@ -56,13 +62,12 @@ test.describe('Apertura Turno', () => {
         await expect(page.locator('.toast')).toContainText(/turno aperto|successo/i, { timeout: 5000 });
     });
 
-    test('mostra errore se turno già aperto', async ({ page }) => {
-        // Prova ad aprire turno quando uno è già attivo
-        await page.click('text=Apertura');
+    test('pulsante cambia in Chiusura se turno aperto', async ({ page }) => {
+        // Verifica che il pulsante turni mostri "Chiusura" o icona porta chiusa
+        const btnText = page.locator('#turno-text');
+        await expect(btnText).toHaveText('Chiusura', { timeout: 5000 });
 
-        // Dovrebbe mostrare messaggio o impedire apertura
-        const warning = page.locator('text=/Turno già aperto|already open/i');
-        await expect(warning).toBeVisible({ timeout: 3000 });
+        await expect(page.locator('#btn-turno')).toBeVisible();
     });
 });
 
@@ -72,7 +77,7 @@ test.describe('Chiusura Turno', () => {
     });
 
     test('wizard chiusura - step 1: contatori pistole', async ({ page }) => {
-        await page.click('text=Chiusura');
+        await page.click('#btn-turno');
 
         await expect(page.locator('#app-modal')).toBeVisible();
 
@@ -105,7 +110,9 @@ test.describe('Voucher Redemption', () => {
     });
 
     test('riscatta voucher con codice manuale', async ({ page }) => {
-        await page.click('text=Voucher');
+        await page.click('#btn-movimenti');
+        await expect(page.locator('#movimenti-content')).toBeVisible();
+        await page.click('#btn-voucher');
 
         await expect(page.locator('#app-modal')).toBeVisible();
 
@@ -128,7 +135,7 @@ test.describe('Modifica Prezzi', () => {
     });
 
     test('aggiorna prezzi carburante', async ({ page }) => {
-        await page.click('text=Prezzi');
+        await page.click('#btn-prezzi');
 
         await expect(page.locator('#app-modal')).toBeVisible();
 

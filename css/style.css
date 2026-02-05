@@ -4596,3 +4596,60 @@ button:active {
     min-height: 150px; /* Minimum height for charts */
     width: 100%;
 }
+
+/* --- MOBILE RESPONSIVENESS FIXES --- */
+#sidebar-toggle {
+    display: none;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 8px;
+    margin-right: 12px;
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+@media (max-width: 768px) {
+    .admin-sidebar {
+        transform: translateX(-100%);
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 1000;
+        transition: transform 0.3s ease;
+        width: 260px; /* Standard sidebar width */
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+
+    .admin-sidebar.open {
+        transform: translateX(0);
+    }
+
+    .admin-main {
+        margin-left: 0 !important;
+        width: 100%;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    #sidebar-toggle {
+        display: block;
+    }
+
+    .sidebar-overlay.visible {
+        display: block;
+    }
+    
+    .login-container {
+         margin-top: 60px; /* Header space */
+    }
+}

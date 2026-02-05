@@ -98,6 +98,7 @@ test.describe('Critical User Flows - E2E', () => {
             await page.goto('/');
             await page.fill('#email', 'lorenzo96barra@outlook.com');
             await page.fill('#password', '123na123');
+
             await page.click('button[type="submit"]');
             await expect(page.locator('.admin-sidebar')).toBeVisible();
 
@@ -121,7 +122,7 @@ test.describe('Critical User Flows - E2E', () => {
             const operatorPage = await operatorContext.newPage();
 
             await operatorPage.goto('/');
-            await operatorPage.fill('#email', 'lorenzo.barra@ergenya.com');
+            await operatorPage.fill('#email', 'test_operator@neofuel.it');
             await operatorPage.fill('#password', '123na123');
             await operatorPage.click('button[type="submit"]');
 
@@ -157,6 +158,7 @@ test.describe('Critical User Flows - E2E', () => {
             // Login as admin
             await page.fill('#email', 'lorenzo96barra@outlook.com');
             await page.fill('#password', '123na123');
+
             await page.click('button[type="submit"]');
         });
 
@@ -186,6 +188,7 @@ test.describe('Critical User Flows - E2E', () => {
             await page.goto('/');
             await page.fill('#email', 'lorenzo96barra@outlook.com');
             await page.fill('#password', '123na123');
+
             await page.click('button[type="submit"]');
 
             await page.click('[data-tab="vouchers"]');

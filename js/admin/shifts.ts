@@ -161,8 +161,6 @@ export async function showChiusureTab(
             // Update totalCount if changed
             if (count !== null && count !== pagState.totalCount) {
                 store.setPagination({ totalCount: count });
-                // Note: this triggers 'pagination' listener.
-                // Checks in listener must prevent loop.
             }
 
             // Re-render pagination with new count

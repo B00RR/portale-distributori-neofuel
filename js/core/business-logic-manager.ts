@@ -19,14 +19,21 @@ export const BusinessLogicManager = {
         if (cachedRules) return cachedRules;
 
         try {
-            const { data, error } = await supabase.storage
+            // Rate limit / Timeout wrapper
+            const downloadPromise = supabase.storage
                 .from(BUCKET_NAME)
                 .download(FILE_PATH);
 
+            const timeoutPromise = new Promise<{ data: Blob | null; error: any }>((_, reject) =>
+                setTimeout(() => reject(new Error('Storage download timeout')), 5000)
+            );
+
+            const { data, error } = await Promise.race([downloadPromise, timeoutPromise]) as any;
+
             if (error) {
                 // If not found, return defaults and try to seed
-                if (error.message.includes('Object not found') || error.status === 404) {
-                    console.info('[BusinessLogic] Config not found, using defaults.');
+                if (error.message?.includes('Object not found') || error.status === 404 || error.message === 'Storage download timeout') {
+                    console.info('[BusinessLogic] Config not found or timeout, using defaults.');
                     return DEFAULT_BUSINESS_RULES;
                 }
                 throw error;

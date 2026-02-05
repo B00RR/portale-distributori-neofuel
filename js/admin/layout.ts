@@ -67,6 +67,7 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
                     ${(isFullAdmin || userRole === 'accounting') ? `
                         <button class="nav-btn" data-tab="vouchers" data-testid="nav-vouchers"><i class="fas fa-ticket-alt"></i> Gestione Voucher</button>
                         <button class="nav-btn" data-tab="shifts" data-testid="nav-shifts"><i class="fas fa-clock"></i> Turni e Chiusure</button>
+                        <button class="nav-btn" data-tab="analytics" data-testid="nav-analytics"><i class="fas fa-chart-pie"></i> Analytics</button>
                         <button class="nav-btn" data-tab="crediti" data-testid="nav-crediti"><i class="fas fa-credit-card"></i> Crediti</button>
                     ` : ''}
 
@@ -92,9 +93,11 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
                     </div>
                 </div>
             </aside>
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
             <main class="admin-main">
                 <header class="admin-header">
                     <div class="admin-header-center">
+                        <button id="sidebar-toggle" title="Menu"><i class="fas fa-bars"></i></button>
                         <img src="/assets/images/logo-svg.svg" alt="Neofuel" class="admin-header-logo" />
                         <div class="header-titles">
                             <p class="welcome-subtitle" id="page-subtitle">Dashboard</p>
@@ -117,6 +120,39 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
 
     attachNavigationListeners(onTabChange);
     attachLogoutListener();
+    attachMobileListeners();
+}
+
+function attachMobileListeners(): void {
+    const toggle = document.getElementById('sidebar-toggle');
+    const sidebar = document.querySelector('.admin-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const navBtns = document.querySelectorAll('.nav-btn');
+
+    function closeSidebar() {
+        sidebar?.classList.remove('open');
+        overlay?.classList.remove('visible');
+    }
+
+    if (toggle && sidebar) {
+        toggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            overlay?.classList.toggle('visible');
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', closeSidebar);
+    }
+
+    // Close on nav click
+    navBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                closeSidebar();
+            }
+        });
+    });
 }
 
 /**
