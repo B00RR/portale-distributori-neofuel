@@ -12,13 +12,16 @@ const { mockSupabase, mockCharts, mockUI, mockConfig, mockBusinessLogic, mockEng
     return {
         mockSupabase: { from: vi.fn(() => queryBuilder) },
         mockCharts: {
-            fetchAnalyticsData: vi.fn().mockResolvedValue({ daily: [], totals: {} }),
+            fetchAnalyticsData: vi.fn(() => Promise.resolve({ daily: [], totals: {} })),
             renderRevenueChart: vi.fn(), renderVolumeChart: vi.fn(),
             renderPaymentChart: vi.fn(), renderFuelMixChart: vi.fn()
         },
         mockUI: {
             showLoadingMessage: vi.fn(),
-            showErrorMessage: vi.fn((c, e) => console.log('ERROR CAUGHT:', e))
+            showErrorMessage: vi.fn((c, e) => {
+                console.error('ERROR CAUGHT IN MOCK:', JSON.stringify(e, null, 2));
+                throw e;
+            })
         },
         mockConfig: {
             loadDashboardConfig: vi.fn(),
@@ -29,10 +32,12 @@ const { mockSupabase, mockCharts, mockUI, mockConfig, mockBusinessLogic, mockEng
             }
         },
         mockBusinessLogic: {
-            BusinessLogicManager: { loadRules: vi.fn().mockResolvedValue({}) }
+            BusinessLogicManager: {
+                loadRules: vi.fn(() => Promise.resolve({}))
+            }
         },
         mockEngine: {
-            calculationEngine: { run: vi.fn().mockResolvedValue(1000) },
+            calculationEngine: { run: vi.fn(() => Promise.resolve(1000)) },
             CALCULATION_SCOPES: { KPI_VENDUTO: 'KPI_VENDUTO', KPI_EROGATO: 'KPI_EROGATO' }
         }
     };
@@ -42,14 +47,14 @@ const { mockSupabase, mockCharts, mockUI, mockConfig, mockBusinessLogic, mockEng
 vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
 vi.mock('../../js/admin/dashboard-charts.js', () => mockCharts);
 vi.mock('../../js/ui/ui.js', () => mockUI);
+vi.mock('../../js/core/auth.js', () => ({ loggedUser: { user_id: 'test-user-id' } }));
+vi.mock('../../js/ui/toast.js', () => ({ Toast: { show: vi.fn() } }));
 
 // TRY BOTH PATHS just in case (safe in Vitest)
 vi.mock('../../js/admin/dashboard-config.js', () => {
-    console.log('FACTORY .js CALLED');
     return mockConfig;
 });
 vi.mock('../../js/admin/dashboard-config', () => {
-    console.log('FACTORY no-ext CALLED');
     return mockConfig;
 });
 
@@ -61,7 +66,7 @@ describe('Admin Dashboard Module', () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
-        vi.resetModules();
+        // vi.resetModules(); // Removed to avoid mock factory issues
 
         // Setup mock return
         mockConfig.loadDashboardConfig.mockResolvedValue({
