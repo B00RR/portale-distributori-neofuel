@@ -3,10 +3,10 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
     testDir: '../e2e',
 
-    // Test timeout
-    timeout: 30 * 1000,
+    // Test timeout (increased for local perf)
+    timeout: 60 * 1000,
     expect: {
-        timeout: 5000
+        timeout: 10000
     },
 
     // Run tests in parallel

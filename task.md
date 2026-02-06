@@ -18,3 +18,13 @@
 2. **Serial Mode**: Configurato Playwright per l'esecuzione sequenziale (1 worker) per eliminare race conditions con Supabase.
 3. **Role Override**: Implementata feature di test in `auth.ts` per usare l'account Admin stabile come Operatore nei test.
 4. **Robust Selectors**: Aggiornati i test con attese esplicite (`waitFor`, `toBeVisible`) per gestire transizioni UI lente.
+
+## 🛠️ MAINTENACE & FIXES (CI)
+- [x] **Fix Unit Tests**: Risolti errori su `dashboard.test.ts` (Mock Promise/Undefined) - **100% PASS**
+- [x] **Verify Dashboard**: Rendering KPI verificato su Desktop/Firefox/Mobile.
+- [x] **Stable E2E**: Risolti i flaky tests.
+    - `Visualizzazione Chiusure`: PASS (Robust Polling)
+    - `Mobile Modals`: PASS (Sidebar Occlusion Fix)
+- [x] **Full E2E Suite**: **27/27 TESTS PASSED** (inclusi casi problematici Firefox/Mobile).
+
+
