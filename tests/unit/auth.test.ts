@@ -60,7 +60,7 @@ describe('Auth Module', () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
-        vi.resetModules(); // CRITICAL: Reset module state
+        vi.resetModules(); // Restored for test isolation
 
         // Setup DOM
         document.body.innerHTML = `
@@ -77,19 +77,17 @@ describe('Auth Module', () => {
             <div id="app-container" style="display: none;"></div>
         `;
 
-        // Mock Window Location
-        if (window.location) { try { delete (window as any).location; } catch (e) { } }
-        Object.defineProperty(window, 'location', {
-            value: {
-                protocol: 'http:',
-                host: 'localhost',
-                pathname: '/',
-                reload: vi.fn(),
-                replace: vi.fn()
-            },
-            writable: true
-        });
-        window.history.replaceState = vi.fn();
+        // Mock Window Location methods using Spies (Safe)
+        // Avoid redefining the whole window.location object which causes Teardown errors.
+        if (window.location.reload) {
+            vi.spyOn(window.location, 'reload').mockImplementation(() => { });
+        }
+        if (window.location.replace) {
+            vi.spyOn(window.location, 'replace').mockImplementation(() => { });
+        }
+        // Fallback or explicit set if needed (optional)
+
+        // Dynamic import to get fresh module instance
 
         // Dynamic import to get fresh module instance
         authModule = await import('../../js/core/auth.js');
@@ -111,7 +109,7 @@ describe('Auth Module', () => {
         const form = document.getElementById('login-form') as HTMLFormElement;
         form.dispatchEvent(new Event('submit'));
 
-        await new Promise(r => setTimeout(r, 0));
+        await new Promise(r => setTimeout(r, 50));
 
         expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalled();
         expect(mockUI.showFullScreenLoader).toHaveBeenCalled();
@@ -126,7 +124,7 @@ describe('Auth Module', () => {
         const form = document.getElementById('login-form') as HTMLFormElement;
         form.dispatchEvent(new Event('submit'));
 
-        await new Promise(r => setTimeout(r, 0));
+        await new Promise(r => setTimeout(r, 50)); // Allow microtasks to drain
 
         const errorDiv = document.getElementById('login-error');
         expect(errorDiv?.textContent).toContain('Email o password errati');
@@ -138,7 +136,7 @@ describe('Auth Module', () => {
         const form = document.getElementById('login-form') as HTMLFormElement;
         form.dispatchEvent(new Event('submit'));
 
-        await new Promise(r => setTimeout(r, 0));
+        await new Promise(r => setTimeout(r, 50)); // Allow microtasks to drain
 
         expect(mockSupabase.auth.signInWithPassword).not.toHaveBeenCalled();
         expect(mockToast.show).toHaveBeenCalledWith(expect.stringContaining('Rate limit'), 'warning');
