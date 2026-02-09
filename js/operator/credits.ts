@@ -274,7 +274,7 @@ async function searchCustomersForInput(query: string, stationId: number | string
     }
 }
 
-async function processNewCredit(stationId: number | string, userId: string, customerName: string, amount: number, product: string, notes: string): Promise<void> {
+export async function processNewCredit(stationId: number | string, userId: string, customerName: string, amount: number, product: string, notes: string): Promise<void> {
     // 1. Trova o crea cliente
     let { data: customer, error: fetchError } = await supabase
         .from('crediti_clienti')
@@ -288,7 +288,7 @@ async function processNewCredit(stationId: number | string, userId: string, cust
     if (!customer) {
         const { data: newCustomer, error: createError } = await supabase
             .from('crediti_clienti')
-            .insert([{ station_id: stationId, cliente: customerName, saldo: 0 }])
+            .insert([{ station_id: stationId, cliente: customerName, saldo: 0, importo: 0 }])
             .select()
             .single();
 
@@ -528,7 +528,7 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
     }
 }
 
-async function processPayment(stationId: number | string, userId: string, customer: CreditoCliente, amount: number, method: string): Promise<void> {
+export async function processPayment(stationId: number | string, userId: string, customer: CreditoCliente, amount: number, method: string): Promise<void> {
     // 1. Aggiorna saldo (Diminuisce debito)
     const newBalance = Math.max(0, (customer.saldo || 0) - amount);
     const { error: updateError } = await supabase

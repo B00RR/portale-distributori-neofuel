@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment happy-dom
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
     openModal,
@@ -135,12 +138,13 @@ describe('UI Module', () => {
             expect(result).toBeNull();
         });
 
-        it('showInfoModal should close on OK', () => {
+        it('showInfoModal should close on OK and have primary button', () => {
             showInfoModal('Info message');
             const modal = document.getElementById('app-modal');
             expect(modal?.style.display).toBe('flex');
 
             const okBtn = document.getElementById('info-modal-ok') as HTMLButtonElement;
+            expect(okBtn.className).toContain('primary');
             okBtn.click();
 
             expect(modal?.style.display).toBe('none');
