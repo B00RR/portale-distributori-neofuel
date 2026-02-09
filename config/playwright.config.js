@@ -36,6 +36,9 @@ export default defineConfig({
 
         // Video on failure
         video: 'retain-on-failure',
+
+        // Block service workers to ensure network mocks work
+        serviceWorkers: 'block',
     },
 
     // Configure projects for different browsers

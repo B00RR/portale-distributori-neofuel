@@ -10,8 +10,15 @@
 - [x] Critical: Voucher Lifecycle (Full E2E)
 - [x] Critical: Session persistence & XSS protection
 
-## 🏆 OBIETTIVO GREEN LIGHT RAGGIUNTO
-**Tutti i 28 test della suita E2E sono ora VERDI.**
+## 🚨 REGRESSION INVESTIGATION (In Progress)
+- [x] **Investigate 60s Timeouts**: `npm run test:e2e` fixed via Full Mocks & Selector Updates.
+    - [x] `Gestione Operatori`: Mocking Auth & Data to isolate tests.
+    - [x] `Voucher Redemption`: Verified with Mocked Open Shift.
+    - [x] `Apertura Turno`: Verified with Mocked Closed Shift & POST handling.
+
+## 🏆 OBIETTIVO GREEN LIGHT (PAUSED)
+**Precedentemente: Tutti i 28 test della suita E2E erano VERDI.**
+Atto: Investigazione regressione performance/timeout.
 
 ### Hardening Realizzato:
 1. **Header Layout Fix**: Risolto il bug in `js/admin.ts` che sovrascriveva i pulsanti di azione.

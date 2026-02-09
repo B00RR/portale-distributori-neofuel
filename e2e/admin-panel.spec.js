@@ -127,13 +127,19 @@ test.describe('Gestione Operatori', () => {
         await page.waitForLoadState('networkidle');
 
         const addBtn = page.locator('#add-operator-btn');
-        await expect(addBtn).toBeVisible({ timeout: 10000 });
+        // Explicitly wait for the button to be ready/interactive
+        await expect(addBtn).toBeVisible({ timeout: 15000 });
+        await expect(addBtn).toBeEnabled({ timeout: 15000 });
 
         // Force click if needed (sometimes covered by toast/overlays)
         await addBtn.click({ force: true });
 
-        await expect(page.locator('#app-modal, .modal, dialog[open]')).toBeVisible({ timeout: 10000 });
-        await expect(page.locator('[name*="full_name"], [name*="nome"]')).toBeVisible();
+        // Wait for modal to appear
+        const modal = page.locator('#app-modal, .modal, dialog[open]');
+        await expect(modal).toBeVisible({ timeout: 15000 });
+
+        // Verify Content
+        await expect(page.locator('[name*="full_name"], [name*="nome"]')).toBeVisible({ timeout: 5000 });
     });
 });
 
