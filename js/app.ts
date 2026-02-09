@@ -114,7 +114,12 @@ async function initializeApp(): Promise<void> {
                 // Update the user object in store with the fresh station_id
                 const freshUser = { ...userForStore, station_id: stId };
                 store.setUser(freshUser);
-                showOperatorMenu(String(userForStore.id), stId);
+                try {
+                    await showOperatorMenu(String(userForStore.id), stId);
+                } catch (err) {
+                    console.error('[App] Failed to show operator menu:', err);
+                    Toast.show('Errore durante il caricamento del menu operatore', 'error');
+                }
             } else {
                 Toast.show('Nessuna stazione assegnata all\'utente', 'error');
             }
@@ -158,7 +163,12 @@ async function initializeApp(): Promise<void> {
             if (stId) {
                 const freshUser = { ...loggedUser, station_id: stId } as unknown as StateUser;
                 store.setUser(freshUser);
-                showOperatorMenu(String(loggedUser.id), stId);
+                try {
+                    await showOperatorMenu(String(loggedUser.id), stId);
+                } catch (err) {
+                    console.error('[App] Failed to restore operator menu:', err);
+                    Toast.show('Errore durante il ripristino della sessione', 'error');
+                }
             } else {
                 Toast.show('Nessuna stazione assegnata all\'utente', 'error');
             }

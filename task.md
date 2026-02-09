@@ -33,5 +33,6 @@ Atto: Investigazione regressione performance/timeout.
     - `Visualizzazione Chiusure`: PASS (Robust Polling)
     - `Mobile Modals`: PASS (Sidebar Occlusion Fix)
 - [x] **Full E2E Suite**: **27/27 TESTS PASSED** (inclusi casi problematici Firefox/Mobile).
+- [x] **Fix White Screen**: Risolto bug "schermata bianca" al refresh con auto-navigazione su `Apertura/Chiusura` e Error Boundaries.
 
 

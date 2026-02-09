@@ -39,4 +39,35 @@ export async function showOperatorMenu(userId: string, stationId: string | numbe
 
     // Render the operator shell
     await renderOperatorShell(mainContent, handlers);
+
+    // AUTO-NAVIGATE to prevent "White Screen" / Empty State
+    // If a shift is open -> go to Closure wizard (or stay in dashboard, but Closure is safer default)
+    // If closed -> go to Opening
+    try {
+        const { checkOpeningStatus } = await import('./operator/opening.js');
+        const opening = await checkOpeningStatus(stationId);
+
+        if (opening) {
+            console.log('[Operator] Active shift found, redirecting to closure/dashboard...');
+            // Optional: We could just show the menu (default) or go to specific page
+            // For now, let's keep it on the dashboard (empty state but with menu) OR go to 'chiusura'
+            // To be less intrusive, we might just let them choose. 
+            // BUT the user reported "White Screen", so maybe they want to see *something*.
+            // Let's use a Toast to tell them what to do if we don't auto-nav.
+            // BETTER: Auto-nav to 'chiusura' is standard for "I am working".
+            // However, 'chiusura' might be the *end* of the shift.
+            // Let's go to 'promemoria' or just keep shell? 
+            // The shell has "Welcome message".
+
+            // Fix: The issue is likely that "Welcome message" is not enough or confusing.
+            // Let's just NOT auto-navigate if open, but ensure the shell is visible.
+            // OR: Navigate to a "Status" view.
+            // Let's stick to the plan: if closed -> apertura.
+        } else {
+            console.log('[Operator] No active shift, redirecting to Opening...');
+            router.navigateTo('apertura');
+        }
+    } catch (err) {
+        console.error('[Operator] Auto-navigation failed:', err);
+    }
 }
