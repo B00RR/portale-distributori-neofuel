@@ -34,5 +34,7 @@ Atto: Investigazione regressione performance/timeout.
     - `Mobile Modals`: PASS (Sidebar Occlusion Fix)
 - [x] **Full E2E Suite**: **27/27 TESTS PASSED** (inclusi casi problematici Firefox/Mobile).
 - [x] **Fix White Screen**: Risolto bug "schermata bianca" al refresh con auto-navigazione su `Apertura/Chiusura` e Error Boundaries.
+- [x] **UI Polish**: Standardizzato colore bottone "Ok" nei modali informativi (Stampa Bloccata).
+- [x] **Payment Modal Fix**: Migliorato stile bottone "Tutto", pulito testo dropdown e creato migrazione SQL per errore tipo `operator_id`.
 
 

@@ -152,7 +152,7 @@ export function showInfoModal(message: string, title: string = 'Informazione'): 
     target.innerHTML = `
         <p class="mb-3">${escapeHtml(message)}</p>
         <div class="text-right">
-            <button id="info-modal-ok" class="menu-button">Ok</button>
+            <button id="info-modal-ok" class="menu-button primary">Ok</button>
         </div>
     `;
 

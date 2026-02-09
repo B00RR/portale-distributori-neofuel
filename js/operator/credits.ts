@@ -440,17 +440,17 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
             <div class="form-group">
                 <label>Importo Pagamento (€)</label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="number" name="amount" id="pay-amount" step="0.01" min="0.01" max="${customer.saldo + 0.01}" class="big-input" required value="${customer.saldo}">
-                    <button type="button" id="btn-full-amount" style="padding: 0 15px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Tutto</button>
+                    <input type="number" name="amount" id="pay-amount" step="0.01" min="0.01" max="${customer.saldo + 0.01}" class="big-input" required value="${customer.saldo}" style="flex: 1;">
+                    <button type="button" id="btn-full-amount" class="menu-button secondary" style="padding: 12px 20px;">Tutto</button>
                 </div>
             </div>
 
             <div class="form-group">
                 <label>Metodo di Pagamento</label>
                 <select name="method" id="pay-method" class="big-input" required>
-                    <option value="contanti">Contanti (Aumenta Cassa)</option>
-                    <option value="pos">POS (Neutro)</option>
-                    <option value="uta">UTA/DKV/Fine Mese (Neutro)</option>
+                    <option value="contanti">Contanti</option>
+                    <option value="pos">POS</option>
+                    <option value="uta">UTA/DKV/Fine Mese</option>
                 </select>
             </div>
 
