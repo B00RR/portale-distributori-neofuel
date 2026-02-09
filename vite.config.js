@@ -78,10 +78,10 @@ export default defineConfig(({ mode }) => {
                                 }
                             }
                         },
-                        // Stale-While-Revalidate for JS/CSS (fast load, background update)
+                        // NetworkFirst for JS/CSS (prioritize fresh code, fallback to cache)
                         {
                             urlPattern: /\.(?:js|css)$/i,
-                            handler: 'StaleWhileRevalidate',
+                            handler: 'NetworkFirst',
                             options: {
                                 cacheName: 'static-resources-cache',
                                 expiration: {
@@ -141,8 +141,9 @@ export default defineConfig(({ mode }) => {
                         }
                     ],
                     globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-                    skipWaiting: false,
-                    clientsClaim: true
+                    skipWaiting: true,
+                    clientsClaim: true,
+                    cleanupOutdatedCaches: true
                 }
             })
         ],

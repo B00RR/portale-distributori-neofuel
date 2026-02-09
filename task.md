@@ -39,5 +39,6 @@ Atto: Investigazione regressione performance/timeout.
 - [x] **DB Constraint Fix**: Risolto errore `null value` su colonna `importo` in `crediti_clienti` aggiungendo valore di default 0.
 - [x] **Unit Testing**: Implementati e verificati test unitari (Vitest) per tutte le modifiche (Stili UI, Logica DB, Default values). **21/21 TESTS PASSED**.
 - [x] **Standardize Button Styles**: Audit and unify buttons in `shifts.ts`, `vouchers_reboot.ts`, and `auth.ts` using `components.css`.
+- [x] **Fix Persistent Caching**: Force SW updates and update caching strategy in `vite.config.js` and `app.ts`.
 
 

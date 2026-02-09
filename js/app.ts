@@ -18,6 +18,7 @@ import { CustomWindow } from './types.js';
 import { LoggedUserData } from './core/auth.js';
 
 const customWindow = window as unknown as CustomWindow;
+const APP_VERSION = '1.2.0'; // Increment manually on breaking changes
 
 // Espone funzioni globali per compatibilità
 customWindow.requestPasswordReset = requestPasswordReset;
@@ -25,6 +26,19 @@ customWindow.requestPasswordReset = requestPasswordReset;
 async function initializeApp(): Promise<void> {
     // Initialize monitoring and analytics
     initAnalytics();
+
+    // VERSION GUARD: Clear stale session data if version mismatch
+    const storedVersion = localStorage.getItem('app_version');
+    if (storedVersion !== APP_VERSION) {
+        console.log(`[App] Version mismatch: ${storedVersion} -> ${APP_VERSION}. Clearing Supabase cache.`);
+        const keys = Object.keys(localStorage);
+        for (const key of keys) {
+            if (key.startsWith('sb-') || key.includes('supabase')) {
+                localStorage.removeItem(key);
+            }
+        }
+        localStorage.setItem('app_version', APP_VERSION);
+    }
 
     initializeCalculationPresets();
 
@@ -204,7 +218,7 @@ const updateSW = registerSW({
                         .then(() => {
                             console.log('[PWA] Update accepted, reloading...');
                             // Force hard reload to bypass cache
-                            window.location.reload();
+                            (window.location as any).reload(true);
                         })
                         .catch(e => {
                             console.error('[PWA] Update failed:', e);
