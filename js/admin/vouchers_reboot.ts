@@ -88,64 +88,86 @@ const voucherState: VoucherState = {
 // --- INITIALIZATION ---
 export async function showVoucherAdminTab(container: HTMLElement, _headerActions?: HTMLElement | null): Promise<void> {
     console.log('[APP] showVoucherAdminTab called. activeTab:', voucherState.activeTab);
-    // V3 REBOOT: Clean Flexbox Structure
-    container.innerHTML = `
-        <div class="app-container" data-testid="voucher-admin-panel" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
-            <div class="top-bar-title">
-                <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher V3</h2>
-            </div>
-            
-            <!-- TABS: Flex Wrap for responsiveness -->
-            <div class="tabs-container" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; max-width: 100%;">
-                <button class="menu-button ${voucherState.activeTab === 'generator' ? 'primary' : 'outline'}" data-tab="generator" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
-                    <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fas fa-plus-circle"></i> Genera
-                    </div>
-                    <div style="font-size: 0.85rem; opacity: 0.8;">Crea nuovi buoni</div>
-                </button>
+
+    // Initial structure rendering (Shell)
+    // We only re-render the full container if it's the first time or if forced
+    const isAlreadyRendered = container.querySelector('[data-testid="voucher-admin-panel"]');
+
+    if (!isAlreadyRendered) {
+        container.innerHTML = `
+            <div class="app-container" data-testid="voucher-admin-panel" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
+                <div class="top-bar-title">
+                    <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher V3</h2>
+                </div>
                 
-                <button class="menu-button ${voucherState.activeTab === 'dashboard' ? 'primary' : 'outline'}" data-tab="dashboard" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
-                    <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fas fa-chart-line"></i> Dashboard
-                    </div>
-                    <div style="font-size: 0.85rem; opacity: 0.8;">Statistiche e liste</div>
-                </button>
+                <!-- TABS -->
+                <div class="tabs-container" id="voucher-tabs" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; max-width: 100%;">
+                    <!-- Buttons injected dynamically to handle active state -->
+                </div>
+                
+                <div id="voucher-content" class="tab-content" style="background: #fff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
+                    <!-- Content injected here -->
+                </div>
             </div>
-            
-            <div id="voucher-content" class="tab-content" style="background: #fff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
-                <!-- Content injected here -->
-            </div>
-        </div>
-    `;
+        `;
 
-    // Bind Tabs (Event Delegation)
-    container.querySelectorAll('.menu-button[data-tab]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const tabId = (e.currentTarget as HTMLElement).dataset.tab as 'generator' | 'dashboard';
-            if (!tabId || tabId === voucherState.activeTab) return;
+        // Bind Tabs ONCE using Delegation on the permanent tabs container
+        const tabsContainer = document.getElementById('voucher-tabs');
+        if (tabsContainer) {
+            tabsContainer.addEventListener('click', (e) => {
+                const btn = (e.target as HTMLElement).closest('.menu-button[data-tab]');
+                if (!btn) return;
 
-            voucherState.activeTab = tabId;
-            // Re-render the tab structure to update styles
-            showVoucherAdminTab(container);
-        });
-    });
+                const tabId = (btn as HTMLElement).dataset.tab as 'generator' | 'dashboard';
+                if (!tabId || tabId === voucherState.activeTab) return;
 
-
-    // Listen for offline sync completion to auto-refresh
-    const syncHandler = () => {
-        if (voucherState.activeTab === 'dashboard') {
-            Toast.show('Dati aggiornati dopo sincronizzazione', 'info');
-            renderActiveTab();
+                voucherState.activeTab = tabId;
+                updateTabButtons();
+                renderActiveTab();
+            });
         }
-    };
-    window.addEventListener('offline-sync-complete', syncHandler);
 
-    // Load dependencies
+        // Single Listener for offline sync
+        window.removeEventListener('offline-sync-complete', syncHandler);
+        window.addEventListener('offline-sync-complete', syncHandler);
+    }
 
+    // Always update buttons to reflect active state
+    updateTabButtons();
+
+    // Load dependencies and render content
     await loadCustomers();
-
     renderActiveTab();
 }
+
+function updateTabButtons(): void {
+    const tabsContainer = document.getElementById('voucher-tabs');
+    if (!tabsContainer) return;
+
+    tabsContainer.innerHTML = `
+        <button class="menu-button ${voucherState.activeTab === 'generator' ? 'primary' : 'outline'}" data-tab="generator" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-plus-circle"></i> Genera
+            </div>
+            <div style="font-size: 0.85rem; opacity: 0.8;">Crea nuovi buoni</div>
+        </button>
+        
+        <button class="menu-button ${voucherState.activeTab === 'dashboard' ? 'primary' : 'outline'}" data-tab="dashboard" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </div>
+            <div style="font-size: 0.85rem; opacity: 0.8;">Statistiche e liste</div>
+        </button>
+    `;
+}
+
+// Global reference for the sync handler to allow removal
+const syncHandler = () => {
+    if (voucherState.activeTab === 'dashboard') {
+        Toast.show('Dati aggiornati dopo sincronizzazione', 'info');
+        renderActiveTab();
+    }
+};
 
 async function loadCustomers(): Promise<void> {
     try {
@@ -295,6 +317,7 @@ async function handleGeneration(e: Event): Promise<void> {
         // Redirect to Print Tab
         voucherState.activeTab = 'dashboard';
         voucherState.dashboardView = 'batches';
+        updateTabButtons();
         renderActiveTab();
 
     } catch (err: any) {
