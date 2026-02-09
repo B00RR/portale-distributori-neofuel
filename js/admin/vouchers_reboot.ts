@@ -96,47 +96,19 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
             </div>
             
             <!-- TABS: Flex Wrap for responsiveness -->
-            <div class="tabs-container" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; max-width: 100%;">
-                <button class="tab-btn-large ${voucherState.activeTab === 'generator' ? 'active' : ''}" data-tab="generator" style="
-                    flex: 1 1 200px;
-                    background: ${voucherState.activeTab === 'generator' ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)' : 'white'};
-                    color: ${voucherState.activeTab === 'generator' ? 'white' : '#64748b'};
-                    border: 1px solid ${voucherState.activeTab === 'generator' ? 'transparent' : '#e2e8f0'};
-                    padding: 1rem;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    gap: 0.75rem;
-                    transition: all 0.2s ease;
-                    box-shadow: ${voucherState.activeTab === 'generator' ? '0 4px 12px rgba(10, 35, 66, 0.2)' : '0 1px 3px rgba(0,0,0,0.1)'};
-                ">
-                    <div style="font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+            <div class="tabs-container" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; max-width: 100%;">
+                <button class="menu-button ${voucherState.activeTab === 'generator' ? 'primary' : 'outline'}" data-tab="generator" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
+                    <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fas fa-plus-circle"></i> Genera
                     </div>
-                    <div style="font-size: 0.85rem; opacity: 0.9;">Crea nuovi buoni</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Crea nuovi buoni</div>
                 </button>
                 
-                <button class="tab-btn-large ${voucherState.activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard" style="
-                    flex: 1 1 200px;
-                    background: ${voucherState.activeTab === 'dashboard' ? 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%)' : 'white'};
-                    color: ${voucherState.activeTab === 'dashboard' ? 'white' : '#64748b'};
-                    border: 1px solid ${voucherState.activeTab === 'dashboard' ? 'transparent' : '#e2e8f0'};
-                    padding: 1rem;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    gap: 0.75rem;
-                    transition: all 0.2s ease;
-                    box-shadow: ${voucherState.activeTab === 'dashboard' ? '0 4px 12px rgba(10, 35, 66, 0.2)' : '0 1px 3px rgba(0,0,0,0.1)'};
-                ">
-                    <div style="font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                <button class="menu-button ${voucherState.activeTab === 'dashboard' ? 'primary' : 'outline'}" data-tab="dashboard" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
+                    <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fas fa-chart-line"></i> Dashboard
                     </div>
-                    <div style="font-size: 0.85rem; opacity: 0.9;">Statistiche e liste</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Statistiche e liste</div>
                 </button>
             </div>
             
@@ -253,9 +225,8 @@ function renderGenerator(container: HTMLElement): void {
                     </datalist>
                 </div>
 
-                <!-- Row 3: Action Button -->
                 <div class="form-actions" style="grid-column: 1 / -1; margin-top: 30px;">
-                    <button type="submit" class="menu-button primary" style="width: 100%; padding: 20px; font-size: 1.25rem; font-weight: 600; border-radius: 14px; display: flex; justify-content: center; align-items: center; gap: 12px; background: var(--primary-color); color: white; border: none; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-md);">
+                    <button type="submit" class="menu-button primary" style="width: 100%; padding: 20px; font-size: 1.25rem; font-weight: 600; border-radius: 14px; display: flex; justify-content: center; align-items: center; gap: 12px;">
                         <i class="fas fa-magic"></i> Genera Voucher ORA
                     </button>
                 </div>
@@ -634,17 +605,17 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                                 </div>
                                 <div class="voucher-cell center" style="flex-shrink: 0; min-width: 150px;">
                                     <div style="display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center;">
-                                        <button class="action-btn-primary-${b.id}" data-action="print" data-batch-id="${b.id}" title="Stampa" 
-                                            style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
-                                            <i class="fas fa-print" style="font-size: 12px;"></i>
+                                        <button class="menu-button primary action-btn-primary-${b.id}" data-action="print" data-batch-id="${b.id}" title="Stampa" 
+                                            style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; min-width: auto; margin: 0;">
+                                            <i class="fas fa-print" style="font-size: 14px;"></i>
                                         </button>
-                                        <button class="action-btn-info-${b.id}" data-action="details" data-batch-id="${b.id}" title="Dettaglio" 
-                                            style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #0ea5e9; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
-                                            <i class="fas fa-list" style="font-size: 12px;"></i>
+                                        <button class="menu-button success action-btn-info-${b.id}" data-action="details" data-batch-id="${b.id}" title="Dettaglio" 
+                                            style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; min-width: auto; margin: 0;">
+                                            <i class="fas fa-list" style="font-size: 14px;"></i>
                                         </button>
-                                        <button class="action-btn-danger-${b.id}" data-action="delete" data-batch-id="${b.id}" title="Elimina" 
-                                            style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; background: #ef4444; color: white; cursor: pointer; transition: all 0.2s; flex-shrink: 0;">
-                                            <i class="fas fa-trash" style="font-size: 12px;"></i>
+                                        <button class="menu-button danger action-btn-danger-${b.id}" data-action="delete" data-batch-id="${b.id}" title="Elimina" 
+                                            style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; min-width: auto; margin: 0;">
+                                            <i class="fas fa-trash" style="font-size: 14px;"></i>
                                         </button>
                                     </div>
                                 </div>

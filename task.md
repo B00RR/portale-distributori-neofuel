@@ -38,5 +38,6 @@ Atto: Investigazione regressione performance/timeout.
 - [x] **Payment Modal Fix**: Migliorato stile bottone "Tutto", pulito testo dropdown e creato migrazione SQL per errore tipo `operator_id`.
 - [x] **DB Constraint Fix**: Risolto errore `null value` su colonna `importo` in `crediti_clienti` aggiungendo valore di default 0.
 - [x] **Unit Testing**: Implementati e verificati test unitari (Vitest) per tutte le modifiche (Stili UI, Logica DB, Default values). **21/21 TESTS PASSED**.
+- [x] **Standardize Button Styles**: Audit and unify buttons in `shifts.ts`, `vouchers_reboot.ts`, and `auth.ts` using `components.css`.
 
 

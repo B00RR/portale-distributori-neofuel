@@ -493,8 +493,8 @@ export function showOTPResetForm(): void {
                         placeholder="000000" autocomplete="off" />
                 </div>
                 <div id="otp-reset-error" style="color: red; margin-bottom: 15px; text-align: center; min-height: 20px;"></div>
-                <button type="submit" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold;">Verifica Codice</button>
-                <button type="button" id="back-to-login-otp" style="width: 100%; padding: 10px; margin-top: 10px; background: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 14px;">Torna al Login</button>
+                <button type="submit" class="menu-button success" style="width: 100%; margin-top: 10px;">Verifica Codice</button>
+                <button type="button" id="back-to-login-otp" class="menu-button secondary" style="width: 100%; margin-top: 12px;">Torna al Login</button>
             </form>
         </div>
     `;
@@ -593,7 +593,7 @@ export function showResetPasswordForm(): void {
                     </div>
                 </div>
                 <div id="reset-password-error" style="color: red; margin-bottom: 15px; text-align: center; min-height: 20px;"></div>
-                <button type="submit" style="width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold;">Aggiorna Password</button>
+                <button type="submit" class="menu-button success" style="width: 100%; margin-top: 10px;">Aggiorna Password</button>
             </form>
         </div>
     `;

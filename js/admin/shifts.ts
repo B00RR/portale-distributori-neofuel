@@ -384,8 +384,8 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
             <div class="closure-total-value">${totaleReale}</div>
         </div>
         
-        <div class="mt-3 text-center">
-             <button class="menu-button" id="btn-export-details">
+        <div class="mt-4 text-center">
+             <button class="menu-button primary" id="btn-export-details">
                 <i class="fas fa-file-export"></i> Scarica Excel Dettagliato
              </button>
         </div>
