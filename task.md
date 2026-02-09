@@ -42,3 +42,5 @@ Atto: Investigazione regressione performance/timeout.
 - [x] **Fix Persistent Caching**: Force SW updates and update caching strategy in `vite.config.js` and `app.ts`.
 
 
+
+- [x] **Fix Voucher Dashboard Button**: Risolto bug selettore tab in `vouchers_reboot.ts`.

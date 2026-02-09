@@ -119,19 +119,15 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
     `;
 
     // Bind Tabs (Event Delegation)
+    container.querySelectorAll('.menu-button[data-tab]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const tabId = (e.currentTarget as HTMLElement).dataset.tab as 'generator' | 'dashboard';
+            if (!tabId || tabId === voucherState.activeTab) return;
 
-    container.addEventListener('click', (e) => {
-
-        const btn = (e.target as HTMLElement).closest('.tab-btn-large');
-        if (!btn) return;
-
-        const tabId = (btn as HTMLElement).dataset.tab as 'generator' | 'dashboard';
-        if (!tabId || tabId === voucherState.activeTab) return; // Ignore if same tab
-
-
-        voucherState.activeTab = tabId;
-        // Re-render the tab structure to update styles
-        showVoucherAdminTab(container);
+            voucherState.activeTab = tabId;
+            // Re-render the tab structure to update styles
+            showVoucherAdminTab(container);
+        });
     });
 
 
