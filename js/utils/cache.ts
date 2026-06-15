@@ -26,66 +26,66 @@ const cacheStore = new Map<string, CacheEntry>();
  * Cache utility to store data with expiration (TTL)
  */
 export const Cache = {
-    /**
+  /**
      * Get a value from cache
      * @param key - Cache key
      * @returns The value if present and not expired, otherwise null
      */
-    get<T = any>(key: string): T | null {
-        const entry = cacheStore.get(key);
-        if (!entry) { return null; }
+  get<T = any>(key: string): T | null {
+    const entry = cacheStore.get(key);
+    if (!entry) { return null; }
 
-        // Check expiration
-        if (Date.now() > entry.expiresAt) {
-            cacheStore.delete(key);
-            return null;
-        }
+    // Check expiration
+    if (Date.now() > entry.expiresAt) {
+      cacheStore.delete(key);
+      return null;
+    }
 
-        return entry.data as T;
-    },
+    return entry.data as T;
+  },
 
-    /**
+  /**
      * Set a value in cache
      * @param key - Cache key
      * @param data - Data to store
      * @param ttl - Time to live in milliseconds (default: 5 minutes)
      */
-    set<T = any>(key: string, data: T, ttl: number = DEFAULT_TTL): void {
-        cacheStore.set(key, {
-            data,
-            expiresAt: Date.now() + ttl,
-            createdAt: Date.now()
-        });
-    },
+  set<T = any>(key: string, data: T, ttl: number = DEFAULT_TTL): void {
+    cacheStore.set(key, {
+      data,
+      expiresAt: Date.now() + ttl,
+      createdAt: Date.now()
+    });
+  },
 
-    /**
+  /**
      * Invalidate (remove) a value from cache
      * @param key - Key to invalidate
      */
-    invalidate(key: string): void {
-        cacheStore.delete(key);
-    },
+  invalidate(key: string): void {
+    cacheStore.delete(key);
+  },
 
-    /**
+  /**
      * Invalidate all values with a prefix
      * @param prefix - Prefix of keys to invalidate
      */
-    invalidateByPrefix(prefix: string): void {
-        for (const key of cacheStore.keys()) {
-            if (key.startsWith(prefix)) {
-                cacheStore.delete(key);
-            }
-        }
-    },
+  invalidateByPrefix(prefix: string): void {
+    for (const key of cacheStore.keys()) {
+      if (key.startsWith(prefix)) {
+        cacheStore.delete(key);
+      }
+    }
+  },
 
-    /**
+  /**
      * Clear entire cache
      */
-    clear(): void {
-        cacheStore.clear();
-    },
+  clear(): void {
+    cacheStore.clear();
+  },
 
-    /**
+  /**
      * Helper for fetch with cache
      * Executes function only if data is not in cache
      * @param key - Cache key
@@ -93,47 +93,47 @@ export const Cache = {
      * @param ttl - TTL in milliseconds
      * @returns Cached data or fetched data
      */
-    async getOrFetch<T = any>(key: string, fetchFn: () => Promise<T>, ttl: number = DEFAULT_TTL): Promise<T> {
-        const cached = this.get<T>(key);
-        if (cached !== null) {
-            return cached;
-        }
+  async getOrFetch<T = any>(key: string, fetchFn: () => Promise<T>, ttl: number = DEFAULT_TTL): Promise<T> {
+    const cached = this.get<T>(key);
+    if (cached !== null) {
+      return cached;
+    }
 
-        const data = await fetchFn();
-        if (data !== null && data !== undefined) {
-            this.set(key, data, ttl);
-        }
-        return data;
-    },
+    const data = await fetchFn();
+    if (data !== null && data !== undefined) {
+      this.set(key, data, ttl);
+    }
+    return data;
+  },
 
-    /**
+  /**
      * Get cache statistics
      */
-    getStats(): CacheStats {
-        let validCount = 0;
-        let expiredCount = 0;
-        const now = Date.now();
+  getStats(): CacheStats {
+    let validCount = 0;
+    let expiredCount = 0;
+    const now = Date.now();
 
-        for (const entry of cacheStore.values()) {
-            if (now > entry.expiresAt) {
-                expiredCount++;
-            } else {
-                validCount++;
-            }
-        }
-
-        return {
-            total: cacheStore.size,
-            valid: validCount,
-            expired: expiredCount
-        };
+    for (const entry of cacheStore.values()) {
+      if (now > entry.expiresAt) {
+        expiredCount++;
+      } else {
+        validCount++;
+      }
     }
+
+    return {
+      total: cacheStore.size,
+      valid: validCount,
+      expired: expiredCount
+    };
+  }
 };
 
 // Default cache keys for consistency
 export const CACHE_KEYS = {
-    STATIONS: 'stations',
-    CUSTOMERS: 'customers',
-    FUEL_TYPES: 'fuel_types',
-    STATION_PREFIX: 'station_'
+  STATIONS: 'stations',
+  CUSTOMERS: 'customers',
+  FUEL_TYPES: 'fuel_types',
+  STATION_PREFIX: 'station_'
 };

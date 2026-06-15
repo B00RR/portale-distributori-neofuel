@@ -22,37 +22,37 @@ interface IslandWithGuns extends Island {
 // --- MAIN FUNCTION ---
 
 export async function showIslandsModal(stationId: number | string): Promise<void> {
-    const stationName = await getStationName(stationId);
-    openModal(`Gestione Isole - ${escapeHtml(stationName)}`);
-    // Compact layout
-    const modalContent = document.querySelector('#app-modal .modal-content');
-    if (modalContent) {
-        modalContent.classList.add('modal-narrow');
-    }
-    const target = document.getElementById('modal-body');
-    if (!target) return;
+  const stationName = await getStationName(stationId);
+  openModal(`Gestione Isole - ${escapeHtml(stationName)}`);
+  // Compact layout
+  const modalContent = document.querySelector('#app-modal .modal-content');
+  if (modalContent) {
+    modalContent.classList.add('modal-narrow');
+  }
+  const target = document.getElementById('modal-body');
+  if (!target) {return;}
 
-    const renderIslands = async () => {
-        showLoadingMessage(target);
+  const renderIslands = async () => {
+    showLoadingMessage(target);
 
-        try {
-            // Load islands with guns count
-            const { data: rawIslands, error } = await supabase
-                .from('islands')
-                .select(`
+    try {
+      // Load islands with guns count
+      const { data: rawIslands, error } = await supabase
+        .from('islands')
+        .select(`
           island_id,
           nome,
           island_name,
           pistole (id)
         `)
-                .eq('station_id', stationId)
-                .order('island_id', { ascending: true });
+        .eq('station_id', stationId)
+        .order('island_id', { ascending: true });
 
-            if (error) { throw error; }
+      if (error) { throw error; }
 
-            const islands = rawIslands as IslandWithGuns[];
+      const islands = rawIslands as IslandWithGuns[];
 
-            let html = `
+      let html = `
         <div class="islands-list" style="margin-bottom: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h4>Isole Configurate</h4>
@@ -64,11 +64,11 @@ export async function showIslandsModal(stationId: number | string): Promise<void
           <div class="islands-grid">
       `;
 
-            if (islands && islands.length > 0) {
-                islands.forEach(island => {
-                    const gunsCount = island.pistole?.length || 0;
-                    const name = island.nome || island.island_name || `Isola ${island.island_id}`;
-                    html += `
+      if (islands && islands.length > 0) {
+        islands.forEach(island => {
+          const gunsCount = island.pistole?.length || 0;
+          const name = island.nome || island.island_name || `Isola ${island.island_id}`;
+          html += `
             <div class="island-card" style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
               <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                 <div>
@@ -89,76 +89,76 @@ export async function showIslandsModal(stationId: number | string): Promise<void
               </div>
             </div>
           `;
-                });
-            }
+        });
+      }
 
-            html += `
+      html += `
           </div>
         </div>
       `;
 
-            target.innerHTML = html;
+      target.innerHTML = html;
 
-            // Event listeners
-            const addBtn = document.getElementById('add-island-btn');
-            if (addBtn) {
-                addBtn.addEventListener('click', () => openIslandForm(stationId));
-            }
+      // Event listeners
+      const addBtn = document.getElementById('add-island-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => openIslandForm(stationId));
+      }
 
-            target.querySelectorAll('.edit-island').forEach(btn => {
-                const b = btn as HTMLElement;
-                b.addEventListener('click', () => {
-                    const id = b.dataset.id;
-                    if (id) openIslandForm(stationId, parseInt(id, 10));
-                });
-            });
+      target.querySelectorAll('.edit-island').forEach(btn => {
+        const b = btn as HTMLElement;
+        b.addEventListener('click', () => {
+          const id = b.dataset.id;
+          if (id) {openIslandForm(stationId, parseInt(id, 10));}
+        });
+      });
 
-            target.querySelectorAll('.manage-guns').forEach(btn => {
-                const b = btn as HTMLElement;
-                b.addEventListener('click', () => {
-                    const id = b.dataset.id;
-                    const name = b.dataset.name || '';
-                    if (id) showGunsModal(parseInt(id, 10), name, stationId);
-                });
-            });
+      target.querySelectorAll('.manage-guns').forEach(btn => {
+        const b = btn as HTMLElement;
+        b.addEventListener('click', () => {
+          const id = b.dataset.id;
+          const name = b.dataset.name || '';
+          if (id) {showGunsModal(parseInt(id, 10), name, stationId);}
+        });
+      });
 
-            target.querySelectorAll('.delete-island').forEach(btn => {
-                const b = btn as HTMLElement;
-                b.addEventListener('click', () => {
-                    const id = b.dataset.id;
-                    if (id) deleteIsland(parseInt(id, 10), stationId);
-                });
-            });
+      target.querySelectorAll('.delete-island').forEach(btn => {
+        const b = btn as HTMLElement;
+        b.addEventListener('click', () => {
+          const id = b.dataset.id;
+          if (id) {deleteIsland(parseInt(id, 10), stationId);}
+        });
+      });
 
-        } catch (err) {
-            // Use showErrorMessage for consistent error UI inside modal
-            (showErrorMessage as any)(target, err); // Assuming showErrorMessage handles generic error object
-        }
-    };
+    } catch (err) {
+      // Use showErrorMessage for consistent error UI inside modal
+      (showErrorMessage as any)(target, err); // Assuming showErrorMessage handles generic error object
+    }
+  };
 
-    renderIslands();
+  renderIslands();
 }
 
 async function openIslandForm(stationId: number | string, islandId: number | null = null): Promise<void> {
-    const isEdit = !!islandId;
+  const isEdit = !!islandId;
 
-    openModal(isEdit ? 'Modifica Isola' : 'Nuova Isola');
-    const target = document.getElementById('modal-body');
-    if (!target) return;
+  openModal(isEdit ? 'Modifica Isola' : 'Nuova Isola');
+  const target = document.getElementById('modal-body');
+  if (!target) {return;}
 
-    let island: Partial<Island> = { nome: '', island_name: '' };
-    if (isEdit && islandId) {
-        const { data } = await supabase
-            .from('islands')
-            .select('*')
-            .eq('island_id', islandId)
-            .single();
-        if (data) {
-            island = data as Island;
-        }
+  let island: Partial<Island> = { nome: '', island_name: '' };
+  if (isEdit && islandId) {
+    const { data } = await supabase
+      .from('islands')
+      .select('*')
+      .eq('island_id', islandId)
+      .single();
+    if (data) {
+      island = data as Island;
     }
+  }
 
-    target.innerHTML = `
+  target.innerHTML = `
     <form id="island-form">
       <div class="form-group">
         <label>Nome Isola</label>
@@ -171,69 +171,69 @@ async function openIslandForm(stationId: number | string, islandId: number | nul
     </form>
   `;
 
-    const cancelBtn = document.getElementById('cancel-btn');
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
-            closeModal();
-            showIslandsModal(stationId);
-        });
-    }
+  const cancelBtn = document.getElementById('cancel-btn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      closeModal();
+      showIslandsModal(stationId);
+    });
+  }
 
-    const form = document.getElementById('island-form');
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target as HTMLFormElement);
-            const nome = fd.get('nome')?.toString() || '';
-            const payload = {
-                nome: nome,
-                island_name: nome,
-                station_id: stationId
-            };
+  const form = document.getElementById('island-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target as HTMLFormElement);
+      const nome = fd.get('nome')?.toString() || '';
+      const payload = {
+        nome: nome,
+        island_name: nome,
+        station_id: stationId
+      };
 
-            try {
-                if (isEdit && islandId) {
-                    await safeSupabaseQuery(() =>
-                        supabase.from('islands').update(payload).eq('island_id', islandId)
-                    );
-                    showInfoModal('Isola aggiornata con successo!');
-                } else {
-                    await safeSupabaseQuery(() =>
-                        supabase.from('islands').insert([payload])
-                    );
-                    showInfoModal('Isola creata con successo!');
-                }
-                closeModal();
-                showIslandsModal(stationId);
-            } catch (err) {
-                Toast.show('Errore: ' + (err as Error).message, 'error');
-            }
-        });
-    }
+      try {
+        if (isEdit && islandId) {
+          await safeSupabaseQuery(() =>
+            supabase.from('islands').update(payload).eq('island_id', islandId)
+          );
+          showInfoModal('Isola aggiornata con successo!');
+        } else {
+          await safeSupabaseQuery(() =>
+            supabase.from('islands').insert([payload])
+          );
+          showInfoModal('Isola creata con successo!');
+        }
+        closeModal();
+        showIslandsModal(stationId);
+      } catch (err) {
+        Toast.show('Errore: ' + (err as Error).message, 'error');
+      }
+    });
+  }
 }
 
 async function deleteIsland(islandId: number, stationId: number | string): Promise<void> {
-    try {
-        // Find if has guns
-        const { data: guns } = await supabase
-            .from('pistole')
-            .select('id')
-            .eq('island_id', islandId);
+  try {
+    // Find if has guns
+    const { data: guns } = await supabase
+      .from('pistole')
+      .select('id')
+      .eq('island_id', islandId);
 
-        if (guns && guns.length > 0) {
-            Toast.show(`Impossibile eliminare: l'isola ha ${guns.length} pistol${guns.length !== 1 ? 'e' : 'a'} associate. Rimuovile prima.`, 'warning');
-            return;
-        }
-
-        if (!await openConfirmModal('Sei sicuro di voler eliminare questa isola?')) { return; }
-
-        await safeSupabaseQuery(() =>
-            supabase.from('islands').delete().eq('island_id', islandId)
-        );
-
-        showInfoModal('Isola eliminata con successo!');
-        showIslandsModal(stationId);
-    } catch (err) {
-        Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
+    if (guns && guns.length > 0) {
+      Toast.show(`Impossibile eliminare: l'isola ha ${guns.length} pistol${guns.length !== 1 ? 'e' : 'a'} associate. Rimuovile prima.`, 'warning');
+      return;
     }
+
+    if (!await openConfirmModal('Sei sicuro di voler eliminare questa isola?')) { return; }
+
+    await safeSupabaseQuery(() =>
+      supabase.from('islands').delete().eq('island_id', islandId)
+    );
+
+    showInfoModal('Isola eliminata con successo!');
+    showIslandsModal(stationId);
+  } catch (err) {
+    Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
+  }
 }

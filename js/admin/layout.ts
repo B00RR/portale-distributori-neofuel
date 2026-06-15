@@ -4,10 +4,11 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { escapeHtml } from '../utils/utils.js';
 import { clearSession } from '../core/auth.js';
 import { store } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
+import { escapeHtml } from '../utils/utils.js';
+
 import { router, AdminTab } from './router.js';
 
 // ========== TYPE DEFINITIONS ==========
@@ -17,25 +18,25 @@ type UserRole = 'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accountin
 type TabChangeCallback = (tab: AdminTab) => void;
 
 const TAB_LABELS: Record<AdminTab, string> = {
-    'dashboard': 'Dashboard',
-    'stations': 'Distributori',
-    'operators': 'Operatori',
-    'shifts': 'Chiusure',
-    'crediti': 'Crediti',
-    'invoices': 'Fatture',
-    'vouchers': 'Voucher',
-    'notifiche': 'Notifiche',
-    'analytics': 'Analytics',
-    'settings': 'Impostazioni'
+  'dashboard': 'Dashboard',
+  'stations': 'Distributori',
+  'operators': 'Operatori',
+  'shifts': 'Chiusure',
+  'crediti': 'Crediti',
+  'invoices': 'Fatture',
+  'vouchers': 'Voucher',
+  'notifiche': 'Notifiche',
+  'analytics': 'Analytics',
+  'settings': 'Impostazioni'
 };
 
 const ROLE_LABELS: Record<string, string> = {
-    'admin': 'Amministratore',
-    'super_admin': 'Amministratore',
-    'full_admin': 'Amministratore',
-    'accounting': 'Contabilità',
-    'billing': 'Fatturazione',
-    'operator': 'Operatore'
+  'admin': 'Amministratore',
+  'super_admin': 'Amministratore',
+  'full_admin': 'Amministratore',
+  'accounting': 'Contabilità',
+  'billing': 'Fatturazione',
+  'operator': 'Operatore'
 };
 
 // ========== FUNCTIONS ==========
@@ -44,13 +45,13 @@ const ROLE_LABELS: Record<string, string> = {
  * Render the admin shell layout
  */
 export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeCallback): void {
-    const user = store.getUser();
-    const userRole = (user?.role || 'operator') as UserRole;
-    const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
+  const user = store.getUser();
+  const userRole = (user?.role || 'operator') as UserRole;
+  const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
 
-    console.log('[Layout] Rendering shell for role:', userRole, 'isFullAdmin:', isFullAdmin);
+  console.log('[Layout] Rendering shell for role:', userRole, 'isFullAdmin:', isFullAdmin);
 
-    container.innerHTML = `
+  container.innerHTML = `
         <div class="admin-container">
             <aside class="admin-sidebar" data-testid="admin-sidebar">
                 <div class="sidebar-header">
@@ -118,115 +119,115 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
         </div>
     `;
 
-    attachNavigationListeners(onTabChange);
-    attachLogoutListener();
-    attachMobileListeners();
+  attachNavigationListeners(onTabChange);
+  attachLogoutListener();
+  attachMobileListeners();
 }
 
 function attachMobileListeners(): void {
-    const toggle = document.getElementById('sidebar-toggle');
-    const sidebar = document.querySelector('.admin-sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    const navBtns = document.querySelectorAll('.nav-btn');
+  const toggle = document.getElementById('sidebar-toggle');
+  const sidebar = document.querySelector('.admin-sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const navBtns = document.querySelectorAll('.nav-btn');
 
-    function closeSidebar() {
-        sidebar?.classList.remove('open');
-        overlay?.classList.remove('visible');
-    }
+  function closeSidebar() {
+    sidebar?.classList.remove('open');
+    overlay?.classList.remove('visible');
+  }
 
-    if (toggle && sidebar) {
-        toggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            overlay?.classList.toggle('visible');
-        });
-    }
-
-    if (overlay) {
-        overlay.addEventListener('click', closeSidebar);
-    }
-
-    // Close on nav click
-    navBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (window.innerWidth <= 768) {
-                closeSidebar();
-            }
-        });
+  if (toggle && sidebar) {
+    toggle.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      overlay?.classList.toggle('visible');
     });
+  }
+
+  if (overlay) {
+    overlay.addEventListener('click', closeSidebar);
+  }
+
+  // Close on nav click
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (window.innerWidth <= 768) {
+        closeSidebar();
+      }
+    });
+  });
 }
 
 /**
  * Render breadcrumbs navigation
  */
 export function renderBreadcrumbs(tab: AdminTab, subPath: string = ''): void {
-    const container = document.getElementById('breadcrumbs');
-    if (!container) return;
+  const container = document.getElementById('breadcrumbs');
+  if (!container) {return;}
 
-    let html = `<a href="#" class="breadcrumb-item breadcrumb-link" data-tab="dashboard" style="cursor: pointer; text-decoration: none;"><i class="fas fa-home"></i> Home</a>`;
+  let html = '<a href="#" class="breadcrumb-item breadcrumb-link" data-tab="dashboard" style="cursor: pointer; text-decoration: none;"><i class="fas fa-home"></i> Home</a>';
 
-    if (TAB_LABELS[tab] && tab !== 'dashboard') {
-        html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
-        if (subPath) {
-            html += `<a href="#" class="breadcrumb-item breadcrumb-link" data-tab="${tab}" style="cursor: pointer; text-decoration: none;">${TAB_LABELS[tab]}</a>`;
-        } else {
-            html += `<span class="breadcrumb-item active">${TAB_LABELS[tab]}</span>`;
-        }
-    }
-
+  if (TAB_LABELS[tab] && tab !== 'dashboard') {
+    html += '<i class="fas fa-chevron-right breadcrumb-separator"></i>';
     if (subPath) {
-        html += `<i class="fas fa-chevron-right breadcrumb-separator"></i>`;
-        html += `<span class="breadcrumb-item active">${subPath}</span>`;
+      html += `<a href="#" class="breadcrumb-item breadcrumb-link" data-tab="${tab}" style="cursor: pointer; text-decoration: none;">${TAB_LABELS[tab]}</a>`;
+    } else {
+      html += `<span class="breadcrumb-item active">${TAB_LABELS[tab]}</span>`;
     }
+  }
 
-    container.innerHTML = html;
+  if (subPath) {
+    html += '<i class="fas fa-chevron-right breadcrumb-separator"></i>';
+    html += `<span class="breadcrumb-item active">${subPath}</span>`;
+  }
 
-    container.querySelectorAll('.breadcrumb-link').forEach(link => {
-        link.addEventListener('click', (e: Event) => {
-            e.preventDefault();
-            const targetTab = (link as HTMLElement).dataset.tab as AdminTab;
-            if (targetTab) {
-                router.navigateTo(targetTab);
-                renderBreadcrumbs(targetTab);
-            }
-        });
+  container.innerHTML = html;
+
+  container.querySelectorAll('.breadcrumb-link').forEach(link => {
+    link.addEventListener('click', (e: Event) => {
+      e.preventDefault();
+      const targetTab = (link as HTMLElement).dataset.tab as AdminTab;
+      if (targetTab) {
+        router.navigateTo(targetTab);
+        renderBreadcrumbs(targetTab);
+      }
     });
+  });
 }
 
 /**
  * Attach navigation event listeners
  */
 function attachNavigationListeners(onTabChange: TabChangeCallback): void {
-    const navBtns = document.querySelectorAll('.nav-btn[data-tab]');
-    navBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tab = (btn as HTMLElement).dataset.tab as AdminTab;
-            if (tab && onTabChange) {
-                onTabChange(tab);
-            }
-        });
+  const navBtns = document.querySelectorAll('.nav-btn[data-tab]');
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = (btn as HTMLElement).dataset.tab as AdminTab;
+      if (tab && onTabChange) {
+        onTabChange(tab);
+      }
     });
+  });
 }
 
 /**
  * Attach logout listener
  */
 function attachLogoutListener(): void {
-    const logoutBtn = document.getElementById('admin-logout');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            const confirmLogout = await openConfirmModal('Sei sicuro di voler uscire dal Portale Neofuel?');
-            if (confirmLogout) {
-                await clearSession();
-                await new Promise(resolve => setTimeout(resolve, 100));
-                window.location.href = window.location.pathname;
-            }
-        });
-    }
+  const logoutBtn = document.getElementById('admin-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      const confirmLogout = await openConfirmModal('Sei sicuro di voler uscire dal Portale Neofuel?');
+      if (confirmLogout) {
+        await clearSession();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        window.location.href = window.location.pathname;
+      }
+    });
+  }
 }
 
 /**
  * Get human-readable role label
  */
 function getRoleLabel(role: string): string {
-    return ROLE_LABELS[role] || 'Utente';
+  return ROLE_LABELS[role] || 'Utente';
 }

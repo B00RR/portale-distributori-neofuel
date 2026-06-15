@@ -58,144 +58,144 @@ export type StateChangeCallback = (key: StateKey, value: unknown) => void;
 // ========== STORE CLASS ==========
 
 class Store {
-    private state: AppState;
-    private listeners: Set<StateChangeCallback>;
+  private state: AppState;
+  private listeners: Set<StateChangeCallback>;
 
-    constructor() {
-        this.state = {
-            user: null,
-            stations: [],
-            stationFilter: null,
-            filters: {
-                dateFrom: null,
-                dateTo: null,
-                searchQuery: '',
-                rangeLabel: 'all'
-            },
-            pagination: {
-                page: 0,
-                pageSize: 50,
-                totalCount: 0
-            },
-            loading: false,
-            error: null
-        };
-        this.listeners = new Set();
-    }
+  constructor() {
+    this.state = {
+      user: null,
+      stations: [],
+      stationFilter: null,
+      filters: {
+        dateFrom: null,
+        dateTo: null,
+        searchQuery: '',
+        rangeLabel: 'all'
+      },
+      pagination: {
+        page: 0,
+        pageSize: 50,
+        totalCount: 0
+      },
+      loading: false,
+      error: null
+    };
+    this.listeners = new Set();
+  }
 
-    /**
+  /**
      * Get a snapshot of the current state
      */
-    getState(): AppState {
-        return { ...this.state };
-    }
+  getState(): AppState {
+    return { ...this.state };
+  }
 
-    /**
+  /**
      * Set the logged-in user
      */
-    setUser(user: User | null): void {
-        this.state.user = user;
-        this.notify('user', user);
-    }
+  setUser(user: User | null): void {
+    this.state.user = user;
+    this.notify('user', user);
+  }
 
-    /**
+  /**
      * Set the list of available fuel stations
      */
-    setStations(stations: Station[]): void {
-        this.state.stations = stations;
-        this.notify('stations', stations);
-    }
+  setStations(stations: Station[]): void {
+    this.state.stations = stations;
+    this.notify('stations', stations);
+  }
 
-    /**
+  /**
      * Update the global station filter
      */
-    setStationFilter(stationId: string | null): void {
-        this.state.stationFilter = stationId;
-        this.notify('stationFilter', stationId);
-    }
+  setStationFilter(stationId: string | null): void {
+    this.state.stationFilter = stationId;
+    this.notify('stationFilter', stationId);
+  }
 
-    /**
+  /**
      * Update complex filters
      */
-    setFilters(newFilters: Partial<Filters>): void {
-        this.state.filters = { ...this.state.filters, ...newFilters };
-        // Reset page on filter change
-        this.state.pagination.page = 0;
-        this.notify('filters', this.state.filters);
-        this.notify('pagination', this.state.pagination);
-    }
+  setFilters(newFilters: Partial<Filters>): void {
+    this.state.filters = { ...this.state.filters, ...newFilters };
+    // Reset page on filter change
+    this.state.pagination.page = 0;
+    this.notify('filters', this.state.filters);
+    this.notify('pagination', this.state.pagination);
+  }
 
-    /**
+  /**
      * Update pagination
      */
-    setPagination(newPagination: Partial<Pagination>): void {
-        this.state.pagination = { ...this.state.pagination, ...newPagination };
-        this.notify('pagination', this.state.pagination);
-    }
+  setPagination(newPagination: Partial<Pagination>): void {
+    this.state.pagination = { ...this.state.pagination, ...newPagination };
+    this.notify('pagination', this.state.pagination);
+  }
 
-    /**
+  /**
      * Set loading state
      */
-    setLoading(loading: boolean): void {
-        this.state.loading = loading;
-        this.notify('loading', loading);
-    }
+  setLoading(loading: boolean): void {
+    this.state.loading = loading;
+    this.notify('loading', loading);
+  }
 
-    /**
+  /**
      * Set error state
      */
-    setError(error: string | null): void {
-        this.state.error = error;
-        this.notify('error', error);
-    }
+  setError(error: string | null): void {
+    this.state.error = error;
+    this.notify('error', error);
+  }
 
-    /**
+  /**
      * Subscribe to state changes
      * @returns unsubscribe function
      */
-    subscribe(callback: StateChangeCallback): () => void {
-        this.listeners.add(callback);
-        return () => {
-            this.listeners.delete(callback);
-        };
-    }
+  subscribe(callback: StateChangeCallback): () => void {
+    this.listeners.add(callback);
+    return () => {
+      this.listeners.delete(callback);
+    };
+  }
 
-    /**
+  /**
      * Notify all listeners of a change
      */
-    private notify(key: StateKey, value: unknown): void {
-        this.listeners.forEach(listener => listener(key, value));
-    }
+  private notify(key: StateKey, value: unknown): void {
+    this.listeners.forEach(listener => listener(key, value));
+  }
 
-    // --- Getters ---
+  // --- Getters ---
 
-    getFilter(): string | null {
-        return this.state.stationFilter;
-    }
+  getFilter(): string | null {
+    return this.state.stationFilter;
+  }
 
-    getFilters(): Filters {
-        return this.state.filters;
-    }
+  getFilters(): Filters {
+    return this.state.filters;
+  }
 
-    getPagination(): Pagination {
-        return this.state.pagination;
-    }
+  getPagination(): Pagination {
+    return this.state.pagination;
+  }
 
-    getUser(): User | null {
-        return this.state.user;
-    }
+  getUser(): User | null {
+    return this.state.user;
+  }
 
-    getStations(): Station[] {
-        return this.state.stations;
-    }
+  getStations(): Station[] {
+    return this.state.stations;
+  }
 
-    isLoading(): boolean {
-        return this.state.loading;
-    }
+  isLoading(): boolean {
+    return this.state.loading;
+  }
 
-    getError(): string | null {
-        return this.state.error;
-    }
+  getError(): string | null {
+    return this.state.error;
+  }
 }
 
 // Create a singleton instance

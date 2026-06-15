@@ -13,34 +13,34 @@ import { formatNumberIt } from '../utils/utils.js';
  * @param container - HTML element where notifications will be rendered
  */
 export async function showNotificheAdmin(container: HTMLElement): Promise<void> {
-    container.innerHTML = '<p class="loading-text">Controllo notifiche e allerta di sistema...</p>';
+  container.innerHTML = '<p class="loading-text">Controllo notifiche e allerta di sistema...</p>';
 
-    try {
-        const [rules, tanksRes, shiftsRes] = await Promise.all([
-            BusinessLogicManager.loadRules(),
-            supabase.from('tanks').select('name, fuel_type, liters, station_id, fuel_stations(station_name)'),
-            supabase.from('shifts').select('id, created_at, status, station_id, fuel_stations(station_name)').eq('status', 'open')
-        ]);
+  try {
+    const [rules, tanksRes, shiftsRes] = await Promise.all([
+      BusinessLogicManager.loadRules(),
+      supabase.from('tanks').select('name, fuel_type, liters, station_id, fuel_stations(station_name)'),
+      supabase.from('shifts').select('id, created_at, status, station_id, fuel_stations(station_name)').eq('status', 'open')
+    ]);
 
-        // Check if notifications are globally enabled
-        if (!rules.notifications_enabled) {
-            container.innerHTML = `
+    // Check if notifications are globally enabled
+    if (!rules.notifications_enabled) {
+      container.innerHTML = `
                 <div class="empty-notifications">
                     <i class="fas fa-bell-slash" style="color: var(--text-secondary); font-size: 2rem; margin-bottom: 1rem;"></i>
                     <p>Le notifiche critiche sono disabilitate nelle impostazioni.</p>
                 </div>
             `;
-            return;
-        }
+      return;
+    }
 
-        const alerts: string[] = [];
+    const alerts: string[] = [];
 
-        // 1. Check Fuel Reserves
-        if (tanksRes.data) {
-            tanksRes.data.forEach((t: any) => {
-                const liters = t.liters || 0;
-                if (liters < rules.fuel_reserve_alert_liters) {
-                    alerts.push(`
+    // 1. Check Fuel Reserves
+    if (tanksRes.data) {
+      tanksRes.data.forEach((t: any) => {
+        const liters = t.liters || 0;
+        if (liters < rules.fuel_reserve_alert_liters) {
+          alerts.push(`
                         <div class="alert-card critical">
                             <div class="alert-icon"><i class="fas fa-gas-pump"></i></div>
                             <div class="alert-content">
@@ -49,18 +49,18 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
                             </div>
                         </div>
                     `);
-                }
-            });
         }
+      });
+    }
 
-        // 2. Check Stale Shifts
-        if (shiftsRes.data) {
-            const now = new Date().getTime();
-            shiftsRes.data.forEach((s: any) => {
-                const createdAt = new Date(s.created_at).getTime();
-                const hoursOpen = (now - createdAt) / (1000 * 60 * 60);
-                if (hoursOpen > rules.force_close_hours_threshold) {
-                    alerts.push(`
+    // 2. Check Stale Shifts
+    if (shiftsRes.data) {
+      const now = new Date().getTime();
+      shiftsRes.data.forEach((s: any) => {
+        const createdAt = new Date(s.created_at).getTime();
+        const hoursOpen = (now - createdAt) / (1000 * 60 * 60);
+        if (hoursOpen > rules.force_close_hours_threshold) {
+          alerts.push(`
                         <div class="alert-card warning">
                             <div class="alert-icon"><i class="fas fa-clock"></i></div>
                             <div class="alert-content">
@@ -69,21 +69,21 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
                             </div>
                         </div>
                     `);
-                }
-            });
         }
+      });
+    }
 
-        if (alerts.length === 0) {
-            container.innerHTML = '<div class="empty-notifications"><i class="fas fa-check-circle"></i> <p>Tutto sotto controllo. Nessuna notifica critica.</p></div>';
-        } else {
-            container.innerHTML = `
+    if (alerts.length === 0) {
+      container.innerHTML = '<div class="empty-notifications"><i class="fas fa-check-circle"></i> <p>Tutto sotto controllo. Nessuna notifica critica.</p></div>';
+    } else {
+      container.innerHTML = `
                 <div class="notifications-list">
                     <h3>Allerta di Sistema</h3>
                     ${alerts.join('')}
                 </div>
             `;
-        }
-    } catch (err) {
-        handleError(err as Error, 'showNotificheAdmin', container);
     }
+  } catch (err) {
+    handleError(err as Error, 'showNotificheAdmin', container);
+  }
 }

@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
+import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { handleError } from '../shared/error-handler.js';
 import { store } from '../shared/state.js';
 import { Toast } from '../ui/toast.js';
-import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { showLoadingMessage, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import {
-    fetchClosureExportData,
-    generateClosureExcel,
-    generateMultiClosureExcel,
-    computeExportSummaryMetrics
+  fetchClosureExportData,
+  generateClosureExcel,
+  generateMultiClosureExcel,
+  computeExportSummaryMetrics
 } from '../utils/export_utils.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
@@ -78,102 +78,102 @@ interface BulkExportOptions {
 console.log('%c SHIFTS MODULE LOADED (v112 - Fix Export - TS)', 'background: #22c55e; color: #fff; padding: 4px; font-weight: bold;');
 
 export async function showChiusureTab(
-    container: HTMLElement,
-    actionsContainer: HTMLElement | null,
-    defaultStationId: string | null = null
+  container: HTMLElement,
+  actionsContainer: HTMLElement | null,
+  defaultStationId: string | null = null
 ): Promise<void> {
-    // Basic structure
-    container.innerHTML = `
+  // Basic structure
+  container.innerHTML = `
         <div id="filters-container"></div>
         <div id="data-container"></div>
         <div id="pagination-container"></div>
     `;
 
-    // Render Components
-    const filterBar = new FilterBar('filters-container');
-    filterBar.render();
+  // Render Components
+  const filterBar = new FilterBar('filters-container');
+  filterBar.render();
 
-    const pagination = new Pagination('pagination-container');
+  const pagination = new Pagination('pagination-container');
 
-    if (actionsContainer) {
-        // Clear and rebuild to avoid duplicates if re-called
-        actionsContainer.innerHTML = '';
+  if (actionsContainer) {
+    // Clear and rebuild to avoid duplicates if re-called
+    actionsContainer.innerHTML = '';
 
-        const btnBulk = document.createElement('button');
-        btnBulk.id = 'btn-bulk-export';
-        btnBulk.className = 'menu-button secondary';
-        btnBulk.innerHTML = '<i class="fas fa-file-export"></i> Export Multiplo';
-        btnBulk.onclick = openBulkExportModal;
+    const btnBulk = document.createElement('button');
+    btnBulk.id = 'btn-bulk-export';
+    btnBulk.className = 'menu-button secondary';
+    btnBulk.innerHTML = '<i class="fas fa-file-export"></i> Export Multiplo';
+    btnBulk.onclick = openBulkExportModal;
 
-        actionsContainer.appendChild(btnBulk);
-    }
+    actionsContainer.appendChild(btnBulk);
+  }
 
-    // Track params to prevent loop
-    let lastParams = { page: -1, filtersJson: '' };
+  // Track params to prevent loop
+  let lastParams = { page: -1, filtersJson: '' };
 
-    const renderTable = async () => {
-        const dataContainer = document.getElementById('data-container');
-        if (!dataContainer) { return; }
+  const renderTable = async () => {
+    const dataContainer = document.getElementById('data-container');
+    if (!dataContainer) { return; }
 
-        const filters = store.getFilters();
-        const pagState = store.getPagination();
-        const stationId = store.getFilter() || defaultStationId;
+    const filters = store.getFilters();
+    const pagState = store.getPagination();
+    const stationId = store.getFilter() || defaultStationId;
 
-        // Params check
-        const currentFiltersJson = JSON.stringify({ ...filters, stationId });
-        // We proceed if filters changed OR page changed.
+    // Params check
+    const currentFiltersJson = JSON.stringify({ ...filters, stationId });
+    // We proceed if filters changed OR page changed.
 
-        lastParams = { page: pagState.page, filtersJson: currentFiltersJson };
+    lastParams = { page: pagState.page, filtersJson: currentFiltersJson };
 
-        // Render Pagination (with current totalCount)
-        pagination.render();
+    // Render Pagination (with current totalCount)
+    pagination.render();
 
-        showLoadingMessage(dataContainer);
+    showLoadingMessage(dataContainer);
 
-        try {
-            // Load business rules
-            const businessRules = await BusinessLogicManager.loadRules();
+    try {
+      // Load business rules
+      const businessRules = await BusinessLogicManager.loadRules();
 
-            // Build Query
-            let query = supabase.from('shifts')
-                .select(`
+      // Build Query
+      let query = supabase.from('shifts')
+        .select(`
                     *,
                     fuel_stations(station_name),
                     users(full_name)
                 `, { count: 'exact' });
 
-            // 1. Station Filter
-            if (stationId) { query = query.eq('station_id', stationId); }
+      // 1. Station Filter
+      if (stationId) { query = query.eq('station_id', stationId); }
 
-            // 2. Date Range Filter
-            if (filters.dateFrom) { query = query.gte('created_at', filters.dateFrom); }
-            if (filters.dateTo) { query = query.lte('created_at', filters.dateTo + 'T23:59:59'); }
+      // 2. Date Range Filter
+      if (filters.dateFrom) { query = query.gte('created_at', filters.dateFrom); }
+      if (filters.dateTo) { query = query.lte('created_at', filters.dateTo + 'T23:59:59'); }
 
-            // 3. Pagination
-            const from = pagState.page * pagState.pageSize;
-            const to = from + pagState.pageSize - 1;
-            query = query.range(from, to).order('created_at', { ascending: false });
+      // 3. Pagination
+      const from = pagState.page * pagState.pageSize;
+      const to = from + pagState.pageSize - 1;
+      query = query.range(from, to).order('created_at', { ascending: false });
 
-            const { data: closures, error, count } = await query;
+      const { data: closures, error, count } = await query;
 
-            if (error) { throw error; }
+      if (error) { throw error; }
 
-            // Update totalCount if changed
-            if (count !== null && count !== pagState.totalCount) {
-                store.setPagination({ totalCount: count });
-            }
+      // Update totalCount if changed
+      if (count !== null && count !== pagState.totalCount) {
+        store.setPagination({ totalCount: count });
+      }
 
-            // Re-render pagination with new count
-            pagination.render();
+      // Re-render pagination with new count
+      pagination.render();
 
-            const filteredClosures: Shift[] = (closures as unknown as Shift[]) || [];
+      const filteredClosures: Shift[] = (closures as unknown as Shift[]) || [];
 
-            if (filteredClosures.length === 0) {
-                dataContainer.innerHTML = '<p>Nessuna chiusura trovata.</p>';
-                return;
-            }
+      if (filteredClosures.length === 0) {
+        dataContainer.innerHTML = '<p>Nessuna chiusura trovata.</p>';
+        return;
+      }
 
-            let html = `
+      let html = `
               <div class="table-responsive">
                 <table class="admin-table">
                   <thead>
@@ -189,30 +189,30 @@ export async function showChiusureTab(
                   <tbody>
             `;
 
-            filteredClosures.forEach(c => {
-                const dateStr = new Date(c.closed_at || c.created_at).toLocaleString('it-IT');
-                const stationName = c.fuel_stations?.station_name || `#${c.station_id}`;
-                const operatorName = c.users?.full_name || `#${c.operator_id}`;
-                const closingData = c.closing_data || {};
-                const isFinal = c.status === 'closed' || closingData.is_final === true;
+      filteredClosures.forEach(c => {
+        const dateStr = new Date(c.closed_at || c.created_at).toLocaleString('it-IT');
+        const stationName = c.fuel_stations?.station_name || `#${c.station_id}`;
+        const operatorName = c.users?.full_name || `#${c.operator_id}`;
+        const closingData = c.closing_data || {};
+        const isFinal = c.status === 'closed' || closingData.is_final === true;
 
-                // Stale Shift Logic
-                let staleIndicator = '';
-                if (!isFinal) {
-                    const createdAt = new Date(c.created_at).getTime();
-                    const now = new Date().getTime();
-                    const hoursOpen = (now - createdAt) / (1000 * 60 * 60);
-                    if (hoursOpen > businessRules.force_close_hours_threshold) {
-                        staleIndicator = `<span class="badge badge-danger" style="margin-left: 5px;" title="Turno aperto da oltre ${businessRules.force_close_hours_threshold} ore">STALE</span>`;
-                    }
-                }
+        // Stale Shift Logic
+        let staleIndicator = '';
+        if (!isFinal) {
+          const createdAt = new Date(c.created_at).getTime();
+          const now = new Date().getTime();
+          const hoursOpen = (now - createdAt) / (1000 * 60 * 60);
+          if (hoursOpen > businessRules.force_close_hours_threshold) {
+            staleIndicator = `<span class="badge badge-danger" style="margin-left: 5px;" title="Turno aperto da oltre ${businessRules.force_close_hours_threshold} ore">STALE</span>`;
+          }
+        }
 
-                const closureType = isFinal ? 'Finale' : 'Parziale';
-                const closureClass = isFinal ? 'badge-success' : 'badge-warning';
-                const totalValue = closingData.ricavo_teorico || closingData.totale_atteso || 0;
-                const total = formatEuro(totalValue);
+        const closureType = isFinal ? 'Finale' : 'Parziale';
+        const closureClass = isFinal ? 'badge-success' : 'badge-warning';
+        const totalValue = closingData.ricavo_teorico || closingData.totale_atteso || 0;
+        const total = formatEuro(totalValue);
 
-                html += `
+        html += `
                 <tr>
                   <td>${dateStr}</td>
                   <td>${escapeHtml(stationName)}</td>
@@ -226,101 +226,101 @@ export async function showChiusureTab(
                   </td>
                 </tr>
               `;
-            });
+      });
 
-            html += '</tbody></table></div>';
-            dataContainer.innerHTML = html;
+      html += '</tbody></table></div>';
+      dataContainer.innerHTML = html;
 
-            dataContainer.querySelectorAll('.view-closure').forEach(btn => {
-                btn.addEventListener('click', () => showClosureDetails((btn as HTMLElement).dataset.id!));
-            });
-            dataContainer.querySelectorAll('.export-closure').forEach(btn => {
-                btn.addEventListener('click', () => openExportModal((btn as HTMLElement).dataset.id!));
-            });
-            dataContainer.querySelectorAll('.delete-closure').forEach(btn => {
-                btn.addEventListener('click', () => deleteClosure((btn as HTMLElement).dataset.id!, renderTable));
-            });
+      dataContainer.querySelectorAll('.view-closure').forEach(btn => {
+        btn.addEventListener('click', () => showClosureDetails((btn as HTMLElement).dataset.id!));
+      });
+      dataContainer.querySelectorAll('.export-closure').forEach(btn => {
+        btn.addEventListener('click', () => openExportModal((btn as HTMLElement).dataset.id!));
+      });
+      dataContainer.querySelectorAll('.delete-closure').forEach(btn => {
+        btn.addEventListener('click', () => deleteClosure((btn as HTMLElement).dataset.id!, renderTable));
+      });
 
-        } catch (err) {
-            handleError(err as Error, 'showChiusureTab', dataContainer);
-        }
-    };
+    } catch (err) {
+      handleError(err as Error, 'showChiusureTab', dataContainer);
+    }
+  };
 
-    // Initial Render
-    await renderTable();
+  // Initial Render
+  await renderTable();
 
-    // Subscribe to state changes
-    const unsub = store.subscribe((key, val) => {
-        // Check if still mounted
-        if (!document.getElementById('filters-container')) {
-            unsub();
-            return;
-        }
+  // Subscribe to state changes
+  const unsub = store.subscribe((key, val) => {
+    // Check if still mounted
+    if (!document.getElementById('filters-container')) {
+      unsub();
+      return;
+    }
 
-        if (key === 'filters' || key === 'stationFilter') {
-            // Always render if filters change
-            renderTable();
-        }
-        else if (key === 'pagination') {
-            // Only render if PAGE changed. TotalCount change should be ignored (it was set by us)
-            if ((val as any).page !== lastParams.page) {
-                renderTable();
-            } else {
-                // Just re-render pagination UI to be safe
-                pagination.render();
-            }
-        }
-    });
+    if (key === 'filters' || key === 'stationFilter') {
+      // Always render if filters change
+      renderTable();
+    }
+    else if (key === 'pagination') {
+      // Only render if PAGE changed. TotalCount change should be ignored (it was set by us)
+      if ((val as any).page !== lastParams.page) {
+        renderTable();
+      } else {
+        // Just re-render pagination UI to be safe
+        pagination.render();
+      }
+    }
+  });
 }
 
 export async function showClosureDetails(closureId: string | number): Promise<void> {
-    openModal('Dettagli Chiusura');
-    const target = document.getElementById('modal-body');
-    if (!target) return;
+  openModal('Dettagli Chiusura');
+  const target = document.getElementById('modal-body');
+  if (!target) {return;}
 
-    showLoadingMessage(target);
+  showLoadingMessage(target);
 
-    try {
-        const { data: closureRaw, error } = await supabase
-            .from('shifts')
-            .select('*')
-            .eq('id', closureId)
-            .single();
+  try {
+    const { data: closureRaw, error } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('id', closureId)
+      .single();
 
-        if (error || !closureRaw) { throw new Error('Chiusura non trovata'); }
+    if (error || !closureRaw) { throw new Error('Chiusura non trovata'); }
 
-        const closure = closureRaw as Shift;
+    const closure = closureRaw as Shift;
 
-        const closingData = closure.closing_data || {};
-        const dettaglio = closingData.dettaglio_incasso || {};
+    const closingData = closure.closing_data || {};
+    const dettaglio = closingData.dettaglio_incasso || {};
 
-        // Mappa dati
-        const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString('it-IT');
+    // Mappa dati
+    const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString('it-IT');
 
-        // Breakdown Incassi
-        const contanti = formatEuro(dettaglio.contanti_operatore || 0);
-        const pos = formatEuro(dettaglio.pos_operatore || 0);
-        const crediti = formatEuro(dettaglio.crediti || 0);
-        const voucher = formatEuro(dettaglio.voucher || 0);
-        const carteUta = formatEuro(dettaglio.uta_dkv_operatore || 0);
-        const rimborsi = formatEuro(dettaglio.rimborsi_uscite || 0);
+    // Breakdown Incassi
+    const contanti = formatEuro(dettaglio.contanti_operatore || 0);
+    const pos = formatEuro(dettaglio.pos_operatore || 0);
+    const crediti = formatEuro(dettaglio.crediti || 0);
+    const voucher = formatEuro(dettaglio.voucher || 0);
+    const carteUta = formatEuro(dettaglio.uta_dkv_operatore || 0);
+    const rimborsi = formatEuro(dettaglio.rimborsi_uscite || 0);
 
-        // Self Service Breakdown Logic
-        const selfData = closingData.scontrino_self || {};
-        const banconoteErogate = selfData.banconote_erogate || 0;
-        const banconoteIncassate = selfData.banconote_incassate || 0;
-        const bancomatSelf = selfData.bancomat_erogati || 0;
-        const cardsSelf = selfData.transazioni_uta || 0;
+    // Self Service Breakdown Logic
+    const selfData = closingData.scontrino_self || {};
+    const banconoteErogate = selfData.banconote_erogate || 0;
+    const banconoteIncassate = selfData.banconote_incassate || 0;
+    const bancomatSelf = selfData.bancomat_erogati || 0;
+    const cardsSelf = selfData.transazioni_uta || 0;
 
-        const selfTotalVal = banconoteErogate + bancomatSelf + cardsSelf;
-        const selfTotalFormatted = formatEuro(selfTotalVal);
+    const selfTotalVal = banconoteErogate + bancomatSelf + cardsSelf;
+    const selfTotalFormatted = formatEuro(selfTotalVal);
 
-        // Logic per Contanti Self
-        let contantiSelfHtml = '';
-        if (banconoteErogate === banconoteIncassate) {
-            contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(banconoteErogate)}</b>`;
-        } else {
-            contantiSelfHtml = `
+    // Logic per Contanti Self
+    let contantiSelfHtml = '';
+    if (banconoteErogate === banconoteIncassate) {
+      contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(banconoteErogate)}</b>`;
+    } else {
+      contantiSelfHtml = `
             <div style="display: flex; justify-content: space-between; width: 100%;">
                 <span>Contanti:</span>
                 <div style="text-align: right;">
@@ -328,20 +328,20 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
                     <div style="font-size: 0.85em; color: #64748b;">Incassati: <b>${formatEuro(banconoteIncassate)}</b></div>
                 </div>
             </div>`;
-        }
+    }
 
-        // Extra
-        const extraVal = closingData.extra_incassi || 0;
-        const extra = formatEuro(extraVal);
+    // Extra
+    const extraVal = closingData.extra_incassi || 0;
+    const extra = formatEuro(extraVal);
 
-        // Totale Reale
-        const vendutoCarburanteVal = closingData.ricavo_teorico || 0;
-        const vendutoCarburante = formatEuro(vendutoCarburanteVal);
+    // Totale Reale
+    const vendutoCarburanteVal = closingData.ricavo_teorico || 0;
+    const vendutoCarburante = formatEuro(vendutoCarburanteVal);
 
-        const totaleRealeVal = vendutoCarburanteVal + extraVal;
-        const totaleReale = formatEuro(totaleRealeVal);
+    const totaleRealeVal = vendutoCarburanteVal + extraVal;
+    const totaleReale = formatEuro(totaleRealeVal);
 
-        target.innerHTML = `
+    target.innerHTML = `
       <div class="closure-details">
         <div class="closure-details-header">
             <span>ID Chiusura: <b>${closure.id}</b></span>
@@ -392,47 +392,47 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
       </div>
     `;
 
-        // Attach Event Listener for Export Button
-        const exportBtn = document.getElementById('btn-export-details');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                openExportModal(closure.id);
-            });
-        }
-
-    } catch (err) {
-        target.innerHTML = `<p class="error">Errore: ${(err as Error).message}</p>`;
+    // Attach Event Listener for Export Button
+    const exportBtn = document.getElementById('btn-export-details');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        openExportModal(closure.id);
+      });
     }
+
+  } catch (err) {
+    target.innerHTML = `<p class="error">Errore: ${(err as Error).message}</p>`;
+  }
 }
 
 export async function openExportModal(closureId: string | number): Promise<void> {
-    try {
-        const ctx = await fetchClosureExportData(closureId);
-        const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id);
-        await generateClosureExcel(metrics);
-    } catch (err: any) {
-        Toast.show('Errore export: ' + (err?.message || err), 'error');
-        console.error('Errore export:', err);
-    }
+  try {
+    const ctx = await fetchClosureExportData(closureId);
+    const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id);
+    await generateClosureExcel(metrics);
+  } catch (err: any) {
+    Toast.show('Errore export: ' + (err?.message || err), 'error');
+    console.error('Errore export:', err);
+  }
 }
 
 export async function openBulkExportModal(): Promise<void> {
-    openModal('Export Multiplo Chiusure');
-    const target = document.getElementById('modal-body');
-    if (!target) return;
+  openModal('Export Multiplo Chiusure');
+  const target = document.getElementById('modal-body');
+  if (!target) {return;}
 
-    // Fetch stations for dropdown
-    let stationsHtml = '<option value="all">Tutte le stazioni</option>';
-    try {
-        const { data: stations } = await supabase.from('fuel_stations').select('station_id, station_name');
-        if (stations) {
-            stations.forEach((s: any) => {
-                stationsHtml += `<option value="${s.station_id}">${escapeHtml(s.station_name)}</option>`;
-            });
-        }
-    } catch (e) { console.error(e); }
+  // Fetch stations for dropdown
+  let stationsHtml = '<option value="all">Tutte le stazioni</option>';
+  try {
+    const { data: stations } = await supabase.from('fuel_stations').select('station_id, station_name');
+    if (stations) {
+      stations.forEach((s: any) => {
+        stationsHtml += `<option value="${s.station_id}">${escapeHtml(s.station_name)}</option>`;
+      });
+    }
+  } catch (e) { console.error(e); }
 
-    target.innerHTML = `
+  target.innerHTML = `
         <div class="p-2">
             <p class="mb-3 text-muted">Seleziona i criteri per scaricare più chiusure in un unico file Excel.</p>
             
@@ -490,137 +490,137 @@ export async function openBulkExportModal(): Promise<void> {
         </div>
     `;
 
-    // Handle Radio Change Events (CSP Safe)
-    const radioLastN = document.getElementById('radio-last-n');
-    const radioDateRange = document.getElementById('radio-date-range');
-    const rangeOptions = document.getElementById('range-options');
-    const lastNOptions = document.getElementById('last-n-options');
+  // Handle Radio Change Events (CSP Safe)
+  const radioLastN = document.getElementById('radio-last-n');
+  const radioDateRange = document.getElementById('radio-date-range');
+  const rangeOptions = document.getElementById('range-options');
+  const lastNOptions = document.getElementById('last-n-options');
 
-    const toggleBulkOptions = (isRange: boolean) => {
-        if (isRange) {
-            rangeOptions?.classList.remove('hidden');
-            lastNOptions?.classList.add('hidden');
-        } else {
-            rangeOptions?.classList.add('hidden');
-            lastNOptions?.classList.remove('hidden');
-        }
-    };
-
-    if (radioLastN) {
-        radioLastN.addEventListener('change', () => toggleBulkOptions(false));
+  const toggleBulkOptions = (isRange: boolean) => {
+    if (isRange) {
+      rangeOptions?.classList.remove('hidden');
+      lastNOptions?.classList.add('hidden');
+    } else {
+      rangeOptions?.classList.add('hidden');
+      lastNOptions?.classList.remove('hidden');
     }
-    if (radioDateRange) {
-        radioDateRange.addEventListener('change', () => toggleBulkOptions(true));
-    }
+  };
 
-    const btn = document.getElementById('btn-start-bulk');
-    if (btn) {
-        btn.addEventListener('click', async () => {
-            const stationElement = document.getElementById('bulk-station') as HTMLSelectElement;
-            const stationId = stationElement.value;
-            const typeElement = document.querySelector('input[name="bulk-type"]:checked') as HTMLInputElement;
-            const type = typeElement.value as 'last_n' | 'date_range';
-            const limitElement = document.getElementById('bulk-limit') as HTMLInputElement;
-            const limit = parseInt(limitElement.value) || 10;
-            const dateFromElement = document.getElementById('bulk-from') as HTMLInputElement;
-            const dateFrom = dateFromElement.value;
-            const dateToElement = document.getElementById('bulk-to') as HTMLInputElement;
-            const dateTo = dateToElement.value;
+  if (radioLastN) {
+    radioLastN.addEventListener('change', () => toggleBulkOptions(false));
+  }
+  if (radioDateRange) {
+    radioDateRange.addEventListener('change', () => toggleBulkOptions(true));
+  }
 
-            // Validation
-            if (type === 'date_range' && (!dateFrom || !dateTo)) {
-                Toast.show('Seleziona entrambe le date.', 'error');
-                return;
-            }
+  const btn = document.getElementById('btn-start-bulk');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      const stationElement = document.getElementById('bulk-station') as HTMLSelectElement;
+      const stationId = stationElement.value;
+      const typeElement = document.querySelector('input[name="bulk-type"]:checked') as HTMLInputElement;
+      const type = typeElement.value as 'last_n' | 'date_range';
+      const limitElement = document.getElementById('bulk-limit') as HTMLInputElement;
+      const limit = parseInt(limitElement.value) || 10;
+      const dateFromElement = document.getElementById('bulk-from') as HTMLInputElement;
+      const dateFrom = dateFromElement.value;
+      const dateToElement = document.getElementById('bulk-to') as HTMLInputElement;
+      const dateTo = dateToElement.value;
 
-            const loadingDiv = document.getElementById('bulk-loading');
-            if (loadingDiv) loadingDiv.classList.remove('hidden');
+      // Validation
+      if (type === 'date_range' && (!dateFrom || !dateTo)) {
+        Toast.show('Seleziona entrambe le date.', 'error');
+        return;
+      }
 
-            const btnElement = btn as HTMLButtonElement;
-            btnElement.disabled = true;
+      const loadingDiv = document.getElementById('bulk-loading');
+      if (loadingDiv) {loadingDiv.classList.remove('hidden');}
 
-            try {
-                await handleBulkExport({
-                    stationId: stationId === 'all' ? null : stationId,
-                    type,
-                    limit,
-                    dateFrom,
-                    dateTo
-                });
-                closeModal();
-            } catch (err: any) {
-                console.error(err);
-                Toast.show('Errore durante export multiplo: ' + err.message, 'error');
-            } finally {
-                if (loadingDiv) loadingDiv.classList.add('hidden');
-                btnElement.disabled = false;
-            }
+      const btnElement = btn as HTMLButtonElement;
+      btnElement.disabled = true;
+
+      try {
+        await handleBulkExport({
+          stationId: stationId === 'all' ? null : stationId,
+          type,
+          limit,
+          dateFrom,
+          dateTo
         });
-    }
+        closeModal();
+      } catch (err: any) {
+        console.error(err);
+        Toast.show('Errore durante export multiplo: ' + err.message, 'error');
+      } finally {
+        if (loadingDiv) {loadingDiv.classList.add('hidden');}
+        btnElement.disabled = false;
+      }
+    });
+  }
 }
 
 export async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
-    try {
-        // 1. Fetch Data
-        let query = supabase.from('shifts')
-            .select(`
+  try {
+    // 1. Fetch Data
+    let query = supabase.from('shifts')
+      .select(`
             *,
             fuel_stations(station_name),
             users(full_name)
         `)
-            .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
-        if (opts.stationId) { query = query.eq('station_id', opts.stationId); }
+    if (opts.stationId) { query = query.eq('station_id', opts.stationId); }
 
-        if (opts.type === 'last_n') {
-            query = query.limit(opts.limit);
-        } else {
-            if (!opts.dateFrom || !opts.dateTo) throw new Error("Range date mancante");
-            query = query.gte('created_at', opts.dateFrom)
-                .lte('created_at', opts.dateTo + 'T23:59:59');
-        }
-
-        const { data: closures, error } = await query;
-        if (error) { throw error; }
-        if (!closures || closures.length === 0) {
-            throw new Error('Nessuna chiusura trovata con i criteri selezionati.');
-        }
-
-        // 2. Process Data for Template
-        const processedClosures = [];
-        for (const c of closures) {
-            const metrics = await computeExportSummaryMetrics(supabase, c, c.station_id);
-            processedClosures.push(metrics);
-        }
-
-        // 3. Generate Excel
-        await generateMultiClosureExcel(processedClosures);
-    } catch (err) {
-        handleError(err as Error, 'handleBulkExport');
+    if (opts.type === 'last_n') {
+      query = query.limit(opts.limit);
+    } else {
+      if (!opts.dateFrom || !opts.dateTo) {throw new Error('Range date mancante');}
+      query = query.gte('created_at', opts.dateFrom)
+        .lte('created_at', opts.dateTo + 'T23:59:59');
     }
+
+    const { data: closures, error } = await query;
+    if (error) { throw error; }
+    if (!closures || closures.length === 0) {
+      throw new Error('Nessuna chiusura trovata con i criteri selezionati.');
+    }
+
+    // 2. Process Data for Template
+    const processedClosures = [];
+    for (const c of closures) {
+      const metrics = await computeExportSummaryMetrics(supabase, c, c.station_id);
+      processedClosures.push(metrics);
+    }
+
+    // 3. Generate Excel
+    await generateMultiClosureExcel(processedClosures);
+  } catch (err) {
+    handleError(err as Error, 'handleBulkExport');
+  }
 }
 
 export async function deleteClosure(
-    closureId: string | number,
-    onSuccessCallback?: () => void
+  closureId: string | number,
+  onSuccessCallback?: () => void
 ): Promise<void> {
-    const confirmed = await openConfirmModal('Sei sicuro di voler eliminare questa chiusura? L\'operazione è irreversibile e cancellerà anche i dettagli dei contatori e lo scarico serbatoi.');
-    if (!confirmed) { return; }
+  const confirmed = await openConfirmModal('Sei sicuro di voler eliminare questa chiusura? L\'operazione è irreversibile e cancellerà anche i dettagli dei contatori e lo scarico serbatoi.');
+  if (!confirmed) { return; }
 
-    try {
-        // Use server-side RPC function for secure cascade delete
-        const { error } = await supabase.rpc('admin_delete_closure', {
-            closure_id: Number(closureId)
-        });
+  try {
+    // Use server-side RPC function for secure cascade delete
+    const { error } = await supabase.rpc('admin_delete_closure', {
+      closure_id: Number(closureId)
+    });
 
-        if (error) { throw error; }
+    if (error) { throw error; }
 
-        Toast.show('Chiusura eliminata con successo', 'success');
-        if (onSuccessCallback) { onSuccessCallback(); }
+    Toast.show('Chiusura eliminata con successo', 'success');
+    if (onSuccessCallback) { onSuccessCallback(); }
 
-    } catch (err) {
-        handleError(err as Error, 'deleteClosure');
-    }
+  } catch (err) {
+    handleError(err as Error, 'deleteClosure');
+  }
 }
 
 

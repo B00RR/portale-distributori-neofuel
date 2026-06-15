@@ -1,13 +1,15 @@
 import { html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
-import { BaseComponent } from './BaseComponent.js';
+
 import { supabase } from '../../core/api.js';
-import { Toast } from '../toast.js';
-import { formatEuro } from '../../utils/utils.js';
-import { Pistola, Island, Shift } from '../../types.js';
-import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { BusinessLogicManager } from '../../core/business-logic-manager.js';
 import { type BusinessRules, DEFAULT_BUSINESS_RULES } from '../../core/business-rules-schema.js';
+import { isOffline, queueAction } from '../../core/offline-queue.js';
+import { Pistola, Island, Shift } from '../../types.js';
+import { formatEuro } from '../../utils/utils.js';
+import { Toast } from '../toast.js';
+
+import { BaseComponent } from './BaseComponent.js';
 
 interface ClosureWizardState {
     step: 1 | 2 | 3;
@@ -21,9 +23,9 @@ export class ClosureWizard extends BaseComponent {
     @property({ type: String }) shiftId: string = '';  // Optional: Can be used to load specific shift
 
     @state() private wizardState: ClosureWizardState = {
-        step: 1,
-        mode: 'loading',
-        errorMessage: ''
+      step: 1,
+      mode: 'loading',
+      errorMessage: ''
     };
 
     // Data from Step 1
@@ -56,8 +58,8 @@ export class ClosureWizard extends BaseComponent {
     @state() private businessRules: BusinessRules = DEFAULT_BUSINESS_RULES;
 
     static override styles: CSSResultGroup = [
-        BaseComponent.styles,
-        css`
+      BaseComponent.styles,
+      css`
             :host {
                 display: block;
                 max-width: 900px;
@@ -212,75 +214,75 @@ export class ClosureWizard extends BaseComponent {
     ];
 
     protected override firstUpdated() {
-        this.loadInitialData();
+      this.loadInitialData();
     }
 
     private async loadInitialData() {
-        this.wizardState = { ...this.wizardState, mode: 'loading' };
-        try {
-            const { data: shiftResult, error: sError } = await supabase
-                .from('shifts')
-                .select('*, users!operator_id(full_name)')
-                .eq('station_id', this.stationId)
-                .is('closed_at', null)
-                .order('opened_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+      this.wizardState = { ...this.wizardState, mode: 'loading' };
+      try {
+        const { data: shiftResult, error: sError } = await supabase
+          .from('shifts')
+          .select('*, users!operator_id(full_name)')
+          .eq('station_id', this.stationId)
+          .is('closed_at', null)
+          .order('opened_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-            if (sError) throw sError;
-            if (!shiftResult) {
-                this.wizardState = { mode: 'error', errorMessage: 'Nessun turno aperto trovato per questa stazione.', step: 1 };
-                return;
-            }
-            this.activeOpening = shiftResult as unknown as Shift;
-
-            const [islandsRes, prezziRes, configRes, countersRes, rules] = await Promise.all([
-                supabase.from('islands').select('island_id, nome, island_name').eq('station_id', this.stationId).order('island_id'),
-                supabase.from('prezzi_distributore').select('*').eq('station_id', this.stationId).order('data_validita', { ascending: false }).limit(1).maybeSingle(),
-                supabase.from('fuel_stations').select('allow_partial_closure').eq('station_id', this.stationId).single(),
-                supabase.from('shift_pistols').select('pistola_id, opened_at_counter').eq('shift_id', this.activeOpening.id),
-                BusinessLogicManager.loadRules()
-            ]);
-
-            if (islandsRes.error) throw islandsRes.error;
-
-            this.islands = islandsRes.data.map((i: any, idx: number) => ({
-                island_id: i.island_id ?? idx + 1,
-                nome: i.nome ?? i.island_name ?? `Isola ${idx + 1}`,
-                station_id: Number(this.stationId)
-            })) as unknown as Island[];
-
-            this.prezzi = prezziRes.data;
-            this.stationConfig = configRes.data;
-            this.businessRules = rules;
-
-            const islandIds = this.islands.map(i => i.island_id);
-            const { data: pData, error: pError } = await supabase
-                .from('pistole')
-                .select('*, islands(nome)')
-                .in('island_id', islandIds)
-                .order('id');
-
-            if (pError) throw pError;
-            this.pistole = (pData || []) as unknown as Pistola[];
-
-            const countersMap: Record<number, number> = {};
-            (countersRes.data || []).forEach((c: any) => {
-                countersMap[c.pistola_id] = Number(c.opened_at_counter) || 0;
-            });
-            this.openingCounters = countersMap;
-            this.wizardState = { ...this.wizardState, mode: 'form', step: 1 };
-        } catch (error: any) {
-            console.error('Error loading ClosureWizard data:', error);
-            this.wizardState = { mode: 'error', errorMessage: error.message || 'Errore imprevisto', step: 1 };
+        if (sError) {throw sError;}
+        if (!shiftResult) {
+          this.wizardState = { mode: 'error', errorMessage: 'Nessun turno aperto trovato per questa stazione.', step: 1 };
+          return;
         }
+        this.activeOpening = shiftResult as unknown as Shift;
+
+        const [islandsRes, prezziRes, configRes, countersRes, rules] = await Promise.all([
+          supabase.from('islands').select('island_id, nome, island_name').eq('station_id', this.stationId).order('island_id'),
+          supabase.from('prezzi_distributore').select('*').eq('station_id', this.stationId).order('data_validita', { ascending: false }).limit(1).maybeSingle(),
+          supabase.from('fuel_stations').select('allow_partial_closure').eq('station_id', this.stationId).single(),
+          supabase.from('shift_pistols').select('pistola_id, opened_at_counter').eq('shift_id', this.activeOpening.id),
+          BusinessLogicManager.loadRules()
+        ]);
+
+        if (islandsRes.error) {throw islandsRes.error;}
+
+        this.islands = islandsRes.data.map((i: any, idx: number) => ({
+          island_id: i.island_id ?? idx + 1,
+          nome: i.nome ?? i.island_name ?? `Isola ${idx + 1}`,
+          station_id: Number(this.stationId)
+        })) as unknown as Island[];
+
+        this.prezzi = prezziRes.data;
+        this.stationConfig = configRes.data;
+        this.businessRules = rules;
+
+        const islandIds = this.islands.map(i => i.island_id);
+        const { data: pData, error: pError } = await supabase
+          .from('pistole')
+          .select('*, islands(nome)')
+          .in('island_id', islandIds)
+          .order('id');
+
+        if (pError) {throw pError;}
+        this.pistole = (pData || []) as unknown as Pistola[];
+
+        const countersMap: Record<number, number> = {};
+        (countersRes.data || []).forEach((c: any) => {
+          countersMap[c.pistola_id] = Number(c.opened_at_counter) || 0;
+        });
+        this.openingCounters = countersMap;
+        this.wizardState = { ...this.wizardState, mode: 'form', step: 1 };
+      } catch (error: any) {
+        console.error('Error loading ClosureWizard data:', error);
+        this.wizardState = { mode: 'error', errorMessage: error.message || 'Errore imprevisto', step: 1 };
+      }
     }
 
     override render(): TemplateResult {
-        if (this.wizardState.mode === 'loading') return this.renderLoading();
-        if (this.wizardState.mode === 'error') return this.renderError();
+      if (this.wizardState.mode === 'loading') {return this.renderLoading();}
+      if (this.wizardState.mode === 'error') {return this.renderError();}
 
-        return html`
+      return html`
             <div class="wizard-container">
                 <div class="wizard-header">
                     <h2 style="margin:0; color: #0A2342;">Chiusura Turno</h2>
@@ -296,19 +298,19 @@ export class ClosureWizard extends BaseComponent {
     }
 
     private renderStep(): TemplateResult {
-        switch (this.wizardState.step) {
-            case 1: return this.renderStep1();
-            case 2: return this.renderStep2();
-            case 3: return this.renderStep3();
-            default: return html``;
-        }
+      switch (this.wizardState.step) {
+        case 1: return this.renderStep1();
+        case 2: return this.renderStep2();
+        case 3: return this.renderStep3();
+        default: return html``;
+      }
     }
 
     private renderStep1(): TemplateResult {
-        const canPartial = this.stationConfig?.allow_partial_closure !== false;
-        const isPartialCompleted = this.activeOpening?.closing_data?.closure_stage === 'partial';
+      const canPartial = this.stationConfig?.allow_partial_closure !== false;
+      const isPartialCompleted = this.activeOpening?.closing_data?.closure_stage === 'partial';
 
-        return html`
+      return html`
             <div class="section-title">Step 1: Configurazione & Contatori</div>
             <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">
                 Turno aperto il: <strong>${new Date(this.activeOpening?.opened_at || '').toLocaleString('it-IT')}</strong>
@@ -376,31 +378,31 @@ export class ClosureWizard extends BaseComponent {
     }
 
     private handleStep1Submit() {
-        if (this.closureType === 'final' || this.includeCounters) {
-            const inputs = this.renderRoot.querySelectorAll('input[name^="counter_"]');
-            const counters: Record<number, number> = {};
-            for (const input of Array.from(inputs) as HTMLInputElement[]) {
-                if (!input.value) { Toast.show('Inserisci tutti i contatori', 'warning'); input.focus(); return; }
-                const pId = Number(input.name.replace('counter_', ''));
-                counters[pId] = parseFloat(input.value);
-            }
-            this.finalCounters = counters;
-            let bLitri = 0, gLitri = 0;
-            this.pistole.forEach(p => {
-                const diff = (this.finalCounters[p.id] || 0) - (this.openingCounters[p.id] || 0);
-                if (p.tipo_carburante === 'benzina') bLitri += Math.max(0, diff);
-                if (p.tipo_carburante === 'gasolio') gLitri += Math.max(0, diff);
-            });
-            this.totalLitriBenzina = bLitri; this.totalLitriGasolio = gLitri;
-            this.ricavoTeorico = (bLitri * (this.prezzi?.prezzo_benzina || 0)) + (gLitri * (this.prezzi?.prezzo_gasolio || 0));
+      if (this.closureType === 'final' || this.includeCounters) {
+        const inputs = this.renderRoot.querySelectorAll('input[name^="counter_"]');
+        const counters: Record<number, number> = {};
+        for (const input of Array.from(inputs) as HTMLInputElement[]) {
+          if (!input.value) { Toast.show('Inserisci tutti i contatori', 'warning'); input.focus(); return; }
+          const pId = Number(input.name.replace('counter_', ''));
+          counters[pId] = parseFloat(input.value);
         }
-        this.wizardState = { ...this.wizardState, step: 2 };
+        this.finalCounters = counters;
+        let bLitri = 0, gLitri = 0;
+        this.pistole.forEach(p => {
+          const diff = (this.finalCounters[p.id] || 0) - (this.openingCounters[p.id] || 0);
+          if (p.tipo_carburante === 'benzina') {bLitri += Math.max(0, diff);}
+          if (p.tipo_carburante === 'gasolio') {gLitri += Math.max(0, diff);}
+        });
+        this.totalLitriBenzina = bLitri; this.totalLitriGasolio = gLitri;
+        this.ricavoTeorico = (bLitri * (this.prezzi?.prezzo_benzina || 0)) + (gLitri * (this.prezzi?.prezzo_gasolio || 0));
+      }
+      this.wizardState = { ...this.wizardState, step: 2 };
     }
 
     private renderStep2(): TemplateResult {
-        const selfTotal = (Number(this.selfCashOut) || 0) + (Number(this.selfPos) || 0) + (Number(this.selfFleet) || 0) + (Number(this.selfManager) || 0);
-        void selfTotal; // Calculated for future use
-        return html`
+      const selfTotal = (Number(this.selfCashOut) || 0) + (Number(this.selfPos) || 0) + (Number(this.selfFleet) || 0) + (Number(this.selfManager) || 0);
+      void selfTotal; // Calculated for future use
+      return html`
             <div class="section-title">Step 2: Dati Incasso</div>
             <div style="background: #f0f9ff; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem;">
                 <h3 style="margin-top:0; color: #0369a1;">Scontrino Self</h3>
@@ -428,19 +430,19 @@ export class ClosureWizard extends BaseComponent {
     }
 
     private handleStep2Submit() {
-        if (!this.operatorCash || !this.operatorPos) { Toast.show('Inserisci i dati reali', 'warning'); return; }
-        this.wizardState = { ...this.wizardState, step: 3 };
+      if (!this.operatorCash || !this.operatorPos) { Toast.show('Inserisci i dati reali', 'warning'); return; }
+      this.wizardState = { ...this.wizardState, step: 3 };
     }
 
     private renderStep3(): TemplateResult {
-        const totalIncassi = (Number(this.selfCashIn) - Number(this.selfCashOut)) + Number(this.operatorCash) + Number(this.selfPos) + Number(this.operatorPos) + Number(this.selfFleet) + Number(this.operatorUta);
-        const discrepancy = totalIncassi - this.ricavoTeorico;
-        const absDiscrepancy = Math.abs(discrepancy);
-        const isWarning = absDiscrepancy > this.businessRules.cash_error_threshold;
-        const isCritical = absDiscrepancy > this.businessRules.critical_discrepancy_alert;
+      const totalIncassi = (Number(this.selfCashIn) - Number(this.selfCashOut)) + Number(this.operatorCash) + Number(this.selfPos) + Number(this.operatorPos) + Number(this.selfFleet) + Number(this.operatorUta);
+      const discrepancy = totalIncassi - this.ricavoTeorico;
+      const absDiscrepancy = Math.abs(discrepancy);
+      const isWarning = absDiscrepancy > this.businessRules.cash_error_threshold;
+      const isCritical = absDiscrepancy > this.businessRules.critical_discrepancy_alert;
 
-        if (this.wizardState.mode === 'submitting') return html`<div style="text-align:center; padding: 3rem;"><i class="fas fa-spinner fa-spin fa-3x mb-4"></i><p>Salvataggio...</p></div>`;
-        return html`
+      if (this.wizardState.mode === 'submitting') {return html`<div style="text-align:center; padding: 3rem;"><i class="fas fa-spinner fa-spin fa-3x mb-4"></i><p>Salvataggio...</p></div>`;}
+      return html`
             <div class="section-title">Step 3: Conferma</div>
             
             ${isWarning ? html`
@@ -466,51 +468,51 @@ export class ClosureWizard extends BaseComponent {
     }
 
     private async handleConfirmClosure() {
-        this.wizardState = { ...this.wizardState, mode: 'submitting' };
+      this.wizardState = { ...this.wizardState, mode: 'submitting' };
 
-        const isFinal = this.closureType === 'final';
-        const totalIncasso = (Number(this.selfCashIn) - Number(this.selfCashOut)) + Number(this.operatorCash) + Number(this.selfPos) + Number(this.operatorPos) + Number(this.selfFleet) + Number(this.operatorUta);
-        const dataJson = {
-            litri_benzina: this.totalLitriBenzina, litri_gasolio: this.totalLitriGasolio,
-            prezzo_benzina: this.prezzi?.prezzo_benzina || 0, prezzo_gasolio: this.prezzi?.prezzo_gasolio || 0,
-            ricavo_teorico: this.ricavoTeorico, incasso_reale: totalIncasso,
-            closure_stage: this.closureType,
-            scontrino_self: { banconote_incassate: Number(this.selfCashIn), banconote_erogate: Number(this.selfCashOut), bancomat_erogati: Number(this.selfPos), transazioni_uta: Number(this.selfFleet), id_gestore: Number(this.selfManager) },
-            dettaglio_incasso: { contanti_operatore: Number(this.operatorCash), pos_operatore: Number(this.operatorPos), uta_dkv_operatore: Number(this.operatorUta) },
-            discrepanza: totalIncasso - this.ricavoTeorico, is_final: isFinal
-        };
+      const isFinal = this.closureType === 'final';
+      const totalIncasso = (Number(this.selfCashIn) - Number(this.selfCashOut)) + Number(this.operatorCash) + Number(this.selfPos) + Number(this.operatorPos) + Number(this.selfFleet) + Number(this.operatorUta);
+      const dataJson = {
+        litri_benzina: this.totalLitriBenzina, litri_gasolio: this.totalLitriGasolio,
+        prezzo_benzina: this.prezzi?.prezzo_benzina || 0, prezzo_gasolio: this.prezzi?.prezzo_gasolio || 0,
+        ricavo_teorico: this.ricavoTeorico, incasso_reale: totalIncasso,
+        closure_stage: this.closureType,
+        scontrino_self: { banconote_incassate: Number(this.selfCashIn), banconote_erogate: Number(this.selfCashOut), bancomat_erogati: Number(this.selfPos), transazioni_uta: Number(this.selfFleet), id_gestore: Number(this.selfManager) },
+        dettaglio_incasso: { contanti_operatore: Number(this.operatorCash), pos_operatore: Number(this.operatorPos), uta_dkv_operatore: Number(this.operatorUta) },
+        discrepanza: totalIncasso - this.ricavoTeorico, is_final: isFinal
+      };
 
-        // Check if offline - queue action for later sync
-        if (isOffline()) {
-            try {
-                await queueAction('shift_close', {
-                    shiftId: this.activeOpening?.id,
-                    stationId: Number(this.stationId),
-                    closingData: dataJson,
-                    isFinal,
-                    finalCounters: this.includeCounters ? this.finalCounters : null
-                });
-                Toast.show('Chiusura salvata. Verrà sincronizzata quando online.', 'success');
-                setTimeout(() => window.location.reload(), 2000);
-            } catch {
-                Toast.show("Impossibile salvare la chiusura offline", 'error');
-                this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
-            }
-            return;
-        }
-
+      // Check if offline - queue action for later sync
+      if (isOffline()) {
         try {
-            const { data: res, error } = await supabase.rpc('submit_shift_closure', {
-                p_shift_id: this.activeOpening?.id, p_station_id: Number(this.stationId), p_closing_data: dataJson,
-                p_is_final: isFinal, p_final_counters: this.includeCounters ? this.finalCounters : null, p_tank_usage: []
-            });
-            if (error || (res && !res.success)) throw new Error(error?.message || res?.error);
-            Toast.show('Chiusura completata!', 'success');
-            setTimeout(() => window.location.reload(), 2000);
-        } catch (error: any) {
-            Toast.show(error.message, 'error');
-            this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
+          await queueAction('shift_close', {
+            shiftId: this.activeOpening?.id,
+            stationId: Number(this.stationId),
+            closingData: dataJson,
+            isFinal,
+            finalCounters: this.includeCounters ? this.finalCounters : null
+          });
+          Toast.show('Chiusura salvata. Verrà sincronizzata quando online.', 'success');
+          setTimeout(() => window.location.reload(), 2000);
+        } catch {
+          Toast.show('Impossibile salvare la chiusura offline', 'error');
+          this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
         }
+        return;
+      }
+
+      try {
+        const { data: res, error } = await supabase.rpc('submit_shift_closure', {
+          p_shift_id: this.activeOpening?.id, p_station_id: Number(this.stationId), p_closing_data: dataJson,
+          p_is_final: isFinal, p_final_counters: this.includeCounters ? this.finalCounters : null, p_tank_usage: []
+        });
+        if (error || (res && !res.success)) {throw new Error(error?.message || res?.error);}
+        Toast.show('Chiusura completata!', 'success');
+        setTimeout(() => window.location.reload(), 2000);
+      } catch (error: any) {
+        Toast.show(error.message, 'error');
+        this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
+      }
     }
 
     private renderLoading(): TemplateResult { return html`<div class="wizard-container" style="text-align: center; padding: 4rem;"><i class="fas fa-spinner fa-spin fa-3x" style="color: #0A2342; margin-bottom: 1rem;"></i><p>Caricamento...</p></div>`; }

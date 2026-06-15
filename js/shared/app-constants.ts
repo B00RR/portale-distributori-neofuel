@@ -145,12 +145,12 @@ export const MAX_FILE_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
  * @type {ReadonlyArray<string>}
  */
 export const ALLOWED_FILE_EXTENSIONS = Object.freeze([
-    '.pdf',
-    '.jpg',
-    '.jpeg',
-    '.png',
-    '.xlsx',
-    '.csv'
+  '.pdf',
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.xlsx',
+  '.csv'
 ] as const);
 
 // ============================================================================

@@ -11,6 +11,7 @@
 
 import { html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
+
 import { BaseComponent } from './BaseComponent.js';
 
 export class CardBox extends BaseComponent {

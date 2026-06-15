@@ -4,15 +4,16 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { showLoadingMessage } from '../ui/ui.js';
 import { handleError } from '../shared/error-handler.js';
 import { store } from '../shared/state.js';
+import { showLoadingMessage } from '../ui/ui.js';
+
+import { showCreditiOverview as showCreditsTab } from './credits.js';
 import { showDashboard } from './dashboard.js';
-import { showStationsTab } from './stations.js';
+import { showSettingsTab } from './logic.js';
 import { showOperatorsTab } from './operators.js';
 import { showChiusureTab } from './shifts.js';
-import { showCreditiOverview as showCreditsTab } from './credits.js';
-import { showSettingsTab } from './logic.js';
+import { showStationsTab } from './stations.js';
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -37,65 +38,65 @@ export type UserRole =
     | 'billing';
 
 const TAB_TITLES: Record<AdminTab, string> = {
-    'dashboard': 'Dashboard',
-    'stations': 'Gestione Distributori',
-    'operators': 'Gestione Operatori',
-    'shifts': 'Registro Chiusure',
-    'crediti': 'Gestione Crediti',
-    'invoices': 'Richieste Fatture',
-    'vouchers': 'Gestione Voucher',
-    'notifiche': 'Notifiche',
-    'analytics': 'Analytics',
-    'settings': 'Impostazioni'
+  'dashboard': 'Dashboard',
+  'stations': 'Gestione Distributori',
+  'operators': 'Gestione Operatori',
+  'shifts': 'Registro Chiusure',
+  'crediti': 'Gestione Crediti',
+  'invoices': 'Richieste Fatture',
+  'vouchers': 'Gestione Voucher',
+  'notifiche': 'Notifiche',
+  'analytics': 'Analytics',
+  'settings': 'Impostazioni'
 };
 
 // ========== ROUTER CLASS ==========
 
 class AdminRouter {
-    private currentTab: AdminTab;
-    private userRole: UserRole;
-    private isFullAdmin: boolean;
+  private currentTab: AdminTab;
+  private userRole: UserRole;
+  private isFullAdmin: boolean;
 
-    constructor() {
-        this.currentTab = 'dashboard';
-        this.userRole = 'operator';
-        this.isFullAdmin = false;
-    }
+  constructor() {
+    this.currentTab = 'dashboard';
+    this.userRole = 'operator';
+    this.isFullAdmin = false;
+  }
 
-    /**
+  /**
      * Initialize router with user permissions
      */
-    init(userRole: string | null | undefined): void {
-        this.userRole = (userRole as UserRole) || 'operator';
-        this.isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(this.userRole);
-        console.log('[Router] Initialized for role:', this.userRole, 'isFullAdmin:', this.isFullAdmin);
-    }
+  init(userRole: string | null | undefined): void {
+    this.userRole = (userRole as UserRole) || 'operator';
+    this.isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(this.userRole);
+    console.log('[Router] Initialized for role:', this.userRole, 'isFullAdmin:', this.isFullAdmin);
+  }
 
-    /**
+  /**
      * Navigate to a specific tab
      */
-    async navigateTo(tab: AdminTab): Promise<void> {
-        this.currentTab = tab;
+  async navigateTo(tab: AdminTab): Promise<void> {
+    this.currentTab = tab;
 
-        const content = document.getElementById('admin-content');
-        const headerActions = document.getElementById('header-actions');
-        const pageSubtitle = document.getElementById('page-subtitle');
+    const content = document.getElementById('admin-content');
+    const headerActions = document.getElementById('header-actions');
+    const pageSubtitle = document.getElementById('page-subtitle');
 
-        if (!content) return;
+    if (!content) {return;}
 
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            const element = btn as HTMLElement;
-            element.classList.toggle('active', element.dataset.tab === tab);
-        });
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      const element = btn as HTMLElement;
+      element.classList.toggle('active', element.dataset.tab === tab);
+    });
 
-        if (pageSubtitle) {
-            pageSubtitle.textContent = TAB_TITLES[tab] || 'Control Center';
-        }
+    if (pageSubtitle) {
+      pageSubtitle.textContent = TAB_TITLES[tab] || 'Control Center';
+    }
 
-        const filter = store.getFilter();
+    const filter = store.getFilter();
 
-        if (!this.checkPermission(tab)) {
-            content.innerHTML = `
+    if (!this.checkPermission(tab)) {
+      content.innerHTML = `
                 <div class="error-container">
                     <i class="fas fa-lock error-icon"></i>
                     <h2>Accesso Negato</h2>
@@ -103,126 +104,126 @@ class AdminRouter {
                     <button class="menu-button primary" onclick="window.location.reload()">Torna alla Dashboard</button>
                 </div>
             `;
-            return;
-        }
-
-        await this.loadTab(tab, content, headerActions, filter);
+      return;
     }
 
-    /**
+    await this.loadTab(tab, content, headerActions, filter);
+  }
+
+  /**
      * Check if user has permission for a tab
      */
-    private checkPermission(tab: AdminTab): boolean {
-        const { userRole, isFullAdmin } = this;
+  private checkPermission(tab: AdminTab): boolean {
+    const { userRole, isFullAdmin } = this;
 
-        if (['stations', 'operators', 'settings'].includes(tab) && !isFullAdmin) {
-            return false;
-        }
-        if (tab === 'shifts' && !isFullAdmin && userRole !== 'accounting') {
-            return false;
-        }
-        if (tab === 'crediti' && !isFullAdmin && userRole !== 'accounting') {
-            return false;
-        }
-        if (tab === 'analytics' && !isFullAdmin && userRole !== 'accounting') {
-            return false;
-        }
-        if (tab === 'invoices' && !isFullAdmin && userRole !== 'billing' && userRole !== 'accounting') {
-            return false;
-        }
-        if (tab === 'vouchers' && !isFullAdmin && userRole !== 'accounting') {
-            return false;
-        }
-
-        return true;
+    if (['stations', 'operators', 'settings'].includes(tab) && !isFullAdmin) {
+      return false;
+    }
+    if (tab === 'shifts' && !isFullAdmin && userRole !== 'accounting') {
+      return false;
+    }
+    if (tab === 'crediti' && !isFullAdmin && userRole !== 'accounting') {
+      return false;
+    }
+    if (tab === 'analytics' && !isFullAdmin && userRole !== 'accounting') {
+      return false;
+    }
+    if (tab === 'invoices' && !isFullAdmin && userRole !== 'billing' && userRole !== 'accounting') {
+      return false;
+    }
+    if (tab === 'vouchers' && !isFullAdmin && userRole !== 'accounting') {
+      return false;
     }
 
-    /**
+    return true;
+  }
+
+  /**
      * Load the appropriate tab module
      */
-    private async loadTab(
-        tab: AdminTab,
-        content: HTMLElement,
-        headerActions: HTMLElement | null,
-        filter: string | null
-    ): Promise<void> {
-        switch (tab) {
-            case 'dashboard':
-                showDashboard(content, filter);
-                break;
+  private async loadTab(
+    tab: AdminTab,
+    content: HTMLElement,
+    headerActions: HTMLElement | null,
+    filter: string | null
+  ): Promise<void> {
+    switch (tab) {
+      case 'dashboard':
+        showDashboard(content, filter);
+        break;
 
-            case 'stations':
-                (showStationsTab)(content, headerActions);
-                break;
+      case 'stations':
+        (showStationsTab)(content, headerActions);
+        break;
 
-            case 'operators':
-                showOperatorsTab(content, headerActions);
-                break;
+      case 'operators':
+        showOperatorsTab(content, headerActions);
+        break;
 
-            case 'shifts':
-                showChiusureTab(content, headerActions, filter);
-                break;
+      case 'shifts':
+        showChiusureTab(content, headerActions, filter);
+        break;
 
-            case 'analytics':
-                showLoadingMessage(content);
-                try {
-                    const { showAnalyticsTab } = await import('./analytics.js');
-                    const stationId = filter ? parseInt(filter, 10) : null;
-                    showAnalyticsTab(content, headerActions, stationId);
-                } catch (err) {
-                    handleError(err, 'Caricamento modulo Analytics', content);
-                }
-                break;
+      case 'analytics':
+        showLoadingMessage(content);
+        try {
+          const { showAnalyticsTab } = await import('./analytics.js');
+          const stationId = filter ? parseInt(filter, 10) : null;
+          showAnalyticsTab(content, headerActions, stationId);
+        } catch (err) {
+          handleError(err, 'Caricamento modulo Analytics', content);
+        }
+        break;
 
-            case 'crediti':
-                showCreditsTab(content, headerActions);
-                break;
+      case 'crediti':
+        showCreditsTab(content, headerActions);
+        break;
 
-            case 'invoices':
-                try {
-                    const module = await import('./invoices.js');
-                    const stationId = filter ? parseInt(filter, 10) : null;
-                    module.showFattureTab(content, headerActions, stationId);
-                } catch (err) {
-                    handleError(err, 'Caricamento modulo Fatture', content);
-                }
-                break;
+      case 'invoices':
+        try {
+          const module = await import('./invoices.js');
+          const stationId = filter ? parseInt(filter, 10) : null;
+          module.showFattureTab(content, headerActions, stationId);
+        } catch (err) {
+          handleError(err, 'Caricamento modulo Fatture', content);
+        }
+        break;
 
-            case 'vouchers':
-                showLoadingMessage(content);
-                try {
-                    const { showVoucherAdminTab } = await import('./vouchers_reboot.js');
-                    showVoucherAdminTab(content, headerActions);
-                } catch (err) {
-                    handleError(err, 'Caricamento modulo Voucher', content);
-                }
-                break;
+      case 'vouchers':
+        showLoadingMessage(content);
+        try {
+          const { showVoucherAdminTab } = await import('./vouchers_reboot.js');
+          showVoucherAdminTab(content, headerActions);
+        } catch (err) {
+          handleError(err, 'Caricamento modulo Voucher', content);
+        }
+        break;
 
-            case 'notifiche':
-                content.innerHTML = `
+      case 'notifiche':
+        content.innerHTML = `
                     <div class="content-box" style="text-align: center; padding: 60px 20px;">
                         <i class="fas fa-bell" style="font-size: 4rem; color: var(--secondary-color); margin-bottom: 20px;"></i>
                         <h2 style="margin-bottom: 10px;">Notifiche</h2>
                         <p style="color: var(--text-secondary);">Questa funzionalità sarà disponibile prossimamente.</p>
                     </div>
                 `;
-                break;
+        break;
 
-            case 'settings':
-                showSettingsTab(content, headerActions);
-                break;
+      case 'settings':
+        showSettingsTab(content, headerActions);
+        break;
 
-            default:
-                showDashboard(content, filter);
-        }
+      default:
+        showDashboard(content, filter);
     }
+  }
 
-    /**
+  /**
      * Get current tab
      */
-    getCurrentTab(): AdminTab {
-        return this.currentTab;
-    }
+  getCurrentTab(): AdminTab {
+    return this.currentTab;
+  }
 }
 
 // Export singleton instance

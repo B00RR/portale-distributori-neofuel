@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, safeSupabaseQuery, getStationName } from '../core/api.js';
 import { handleError } from '../shared/error-handler.js';
-
 import { openModal, openConfirmModal } from '../ui/ui.js';
 import { escapeHtml, formatNumberIt } from '../utils/utils.js';
 
@@ -54,7 +53,7 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
   const stationName = await getStationName(stationId);
   openModal(`Gestione Cisterne - ${escapeHtml(stationName)}`);
   const target = document.getElementById('modal-body');
-  if (!target) return;
+  if (!target) {return;}
 
   const renderTanks = async () => {
     target.innerHTML = '<p class="loading-text">Caricamento cisterne e connessioni...</p>';

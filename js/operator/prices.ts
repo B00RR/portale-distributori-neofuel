@@ -17,23 +17,23 @@ interface PriceRecord {
  * @param stationId - ID della stazione
  */
 export async function showPrezziEditForm(stationId: number): Promise<void> {
-    try {
-        // Carica prezzi correnti
-        const { data: current } = await supabase
-            .from('prezzi_distributore')
-            .select('*')
-            .eq('station_id', stationId)
-            .order('data_validita', { ascending: false })
-            .maybeSingle<PriceRecord>();
+  try {
+    // Carica prezzi correnti
+    const { data: current } = await supabase
+      .from('prezzi_distributore')
+      .select('*')
+      .eq('station_id', stationId)
+      .order('data_validita', { ascending: false })
+      .maybeSingle() as { data: PriceRecord | null };
 
-        const benzina = current?.prezzo_benzina || 0;
-        const gasolio = current?.prezzo_gasolio || 0;
+    const benzina = current?.prezzo_benzina || 0;
+    const gasolio = current?.prezzo_gasolio || 0;
 
-        openModal('Modifica Prezzi');
-        const modalBody = document.getElementById('modal-body');
-        if (!modalBody) return;
+    openModal('Modifica Prezzi');
+    const modalBody = document.getElementById('modal-body');
+    if (!modalBody) {return;}
 
-        modalBody.innerHTML = `
+    modalBody.innerHTML = `
       <form id="op-prezzi-form">
         <div class="form-row">
           <div class="form-group">
@@ -82,61 +82,61 @@ export async function showPrezziEditForm(stationId: number): Promise<void> {
       </style>
     `;
 
-        // Event listener per aggiornare stile radio cards
-        const radioCards = modalBody.querySelectorAll('.radio-card');
-        const radioInputs = modalBody.querySelectorAll('input[name="validita"]');
+    // Event listener per aggiornare stile radio cards
+    const radioCards = modalBody.querySelectorAll('.radio-card');
+    const radioInputs = modalBody.querySelectorAll('input[name="validita"]');
 
-        radioInputs.forEach(input => {
-            input.addEventListener('change', () => {
-                radioCards.forEach(card => card.classList.remove('selected'));
-                const selectedCard = (input as HTMLInputElement).closest('.radio-card');
-                if (selectedCard) { selectedCard.classList.add('selected'); }
-            });
-        });
+    radioInputs.forEach(input => {
+      input.addEventListener('change', () => {
+        radioCards.forEach(card => card.classList.remove('selected'));
+        const selectedCard = (input as HTMLInputElement).closest('.radio-card');
+        if (selectedCard) { selectedCard.classList.add('selected'); }
+      });
+    });
 
-        // Inizializza selezione
-        const checkedInput = modalBody.querySelector('input[name="validita"]:checked') as HTMLInputElement;
-        if (checkedInput) {
-            checkedInput.closest('.radio-card')?.classList.add('selected');
-        }
-
-        // Event listener per submit form
-        const form = modalBody.querySelector('#op-prezzi-form') as HTMLFormElement;
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fd = new FormData(form);
-            const validita = fd.get('validita') as string;
-
-            try {
-                // NEW: Call Secure Edge Function
-                const { data, error } = await supabase.functions.invoke('update-prices', {
-                    body: {
-                        station_id: stationId,
-                        benzina: parseFloat(fd.get('benzina') as string),
-                        gasolio: parseFloat(fd.get('gasolio') as string),
-                        validita: validita
-                    }
-                });
-
-                if (error) { throw new Error(error.message || 'Errore durante l\'aggiornamento prezzi'); }
-                if (data && !data.success) { throw new Error(data.error || 'Errore sconosciuto dal server'); }
-
-                const validitaMsg = validita === 'next_day'
-                    ? 'I prezzi saranno validi a partire da domani alle 00:00.'
-                    : 'I prezzi sono validi da subito.';
-                closeModal();
-                showInfoModal(`Prezzi aggiornati con successo! ${validitaMsg}`);
-            } catch (err: any) {
-                console.error('Errore update-prices:', err);
-                showInfoModal('Errore: ' + err.message);
-            }
-        });
-    } catch (err: any) {
-        const modalBody = document.getElementById('modal-body');
-        showErrorMessage(modalBody, err, 'Errore caricamento prezzi');
-        if (modalBody) {
-            modalBody.innerHTML = `<p style="color: red; padding: 20px;">${escapeHtml(err.message)}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`;
-            document.getElementById('btn-close-err')?.addEventListener('click', () => closeModal());
-        }
+    // Inizializza selezione
+    const checkedInput = modalBody.querySelector('input[name="validita"]:checked') as HTMLInputElement;
+    if (checkedInput) {
+      checkedInput.closest('.radio-card')?.classList.add('selected');
     }
+
+    // Event listener per submit form
+    const form = modalBody.querySelector('#op-prezzi-form') as HTMLFormElement;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const validita = fd.get('validita') as string;
+
+      try {
+        // NEW: Call Secure Edge Function
+        const { data, error } = await supabase.functions.invoke('update-prices', {
+          body: {
+            station_id: stationId,
+            benzina: parseFloat(fd.get('benzina') as string),
+            gasolio: parseFloat(fd.get('gasolio') as string),
+            validita: validita
+          }
+        });
+
+        if (error) { throw new Error(error.message || 'Errore durante l\'aggiornamento prezzi'); }
+        if (data && !data.success) { throw new Error(data.error || 'Errore sconosciuto dal server'); }
+
+        const validitaMsg = validita === 'next_day'
+          ? 'I prezzi saranno validi a partire da domani alle 00:00.'
+          : 'I prezzi sono validi da subito.';
+        closeModal();
+        showInfoModal(`Prezzi aggiornati con successo! ${validitaMsg}`);
+      } catch (err: any) {
+        console.error('Errore update-prices:', err);
+        showInfoModal('Errore: ' + err.message);
+      }
+    });
+  } catch (err: any) {
+    const modalBody = document.getElementById('modal-body');
+    showErrorMessage(modalBody, err, 'Errore caricamento prezzi');
+    if (modalBody) {
+      modalBody.innerHTML = `<p style="color: red; padding: 20px;">${escapeHtml(err.message)}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`;
+      document.getElementById('btn-close-err')?.addEventListener('click', () => closeModal());
+    }
+  }
 }

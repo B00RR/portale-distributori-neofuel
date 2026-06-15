@@ -3,9 +3,9 @@
  * Centralized error handling with Toast notifications and logging
  */
 
-import { Toast } from "../ui/toast.js";
-import { escapeHtml } from "../utils/utils.js";
-import { logger } from "../core/logger.js";
+import { logger } from '../core/logger.js';
+import { Toast } from '../ui/toast.js';
+import { escapeHtml } from '../utils/utils.js';
 const isDevelopment = import.meta.env.DEV;
 
 // ========== TYPE DEFINITIONS ==========
@@ -23,20 +23,20 @@ export interface ErrorDetails {
 // ========== CUSTOM ERROR CLASS ==========
 
 export class AppError extends Error {
-    code: ErrorCode;
-    originalError?: unknown;
+  code: ErrorCode;
+  originalError?: unknown;
 
-    constructor(message: string, code: ErrorCode = 'APP_ERROR', originalError?: unknown) {
-        super(message);
-        this.code = code;
-        this.originalError = originalError;
-        this.name = 'AppError';
+  constructor(message: string, code: ErrorCode = 'APP_ERROR', originalError?: unknown) {
+    super(message);
+    this.code = code;
+    this.originalError = originalError;
+    this.name = 'AppError';
 
-        // Maintains proper stack trace for where our error was thrown (V8 only)
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, AppError);
-        }
+    // Maintains proper stack trace for where our error was thrown (V8 only)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, AppError);
     }
+  }
 }
 
 // ========== ERROR HANDLER FUNCTION ==========
@@ -49,47 +49,47 @@ export class AppError extends Error {
  * @param renderTarget - Optional element where to display the error persistently
  */
 export function handleError(
-    error: unknown,
-    context: string = '',
-    renderTarget: HTMLElement | null = null
+  error: unknown,
+  context: string = '',
+  renderTarget: HTMLElement | null = null
 ): void {
-    // SECURITY: Use secure logger that masks sensitive data
-    const errorId = logger.error(context, error);
-    void errorId; // Explicitly marked as unused for CI
+  // SECURITY: Use secure logger that masks sensitive data
+  const errorId = logger.error(context, error);
+  void errorId; // Explicitly marked as unused for CI
 
-    let userMessage = 'Si è verificato un errore imprevisto.';
-    let type: ToastType = 'error';
+  let userMessage = 'Si è verificato un errore imprevisto.';
+  let type: ToastType = 'error';
 
-    // Handle specific Supabase or known errors
-    const errorObj = error as ErrorDetails;
+  // Handle specific Supabase or known errors
+  const errorObj = error as ErrorDetails;
 
-    if (errorObj?.code === 'PGRST116') {
-        // Expected single result but found 0 or multiple (often "not found")
-        userMessage = 'Dati non trovati.';
-        type = 'warning';
-    } else if (
-        errorObj?.message?.toLowerCase().includes('network') ||
+  if (errorObj?.code === 'PGRST116') {
+    // Expected single result but found 0 or multiple (often "not found")
+    userMessage = 'Dati non trovati.';
+    type = 'warning';
+  } else if (
+    errorObj?.message?.toLowerCase().includes('network') ||
         errorObj?.message?.toLowerCase().includes('fetch')
-    ) {
-        userMessage = 'Errore di connessione. Controlla la tua rete.';
-    } else if (error instanceof AppError) {
-        userMessage = error.message;
-    } else if (errorObj?.message) {
-        // SECURITY: Don't expose raw database error messages to users
-        userMessage = isDevelopment ? errorObj.message : 'Si è verificato un errore. Contatta il supporto.';
-    }
+  ) {
+    userMessage = 'Errore di connessione. Controlla la tua rete.';
+  } else if (error instanceof AppError) {
+    userMessage = error.message;
+  } else if (errorObj?.message) {
+    // SECURITY: Don't expose raw database error messages to users
+    userMessage = isDevelopment ? errorObj.message : 'Si è verificato un errore. Contatta il supporto.';
+  }
 
-    // Show toast
-    if (Toast && typeof Toast.show === 'function') {
-        Toast.show(userMessage, type);
-    } else {
-        // Fallback if Toast is not available
-        console.warn('Toast not available, error message:', userMessage);
-    }
+  // Show toast
+  if (Toast && typeof Toast.show === 'function') {
+    Toast.show(userMessage, type);
+  } else {
+    // Fallback if Toast is not available
+    console.warn('Toast not available, error message:', userMessage);
+  }
 
-    // Render in page if requested
-    if (renderTarget && renderTarget instanceof HTMLElement) {
-        renderTarget.innerHTML = `
+  // Render in page if requested
+  if (renderTarget && renderTarget instanceof HTMLElement) {
+    renderTarget.innerHTML = `
             <div class="error-state" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
                 <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: var(--danger-color, #dc3545); margin-bottom: 1rem;"></i>
                 <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">${escapeHtml(userMessage)}</p>
@@ -98,7 +98,7 @@ export function handleError(
                 </button>
             </div>
         `;
-    }
+  }
 }
 
 

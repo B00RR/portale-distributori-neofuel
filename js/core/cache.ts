@@ -24,7 +24,7 @@ const CACHE_VERSION = '1.0';
  * @returns boolean
  */
 function isValid(timestamp: number, ttlMs: number): boolean {
-    return (Date.now() - timestamp) < ttlMs;
+  return (Date.now() - timestamp) < ttlMs;
 }
 
 /**
@@ -34,29 +34,29 @@ function isValid(timestamp: number, ttlMs: number): boolean {
  * @returns Cached data or null if invalid/missing
  */
 export function getFromCache<T>(key: string, ttlMs: number = CACHE_DEFAULT_TTL_MS): T | null {
-    try {
-        const raw = localStorage.getItem(`cache_${key}`);
-        if (!raw) return null;
+  try {
+    const raw = localStorage.getItem(`cache_${key}`);
+    if (!raw) {return null;}
 
-        const entry: CacheEntry<T> = JSON.parse(raw);
+    const entry: CacheEntry<T> = JSON.parse(raw);
 
-        // Check version
-        if (entry.version !== CACHE_VERSION) {
-            localStorage.removeItem(`cache_${key}`);
-            return null;
-        }
-
-        // Check TTL
-        if (!isValid(entry.timestamp, ttlMs)) {
-            localStorage.removeItem(`cache_${key}`);
-            return null;
-        }
-
-        return entry.data;
-    } catch (error) {
-        console.warn(`[Cache] Error retrieving ${key}:`, error);
-        return null;
+    // Check version
+    if (entry.version !== CACHE_VERSION) {
+      localStorage.removeItem(`cache_${key}`);
+      return null;
     }
+
+    // Check TTL
+    if (!isValid(entry.timestamp, ttlMs)) {
+      localStorage.removeItem(`cache_${key}`);
+      return null;
+    }
+
+    return entry.data;
+  } catch (error) {
+    console.warn(`[Cache] Error retrieving ${key}:`, error);
+    return null;
+  }
 }
 
 /**
@@ -65,49 +65,49 @@ export function getFromCache<T>(key: string, ttlMs: number = CACHE_DEFAULT_TTL_M
  * @param data - Data to store
  */
 export function setInCache<T>(key: string, data: T): void {
-    try {
-        const entry: CacheEntry<T> = {
-            data,
-            timestamp: Date.now(),
-            version: CACHE_VERSION
-        };
-        localStorage.setItem(`cache_${key}`, JSON.stringify(entry));
-    } catch (error) {
-        console.warn(`[Cache] Error setting ${key}:`, error);
-    }
+  try {
+    const entry: CacheEntry<T> = {
+      data,
+      timestamp: Date.now(),
+      version: CACHE_VERSION
+    };
+    localStorage.setItem(`cache_${key}`, JSON.stringify(entry));
+  } catch (error) {
+    console.warn(`[Cache] Error setting ${key}:`, error);
+  }
 }
 
 /**
  * Clears all application cache entries
  */
 export function clearCache(): void {
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('cache_')) {
-            localStorage.removeItem(key);
-        }
-    });
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('cache_')) {
+      localStorage.removeItem(key);
+    }
+  });
 }
 
 /**
  * Automatic background cleanup of expired entries
  */
 export function startCacheCleanup(): void {
-    setInterval(() => {
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('cache_')) {
-                // Accessing triggers validation logic in getFromCache, effectively cleaning up
-                const raw = localStorage.getItem(key);
-                if (raw) {
-                    try {
-                        const entry: CacheEntry<unknown> = JSON.parse(raw);
-                        if (!isValid(entry.timestamp, CACHE_DEFAULT_TTL_MS)) {
-                            localStorage.removeItem(key);
-                        }
-                    } catch (e) {
-                        localStorage.removeItem(key);
-                    }
-                }
+  setInterval(() => {
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('cache_')) {
+        // Accessing triggers validation logic in getFromCache, effectively cleaning up
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            const entry: CacheEntry<unknown> = JSON.parse(raw);
+            if (!isValid(entry.timestamp, CACHE_DEFAULT_TTL_MS)) {
+              localStorage.removeItem(key);
             }
-        });
-    }, CACHE_CLEANUP_INTERVAL_MS);
+          } catch (e) {
+            localStorage.removeItem(key);
+          }
+        }
+      }
+    });
+  }, CACHE_CLEANUP_INTERVAL_MS);
 }

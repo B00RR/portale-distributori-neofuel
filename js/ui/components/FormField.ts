@@ -5,6 +5,7 @@
 
 import { html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
+
 import { BaseComponent } from './BaseComponent.js';
 
 export interface FormFieldOption {
@@ -126,14 +127,14 @@ export class FormField extends BaseComponent {
           >
             ${!this.required ? html`<option value="">Seleziona...</option>` : ''}
             ${this.options.map((opt: any) => {
-          const val = typeof opt === 'object' ? opt.value : opt;
-          const label = typeof opt === 'object' ? opt.label : opt;
-          return html`
+    const val = typeof opt === 'object' ? opt.value : opt;
+    const label = typeof opt === 'object' ? opt.label : opt;
+    return html`
                 <option value="${val}" ?selected="${this.value === val}">
                   ${label}
                 </option>
               `;
-        })}
+  })}
           </select>
         `;
 

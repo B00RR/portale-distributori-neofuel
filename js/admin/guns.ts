@@ -33,7 +33,7 @@ export async function showGunsModal(islandId: number, islandName: string, statio
     modalContent.classList.remove('modal-narrow');
   }
   const target = document.getElementById('modal-body');
-  if (!target) return;
+  if (!target) {return;}
 
   showLoadingMessage(target);
 
@@ -48,7 +48,7 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
       .eq('island_id', islandId)
       .order('nome');
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     const guns = rawGuns as Gun[];
 
@@ -201,7 +201,7 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
       const b = btn as HTMLElement;
       b.addEventListener('click', () => {
         const id = b.dataset.id;
-        if (id) deleteGun(parseInt(id, 10), islandId, islandName, stationId);
+        if (id) {deleteGun(parseInt(id, 10), islandId, islandName, stationId);}
       });
     });
 
@@ -232,7 +232,7 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
   const isEdit = !!gunId;
   openModal(isEdit ? 'Modifica Pistola' : 'Nuova Pistola');
   const target = document.getElementById('modal-body');
-  if (!target) return;
+  if (!target) {return;}
 
   let gun: Partial<Gun> = { nome: '', tipo_carburante: 'benzina', numero_litri: 0 };
   if (isEdit && gunId) {
@@ -325,7 +325,7 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
 async function showCounterEditModal(gunId: number, gunName: string, currentCounter: number, islandId: number, islandName: string, stationId: number | string): Promise<void> {
   openModal(`Modifica Numeratore - ${escapeHtml(gunName)}`);
   const target = document.getElementById('modal-body');
-  if (!target) return;
+  if (!target) {return;}
 
   const counterFormatted = formatGunCounter(Number(currentCounter));
 

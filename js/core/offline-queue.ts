@@ -36,28 +36,28 @@ const executors: Map<string, ActionExecutor> = new Map();
  * Initialize the IndexedDB database
  */
 export async function initOfflineQueue(): Promise<void> {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        request.onerror = () => {
-            console.error('[OfflineQueue] Failed to open IndexedDB:', request.error);
-            reject(request.error);
-        };
+    request.onerror = () => {
+      console.error('[OfflineQueue] Failed to open IndexedDB:', request.error);
+      reject(request.error);
+    };
 
-        request.onsuccess = () => {
-            db = request.result;
-            console.log('[OfflineQueue] IndexedDB initialized');
-            resolve();
-        };
+    request.onsuccess = () => {
+      db = request.result;
+      console.log('[OfflineQueue] IndexedDB initialized');
+      resolve();
+    };
 
-        request.onupgradeneeded = (event) => {
-            const database = (event.target as IDBOpenDBRequest).result;
-            if (!database.objectStoreNames.contains(STORE_NAME)) {
-                database.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                console.log('[OfflineQueue] Created object store:', STORE_NAME);
-            }
-        };
-    });
+    request.onupgradeneeded = (event) => {
+      const database = (event.target as IDBOpenDBRequest).result;
+      if (!database.objectStoreNames.contains(STORE_NAME)) {
+        database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        console.log('[OfflineQueue] Created object store:', STORE_NAME);
+      }
+    };
+  });
 }
 
 // ========== QUEUE OPERATIONS ==========
@@ -66,100 +66,100 @@ export async function initOfflineQueue(): Promise<void> {
  * Add an action to the offline queue
  */
 export async function queueAction(
-    type: QueuedAction['type'],
-    payload: Record<string, unknown>
+  type: QueuedAction['type'],
+  payload: Record<string, unknown>
 ): Promise<string> {
-    if (!db) {
-        await initOfflineQueue();
-    }
+  if (!db) {
+    await initOfflineQueue();
+  }
 
-    const action: QueuedAction = {
-        id: `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        type,
-        payload,
-        createdAt: new Date().toISOString(),
-        retryCount: 0
+  const action: QueuedAction = {
+    id: `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    type,
+    payload,
+    createdAt: new Date().toISOString(),
+    retryCount: 0
+  };
+
+  return new Promise((resolve, reject) => {
+    const transaction = db!.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.add(action);
+
+    request.onsuccess = () => {
+      console.log('[OfflineQueue] Action queued:', action.id);
+      Toast.show('Azione salvata. Verrà sincronizzata quando online.', 'info');
+      resolve(action.id);
     };
 
-    return new Promise((resolve, reject) => {
-        const transaction = db!.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.add(action);
-
-        request.onsuccess = () => {
-            console.log('[OfflineQueue] Action queued:', action.id);
-            Toast.show('Azione salvata. Verrà sincronizzata quando online.', 'info');
-            resolve(action.id);
-        };
-
-        request.onerror = () => {
-            console.error('[OfflineQueue] Failed to queue action:', request.error);
-            reject(request.error);
-        };
-    });
+    request.onerror = () => {
+      console.error('[OfflineQueue] Failed to queue action:', request.error);
+      reject(request.error);
+    };
+  });
 }
 
 /**
  * Get all pending actions from the queue
  */
 export async function getPendingActions(): Promise<QueuedAction[]> {
-    if (!db) {
-        await initOfflineQueue();
-    }
+  if (!db) {
+    await initOfflineQueue();
+  }
 
-    return new Promise((resolve, reject) => {
-        const transaction = db!.transaction([STORE_NAME], 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.getAll();
+  return new Promise((resolve, reject) => {
+    const transaction = db!.transaction([STORE_NAME], 'readonly');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.getAll();
 
-        request.onsuccess = () => {
-            resolve(request.result || []);
-        };
+    request.onsuccess = () => {
+      resolve(request.result || []);
+    };
 
-        request.onerror = () => {
-            reject(request.error);
-        };
-    });
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
 }
 
 /**
  * Remove an action from the queue
  */
 export async function removeAction(id: string): Promise<void> {
-    if (!db) return;
+  if (!db) {return;}
 
-    return new Promise((resolve, reject) => {
-        const transaction = db!.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.delete(id);
+  return new Promise((resolve, reject) => {
+    const transaction = db!.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.delete(id);
 
-        request.onsuccess = () => {
-            console.log('[OfflineQueue] Action removed:', id);
-            resolve();
-        };
+    request.onsuccess = () => {
+      console.log('[OfflineQueue] Action removed:', id);
+      resolve();
+    };
 
-        request.onerror = () => {
-            reject(request.error);
-        };
-    });
+    request.onerror = () => {
+      reject(request.error);
+    };
+  });
 }
 
 /**
  * Update retry count for an action
  */
 async function incrementRetry(action: QueuedAction): Promise<void> {
-    if (!db) return;
+  if (!db) {return;}
 
-    action.retryCount++;
+  action.retryCount++;
 
-    return new Promise((resolve, reject) => {
-        const transaction = db!.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.put(action);
+  return new Promise((resolve, reject) => {
+    const transaction = db!.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(action);
 
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
 }
 
 // ========== EXECUTORS ==========
@@ -168,8 +168,8 @@ async function incrementRetry(action: QueuedAction): Promise<void> {
  * Register an executor for a specific action type
  */
 export function registerExecutor(type: QueuedAction['type'], executor: ActionExecutor): void {
-    executors.set(type, executor);
-    console.log('[OfflineQueue] Registered executor for:', type);
+  executors.set(type, executor);
+  console.log('[OfflineQueue] Registered executor for:', type);
 }
 
 // ========== SYNC LOGIC ==========
@@ -178,63 +178,63 @@ export function registerExecutor(type: QueuedAction['type'], executor: ActionExe
  * Process all pending actions (called when back online)
  */
 export async function syncPendingActions(): Promise<{ success: number; failed: number }> {
-    const pending = await getPendingActions();
+  const pending = await getPendingActions();
 
-    if (pending.length === 0) {
-        return { success: 0, failed: 0 };
+  if (pending.length === 0) {
+    return { success: 0, failed: 0 };
+  }
+
+  console.log(`[OfflineQueue] Syncing ${pending.length} pending actions...`);
+  Toast.show(`Sincronizzazione di ${pending.length} azioni...`, 'info');
+
+  let success = 0;
+  let failed = 0;
+
+  for (const action of pending) {
+    const executor = executors.get(action.type);
+
+    if (!executor) {
+      console.warn('[OfflineQueue] No executor for action type:', action.type);
+      failed++;
+      continue;
     }
 
-    console.log(`[OfflineQueue] Syncing ${pending.length} pending actions...`);
-    Toast.show(`Sincronizzazione di ${pending.length} azioni...`, 'info');
+    try {
+      const result = await executor(action);
 
-    let success = 0;
-    let failed = 0;
+      if (result) {
+        await removeAction(action.id);
+        success++;
+      } else {
+        await incrementRetry(action);
 
-    for (const action of pending) {
-        const executor = executors.get(action.type);
-
-        if (!executor) {
-            console.warn('[OfflineQueue] No executor for action type:', action.type);
-            failed++;
-            continue;
+        if (action.retryCount >= MAX_RETRIES) {
+          console.error('[OfflineQueue] Max retries reached for:', action.id);
+          await removeAction(action.id);
         }
-
-        try {
-            const result = await executor(action);
-
-            if (result) {
-                await removeAction(action.id);
-                success++;
-            } else {
-                await incrementRetry(action);
-
-                if (action.retryCount >= MAX_RETRIES) {
-                    console.error('[OfflineQueue] Max retries reached for:', action.id);
-                    await removeAction(action.id);
-                }
-                failed++;
-            }
-        } catch (err) {
-            console.error('[OfflineQueue] Error executing action:', action.id, err);
-            await incrementRetry(action);
-            failed++;
-        }
+        failed++;
+      }
+    } catch (err) {
+      console.error('[OfflineQueue] Error executing action:', action.id, err);
+      await incrementRetry(action);
+      failed++;
     }
+  }
 
-    if (success > 0) {
-        Toast.show(`${success} azioni sincronizzate con successo!`, 'success');
+  if (success > 0) {
+    Toast.show(`${success} azioni sincronizzate con successo!`, 'success');
 
-        // Dispatch custom event to notify other parts of the app
-        window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-            detail: { success, failed }
-        }));
-    }
+    // Dispatch custom event to notify other parts of the app
+    window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+      detail: { success, failed }
+    }));
+  }
 
-    if (failed > 0) {
-        Toast.show(`${failed} azioni non sincronizzate. Riproverò più tardi.`, 'warning');
-    }
+  if (failed > 0) {
+    Toast.show(`${failed} azioni non sincronizzate. Riproverò più tardi.`, 'warning');
+  }
 
-    return { success, failed };
+  return { success, failed };
 }
 
 // ========== ONLINE/OFFLINE LISTENERS ==========
@@ -243,21 +243,21 @@ export async function syncPendingActions(): Promise<{ success: number; failed: n
  * Setup automatic sync when coming back online
  */
 export function setupAutoSync(): void {
-    window.addEventListener('online', () => {
-        console.log('[OfflineQueue] Back online, starting sync...');
-        syncPendingActions();
-    });
+  window.addEventListener('online', () => {
+    console.log('[OfflineQueue] Back online, starting sync...');
+    syncPendingActions();
+  });
 
-    window.addEventListener('offline', () => {
-        console.log('[OfflineQueue] Went offline');
-        Toast.show('Connessione persa. Le azioni verranno salvate localmente.', 'warning');
-    });
+  window.addEventListener('offline', () => {
+    console.log('[OfflineQueue] Went offline');
+    Toast.show('Connessione persa. Le azioni verranno salvate localmente.', 'warning');
+  });
 
-    // Initial check
-    if (navigator.onLine) {
-        // Sync any pending actions from previous sessions
-        setTimeout(() => syncPendingActions(), 3000);
-    }
+  // Initial check
+  if (navigator.onLine) {
+    // Sync any pending actions from previous sessions
+    setTimeout(() => syncPendingActions(), 3000);
+  }
 }
 
 // ========== UTILITY ==========
@@ -266,13 +266,13 @@ export function setupAutoSync(): void {
  * Check if we're currently offline
  */
 export function isOffline(): boolean {
-    return !navigator.onLine;
+  return !navigator.onLine;
 }
 
 /**
  * Get count of pending actions
  */
 export async function getPendingCount(): Promise<number> {
-    const pending = await getPendingActions();
-    return pending.length;
+  const pending = await getPendingActions();
+  return pending.length;
 }

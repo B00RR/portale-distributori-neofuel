@@ -35,46 +35,46 @@ let creditsContext: CreditsContext = { container: null, actions: null, stationId
 // --- MAIN FUNCTION ---
 
 export async function showCreditiOverview(
-    container: HTMLElement,
-    actionsContainer: HTMLElement | null,
-    stationId: number | null = null
+  container: HTMLElement,
+  actionsContainer: HTMLElement | null,
+  stationId: number | null = null
 ): Promise<void> {
-    creditsContext = { container, actions: actionsContainer, stationId };
-    showLoadingMessage(container);
+  creditsContext = { container, actions: actionsContainer, stationId };
+  showLoadingMessage(container);
 
-    if (actionsContainer) {
-        actionsContainer.innerHTML = '<button class="action-btn primary" id="add-customer-btn"><i class="fas fa-plus"></i> Nuovo Cliente</button>';
-        const addBtn = document.getElementById('add-customer-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', () => openCustomerModal());
-        }
+  if (actionsContainer) {
+    actionsContainer.innerHTML = '<button class="action-btn primary" id="add-customer-btn"><i class="fas fa-plus"></i> Nuovo Cliente</button>';
+    const addBtn = document.getElementById('add-customer-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => openCustomerModal());
     }
+  }
 
-    try {
-        let query = supabase.from('crediti_clienti')
-            .select(`
+  try {
+    let query = supabase.from('crediti_clienti')
+      .select(`
                 *,
                 fuel_stations(station_name)
             `);
 
-        if (stationId) {
-            query = query.eq('station_id', stationId);
-        }
+    if (stationId) {
+      query = query.eq('station_id', stationId);
+    }
 
-        query = query.order('cliente');
+    query = query.order('cliente');
 
-        const { data: rawCustomers, error } = await query;
+    const { data: rawCustomers, error } = await query;
 
-        if (error) { throw error; }
+    if (error) { throw error; }
 
-        const customers = rawCustomers as CreditCustomer[];
+    const customers = rawCustomers as CreditCustomer[];
 
-        if (!customers || customers.length === 0) {
-            container.innerHTML = '<p>Nessun cliente trovato.</p>';
-            return;
-        }
+    if (!customers || customers.length === 0) {
+      container.innerHTML = '<p>Nessun cliente trovato.</p>';
+      return;
+    }
 
-        let html = `
+    let html = `
       <div class="table-responsive">
         <table class="admin-table">
           <thead>
@@ -89,9 +89,9 @@ export async function showCreditiOverview(
           <tbody>
     `;
 
-        customers.forEach(c => {
-            const stationName = c.fuel_stations?.station_name || '-';
-            html += `
+    customers.forEach(c => {
+      const stationName = c.fuel_stations?.station_name || '-';
+      html += `
         <tr>
           <td>${escapeHtml(c.cliente)}</td>
           <td>${escapeHtml(stationName)}</td>
@@ -103,51 +103,51 @@ export async function showCreditiOverview(
           </td>
         </tr>
       `;
-        });
+    });
 
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
 
-        // Bind events
-        container.querySelectorAll('.edit-customer').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = (btn as HTMLElement).dataset.id;
-                if (id) openCustomerModal(parseInt(id, 10));
-            });
-        });
-        container.querySelectorAll('.delete-customer').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = (btn as HTMLElement).dataset.id;
-                if (id) deleteCustomer(parseInt(id, 10));
-            });
-        });
+    // Bind events
+    container.querySelectorAll('.edit-customer').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.id;
+        if (id) {openCustomerModal(parseInt(id, 10));}
+      });
+    });
+    container.querySelectorAll('.delete-customer').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.id;
+        if (id) {deleteCustomer(parseInt(id, 10));}
+      });
+    });
 
-    } catch (err) {
-        handleError(err, 'showCreditiOverview', container);
-    }
+  } catch (err) {
+    handleError(err, 'showCreditiOverview', container);
+  }
 }
 
 // --- HELPER FUNCTIONS ---
 
 async function openCustomerModal(customerId: number | null = null): Promise<void> {
-    const isEdit = !!customerId;
-    openModal(isEdit ? 'Modifica Cliente' : 'Nuovo Cliente');
-    const target = document.getElementById('modal-body');
-    if (!target) return;
+  const isEdit = !!customerId;
+  openModal(isEdit ? 'Modifica Cliente' : 'Nuovo Cliente');
+  const target = document.getElementById('modal-body');
+  if (!target) {return;}
 
-    let customer: Partial<CreditCustomer> = {};
-    if (customerId) {
-        try {
-            const { data, error } = await supabase.from('crediti_clienti').select('*').eq('id', customerId).single();
-            if (error) throw error;
-            customer = data as CreditCustomer;
-        } catch (err) {
-            console.error('Error loading customer', err);
-            // Continue with empty? or show error?
-        }
+  let customer: Partial<CreditCustomer> = {};
+  if (customerId) {
+    try {
+      const { data, error } = await supabase.from('crediti_clienti').select('*').eq('id', customerId).single();
+      if (error) {throw error;}
+      customer = data as CreditCustomer;
+    } catch (err) {
+      console.error('Error loading customer', err);
+      // Continue with empty? or show error?
     }
+  }
 
-    target.innerHTML = `
+  target.innerHTML = `
     <form id="customer-form">
       <div class="form-group">
         <label>Nome Cliente / Azienda</label>
@@ -162,62 +162,62 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
     </form>
   `;
 
-    const form = document.getElementById('customer-form') as HTMLFormElement;
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fd = new FormData(form);
-            const cliente = fd.get('cliente') as string;
-            const saldoStr = fd.get('saldo');
-            const saldo = saldoStr ? parseFloat(saldoStr as string) : 0;
-            const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const form = document.getElementById('customer-form') as HTMLFormElement;
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const cliente = fd.get('cliente') as string;
+      const saldoStr = fd.get('saldo');
+      const saldo = saldoStr ? parseFloat(saldoStr as string) : 0;
+      const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
 
-            const errors = validateForm({ cliente, saldo }, {
-                cliente: [Validators.required],
-                saldo: [Validators.number]
-            });
-            if (errors) {
-                Toast.show('Errore validazione: ' + formatErrorMessages(errors), 'error');
-                return;
-            }
+      const errors = validateForm({ cliente, saldo }, {
+        cliente: [Validators.required],
+        saldo: [Validators.number]
+      });
+      if (errors) {
+        Toast.show('Errore validazione: ' + formatErrorMessages(errors), 'error');
+        return;
+      }
 
-            try {
-                setButtonLoading(submitBtn, true, 'Salvataggio...');
-                if (isEdit && customerId) {
-                    await safeSupabaseQuery(() => supabase.from('crediti_clienti').update({ cliente }).eq('id', customerId));
-                } else {
-                    // Opzionale: gestire station_id se necessario
-                    await safeSupabaseQuery(() => supabase.from('crediti_clienti').insert([{
-                        cliente,
-                        saldo, // Note: saldo usually shouldn't be updated directly via edit, only via movements, but creation allows initial saldo
-                        create_at: new Date().toISOString() // Should be created_at if DB has it, likely auto-generated
-                    }]));
-                }
-                closeModal();
-                Toast.show(isEdit ? 'Cliente aggiornato' : 'Cliente creato', 'success');
-                refreshCreditsTab();
-            } catch (err) {
-                handleError(err, 'saveCustomer');
-            } finally {
-                setButtonLoading(submitBtn, false);
-            }
-        });
-    }
+      try {
+        setButtonLoading(submitBtn, true, 'Salvataggio...');
+        if (isEdit && customerId) {
+          await safeSupabaseQuery(() => supabase.from('crediti_clienti').update({ cliente }).eq('id', customerId));
+        } else {
+          // Opzionale: gestire station_id se necessario
+          await safeSupabaseQuery(() => supabase.from('crediti_clienti').insert([{
+            cliente,
+            saldo, // Note: saldo usually shouldn't be updated directly via edit, only via movements, but creation allows initial saldo
+            create_at: new Date().toISOString() // Should be created_at if DB has it, likely auto-generated
+          }]));
+        }
+        closeModal();
+        Toast.show(isEdit ? 'Cliente aggiornato' : 'Cliente creato', 'success');
+        refreshCreditsTab();
+      } catch (err) {
+        handleError(err, 'saveCustomer');
+      } finally {
+        setButtonLoading(submitBtn, false);
+      }
+    });
+  }
 }
 
 async function deleteCustomer(customerId: number): Promise<void> {
-    if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) { return; }
-    try {
-        await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
-        Toast.show('Cliente eliminato', 'success');
-        refreshCreditsTab();
-    } catch (err) {
-        handleError(err, 'deleteCustomer');
-    }
+  if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) { return; }
+  try {
+    await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
+    Toast.show('Cliente eliminato', 'success');
+    refreshCreditsTab();
+  } catch (err) {
+    handleError(err, 'deleteCustomer');
+  }
 }
 
 function refreshCreditsTab(): void {
-    if (creditsContext.container) {
-        showCreditiOverview(creditsContext.container, creditsContext.actions, creditsContext.stationId);
-    }
+  if (creditsContext.container) {
+    showCreditiOverview(creditsContext.container, creditsContext.actions, creditsContext.stationId);
+  }
 }
