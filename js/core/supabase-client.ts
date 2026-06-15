@@ -1,3 +1,2 @@
-// @ts-ignore
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm";
+import { createClient } from '@supabase/supabase-js';
 export { createClient };

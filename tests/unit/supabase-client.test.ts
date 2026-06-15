@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Trivial test for re-export module
-vi.mock('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm', () => ({
+vi.mock('@supabase/supabase-js', () => ({
     createClient: vi.fn(() => ({}))
 }));
 

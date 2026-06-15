@@ -158,10 +158,16 @@ export default defineConfig(({ mode }) => {
             target: 'es2022',
             outDir: 'dist',
             assetsDir: 'assets',
-            sourcemap: true, // Useful for debugging errors in production
-            minify: 'esbuild', // Enable minification for production
+            sourcemap: true,
+            minify: 'terser',
             chunkSizeWarningLimit: 500,
-            cssCodeSplit: true
+            cssCodeSplit: true,
+            terserOptions: {
+                compress: {
+                    drop_console: true,
+                    drop_debugger: true
+                }
+            }
         },
 
         resolve: {
