@@ -75,7 +75,7 @@ export async function showIslandsModal(stationId: number | string): Promise<void
                   <h5 style="margin: 0 0 5px 0;">${escapeHtml(name)}</h5>
                   <span class="badge badge-info">${gunsCount} pistol${gunsCount !== 1 ? 'e' : 'a'}</span>
                 </div>
-                <button class="icon-btn delete-island" data-id="${island.island_id}" title="Elimina" style="color: #ef4444;">
+                <button class="icon-btn delete-island" data-id="${island.island_id}" title="Elimina" aria-label="Elimina" style="color: #ef4444;">
                   <i class="fas fa-trash"></i>
                 </button>
               </div>

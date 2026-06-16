@@ -98,8 +98,8 @@ export async function showCreditiOverview(
           <td><strong>${formatEuro(c.saldo || 0)}</strong></td>
           <td>${c.updated_at ? new Date(c.updated_at).toLocaleDateString() : '-'}</td>
           <td>
-            <button class="icon-btn edit-customer" data-id="${c.id}" title="Modifica"><i class="fas fa-edit"></i></button>
-            <button class="icon-btn delete-customer" data-id="${c.id}" title="Elimina"><i class="fas fa-trash"></i></button>
+            <button class="icon-btn edit-customer" data-id="${c.id}" title="Modifica" aria-label="Modifica"><i class="fas fa-edit"></i></button>
+            <button class="icon-btn delete-customer" data-id="${c.id}" title="Elimina" aria-label="Elimina"><i class="fas fa-trash"></i></button>
           </td>
         </tr>
       `;

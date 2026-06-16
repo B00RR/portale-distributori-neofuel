@@ -74,11 +74,11 @@ export async function showStationsTab(container: HTMLElement, actionsContainer: 
           <td>${escapeHtml(st.station_name)}</td>
           <td>${escapeHtml(st.location || '')}</td>
           <td>
-            <button class="icon-btn edit-station" data-id="${st.station_id}" title="Modifica"><i class="fas fa-edit"></i></button>
-            <button class="icon-btn prices-station" data-id="${st.station_id}" title="Prezzi"><i class="fas fa-tag"></i></button>
-            <button class="icon-btn islands-station" data-id="${st.station_id}" title="Isole e Pistole"><i class="fas fa-gas-pump"></i></button>
-            <button class="icon-btn tanks-station" data-id="${st.station_id}" title="Cisterne"><i class="fas fa-trailer"></i></button>
-            <button class="icon-btn delete-station" data-id="${st.station_id}" title="Elimina"><i class="fas fa-trash"></i></button>
+            <button class="icon-btn edit-station" data-id="${st.station_id}" title="Modifica" aria-label="Modifica"><i class="fas fa-edit"></i></button>
+            <button class="icon-btn prices-station" data-id="${st.station_id}" title="Prezzi" aria-label="Prezzi"><i class="fas fa-tag"></i></button>
+            <button class="icon-btn islands-station" data-id="${st.station_id}" title="Isole e Pistole" aria-label="Isole e Pistole"><i class="fas fa-gas-pump"></i></button>
+            <button class="icon-btn tanks-station" data-id="${st.station_id}" title="Cisterne" aria-label="Cisterne"><i class="fas fa-trailer"></i></button>
+            <button class="icon-btn delete-station" data-id="${st.station_id}" title="Elimina" aria-label="Elimina"><i class="fas fa-trash"></i></button>
           </td>
         </tr>
       `;

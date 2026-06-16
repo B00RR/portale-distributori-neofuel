@@ -171,8 +171,8 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
 
         const isEmitted = inv.status === 'completed' || inv.status === 'emessa';
         const toggleStatusAction = isEmitted
-            ? `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="pending" title="Segna come non emessa"><i class="fas fa-undo"></i></button>`
-            : `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="completed" title="Segna come emessa"><i class="fas fa-check"></i></button>`;
+            ? `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="pending" title="Segna come non emessa" aria-label="Segna come non emessa"><i class="fas fa-undo"></i></button>`
+            : `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="completed" title="Segna come emessa" aria-label="Segna come emessa"><i class="fas fa-check"></i></button>`;
 
         html += `
         <tr>

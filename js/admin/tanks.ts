@@ -135,7 +135,7 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
                   <span class="badge badge-info">${escapeHtml(t.fuel_type)}</span>
                   <span class="tank-meta">Capacità: ${formatNumberIt(t.capacity)} L</span>
                 </div>
-                <button class="icon-btn delete-tank" data-id="${t.id}" title="Elimina">
+                <button class="icon-btn delete-tank" data-id="${t.id}" title="Elimina" aria-label="Elimina">
                   <i class="fas fa-trash"></i>
                 </button>
               </li>
@@ -165,10 +165,10 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
                   <td>${statusBadge}</td>
                   <td>
                     <div class="table-actions">
-                      <button class="icon-btn tank-link-toggle" data-id="${link.id}" data-active="${link.is_active}" title="Attiva/Disattiva">
+                      <button class="icon-btn tank-link-toggle" data-id="${link.id}" data-active="${link.is_active}" title="Attiva/Disattiva" aria-label="Attiva/Disattiva">
                         <i class="fas ${link.is_active ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
                       </button>
-                      <button class="icon-btn tank-link-delete" data-id="${link.id}" title="Rimuovi Associazione">
+                      <button class="icon-btn tank-link-delete" data-id="${link.id}" title="Rimuovi Associazione" aria-label="Rimuovi Associazione">
                         <i class="fas fa-trash"></i>
                       </button>
                     </div>

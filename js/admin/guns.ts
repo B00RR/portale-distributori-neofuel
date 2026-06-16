@@ -136,10 +136,10 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
               </div>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button class="icon-btn edit-gun" data-id="${gun.id}" title="Modifica Pistola">
+              <button class="icon-btn edit-gun" data-id="${gun.id}" title="Modifica Pistola" aria-label="Modifica Pistola">
                 <i class="fas fa-edit"></i>
               </button>
-              <button class="icon-btn delete-gun" data-id="${gun.id}" title="Elimina Pistola">
+              <button class="icon-btn delete-gun" data-id="${gun.id}" title="Elimina Pistola" aria-label="Elimina Pistola">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
