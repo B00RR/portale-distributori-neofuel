@@ -3,8 +3,7 @@
  * Modern non-blocking notifications replacing alert()
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { escapeHtml } from '../utils/utils.js';
+import { logger } from '../core/logger.js';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -43,36 +42,42 @@ export class Toast {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
 
-    // Icon based on type
-    const icon = this._getIcon(type);
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '10px';
 
-    let contentHtml = `
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <i class="fas fa-${icon}"></i>
-                <span class="toast-message">${escapeHtml(message)}</span>
-            </div>
-        `;
+    const icon = document.createElement('i');
+    icon.className = `fas fa-${this._getIcon(type)}`;
+
+    const messageSpan = document.createElement('span');
+    messageSpan.className = 'toast-message';
+    messageSpan.textContent = message;
+
+    row.appendChild(icon);
+    row.appendChild(messageSpan);
+    toast.appendChild(row);
 
     if (options.action) {
-      contentHtml += `
-            <button class="toast-action-btn" style="margin-left: 15px; padding: 4px 10px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; border-radius: 4px; cursor: pointer; font-weight: 600;">
-                ${escapeHtml(options.action.text)}
-            </button>
-            `;
-    }
+      const btn = document.createElement('button');
+      btn.className = 'toast-action-btn';
+      btn.style.marginLeft = '15px';
+      btn.style.padding = '4px 10px';
+      btn.style.background = 'rgba(255,255,255,0.2)';
+      btn.style.border = '1px solid rgba(255,255,255,0.4)';
+      btn.style.color = 'white';
+      btn.style.borderRadius = '4px';
+      btn.style.cursor = 'pointer';
+      btn.style.fontWeight = '600';
+      btn.textContent = options.action.text;
 
-    toast.innerHTML = contentHtml;
+      btn.addEventListener('click', (e: Event) => {
+        e.stopPropagation();
+        logger.debug('Toast', '[Toast] Action button clicked');
+        options.action?.onClick();
+      });
 
-    // Bind custom action
-    if (options.action && options.action.onClick) {
-      const btn = toast.querySelector('.toast-action-btn');
-      if (btn) {
-        btn.addEventListener('click', (e: Event) => {
-          e.stopPropagation();
-          console.log('[Toast] Action button clicked');
-          if (options.action) {options.action.onClick();}
-        });
-      }
+      toast.appendChild(btn);
     }
 
     // Add to container
@@ -111,13 +116,13 @@ export class Toast {
      * Get FontAwesome icon for type
      */
   private static _getIcon(type: ToastType): string {
-    const icons: Record<ToastType, string> = {
-      success: 'check-circle',
-      error: 'exclamation-circle',
-      warning: 'exclamation-triangle',
-      info: 'info-circle'
-    };
-    return icons[type] || 'info-circle';
+    const icons = new Map<ToastType, string>([
+      ['success', 'check-circle'],
+      ['error', 'exclamation-circle'],
+      ['warning', 'exclamation-triangle'],
+      ['info', 'info-circle']
+    ]);
+    return icons.get(type) || 'info-circle';
   }
 }
 

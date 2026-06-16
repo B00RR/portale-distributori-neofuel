@@ -2,6 +2,7 @@ import { html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 
 import { supabase } from '../../core/api.js';
+import { logger } from '../../core/logger.js';
 import { Pistola, Tank, Island } from '../../types.js';
 
 import { BaseComponent } from './BaseComponent.js';
@@ -151,11 +152,11 @@ export class ShiftOpener extends BaseComponent {
         `
     ];
 
-    protected override firstUpdated() {
+    protected override firstUpdated(): void {
       this.loadInitialData();
     }
 
-    private async loadInitialData() {
+    private async loadInitialData(): Promise<void> {
       this.state = { ...this.state, mode: 'loading' };
       try {
         // 1. Parallel fetch of core station data
@@ -166,7 +167,7 @@ export class ShiftOpener extends BaseComponent {
 
         if (islandsRes.error) {throw islandsRes.error;}
 
-        this.islands = islandsRes.data.map((i: any, idx: number) => ({
+        this.islands = islandsRes.data.map((i: { island_id?: number; nome?: string; island_name?: string }, idx: number) => ({
           island_id: i.island_id ?? idx + 1,
           nome: i.nome ?? i.island_name ?? `Isola ${idx + 1}`,
           station_id: Number(this.stationId)
@@ -195,8 +196,8 @@ export class ShiftOpener extends BaseComponent {
         const counters: Record<number, number> = {};
         this.pistole.forEach(p => {
           // Priority: shift_pistols -> chiusura_turno_pistole -> current numero_litri
-          const lastShift = newCounters.data?.find((c: any) => c.pistola_id === p.id);
-          const lastOld = oldCounters.data?.find((c: any) => c.pistola_id === p.id);
+          const lastShift = newCounters.data?.find((c: { pistola_id?: number; closed_at_counter?: number }) => c.pistola_id === p.id);
+          const lastOld = oldCounters.data?.find((c: { pistola_id?: number; numeratore_chiusura?: number }) => c.pistola_id === p.id);
 
           counters[p.id] = lastShift?.closed_at_counter ??
                     lastOld?.numeratore_chiusura ??
@@ -205,9 +206,9 @@ export class ShiftOpener extends BaseComponent {
         this.lastCounters = counters;
 
         this.state = { ...this.state, mode: 'form' };
-      } catch (error: any) {
-        console.error('Error loading ShiftOpener data:', error);
-        this.state = { mode: 'error', errorMessage: error.message || 'Errore imprevisto durante il caricamento' };
+      } catch (error: unknown) {
+        logger.error('Error loading ShiftOpener data:', error);
+        this.state = { mode: 'error', errorMessage: (error instanceof Error ? error.message : 'Errore imprevisto durante il caricamento') };
       }
     }
 
@@ -257,7 +258,7 @@ export class ShiftOpener extends BaseComponent {
       }
     }
 
-    private async handleFormSubmit(e: Event) {
+    private async handleFormSubmit(e: Event): Promise<void> {
       e.preventDefault();
       const form = e.target as HTMLFormElement;
       const formData = new FormData(form);
@@ -321,10 +322,10 @@ export class ShiftOpener extends BaseComponent {
         this.state = { ...this.state, mode: 'success' };
         this.emit('success', { shift });
 
-      } catch (error: any) {
-        console.error('Error opening shift:', error);
-        this.state = { ...this.state, mode: 'form', errorMessage: error.message };
-        alert(`Errore durante l'apertura del turno: ${error.message}`);
+      } catch (error: unknown) {
+        logger.error('Error opening shift:', error);
+        this.state = { ...this.state, mode: 'form', errorMessage: (error instanceof Error ? error.message : 'Errore sconosciuto') };
+        alert(`Errore durante l'apertura del turno: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
       }
     }
 

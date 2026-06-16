@@ -91,17 +91,17 @@ export class AlertBox extends BaseComponent {
     super();
   }
 
-  override render(): TemplateResult | typeof html | any {
+  override render(): TemplateResult {
     if (!this.visible) { return html``; }
 
-    const defaultIcons: Record<string, string> = {
-      info: 'fa-info-circle',
-      success: 'fa-check-circle',
-      warning: 'fa-exclamation-triangle',
-      danger: 'fa-times-circle'
-    };
+    const defaultIcons = new Map<string, string>([
+      ['info', 'fa-info-circle'],
+      ['success', 'fa-check-circle'],
+      ['warning', 'fa-exclamation-triangle'],
+      ['danger', 'fa-times-circle']
+    ]);
 
-    const iconClass = this.icon || defaultIcons[this.type] || 'fa-info-circle';
+    const iconClass = this.icon || defaultIcons.get(this.type) || 'fa-info-circle';
 
     return html`
       <div class="alert ${this.type} ${this.visible ? '' : 'hidden'}" role="alert">

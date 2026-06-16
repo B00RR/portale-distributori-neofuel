@@ -5,6 +5,8 @@
 
 import { LitElement, CSSResultGroup, css } from 'lit';
 
+import { logger } from '../../core/logger.js';
+
 export class BaseComponent extends LitElement {
   /**
    * Stili comuni a tutti i componenti
@@ -39,9 +41,9 @@ export class BaseComponent extends LitElement {
   /**
    * Emette un evento personalizzato
    * @param {string} eventName - Nome dell'evento
-   * @param {any} detail - Dettagli dell'evento
+   * @param {unknown} detail - Dettagli dell'evento
    */
-  public emit(eventName: string, detail: any = {}): void {
+  public emit(eventName: string, detail: unknown = {}): void {
     this.dispatchEvent(new CustomEvent(eventName, {
       detail,
       bubbles: true,
@@ -55,7 +57,8 @@ export class BaseComponent extends LitElement {
    * @param {string} context - Contesto dell'errore
    */
   public handleComponentError(error: Error | unknown, context: string = ''): void {
-    console.error(`[${(this.constructor as any).name}${context ? ':' + context : ''}]`, error);
+    const componentName = this.constructor.name || 'BaseComponent';
+    logger.error(`[${componentName}${context ? ':' + context : ''}]`, error);
     this.emit('component-error', { error, context });
   }
 }
