@@ -30,6 +30,7 @@ export async function showDashboard(
   stationId: string | number | null = null,
   checkActiveFn: CheckActiveFunction | null = null
 ): Promise<void> {
+  const numericStationId = stationId ? Number(stationId) : null;
   showLoadingMessage(container);
 
   try {
@@ -50,24 +51,24 @@ export async function showDashboard(
       businessRules
     ] = await Promise.all([
       // 1. Stations Count
-      stationId
-        ? supabase.from('fuel_stations').select('*', { count: 'exact', head: true }).eq('station_id', stationId)
+      numericStationId
+        ? supabase.from('fuel_stations').select('*', { count: 'exact', head: true }).eq('station_id', numericStationId)
         : supabase.from('fuel_stations').select('*', { count: 'exact', head: true }),
 
       // 2. Operators Count
-      stationId
-        ? supabase.from('user_stations').select('*', { count: 'exact', head: true }).eq('station_id', stationId)
+      numericStationId
+        ? supabase.from('user_stations').select('*', { count: 'exact', head: true }).eq('station_id', numericStationId)
         : supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'operator'),
 
       // 3. Closures Count
-      stationId
-        ? supabase.from('shifts').select('*', { count: 'exact', head: true }).eq('station_id', stationId)
+      numericStationId
+        ? supabase.from('shifts').select('*', { count: 'exact', head: true }).eq('station_id', numericStationId)
         : supabase.from('shifts').select('*', { count: 'exact', head: true }),
 
       // 4. Tanks List
       (async () => {
         let q = supabase.from('tanks').select('id, name, fuel_type, capacity, station_id, fuel_stations(station_name)');
-        if (stationId) { q = q.eq('station_id', stationId); }
+        if (numericStationId) { q = q.eq('station_id', numericStationId); }
         return q.order('name');
       })(),
 
@@ -79,7 +80,7 @@ export async function showDashboard(
           .gte('closed_at', startOfDay.toISOString())
           .lte('closed_at', endOfDay.toISOString())
           .eq('status', 'closed');
-        if (stationId) { q = q.eq('station_id', stationId); }
+        if (numericStationId) { q = q.eq('station_id', numericStationId); }
         return q;
       })(),
 
@@ -118,9 +119,10 @@ export async function showDashboard(
         .gte('created_at', sevenDaysAgo.toISOString()) // LIMIT HISTORY
         .order('created_at', { ascending: false });
 
-      const latestByTank: Record<string, any> = {};
+      const latestByTank: Record<number, any> = {};
       if (tankReadings) {
         for (const r of tankReadings) {
+          if (r.tank_id === null) { continue; }
           if (!latestByTank[r.tank_id]) {
             latestByTank[r.tank_id] = r;
           }
@@ -308,7 +310,7 @@ export async function showDashboard(
 
     if (hasCharts) {
       // Fetch only if needed
-      fetchAnalyticsData(stationId).then(analyticsData => {
+      fetchAnalyticsData(numericStationId).then(analyticsData => {
         if (visibleKpis.includes('andamento_ricavi')) {renderRevenueChart(analyticsData, 'chart-andamento_ricavi');}
         if (visibleKpis.includes('volume_erogato')) {renderVolumeChart(analyticsData, 'chart-volume_erogato');}
         if (visibleKpis.includes('metodi_pagamento')) {renderPaymentChart(analyticsData, 'chart-metodi_pagamento');}
@@ -363,6 +365,8 @@ export async function showDashboard(
 // ------------------------------------------------------------------
 
 async function renderSalesChart(stationId: string | number | null): Promise<void> {
+  const numericStationId = stationId ? Number(stationId) : null;
+
   // Recupera le chiusure degli ultimi 30 giorni
   const daysBack = 30;
   const startDate = new Date();
@@ -375,7 +379,7 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
     .gte('closed_at', startDate.toISOString())
     .eq('status', 'closed');
 
-  if (stationId) { closuresQuery = closuresQuery.eq('station_id', stationId); }
+  if (numericStationId) { closuresQuery = closuresQuery.eq('station_id', numericStationId); }
 
   closuresQuery = closuresQuery.order('closed_at', { ascending: true });
 
@@ -387,12 +391,12 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
     .select('station_id, station_name')
     .order('station_name');
 
-  if (stationId) { stationsQuery = stationsQuery.eq('station_id', stationId); }
+  if (numericStationId) { stationsQuery = stationsQuery.eq('station_id', numericStationId); }
 
   const { data: allStations } = await stationsQuery;
 
   // Raggruppa vendite per data e distributore
-  const salesByDateAndStation: Record<string, Record<string | number, number>> = {};
+  const salesByDateAndStation: Record<string, Record<number, number>> = {};
   const allDates = new Set<string>();
 
   if (closuresData) {

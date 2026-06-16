@@ -182,8 +182,8 @@ function registerPresetFunctions(): void {
 }
 
 async function syncCalculationPreset(preset: CalculationPreset): Promise<void> {
-  const existingModule = await safeSupabaseQuery(
-    () => supabase
+  const existingModule = await safeSupabaseQuery<{ id: string; active_version_id: string | null }>(
+    async () => await supabase
       .from('calculation_modules')
       .select('id, active_version_id')
       .eq('scope', preset.scope)
@@ -194,8 +194,8 @@ async function syncCalculationPreset(preset: CalculationPreset): Promise<void> {
   let moduleId = existingModule?.data?.id;
 
   if (!moduleId) {
-    const insertResult = await safeSupabaseQuery(
-      () => supabase
+    const insertResult = await safeSupabaseQuery<{ id: string }>(
+      async () => await supabase
         .from('calculation_modules')
         .insert([{
           name: preset.name,
@@ -207,11 +207,15 @@ async function syncCalculationPreset(preset: CalculationPreset): Promise<void> {
         .single(),
       'Errore creazione modulo calcoli'
     );
-    moduleId = insertResult.data.id;
+    moduleId = insertResult.data?.id;
   }
 
-  const existingPublished = await safeSupabaseQuery(
-    () => supabase
+  if (!moduleId) {
+    throw new Error(`Impossibile ottenere l'id del modulo per lo scope ${preset.scope}`);
+  }
+
+  const existingPublished = await safeSupabaseQuery<{ id: string }>(
+    async () => await supabase
       .from('calculation_versions')
       .select('id')
       .eq('module_id', moduleId)
@@ -223,8 +227,8 @@ async function syncCalculationPreset(preset: CalculationPreset): Promise<void> {
   );
 
   if (!existingPublished?.data?.id) {
-    const versionResult = await safeSupabaseQuery(
-      () => supabase
+    const versionResult = await safeSupabaseQuery<{ id: string }>(
+      async () => await supabase
         .from('calculation_versions')
         .insert([{
           module_id: moduleId,
@@ -240,9 +244,9 @@ async function syncCalculationPreset(preset: CalculationPreset): Promise<void> {
     );
 
     await safeSupabaseQuery(
-      () => supabase
+      async () => await supabase
         .from('calculation_modules')
-        .update({ active_version_id: versionResult.data.id })
+        .update({ active_version_id: versionResult.data?.id ?? null })
         .eq('id', moduleId),
       'Errore aggiornamento modulo attivo'
     );

@@ -3,7 +3,6 @@
  * Handles user authentication, login, logout, and password reset
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Toast } from '../ui/toast.js';
 import {
   showFullScreenLoader,
@@ -20,12 +19,12 @@ import { supabase } from './api.js';
 export type UserRole = 'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accounting' | 'billing';
 
 export interface AssignedStation {
-    id: string;
-    name?: string;
+    id: number;
+    name?: string | undefined;
 }
 
 export interface UserStationData {
-    station_id: string;
+    station_id: number;
     fuel_stations?: {
         station_name?: string;
     };
@@ -33,11 +32,11 @@ export interface UserStationData {
 
 export interface LoggedUserData {
     id: string; // Supabase Auth UUID
-    user_id: number | string; // Legacy Integer ID
+    user_id: number; // Database user_id
     email: string;
     full_name: string;
     role: UserRole;
-    station_id?: string | number | null;
+    station_id?: number | null;
     user_stations?: UserStationData[];
     assignedStations?: AssignedStation[];
 }
@@ -95,6 +94,25 @@ export function initLoginElements(): void {
     appContainer = document.getElementById('app-container');
     loginError = document.getElementById('login-error');
   }
+}
+
+function normalizeUserRole(role: string | undefined): UserRole {
+  const normalized = (role || 'operator').trim();
+  const allowed: readonly UserRole[] = ['admin', 'super_admin', 'full_admin', 'operator', 'accounting', 'billing'];
+  if ((allowed as readonly string[]).includes(normalized)) {
+    return normalized as UserRole;
+  }
+  return 'operator';
+}
+
+function mapAssignedStations(stations: UserStationData[] | undefined | null): AssignedStation[] {
+  if (!stations) {
+    return [];
+  }
+  return stations.map(us => ({
+    id: us.station_id,
+    name: us.fuel_stations?.station_name ?? undefined
+  }));
 }
 
 /**
@@ -184,7 +202,7 @@ export function setupLoginForm(): void {
         password: password
       });
 
-      let userData: any = null;
+      let userData: LoggedUserData | null = null;
 
       if (authError) {
         console.error('Auth error:', authError);
@@ -219,6 +237,12 @@ export function setupLoginForm(): void {
 
       // Fetch user data from database using authenticated user's email
       if (authData?.user) {
+        if (!authData.user.email) {
+          if (errorElement) {errorElement.textContent = 'Errore: email utente non disponibile.';}
+          return;
+        }
+        const userEmail = authData.user.email;
+
         const { data: dbUserData, error: userError } = await supabase
           .from('users')
           .select(`
@@ -228,19 +252,25 @@ export function setupLoginForm(): void {
                         fuel_stations(station_name)
                     )
                 `)
-          .eq('email', email)
+          .eq('email', userEmail)
           .maybeSingle();
 
-        console.log('[Auth] User lookup for', email, 'result:', dbUserData, 'error:', userError);
+        console.log('[Auth] User lookup for', userEmail, 'result:', dbUserData, 'error:', userError);
 
         if (dbUserData) {
-          userData = dbUserData;
-          // Add Auth UUID if available, otherwise use user_id
-          if (authData?.user) {
-            userData.id = authData.user.id;
-          } else {
-            userData.id = userData.user_id?.toString() || userData.email;
-          }
+          const fullName = dbUserData.full_name ||
+            authData.user.user_metadata?.full_name ||
+            userEmail.split('@')[0] ||
+            'Operatore';
+          userData = {
+            id: authData.user.id,
+            user_id: dbUserData.user_id,
+            email: dbUserData.email,
+            full_name: fullName,
+            role: normalizeUserRole(dbUserData.role),
+            user_stations: dbUserData.user_stations,
+            assignedStations: mapAssignedStations(dbUserData.user_stations)
+          };
         } else {
           console.warn('User not found via standard SELECT. Attempting Secure RPC lookup...');
 
@@ -249,21 +279,33 @@ export function setupLoginForm(): void {
             const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
 
             if (rpcId && !rpcError) {
+              const fallbackName = authData.user.user_metadata?.full_name ||
+                authData.user.email?.split('@')[0] ||
+                'Operatore';
               userData = {
                 id: authData.user.id,
                 user_id: rpcId,
                 email: authData.user.email,
-                full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
-                role: authData.user.user_metadata?.role || 'operator'
+                full_name: fallbackName,
+                role: normalizeUserRole(authData.user.user_metadata?.role),
+                assignedStations: []
               };
             } else {
               console.error('RPC lookup failed:', rpcError);
+              if (!authData.user.email) {
+                if (errorElement) {errorElement.textContent = 'Errore: email utente non disponibile.';}
+                return;
+              }
+              const fallbackName = authData.user.user_metadata?.full_name ||
+                authData.user.email.split('@')[0] ||
+                'Operatore';
               userData = {
                 id: authData.user.id,
-                user_id: authData.user.id,
+                user_id: parseInt(authData.user.id, 10),
                 email: authData.user.email,
-                full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Operatore',
-                role: authData.user.user_metadata?.role || 'operator'
+                full_name: fallbackName,
+                role: normalizeUserRole(authData.user.user_metadata?.role),
+                assignedStations: []
               };
             }
           }
@@ -277,21 +319,18 @@ export function setupLoginForm(): void {
         return;
       }
 
-      if (userData?.role) {
-        loggedUser = userData as LoggedUserData;
-      } else {
-        loggedUser = {
-          ...userData,
-          role: authData?.user?.user_metadata?.role || 'operator'
-        } as LoggedUserData;
-      }
+      loggedUser = {
+        ...userData,
+        role: userData.role || normalizeUserRole(authData?.user?.user_metadata?.role)
+      };
 
       // [TESTBILITY] Allow role override via query param for E2E testing
       const urlParams = new URLSearchParams(window.location.search);
       const testRole = urlParams.get('test_role');
       if (testRole && (testRole === 'operator' || testRole === 'admin')) {
-        console.log(`[AUTH-TEST] Overriding role from ${loggedUser.role} to ${testRole}`);
-        loggedUser.role = testRole as UserRole;
+        const validRole: UserRole = testRole === 'admin' ? 'admin' : 'operator';
+        console.log(`[AUTH-TEST] Overriding role from ${loggedUser.role} to ${validRole}`);
+        loggedUser.role = validRole;
       }
 
       console.log('[Auth] Final LoggedUser:', loggedUser);
@@ -319,24 +358,18 @@ export function setupLoginForm(): void {
       }
 
       if (onLoginSuccessCallback && loggedUser) {
-        if (userData && userData.user_stations) {
-          loggedUser.assignedStations = userData.user_stations.map((us: UserStationData) => ({
-            id: us.station_id,
-            name: us.fuel_stations?.station_name
-          }));
-        } else {
-          loggedUser.assignedStations = [];
-        }
+        loggedUser.assignedStations = mapAssignedStations(loggedUser.user_stations);
         onLoginSuccessCallback(loggedUser);
 
         // SECURITY: Reset rate limit on successful login
         resetRateLimit(`login:${email}`);
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Errore durante il login (catch):', err);
       if (errorElement) {
-        errorElement.textContent = `Errore durante il login: ${err.message || 'Errore sconosciuto'}`;
+        const message = err instanceof Error ? err.message : 'Errore sconosciuto';
+        errorElement.textContent = `Errore durante il login: ${message}`;
       }
     } finally {
       hideFullScreenLoader();
@@ -360,7 +393,11 @@ export async function loadSession(): Promise<LoggedUserData | null> {
     if (error || !session?.user) {return null;}
 
     const email = session.user.email;
-    let { data: userData } = await supabase
+    if (!email) {
+      return null;
+    }
+
+    let { data: dbUserData } = await supabase
       .from('users')
       .select(`
                 *,
@@ -372,45 +409,65 @@ export async function loadSession(): Promise<LoggedUserData | null> {
       .eq('email', email)
       .maybeSingle();
 
-    if (!userData) {
+    let userData: LoggedUserData | null = null;
+
+    if (!dbUserData) {
       console.warn('Session User not found via SELECT. Attempting Secure RPC...');
       const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
 
       if (rpcId && !rpcError) {
+        const fallbackName = session.user.user_metadata?.full_name ||
+          email.split('@')[0] ||
+          'Operatore';
         userData = {
           id: session.user.id,
           user_id: rpcId,
-          email: session.user.email,
-          full_name: session.user.user_metadata?.full_name || 'Operatore',
-          role: session.user.user_metadata?.role || 'operator'
+          email: email,
+          full_name: fallbackName,
+          role: normalizeUserRole(session.user.user_metadata?.role),
+          assignedStations: []
         };
       } else {
+        console.error('RPC lookup failed:', rpcError);
+        const fallbackName = session.user.user_metadata?.full_name ||
+          email.split('@')[0] ||
+          'Operatore';
         userData = {
           id: session.user.id,
-          user_id: session.user.id,
-          email: session.user.email,
-          full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Operatore',
-          role: session.user.user_metadata?.role || 'operator'
+          user_id: parseInt(session.user.id, 10),
+          email: email,
+          full_name: fallbackName,
+          role: normalizeUserRole(session.user.user_metadata?.role),
+          assignedStations: []
         };
       }
     } else {
-      userData.id = session.user.id;
+      const fullName = dbUserData.full_name ||
+        session.user.user_metadata?.full_name ||
+        email.split('@')[0] ||
+        'Operatore';
+      userData = {
+        id: session.user.id,
+        user_id: dbUserData.user_id,
+        email: dbUserData.email,
+        full_name: fullName,
+        role: normalizeUserRole(dbUserData.role),
+        user_stations: dbUserData.user_stations,
+        assignedStations: mapAssignedStations(dbUserData.user_stations)
+      };
+    }
+
+    if (!userData) {
+      return null;
     }
 
     if (!userData.role) {
-      userData.role = session.user.user_metadata?.role || 'operator';
+      userData.role = normalizeUserRole(session.user.user_metadata?.role);
     }
 
-    if (userData.user_stations) {
-      userData.assignedStations = userData.user_stations.map((us: UserStationData) => ({
-        id: us.station_id,
-        name: us.fuel_stations?.station_name
-      }));
-    } else {
-      userData.assignedStations = [];
-    }
+    userData.assignedStations = mapAssignedStations(userData.user_stations);
 
-    return userData as LoggedUserData;
+    return userData;
   } catch (err) {
     console.error('Errore nel caricamento sessione:', err);
     return null;
@@ -466,10 +523,11 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
     showOTPResetForm();
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Errore durante la richiesta di reset password:', error);
-    Toast.show('Errore durante l\'invio dell\'email di reset password: ' + error.message, 'error');
-    return { success: false, error: error.message };
+    const message = error instanceof Error ? error.message : 'Errore sconosciuto';
+    Toast.show('Errore durante l\'invio dell\'email di reset password: ' + message, 'error');
+    return { success: false, error: message };
   }
 }
 
@@ -553,8 +611,8 @@ export function showOTPResetForm(): void {
         localStorage.removeItem('password_reset_email');
         showResetPasswordForm();
       }
-    } catch (err: any) {
-      errorElement.textContent = 'Errore imprevisto: ' + err.message;
+    } catch (err: unknown) {
+      errorElement.textContent = 'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
     }
   });
 
@@ -630,8 +688,8 @@ export function showResetPasswordForm(): void {
       await supabase.auth.signOut();
       Toast.show('Password aggiornata con successo! Ora puoi effettuare il login.', 'success');
       window.location.href = window.location.pathname;
-    } catch (err: any) {
-      errorElement.textContent = 'Errore imprevisto: ' + err.message;
+    } catch (err: unknown) {
+      errorElement.textContent = 'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
     }
   });
 }

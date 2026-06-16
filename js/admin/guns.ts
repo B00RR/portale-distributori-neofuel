@@ -71,6 +71,7 @@ function createEl<K extends keyof HTMLElementTagNameMap>(
 // --- MAIN FUNCTIONS ---
 
 export async function showGunsModal(islandId: number, islandName: string, stationId: number | string): Promise<void> {
+  const stationIdNumber = typeof stationId === 'string' ? parseInt(stationId, 10) : stationId;
   openModal(`Pistole - ${escapeHtml(islandName)}`);
   // Remove narrow class if present
   const modalContent = document.querySelector('#app-modal .modal-content');
@@ -82,16 +83,17 @@ export async function showGunsModal(islandId: number, islandName: string, statio
 
   showLoadingMessage(target);
 
-  await renderGuns(target, islandId, islandName, stationId);
+  await renderGuns(target, islandId, islandName, stationIdNumber);
 }
 
-async function renderGuns(target: HTMLElement, islandId: number, islandName: string, stationId: number | string): Promise<void> {
+async function renderGuns(target: HTMLElement, islandId: number, islandName: string, stationId: number): Promise<void> {
   try {
-    const { data: rawGuns, error } = await supabase
+    const { data: rawGuns, error } = await safeSupabaseQuery(async () => await supabase
       .from('pistole')
       .select('*')
       .eq('island_id', islandId)
-      .order('nome');
+      .order('nome')
+    );
 
     if (error) {throw error;}
 
@@ -99,11 +101,14 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
 
     // Load latest counters
     const latestCounters: Record<number, number> = {};
-    const { data: rawCounters } = await supabase
+    const { data: rawCounters, error: countersError } = await safeSupabaseQuery(async () => await supabase
       .from('chiusura_turno_pistole')
       .select('pistola_id, numeratore_chiusura, turno_id')
       .order('turno_id', { ascending: false })
-      .limit(200);
+      .limit(200)
+    );
+
+    if (countersError) {throw countersError;}
 
     const allCounters = rawCounters as CounterRecord[];
 
@@ -327,7 +332,7 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
   }
 }
 
-async function openGunForm(islandId: number, islandName: string, stationId: number | string, gunId: number | null = null): Promise<void> {
+async function openGunForm(islandId: number, islandName: string, stationId: number, gunId: number | null = null): Promise<void> {
   const isEdit = !!gunId;
   openModal(isEdit ? 'Modifica Pistola' : 'Nuova Pistola');
   const target = document.getElementById('modal-body');
@@ -335,11 +340,13 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
 
   let gun: Partial<Gun> = { nome: '', tipo_carburante: 'benzina', numero_litri: 0 };
   if (isEdit && gunId) {
-    const { data } = await supabase
+    const { data, error } = await safeSupabaseQuery(async () => await supabase
       .from('pistole')
       .select('*')
       .eq('id', gunId)
-      .single();
+      .single()
+    );
+    if (error) {throw error;}
     gun = (data as Gun) || gun;
   }
 
@@ -425,14 +432,12 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
 
       try {
         if (isEdit && gunId) {
-          await safeSupabaseQuery(() =>
-            supabase.from('pistole').update(payload).eq('id', gunId)
-          );
+          const { error: updateError } = await safeSupabaseQuery(async () => await supabase.from('pistole').update(payload).eq('id', gunId));
+          if (updateError) { throw updateError; }
           showInfoModal('Pistola aggiornata con successo!');
         } else {
-          await safeSupabaseQuery(() =>
-            supabase.from('pistole').insert([payload])
-          );
+          const { error: insertError } = await safeSupabaseQuery(async () => await supabase.from('pistole').insert([payload]));
+          if (insertError) { throw insertError; }
           showInfoModal('Pistola creata con successo!');
         }
         closeModal();
@@ -444,7 +449,7 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
   }
 }
 
-async function showCounterEditModal(gunId: number, gunName: string, currentCounter: number, islandId: number, islandName: string, stationId: number | string): Promise<void> {
+async function showCounterEditModal(gunId: number, gunName: string, currentCounter: number, islandId: number, islandName: string, stationId: number): Promise<void> {
   openModal(`Modifica Numeratore - ${escapeHtml(gunName)}`);
   const target = document.getElementById('modal-body');
   if (!target) {return;}
@@ -547,18 +552,20 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
 
       try {
         // 1. Update basic record
-        await safeSupabaseQuery(() =>
-          supabase.from('pistole').update({ numero_litri: numeroLitri }).eq('id', gunId)
-        );
+        const { error: basicError } = await safeSupabaseQuery(async () => await supabase.from('pistole').update({ numero_litri: numeroLitri }).eq('id', gunId));
+        if (basicError) { throw basicError; }
 
         // 2. Find latest turno_id
         let currentTurnoId: number | null = null;
         try {
-          const { data: lastCounters } = await supabase
+          const { data: lastCounters, error: lastCountersError } = await safeSupabaseQuery(async () => await supabase
             .from('chiusura_turno_pistole')
             .select('turno_id')
             .order('turno_id', { ascending: false })
-            .limit(1);
+            .limit(1)
+          );
+
+          if (lastCountersError) {throw lastCountersError;}
 
           const lastData = lastCounters as { turno_id: number }[];
           if (lastData && lastData.length > 0) {
@@ -573,37 +580,40 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
 
         // 3. Update or Insert
         if (currentTurnoId !== null) {
-          const { data: existing } = await supabase
+          const { data: existing, error: existingError } = await safeSupabaseQuery(async () => await supabase
             .from('chiusura_turno_pistole')
             .select('id')
             .eq('pistola_id', gunId)
             .eq('turno_id', currentTurnoId)
-            .single();
+            .single()
+          );
+
+          if (existingError && existingError.code !== 'PGRST116') {throw existingError;}
 
           if (existing) {
-            await safeSupabaseQuery(() =>
-              supabase.from('chiusura_turno_pistole')
-                .update({ numeratore_chiusura: numeroLitri })
-                .eq('pistola_id', gunId)
-                .eq('turno_id', currentTurnoId)
+            const { error: updateCounterError } = await safeSupabaseQuery(async () => await supabase.from('chiusura_turno_pistole')
+              .update({ numeratore_chiusura: numeroLitri })
+              .eq('pistola_id', gunId)
+              .eq('turno_id', currentTurnoId)
             );
+            if (updateCounterError) { throw updateCounterError; }
           } else {
-            await safeSupabaseQuery(() =>
-              supabase.from('chiusura_turno_pistole').insert([{
-                pistola_id: gunId,
-                numeratore_chiusura: numeroLitri,
-                turno_id: currentTurnoId
-              }])
-            );
-          }
-        } else {
-          await safeSupabaseQuery(() =>
-            supabase.from('chiusura_turno_pistole').insert([{
+            const { error: insertCounterError } = await safeSupabaseQuery(async () => await supabase.from('chiusura_turno_pistole').insert([{
               pistola_id: gunId,
               numeratore_chiusura: numeroLitri,
-              turno_id: 1 // Init with 1 if nothing exists
+              turno_id: currentTurnoId
             }])
+            );
+            if (insertCounterError) { throw insertCounterError; }
+          }
+        } else {
+          const { error: initCounterError } = await safeSupabaseQuery(async () => await supabase.from('chiusura_turno_pistole').insert([{
+            pistola_id: gunId,
+            numeratore_chiusura: numeroLitri,
+            turno_id: 1 // Init with 1 if nothing exists
+          }])
           );
+          if (initCounterError) { throw initCounterError; }
         }
 
         showInfoModal(`Numeratore aggiornato a ${formatGunCounter(numeroLitri)} L`);
@@ -616,13 +626,12 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
   }
 }
 
-async function deleteGun(gunId: number, islandId: number, islandName: string, stationId: number | string): Promise<void> {
+async function deleteGun(gunId: number, islandId: number, islandName: string, stationId: number): Promise<void> {
   try {
     if (!await openConfirmModal('Sei sicuro di voler eliminare questa pistola?')) { return; }
 
-    await safeSupabaseQuery(() =>
-      supabase.from('pistole').delete().eq('id', gunId)
-    );
+    const { error: deleteError } = await safeSupabaseQuery(async () => await supabase.from('pistole').delete().eq('id', gunId));
+    if (deleteError) { throw deleteError; }
 
     showInfoModal('Pistola eliminata con successo!');
     showGunsModal(islandId, islandName, stationId);

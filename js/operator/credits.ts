@@ -3,12 +3,33 @@
 // Gestione crediti clienti (Nuovo Credito vs Pagamento)
 // ==========================================
 import { supabase } from '../core/api.js';
-import { CreditoCliente } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
+
+// Local interface aligned with DB schema (crediti_clienti) to avoid stale/loose typings.
+interface CreditoCliente {
+  id: number;
+  station_id: number | null;
+  cliente: string;
+  importo: number;
+  saldo: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+function toNumericId(value: number | string): number {
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10);
+    if (Number.isNaN(parsed)) {
+      throw new Error(`ID non numerico: "${value}"`);
+    }
+    return parsed;
+  }
+  return value;
+}
 
 /**
  * Mostra il menu principale per la gestione crediti
@@ -206,17 +227,19 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
   // Customer Search Logic
   const nameInput = document.getElementById('customer-name') as HTMLInputElement | null;
   const suggestionsDiv = document.getElementById('customer-suggestions') as HTMLElement | null;
-  let debounceTimer: any;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   if (nameInput && suggestionsDiv) {
     nameInput.addEventListener('input', (e) => {
-      clearTimeout(debounceTimer);
+      if (debounceTimer) { clearTimeout(debounceTimer); }
       const query = (e.target as HTMLInputElement).value;
       if (query.length < 2) {
         suggestionsDiv.style.display = 'none';
         return;
       }
-      debounceTimer = setTimeout(() => searchCustomersForInput(query, stationId, suggestionsDiv, nameInput), 300);
+      debounceTimer = setTimeout(() => {
+        void searchCustomersForInput(query, stationId, suggestionsDiv, nameInput);
+      }, 300);
     });
   }
 
@@ -237,24 +260,29 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
         await processNewCredit(stationId, userId, customerName, amount, product, notes);
         closeModal();
         showInfoModal('Credito registrato con successo!');
-      } catch (err: any) {
-        Toast.show('Errore: ' + err.message, 'error');
-      }
+        } catch (err) {
+        if (err instanceof Error) {
+          Toast.show('Errore: ' + err.message, 'error');
+        } else {
+          Toast.show('Errore imprevisto', 'error');
+        }
+        }
     });
   }
 }
 
 async function searchCustomersForInput(query: string, stationId: number | string, suggestionsDiv: HTMLElement, inputField: HTMLInputElement): Promise<void> {
   try {
+    const numericStationId = toNumericId(stationId);
     const { data: customers } = await supabase
       .from('crediti_clienti')
       .select('cliente')
-      .eq('station_id', stationId)
+      .eq('station_id', numericStationId)
       .ilike('cliente', `%${query}%`)
       .limit(5);
 
     if (customers && customers.length > 0) {
-      suggestionsDiv.innerHTML = customers.map((c: any) => `
+      suggestionsDiv.innerHTML = customers.map((c) => `
                 <div class="suggestion-item">${escapeHtml(c.cliente)}</div>
             `).join('');
       suggestionsDiv.style.display = 'block';
@@ -275,11 +303,14 @@ async function searchCustomersForInput(query: string, stationId: number | string
 }
 
 export async function processNewCredit(stationId: number | string, userId: string, customerName: string, amount: number, product: string, notes: string): Promise<void> {
+  const numericStationId = toNumericId(stationId);
+  const numericOperatorId = toNumericId(userId);
+
   // 1. Trova o crea cliente
   let { data: customer, error: fetchError } = await supabase
     .from('crediti_clienti')
     .select('*')
-    .eq('station_id', stationId)
+    .eq('station_id', numericStationId)
     .ilike('cliente', customerName)
     .maybeSingle();
 
@@ -288,7 +319,7 @@ export async function processNewCredit(stationId: number | string, userId: strin
   if (!customer) {
     const { data: newCustomer, error: createError } = await supabase
       .from('crediti_clienti')
-      .insert([{ station_id: stationId, cliente: customerName, saldo: 0, importo: 0 }])
+      .insert([{ station_id: numericStationId, cliente: customerName, saldo: 0, importo: 0 }])
       .select()
       .single();
 
@@ -312,8 +343,8 @@ export async function processNewCredit(stationId: number | string, userId: strin
     .from('crediti_movimenti')
     .insert([{
       cliente_id: customer.id,
-      station_id: stationId,
-      operator_id: userId,
+      station_id: numericStationId,
+      operator_id: numericOperatorId,
       tipo: 'credito',
       importo: amount,
       metodo: 'credito',
@@ -325,8 +356,8 @@ export async function processNewCredit(stationId: number | string, userId: strin
   const { error: cashMoveError } = await supabase
     .from('movimenti_cassa')
     .insert([{
-      station_id: stationId,
-      operator_id: userId,
+      station_id: numericStationId,
+      operator_id: numericOperatorId,
       tipo: 'credito',
       importo: amount,
       descrizione: `Credito: ${customerName} (${product}) ${notes ? '- ' + notes : ''}`,
@@ -371,10 +402,11 @@ async function showPaymentSelection(stationId: number | string, userId: string):
   // Load debtors
   const loadDebtors = async (filter = ''): Promise<void> => {
     try {
+      const numericStationId = toNumericId(stationId);
       let query = supabase
         .from('crediti_clienti')
         .select('*')
-        .eq('station_id', stationId)
+        .eq('station_id', numericStationId)
         .gt('saldo', 0.01) // Solo chi ha debito
         .order('cliente');
 
@@ -390,11 +422,11 @@ async function showPaymentSelection(stationId: number | string, userId: string):
         return;
       }
 
-      listContainer.innerHTML = debtors.map((d: any) => `
+      listContainer.innerHTML = debtors.map((d) => `
                 <div class="result-item" data-id="${d.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer;">
                     <div>
                         <div style="font-weight: bold; font-size: 1.1rem;">${escapeHtml(d.cliente)}</div>
-                        <div style="font-size: 0.85rem; color: #64748b;">Ultimo agg: ${new Date(d.updated_at || d.created_at).toLocaleDateString()}</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">Ultimo agg: ${new Date(d.updated_at || d.created_at || '').toLocaleDateString()}</div>
                     </div>
                     <div style="text-align: right;">
                         <div style="font-weight: bold; color: #ef4444; font-size: 1.2rem;">${formatEuro(d.saldo)}</div>
@@ -408,13 +440,17 @@ async function showPaymentSelection(stationId: number | string, userId: string):
         const item = itemElement as HTMLElement;
         item.addEventListener('click', () => {
           const id = item.dataset.id;
-          const debtor = debtors.find((x: any) => x.id.toString() === id);
-          if (debtor) { showPaymentModal(debtor as unknown as CreditoCliente, stationId, userId); }
+          const debtor = debtors.find((x) => x.id.toString() === id);
+          if (debtor) { showPaymentModal(debtor, stationId, userId); }
         });
       });
 
-    } catch (err: any) {
-      listContainer.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
+    } catch (err) {
+      if (err instanceof Error) {
+        listContainer.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
+      } else {
+        listContainer.innerHTML = '<p class="error-text">Errore imprevisto</p>';
+      }
     }
   };
 
@@ -529,6 +565,9 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
 }
 
 export async function processPayment(stationId: number | string, userId: string, customer: CreditoCliente, amount: number, method: string): Promise<void> {
+  const numericStationId = toNumericId(stationId);
+  const numericOperatorId = toNumericId(userId);
+
   // 1. Aggiorna saldo (Diminuisce debito)
   const newBalance = Math.max(0, (customer.saldo || 0) - amount);
   const { error: updateError } = await supabase
@@ -547,8 +586,8 @@ export async function processPayment(stationId: number | string, userId: string,
     .from('crediti_movimenti')
     .insert([{
       cliente_id: customer.id,
-      station_id: stationId,
-      operator_id: userId,
+      station_id: numericStationId,
+      operator_id: numericOperatorId,
       tipo: movementType,
       importo: amount,
       metodo: method,
@@ -559,8 +598,8 @@ export async function processPayment(stationId: number | string, userId: string,
   const { error: cashMoveError } = await supabase
     .from('movimenti_cassa')
     .insert([{
-      station_id: stationId,
-      operator_id: userId,
+      station_id: numericStationId,
+      operator_id: numericOperatorId,
       tipo: movementType,
       importo: amount,
       descrizione: `Pagamento Credito: ${customer.cliente} (${method})`,
