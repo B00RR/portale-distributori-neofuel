@@ -1,10 +1,62 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, safeSupabaseQuery, getStationName } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showLoadingMessage, showInfoModal, openConfirmModal, showErrorMessage } from '../ui/ui.js';
 import { escapeHtml } from '../utils/utils.js';
 
 import { showGunsModal } from './guns.js';
+
+// --- DOM HELPERS ---
+
+function createIcon(className: string): HTMLElement {
+  const icon = document.createElement('i');
+  icon.className = className;
+  return icon;
+}
+
+function createEl<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  options: {
+    id?: string;
+    classes?: string[];
+    text?: string;
+    attrs?: Record<string, string>;
+    dataset?: Record<string, string>;
+    style?: Record<string, string>;
+    children?: (HTMLElement | Node)[];
+    type?: string;
+    value?: string;
+    required?: boolean;
+    placeholder?: string;
+    name?: string;
+  } = {}
+): HTMLElementTagNameMap[K] {
+  const el = document.createElement(tag);
+  if (options.id) {el.id = options.id;}
+  if (options.classes) {el.classList.add(...options.classes.filter(Boolean));}
+  if (options.text !== undefined) {el.textContent = options.text;}
+  if (options.attrs) {
+    Object.entries(options.attrs).forEach(([key, value]) => {
+      el.setAttribute(key, value);
+    });
+  }
+  if (options.dataset) {
+    Object.entries(options.dataset).forEach(([key, value]) => {
+      el.setAttribute(`data-${key}`, value);
+    });
+  }
+  if (options.style) {
+    Object.entries(options.style).forEach(([key, value]) => {
+      el.style.setProperty(key, value);
+    });
+  }
+  if (options.children) {
+    options.children.forEach(child => el.appendChild(child));
+  }
+  if (options.value !== undefined && (tag === 'input' || tag === 'textarea' || tag === 'select')) {
+    (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value = options.value;
+  }
+  return el;
+}
 
 // --- INTERFACES ---
 
@@ -32,7 +84,7 @@ export async function showIslandsModal(stationId: number | string): Promise<void
   const target = document.getElementById('modal-body');
   if (!target) {return;}
 
-  const renderIslands = async () => {
+  const renderIslands = async (): Promise<void> => {
     showLoadingMessage(target);
 
     try {
@@ -52,52 +104,84 @@ export async function showIslandsModal(stationId: number | string): Promise<void
 
       const islands = rawIslands as IslandWithGuns[];
 
-      let html = `
-        <div class="islands-list" style="margin-bottom: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h4>Isole Configurate</h4>
-            <button class="menu-button primary small-btn" id="add-island-btn">
-              <i class="fas fa-plus"></i> Aggiungi Isola
-            </button>
-          </div>
-          ${(!islands || islands.length === 0) ? '<p>Nessuna isola configurata.</p>' : ''}
-          <div class="islands-grid">
-      `;
+      target.innerHTML = '';
 
-      if (islands && islands.length > 0) {
+      const wrapper = createEl('div', {
+        classes: ['islands-list'],
+        style: { marginBottom: '20px' }
+      });
+
+      const header = createEl('div', {
+        style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
+        children: [
+          createEl('h4', { text: 'Isole Configurate' }),
+          createEl('button', {
+            id: 'add-island-btn',
+            classes: ['menu-button', 'primary', 'small-btn'],
+            children: [createIcon('fas fa-plus'), document.createTextNode(' Aggiungi Isola')]
+          })
+        ]
+      });
+      wrapper.appendChild(header);
+
+      if (!islands || islands.length === 0) {
+        wrapper.appendChild(createEl('p', { text: 'Nessuna isola configurata.' }));
+      } else {
+        const grid = createEl('div', { classes: ['islands-grid'] });
+
         islands.forEach(island => {
           const gunsCount = island.pistole?.length || 0;
           const name = island.nome || island.island_name || `Isola ${island.island_id}`;
-          html += `
-            <div class="island-card" style="background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
-              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-                <div>
-                  <h5 style="margin: 0 0 5px 0;">${escapeHtml(name)}</h5>
-                  <span class="badge badge-info">${gunsCount} pistol${gunsCount !== 1 ? 'e' : 'a'}</span>
-                </div>
-                <button class="icon-btn delete-island" data-id="${island.island_id}" title="Elimina" style="color: #ef4444;">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-              <div style="display: flex; gap: 8px; margin-top: 10px;">
-                <button class="menu-button secondary small-btn edit-island" data-id="${island.island_id}">
-                  <i class="fas fa-edit"></i> Modifica
-                </button>
-                <button class="menu-button primary small-btn manage-guns" data-id="${island.island_id}" data-name="${escapeHtml(name)}">
-                  <i class="fas fa-gas-pump"></i> Gestisci Pistole
-                </button>
-              </div>
-            </div>
-          `;
+
+          const card = createEl('div', {
+            classes: ['island-card'],
+            style: { background: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }
+          });
+
+          const cardHeader = createEl('div', {
+            style: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' },
+            children: [
+              createEl('div', {
+                children: [
+                  createEl('h5', { style: { margin: '0 0 5px 0' }, text: escapeHtml(name) }),
+                  createEl('span', { classes: ['badge', 'badge-info'], text: `${gunsCount} pistol${gunsCount !== 1 ? 'e' : 'a'}` })
+                ]
+              }),
+              createEl('button', {
+                classes: ['icon-btn', 'delete-island'],
+                dataset: { id: String(island.island_id) },
+                attrs: { title: 'Elimina' },
+                style: { color: '#ef4444' },
+                children: [createIcon('fas fa-trash')]
+              })
+            ]
+          });
+          card.appendChild(cardHeader);
+
+          const actions = createEl('div', {
+            style: { display: 'flex', gap: '8px', marginTop: '10px' },
+            children: [
+              createEl('button', {
+                classes: ['menu-button', 'secondary', 'small-btn', 'edit-island'],
+                dataset: { id: String(island.island_id) },
+                children: [createIcon('fas fa-edit'), document.createTextNode(' Modifica')]
+              }),
+              createEl('button', {
+                classes: ['menu-button', 'primary', 'small-btn', 'manage-guns'],
+                dataset: { id: String(island.island_id), name: escapeHtml(name) },
+                children: [createIcon('fas fa-gas-pump'), document.createTextNode(' Gestisci Pistole')]
+              })
+            ]
+          });
+          card.appendChild(actions);
+
+          grid.appendChild(card);
         });
+
+        wrapper.appendChild(grid);
       }
 
-      html += `
-          </div>
-        </div>
-      `;
-
-      target.innerHTML = html;
+      target.appendChild(wrapper);
 
       // Event listeners
       const addBtn = document.getElementById('add-island-btn');
@@ -132,7 +216,7 @@ export async function showIslandsModal(stationId: number | string): Promise<void
 
     } catch (err) {
       // Use showErrorMessage for consistent error UI inside modal
-      (showErrorMessage as any)(target, err); // Assuming showErrorMessage handles generic error object
+      showErrorMessage(target, err);
     }
   };
 
@@ -158,18 +242,38 @@ async function openIslandForm(stationId: number | string, islandId: number | nul
     }
   }
 
-  target.innerHTML = `
-    <form id="island-form">
-      <div class="form-group">
-        <label>Nome Isola</label>
-        <input type="text" name="nome" value="${escapeHtml(island.nome || island.island_name || '')}" required placeholder="es. Isola 1">
-      </div>
-      <div style="display: flex; gap: 10px;">
-        <button type="button" class="menu-button btn-danger" id="cancel-btn">Annulla</button>
-        <button type="submit" class="menu-button btn-success">${isEdit ? 'Salva Modifiche' : 'Crea Isola'}</button>
-      </div>
-    </form>
-  `;
+  target.innerHTML = '';
+
+  const form = createEl('form', { id: 'island-form' });
+
+  const formGroup = createEl('div', { classes: ['form-group'] });
+  formGroup.appendChild(createEl('label', { text: 'Nome Isola' }));
+  formGroup.appendChild(createEl('input', {
+    attrs: {
+      type: 'text',
+      name: 'nome',
+      required: 'required',
+      placeholder: 'es. Isola 1'
+    },
+    value: island.nome || island.island_name || ''
+  }));
+  form.appendChild(formGroup);
+
+  const actions = createEl('div', { style: { display: 'flex', gap: '10px' } });
+  actions.appendChild(createEl('button', {
+    id: 'cancel-btn',
+    classes: ['menu-button', 'btn-danger'],
+    attrs: { type: 'button' },
+    text: 'Annulla'
+  }));
+  actions.appendChild(createEl('button', {
+    classes: ['menu-button', 'btn-success'],
+    attrs: { type: 'submit' },
+    text: isEdit ? 'Salva Modifiche' : 'Crea Isola'
+  }));
+  form.appendChild(actions);
+
+  target.appendChild(form);
 
   const cancelBtn = document.getElementById('cancel-btn');
   if (cancelBtn) {
@@ -179,9 +283,9 @@ async function openIslandForm(stationId: number | string, islandId: number | nul
     });
   }
 
-  const form = document.getElementById('island-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
+  const formEl = document.getElementById('island-form');
+  if (formEl) {
+    formEl.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target as HTMLFormElement);
       const nome = fd.get('nome')?.toString() || '';

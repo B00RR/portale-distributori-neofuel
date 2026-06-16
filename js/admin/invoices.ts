@@ -1,9 +1,54 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage } from '../ui/ui.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
+
+// --- DOM HELPER ---
+
+function createIcon(className: string): HTMLElement {
+  const icon = document.createElement('i');
+  icon.className = className;
+  return icon;
+}
+
+function createEl<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  options: {
+    id?: string;
+    classes?: string[];
+    text?: string;
+    attrs?: Record<string, string>;
+    dataset?: Record<string, string>;
+    style?: Record<string, string>;
+    children?: (HTMLElement | Node)[];
+  } = {}
+): HTMLElementTagNameMap[K] {
+  const el = document.createElement(tag);
+  if (options.id) {el.id = options.id;}
+  if (options.classes) {el.classList.add(...options.classes.filter(Boolean));}
+  if (options.text !== undefined) {el.textContent = options.text;}
+  if (options.attrs) {
+    Object.entries(options.attrs).forEach(([key, value]) => {
+      el.setAttribute(key, value);
+    });
+  }
+  if (options.dataset) {
+    Object.entries(options.dataset).forEach(([key, value]) => {
+      el.setAttribute(`data-${key}`, value);
+    });
+  }
+  if (options.style) {
+    Object.entries(options.style).forEach(([key, value]) => {
+      el.style.setProperty(key, value);
+    });
+  }
+  if (options.children) {
+    options.children.forEach(child => el.appendChild(child));
+  }
+  return el;
+}
 
 // --- INTERFACES ---
 
@@ -82,7 +127,8 @@ export async function showFattureTab(
     if (invoices && invoices.length > 0) {
       const clienteIds = invoices
         .filter(inv => inv.cliente_id)
-        .map(inv => inv.cliente_id!)
+        .map(inv => inv.cliente_id)
+        .filter((id): id is number => !!id)
         .filter((id, index, self) => self.indexOf(id) === index); // remove duplicates
 
       if (clienteIds.length > 0) {
@@ -110,7 +156,10 @@ export async function showFattureTab(
     }
 
     if (!invoices || invoices.length === 0) {
-      container.innerHTML = '<p>Nessuna richiesta fattura trovata.</p>';
+      const p = document.createElement('p');
+      p.textContent = 'Nessuna richiesta fattura trovata.';
+      container.innerHTML = '';
+      container.appendChild(p);
       return;
     }
 
@@ -122,47 +171,87 @@ export async function showFattureTab(
 }
 
 function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void {
-  let html = `
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Data Richiesta</th>
-              <th>Cliente</th>
-              <th>Importo</th>
-              <th>Metodo Pagamento</th>
-              <th>Categoria Prodotto</th>
-              <th>Distributore</th>
-              <th>Operatore</th>
-              <th>Stato</th>
-              <th>Note</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+  container.innerHTML = '';
+
+  const wrapper = createEl('div', { classes: ['table-responsive'] });
+  const table = createEl('table', { classes: ['admin-table'] });
+
+  const thead = createEl('thead', {
+    children: [
+      createEl('tr', {
+        children: [
+          createEl('th', { text: 'Data Richiesta' }),
+          createEl('th', { text: 'Cliente' }),
+          createEl('th', { text: 'Importo' }),
+          createEl('th', { text: 'Metodo Pagamento' }),
+          createEl('th', { text: 'Categoria Prodotto' }),
+          createEl('th', { text: 'Distributore' }),
+          createEl('th', { text: 'Operatore' }),
+          createEl('th', { text: 'Stato' }),
+          createEl('th', { text: 'Note' }),
+          createEl('th', { text: 'Azioni' })
+        ]
+      })
+    ]
+  });
+  table.appendChild(thead);
+
+  const tbody = createEl('tbody');
 
   invoices.forEach(inv => {
     const stationName = inv.fuel_stations?.station_name || '-';
     const operatorName = inv.users?.full_name || inv.users?.username || '-';
     const customerName = inv.clienti_fatturazione?.nome || inv.customer_name || '-';
 
-    let statusBadge = '';
+    const statusBadgeStyle = {
+      padding: '4px 8px',
+      borderRadius: '4px',
+      fontSize: '0.85rem'
+    };
+
+    let statusBadge: HTMLElement;
     if (inv.status === 'pending') {
-      statusBadge = '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">In Attesa</span>';
+      statusBadge = createEl('span', {
+        style: { ...statusBadgeStyle, background: '#fef3c7', color: '#92400e' },
+        text: 'In Attesa'
+      });
     } else if (inv.status === 'completed' || inv.status === 'emessa') {
-      statusBadge = '<span style="background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Emessa</span>';
+      statusBadge = createEl('span', {
+        style: { ...statusBadgeStyle, background: '#d1fae5', color: '#065f46' },
+        text: 'Emessa'
+      });
     } else {
-      statusBadge = '<span style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">Annullata</span>';
+      statusBadge = createEl('span', {
+        style: { ...statusBadgeStyle, background: '#fee2e2', color: '#991b1b' },
+        text: 'Annullata'
+      });
     }
 
-    let paymentMethodBtn = '-';
+    const paymentBadgeStyle = {
+      padding: '4px 8px',
+      borderRadius: '4px',
+      fontSize: '0.85rem',
+      fontWeight: '600'
+    };
+
+    let paymentMethodCell: HTMLElement;
     if (inv.payment_method === 'contanti') {
-      paymentMethodBtn = '<span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">Contanti</span>';
+      paymentMethodCell = createEl('span', {
+        style: { ...paymentBadgeStyle, background: '#dbeafe', color: '#1e40af' },
+        text: 'Contanti'
+      });
     } else if (inv.payment_method === 'pos') {
-      paymentMethodBtn = '<span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">POS</span>';
+      paymentMethodCell = createEl('span', {
+        style: { ...paymentBadgeStyle, background: '#fef3c7', color: '#92400e' },
+        text: 'POS'
+      });
     } else if (inv.payment_method === 'bonifico') {
-      paymentMethodBtn = '<span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">Bonifico</span>';
+      paymentMethodCell = createEl('span', {
+        style: { ...paymentBadgeStyle, background: '#e0e7ff', color: '#3730a3' },
+        text: 'Bonifico'
+      });
+    } else {
+      paymentMethodCell = document.createTextNode('-') as unknown as HTMLElement;
     }
 
     const productCategory = inv.product_category
@@ -170,30 +259,41 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
       : '-';
 
     const isEmitted = inv.status === 'completed' || inv.status === 'emessa';
-    const toggleStatusAction = isEmitted
-      ? `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="pending" title="Segna come non emessa"><i class="fas fa-undo"></i></button>`
-      : `<button class="icon-btn toggle-status" data-id="${inv.id}" data-status="completed" title="Segna come emessa"><i class="fas fa-check"></i></button>`;
+    const toggleBtn = createEl('button', {
+      classes: ['icon-btn', 'toggle-status'],
+      dataset: {
+        id: String(inv.id),
+        status: isEmitted ? 'pending' : 'completed'
+      },
+      attrs: {
+        title: isEmitted ? 'Segna come non emessa' : 'Segna come emessa'
+      },
+      children: [createIcon(isEmitted ? 'fas fa-undo' : 'fas fa-check')]
+    });
 
-    html += `
-        <tr>
-          <td>${inv.created_at ? new Date(inv.created_at).toLocaleDateString('it-IT') : '-'}</td>
-          <td><strong>${escapeHtml(customerName)}</strong></td>
-          <td><strong>${formatEuro(inv.amount || 0)}</strong></td>
-          <td>${paymentMethodBtn}</td>
-          <td>${escapeHtml(productCategory)}</td>
-          <td>${escapeHtml(stationName)}</td>
-          <td>${escapeHtml(operatorName)}</td>
-          <td>${statusBadge}</td>
-          <td>${escapeHtml(inv.notes || '')}</td>
-          <td>
-            ${toggleStatusAction}
-          </td>
-        </tr>
-      `;
+    const dateText = inv.created_at ? new Date(inv.created_at).toLocaleDateString('it-IT') : '-';
+
+    const row = createEl('tr', {
+      children: [
+        createEl('td', { text: dateText }),
+        createEl('td', { children: [createEl('strong', { text: escapeHtml(customerName) })] }),
+        createEl('td', { children: [createEl('strong', { text: formatEuro(inv.amount || 0) })] }),
+        createEl('td', { children: [paymentMethodCell] }),
+        createEl('td', { text: escapeHtml(productCategory) }),
+        createEl('td', { text: escapeHtml(stationName) }),
+        createEl('td', { text: escapeHtml(operatorName) }),
+        createEl('td', { children: [statusBadge] }),
+        createEl('td', { text: escapeHtml(inv.notes || '') }),
+        createEl('td', { children: [toggleBtn] })
+      ]
+    });
+
+    tbody.appendChild(row);
   });
 
-  html += '</tbody></table></div>';
-  container.innerHTML = html;
+  table.appendChild(tbody);
+  wrapper.appendChild(table);
+  container.appendChild(wrapper);
 
   // Bind events
   container.querySelectorAll('.toggle-status').forEach(btn => {
@@ -201,7 +301,7 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
       const id = (btn as HTMLElement).dataset.id;
       const status = (btn as HTMLElement).dataset.status;
       if (id && status) {
-        toggleInvoiceStatus(parseInt(id), status as InvoiceStatus);
+        toggleInvoiceStatus(parseInt(id, 10), status as InvoiceStatus);
       }
     });
   });
@@ -222,11 +322,11 @@ async function toggleInvoiceStatus(id: number, newStatus: InvoiceStatus): Promis
     // Since we are inside the module, we can't easily access the "router" to reload the tab cleanly without import cycle.
     // A simple way is to dispatch a custom event or click the tab again.
     // Or better: just locate the tab button and click it to refresh.
-    const activeTab = document.querySelector('.nav-btn.active') as HTMLElement;
+    const activeTab = document.querySelector('.nav-btn.active') as HTMLElement | null;
     if (activeTab) {activeTab.click();}
 
   } catch (err) {
-    console.error(err);
+    logger.error('toggleInvoiceStatus', err);
     Toast.show('Errore aggiornamento stato', 'error');
   }
 }
