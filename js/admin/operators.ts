@@ -109,9 +109,9 @@ export async function showOperatorsTab(container: HTMLElement, actionsContainer:
           <td><span class="badge role-${u.role || 'operator'}">${roleLabel}</span></td>
           <td>${escapeHtml(stationName)}</td>
           <td>
-            <button class="icon-btn edit-operator" data-id="${u.user_id}" title="Modifica"><i class="fas fa-edit"></i></button>
-            <button class="icon-btn assign-station" data-id="${u.user_id}" title="Assegna Stazione"><i class="fas fa-map-marker-alt"></i></button>
-            <button class="icon-btn delete-operator" data-id="${u.user_id}" title="Elimina" style="color: #ff4d4d;"><i class="fas fa-trash-alt"></i></button>
+            <button class="icon-btn edit-operator" data-id="${u.user_id}" title="Modifica" aria-label="Modifica"><i class="fas fa-edit"></i></button>
+            <button class="icon-btn assign-station" data-id="${u.user_id}" title="Assegna Stazione" aria-label="Assegna Stazione"><i class="fas fa-map-marker-alt"></i></button>
+            <button class="icon-btn delete-operator" data-id="${u.user_id}" title="Elimina" aria-label="Elimina" style="color: #ff4d4d;"><i class="fas fa-trash-alt"></i></button>
           </td>
         </tr>
       `;

@@ -57,7 +57,7 @@ export async function renderOperatorShell(container: HTMLElement, handlers: Oper
                     <span id="sync-indicator" class="sync-badge" title="Operazioni in attesa di sincronizzazione">
                         <i class="fas fa-sync-alt"></i> <span id="sync-count">0</span>
                     </span>
-                    <button id="op-logout-btn" class="icon-btn"><i class="fas fa-sign-out-alt"></i></button>
+                    <button id="op-logout-btn" class="icon-btn" aria-label="Esci" title="Esci"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </header>
             

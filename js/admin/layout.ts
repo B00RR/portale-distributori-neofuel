@@ -106,7 +106,7 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
                     </div>
                     <div class="admin-header-right">
                         <div id="header-actions" class="header-actions"></div>
-                        <button class="header-icon-btn" type="button" title="Notifiche">
+                        <button class="header-icon-btn" type="button" title="Notifiche" aria-label="Notifiche">
                             <i class="fas fa-bell"></i>
                         </button>
                     </div>

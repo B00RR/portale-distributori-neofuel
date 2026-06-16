@@ -119,11 +119,13 @@ export function setupLoginForm(): void {
                     passwordIcon.classList.remove('fa-eye');
                     passwordIcon.classList.add('fa-eye-slash');
                     toggleBtn.title = 'Nascondi password';
+                    toggleBtn.setAttribute('aria-label', 'Nascondi password');
                 } else {
                     passwordInput.type = 'password';
                     passwordIcon.classList.remove('fa-eye-slash');
                     passwordIcon.classList.add('fa-eye');
                     toggleBtn.title = 'Mostra password';
+                    toggleBtn.setAttribute('aria-label', 'Mostra password');
                 }
             }
         });
