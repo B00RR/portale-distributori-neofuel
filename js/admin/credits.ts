@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { Validators, validateForm, formatErrorMessages } from '../shared/validators.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from '../ui/ui.js';
-import { escapeHtml, formatEuro } from '../utils/utils.js';
+import { formatEuro } from '../utils/utils.js';
 
 // --- INTERFACES ---
 
@@ -43,11 +43,13 @@ export async function showCreditiOverview(
   showLoadingMessage(container);
 
   if (actionsContainer) {
-    actionsContainer.innerHTML = '<button class="action-btn primary" id="add-customer-btn"><i class="fas fa-plus"></i> Nuovo Cliente</button>';
-    const addBtn = document.getElementById('add-customer-btn');
-    if (addBtn) {
-      addBtn.addEventListener('click', () => openCustomerModal());
-    }
+    actionsContainer.innerHTML = '';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'action-btn primary';
+    addBtn.id = 'add-customer-btn';
+    addBtn.innerHTML = '<i class="fas fa-plus"></i> Nuovo Cliente';
+    actionsContainer.appendChild(addBtn);
+    addBtn.addEventListener('click', () => openCustomerModal());
   }
 
   try {
@@ -70,43 +72,74 @@ export async function showCreditiOverview(
     const customers = rawCustomers as CreditCustomer[];
 
     if (!customers || customers.length === 0) {
-      container.innerHTML = '<p>Nessun cliente trovato.</p>';
+      const p = document.createElement('p');
+      p.textContent = 'Nessun cliente trovato.';
+      container.innerHTML = '';
+      container.appendChild(p);
       return;
     }
 
-    let html = `
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Distributore</th>
-              <th>Saldo Attuale</th>
-              <th>Ultimo Aggiornamento</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+    container.innerHTML = '';
+    const tableResponsive = document.createElement('div');
+    tableResponsive.className = 'table-responsive';
+    const table = document.createElement('table');
+    table.className = 'admin-table';
 
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Cliente', 'Distributore', 'Saldo Attuale', 'Ultimo Aggiornamento', 'Azioni'].forEach(text => {
+      const th = document.createElement('th');
+      th.textContent = text;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
     customers.forEach(c => {
       const stationName = c.fuel_stations?.station_name || '-';
-      html += `
-        <tr>
-          <td>${escapeHtml(c.cliente)}</td>
-          <td>${escapeHtml(stationName)}</td>
-          <td><strong>${formatEuro(c.saldo || 0)}</strong></td>
-          <td>${c.updated_at ? new Date(c.updated_at).toLocaleDateString() : '-'}</td>
-          <td>
-            <button class="icon-btn edit-customer" data-id="${c.id}" title="Modifica"><i class="fas fa-edit"></i></button>
-            <button class="icon-btn delete-customer" data-id="${c.id}" title="Elimina"><i class="fas fa-trash"></i></button>
-          </td>
-        </tr>
-      `;
+      const tr = document.createElement('tr');
+
+      const tdCliente = document.createElement('td');
+      tdCliente.textContent = c.cliente;
+      tr.appendChild(tdCliente);
+
+      const tdStation = document.createElement('td');
+      tdStation.textContent = stationName;
+      tr.appendChild(tdStation);
+
+      const tdSaldo = document.createElement('td');
+      const strong = document.createElement('strong');
+      strong.textContent = formatEuro(c.saldo || 0);
+      tdSaldo.appendChild(strong);
+      tr.appendChild(tdSaldo);
+
+      const tdUpdated = document.createElement('td');
+      tdUpdated.textContent = c.updated_at ? new Date(c.updated_at).toLocaleDateString() : '-';
+      tr.appendChild(tdUpdated);
+
+      const tdActions = document.createElement('td');
+      const editBtn = document.createElement('button');
+      editBtn.className = 'icon-btn edit-customer';
+      editBtn.dataset.id = String(c.id);
+      editBtn.title = 'Modifica';
+      editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+      tdActions.appendChild(editBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'icon-btn delete-customer';
+      deleteBtn.dataset.id = String(c.id);
+      deleteBtn.title = 'Elimina';
+      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      tdActions.appendChild(deleteBtn);
+
+      tr.appendChild(tdActions);
+      tbody.appendChild(tr);
     });
 
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
+    table.appendChild(tbody);
+    tableResponsive.appendChild(table);
+    container.appendChild(tableResponsive);
 
     // Bind events
     container.querySelectorAll('.edit-customer').forEach(btn => {
@@ -142,27 +175,50 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
       if (error) {throw error;}
       customer = data as CreditCustomer;
     } catch (err) {
-      console.error('Error loading customer', err);
+      logger.error('openCustomerModal', err);
       // Continue with empty? or show error?
     }
   }
 
-  target.innerHTML = `
-    <form id="customer-form">
-      <div class="form-group">
-        <label>Nome Cliente / Azienda</label>
-        <input type="text" name="cliente" value="${escapeHtml(customer.cliente || '')}" required>
-      </div>
-      ${!isEdit ? `
-      <div class="form-group">
-        <label>Saldo Iniziale (€)</label>
-        <input type="number" name="saldo" step="0.01">
-      </div>` : ''}
-      <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Cliente'}</button>
-    </form>
-  `;
+  target.innerHTML = '';
+  const form = document.createElement('form');
+  form.id = 'customer-form';
 
-  const form = document.getElementById('customer-form') as HTMLFormElement;
+  const nameGroup = document.createElement('div');
+  nameGroup.className = 'form-group';
+  const nameLabel = document.createElement('label');
+  nameLabel.textContent = 'Nome Cliente / Azienda';
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.name = 'cliente';
+  nameInput.value = customer.cliente || '';
+  nameInput.required = true;
+  nameGroup.appendChild(nameLabel);
+  nameGroup.appendChild(nameInput);
+  form.appendChild(nameGroup);
+
+  if (!isEdit) {
+    const saldoGroup = document.createElement('div');
+    saldoGroup.className = 'form-group';
+    const saldoLabel = document.createElement('label');
+    saldoLabel.textContent = 'Saldo Iniziale (€)';
+    const saldoInput = document.createElement('input');
+    saldoInput.type = 'number';
+    saldoInput.name = 'saldo';
+    saldoInput.step = '0.01';
+    saldoGroup.appendChild(saldoLabel);
+    saldoGroup.appendChild(saldoInput);
+    form.appendChild(saldoGroup);
+  }
+
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'submit';
+  submitBtn.className = 'menu-button primary';
+  submitBtn.textContent = isEdit ? 'Salva Modifiche' : 'Crea Cliente';
+  form.appendChild(submitBtn);
+
+  target.appendChild(form);
+
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

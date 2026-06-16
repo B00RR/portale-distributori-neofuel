@@ -3,7 +3,7 @@
  * Provides reusable UI functions: loaders, modals, confirmations, prompts
  */
 
-import { escapeHtml } from '../utils/utils.js';
+import { logger } from '../core/logger.js';
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -30,13 +30,18 @@ export function initAdminContent(): AdminContentElements {
  * Show loading message (Animated Logo)
  */
 export function showLoadingMessage(content: HTMLElement | null): void {
-  if (content) {
-    content.innerHTML = `
-            <div class="loader-container">
-                <img src="/assets/images/logo-svg.svg" alt="Loading..." class="loader-logo">
-            </div>
-        `;
-  }
+  if (!content) { return; }
+  content.innerHTML = '';
+  const container = document.createElement('div');
+  container.className = 'loader-container';
+
+  const img = document.createElement('img');
+  img.src = '/assets/images/logo-svg.svg';
+  img.alt = 'Loading...';
+  img.className = 'loader-logo';
+
+  container.appendChild(img);
+  content.appendChild(container);
 }
 
 /**
@@ -50,9 +55,14 @@ export function showFullScreenLoader(): void {
     loader.className = 'loader-overlay-full';
     document.body.appendChild(loader);
   }
-  loader.innerHTML = `
-        <img src="/assets/images/logo-svg.svg" alt="Loading..." class="loader-logo">
-    `;
+  loader.innerHTML = '';
+
+  const img = document.createElement('img');
+  img.src = '/assets/images/logo-svg.svg';
+  img.alt = 'Loading...';
+  img.className = 'loader-logo';
+
+  loader.appendChild(img);
   loader.style.display = 'flex';
 }
 
@@ -83,9 +93,15 @@ export function showErrorMessage(
   if (content) {
     const errorObj = error as { message?: string };
     const errorMsg = errorObj?.message || (typeof error === 'string' ? error : null) || defaultMessage;
-    content.innerHTML = `<span class="text-danger">${escapeHtml(errorMsg)}</span>`;
+
+    const span = document.createElement('span');
+    span.className = 'text-danger';
+    span.textContent = errorMsg;
+
+    content.innerHTML = '';
+    content.appendChild(span);
   }
-  console.error(defaultMessage, error);
+  logger.error('showErrorMessage', error);
 }
 
 // ========== MODAL FUNCTIONS ==========
@@ -99,6 +115,8 @@ export function openModal(title: string = ''): void {
     modal = document.createElement('div');
     modal.id = 'app-modal';
     modal.className = 'modal-overlay';
+    // Static internal markup — no user input
+    // eslint-disable-next-line no-unsanitized/property
     modal.innerHTML = `
             <div class="modal-content">
                 <div class="modal-header">
@@ -149,17 +167,24 @@ export function showInfoModal(message: string, title: string = 'Informazione'): 
   const target = document.getElementById('modal-body');
   if (!target) {return;}
 
-  target.innerHTML = `
-        <p class="mb-3">${escapeHtml(message)}</p>
-        <div class="text-right">
-            <button id="info-modal-ok" class="menu-button primary">Ok</button>
-        </div>
-    `;
+  target.innerHTML = '';
 
-  const okBtn = document.getElementById('info-modal-ok');
-  if (okBtn) {
-    okBtn.addEventListener('click', () => closeModal(), { once: true });
-  }
+  const p = document.createElement('p');
+  p.className = 'mb-3';
+  p.textContent = message;
+  target.appendChild(p);
+
+  const actions = document.createElement('div');
+  actions.className = 'text-right';
+
+  const okBtn = document.createElement('button');
+  okBtn.id = 'info-modal-ok';
+  okBtn.className = 'menu-button primary';
+  okBtn.textContent = 'Ok';
+  actions.appendChild(okBtn);
+  target.appendChild(actions);
+
+  okBtn.addEventListener('click', () => closeModal(), { once: true });
 }
 
 /**
@@ -175,16 +200,28 @@ export function openConfirmModal(message: string): Promise<boolean> {
       return;
     }
 
-    target.innerHTML = `
-            <p>${escapeHtml(message)}</p>
-            <div class="d-flex justify-end gap-2 mt-4">
-                <button id="confirm-cancel" class="menu-button btn-danger">Annulla</button>
-                <button id="confirm-ok" class="menu-button btn-success">Conferma</button>
-            </div>
-        `;
+    target.innerHTML = '';
 
-    const okBtn = document.getElementById('confirm-ok');
-    const cancelBtn = document.getElementById('confirm-cancel');
+    const p = document.createElement('p');
+    p.textContent = message;
+    target.appendChild(p);
+
+    const actions = document.createElement('div');
+    actions.className = 'd-flex justify-end gap-2 mt-4';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.id = 'confirm-cancel';
+    cancelBtn.className = 'menu-button btn-danger';
+    cancelBtn.textContent = 'Annulla';
+    actions.appendChild(cancelBtn);
+
+    const okBtn = document.createElement('button');
+    okBtn.id = 'confirm-ok';
+    okBtn.className = 'menu-button btn-success';
+    okBtn.textContent = 'Conferma';
+    actions.appendChild(okBtn);
+
+    target.appendChild(actions);
 
     const handleOk = (): void => {
       closeModal();
@@ -196,8 +233,8 @@ export function openConfirmModal(message: string): Promise<boolean> {
       resolve(false);
     };
 
-    if (okBtn) {okBtn.addEventListener('click', handleOk, { once: true });}
-    if (cancelBtn) {cancelBtn.addEventListener('click', handleCancel, { once: true });}
+    okBtn.addEventListener('click', handleOk, { once: true });
+    cancelBtn.addEventListener('click', handleCancel, { once: true });
   });
 }
 
@@ -221,26 +258,47 @@ export function showPromptModal(
       return;
     }
 
-    target.innerHTML = `
-            <p class="mb-3">${escapeHtml(message)}</p>
-            <div class="form-group">
-                <input type="text" id="prompt-input" class="form-control w-100 p-2" value="${escapeHtml(defaultValue)}">
-            </div>
-            <div class="d-flex justify-end gap-2 mt-4">
-                <button id="prompt-cancel" class="menu-button">Annulla</button>
-                <button id="prompt-ok" class="menu-button primary">Ok</button>
-            </div>
-        `;
+    target.innerHTML = '';
 
-    const input = document.getElementById('prompt-input') as HTMLInputElement | null;
-    const okBtn = document.getElementById('prompt-ok');
-    const cancelBtn = document.getElementById('prompt-cancel');
+    const p = document.createElement('p');
+    p.className = 'mb-3';
+    p.textContent = message;
+    target.appendChild(p);
+
+    const group = document.createElement('div');
+    group.className = 'form-group';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'prompt-input';
+    input.className = 'form-control w-100 p-2';
+    input.value = defaultValue;
+
+    group.appendChild(input);
+    target.appendChild(group);
+
+    const actions = document.createElement('div');
+    actions.className = 'd-flex justify-end gap-2 mt-4';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.id = 'prompt-cancel';
+    cancelBtn.className = 'menu-button';
+    cancelBtn.textContent = 'Annulla';
+    actions.appendChild(cancelBtn);
+
+    const okBtn = document.createElement('button');
+    okBtn.id = 'prompt-ok';
+    okBtn.className = 'menu-button primary';
+    okBtn.textContent = 'Ok';
+    actions.appendChild(okBtn);
+
+    target.appendChild(actions);
 
     // Auto-focus on input
-    setTimeout(() => input?.focus(), 100);
+    setTimeout(() => input.focus(), 100);
 
     const handleOk = (): void => {
-      const val = input?.value || '';
+      const val = input.value || '';
       closeModal();
       resolve(val);
     };
@@ -250,14 +308,12 @@ export function showPromptModal(
       resolve(null);
     };
 
-    if (okBtn) {okBtn.addEventListener('click', handleOk, { once: true });}
-    if (cancelBtn) {cancelBtn.addEventListener('click', handleCancel, { once: true });}
-    if (input) {
-      input.addEventListener('keydown', (e: KeyboardEvent) => {
-        if (e.key === 'Enter') {handleOk();}
-        if (e.key === 'Escape') {handleCancel();}
-      });
-    }
+    okBtn.addEventListener('click', handleOk, { once: true });
+    cancelBtn.addEventListener('click', handleCancel, { once: true });
+    input.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {handleOk();}
+      if (e.key === 'Escape') {handleCancel();}
+    });
   });
 }
 
@@ -276,9 +332,18 @@ export function setButtonLoading(
   if (isLoading) {
     btn.dataset.originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingText}`;
+    btn.innerHTML = '';
+
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-spinner fa-spin';
+    btn.appendChild(icon);
+    btn.appendChild(document.createTextNode(' ' + loadingText));
   } else {
-    btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
+    const original = btn.dataset.originalText;
+    if (original) {
+      // eslint-disable-next-line no-unsanitized/property
+      btn.innerHTML = original;
+    }
     btn.disabled = false;
   }
 }

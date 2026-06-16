@@ -7,9 +7,9 @@ import { showDashboardConfigPanel } from './admin/dashboard-config.js';
 import { renderAdminShell, renderBreadcrumbs } from './admin/layout.js';
 import { router, AdminTab } from './admin/router.js';
 import { supabase, safeSupabaseQuery } from './core/api.js';
+import { logger } from './core/logger.js';
 import { store } from './shared/state.js';
 import { FuelStation } from './types.js';
-import { escapeHtml } from './utils/utils.js';
 
 /**
  * Main entry point for Admin Area
@@ -22,7 +22,7 @@ export function showAdminArea(): void {
   const userRole = user?.role || 'operator';
   const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
 
-  console.log('[Admin] showAdminArea role:', userRole, 'isFullAdmin:', isFullAdmin);
+  logger.info('Admin', 'showAdminArea role: ' + userRole + ' isFullAdmin: ' + isFullAdmin);
 
   // Initialize router with user role
   router.init(userRole);
@@ -46,8 +46,8 @@ export function showAdminArea(): void {
         supabase.from('fuel_stations').select('station_id, station_name').order('station_name')
       );
       if (data) {
-        store.setStations(data as any);
-        stations = data as any;
+        store.setStations(data as FuelStation[]);
+        stations = data as FuelStation[];
       }
     }
 
@@ -74,30 +74,52 @@ export function showAdminArea(): void {
       container.prepend(filterWrapper); // Filter on the left, buttons on the right
     }
 
-    filterWrapper.innerHTML = `
-            <div class="global-filter-wrapper">
-                <i class="fas fa-filter filter-icon"></i>
-                <select id="global-station-filter" class="global-filter-select">
-                    ${isFullAdmin ? '<option value="">Tutte le Stazioni</option>' : ''}
-                    ${options.map(s => `<option value="${s.station_id}" ${finalFilter == String(s.station_id) ? 'selected' : ''}>${escapeHtml(s.station_name)}</option>`).join('')}
-                </select>
-            </div>
-        `;
+    // Build filter DOM safely
+    filterWrapper.innerHTML = ''; // clear previous
+    const wrapper = document.createElement('div');
+    wrapper.className = 'global-filter-wrapper';
 
-    const filterSelect = document.getElementById('global-station-filter') as HTMLSelectElement | null;
-    if (filterSelect) {
-      filterSelect.addEventListener('change', (e: Event) => {
-        const val = (e.target as HTMLSelectElement).value;
-        store.setStationFilter(val || null);
-        router.navigateTo(router.getCurrentTab());
-      });
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-filter filter-icon';
+    wrapper.appendChild(icon);
+
+    const select = document.createElement('select');
+    select.id = 'global-station-filter';
+    select.className = 'global-filter-select';
+
+    if (isFullAdmin) {
+      const allOpt = document.createElement('option');
+      allOpt.value = '';
+      allOpt.textContent = 'Tutte le Stazioni';
+      select.appendChild(allOpt);
     }
+
+    const finalFilterStr = finalFilter ?? '';
+    options.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = String(s.station_id);
+      opt.textContent = s.station_name;
+      if (finalFilterStr === String(s.station_id)) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+
+    wrapper.appendChild(select);
+    filterWrapper.appendChild(wrapper);
+
+    select.addEventListener('change', (e: Event) => {
+      const val = (e.target as HTMLSelectElement).value;
+      store.setStationFilter(val || null);
+      router.navigateTo(router.getCurrentTab());
+    });
   }
 
   // Pre-initialize filter for restricted users
-  if (!isFullAdmin && (user as any)?.assignedStations && (user as any).assignedStations.length > 0) {
-    if (store.getFilter() === null) {
-      store.setStationFilter(String((user as any).assignedStations[0].id));
+  if (!isFullAdmin && user?.assignedStations && user.assignedStations.length > 0) {
+    const firstAssigned = user.assignedStations[0];
+    if (store.getFilter() === null && firstAssigned) {
+      store.setStationFilter(String(firstAssigned.id));
     }
   }
 

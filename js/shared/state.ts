@@ -109,9 +109,9 @@ class Store {
   /**
      * Update the global station filter
      */
-  setStationFilter(stationId: string | null): void {
-    this.state.stationFilter = stationId;
-    this.notify('stationFilter', stationId);
+  setStationFilter(stationId: string | number | null): void {
+    this.state.stationFilter = stationId === null ? null : String(stationId);
+    this.notify('stationFilter', this.state.stationFilter);
   }
 
   /**
