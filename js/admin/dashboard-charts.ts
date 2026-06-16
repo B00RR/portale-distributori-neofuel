@@ -1,15 +1,33 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
-import { getISODate, formatEuro } from '../utils/utils.js';
+import { logger } from '../core/logger.js';
+import { formatEuro, getISODate } from '../utils/utils.js';
 
 // --- TYPES (Simplified for Dashboard) ---
 declare global {
     interface Window {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Chart.js loaded via CDN
         Chart: any;
     }
 }
 
-const Chart = (window as any).Chart;
+const Chart = window.Chart;
+
+interface ClosingData extends Record<string, number | string | null | undefined> {
+    ricavo_teorico?: number | string | null;
+    litri_benzina?: number | string | null;
+    litri_gasolio?: number | string | null;
+    soldi_contanti?: number | string | null;
+    soldi_pos_totale?: number | string | null;
+    soldi_crediti?: number | string | null;
+    soldi_voucher?: number | string | null;
+}
+
+interface ShiftData {
+    closed_at: string;
+    closing_data: ClosingData | null;
+    station_id: number;
+}
 
 interface AnalyticsResult {
     daily: DayStats[];
@@ -34,6 +52,7 @@ interface AnalyticsTotals {
 }
 
 // Global chart instances store to destroy old charts on redraw
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Chart.js instances opaque
 const dashboardCharts: Record<string, any> = {};
 
 /**
@@ -58,6 +77,7 @@ export async function fetchAnalyticsData(stationId: string | number | null = nul
   const currentDate = new Date(startDate);
   while (currentDate <= endDate) {
     const iso = getISODate(currentDate);
+    // eslint-disable-next-line security/detect-object-injection -- iso is generated YYYY-MM-DD
     days[iso] = { date: iso, revenue: 0, liters_benzina: 0, liters_gasolio: 0 };
     currentDate.setDate(currentDate.getDate() + 1);
   }
@@ -75,18 +95,22 @@ export async function fetchAnalyticsData(stationId: string | number | null = nul
     const { data: shifts, error } = await query;
     if (error) {throw error;}
 
-    (shifts || []).forEach((s: any) => {
+    (shifts || []).forEach((s: ShiftData) => {
       if (!s.closed_at) {return;}
       const day = s.closed_at.substring(0, 10);
       const data = s.closing_data || {};
 
+      // eslint-disable-next-line security/detect-object-injection -- day validated by days map
       if (days[day]) {
         const rev = Number(data.ricavo_teorico || 0);
         const lb = Number(data.litri_benzina || 0);
         const lg = Number(data.litri_gasolio || 0);
 
+        // eslint-disable-next-line security/detect-object-injection -- day validated above
         days[day].revenue += rev;
+        // eslint-disable-next-line security/detect-object-injection -- day validated above
         days[day].liters_benzina += lb;
+        // eslint-disable-next-line security/detect-object-injection -- day validated above
         days[day].liters_gasolio += lg;
 
         totals.revenue += rev;
@@ -104,7 +128,7 @@ export async function fetchAnalyticsData(stationId: string | number | null = nul
       totals
     };
   } catch (err) {
-    console.error('Error fetching analytics data', err);
+    logger.error('fetchAnalyticsData', err);
     return { daily: [], totals };
   }
 }
@@ -114,8 +138,11 @@ export async function fetchAnalyticsData(stationId: string | number | null = nul
  */
 function getCtx(canvasId: string): HTMLCanvasElement | null {
   const ctx = document.getElementById(canvasId) as HTMLCanvasElement;
+  // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
   if (ctx && dashboardCharts[canvasId]) {
+    // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
     dashboardCharts[canvasId].destroy();
+    // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
     delete dashboardCharts[canvasId];
   }
   return ctx;
@@ -128,12 +155,14 @@ export function renderRevenueChart(data: AnalyticsResult, canvasId: string): voi
   const ctx = getCtx(canvasId);
   if (!ctx || !Chart) {return;}
 
+  // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'line',
     data: {
       labels: data.daily.map(d => new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
       datasets: [{
         label: 'Ricavi (€)',
+        // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
         data: data.daily.map(d => d.revenue),
         borderColor: '#10b981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -157,6 +186,7 @@ export function renderVolumeChart(data: AnalyticsResult, canvasId: string): void
   const ctx = getCtx(canvasId);
   if (!ctx || !Chart) {return;}
 
+  // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -182,6 +212,7 @@ export function renderPaymentChart(data: AnalyticsResult, canvasId: string): voi
   const ctx = getCtx(canvasId);
   if (!ctx || !Chart) {return;}
 
+  // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -203,6 +234,7 @@ export function renderFuelMixChart(data: AnalyticsResult, canvasId: string): voi
   const ctx = getCtx(canvasId);
   if (!ctx || !Chart) {return;}
 
+  // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'pie',
     data: {

@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { formatEuro, formatLitri, getISODate } from '../utils/utils.js';
 
 // --- TYPES ---
 declare global {
     interface Window {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Chart.js loaded via CDN
         Chart: any;
     }
 }
@@ -14,7 +16,7 @@ declare global {
 // We access it via window because it's loaded via CDN in index.html
 // Chart accessed lazily from window to support async loading and testing
 
-interface ClosingData {
+interface ClosingData extends Record<string, number | string | null | undefined> {
     ricavo_teorico?: number | string | null;
     litri_benzina?: number | string | null;
     litri_gasolio?: number | string | null;
@@ -22,7 +24,6 @@ interface ClosingData {
     soldi_pos_totale?: number | string | null;
     soldi_crediti?: number | string | null;
     soldi_voucher?: number | string | null;
-    [key: string]: any;
 }
 
 interface ShiftData {
@@ -56,6 +57,7 @@ interface AnalyticsResult {
 type DateRange = '7d' | '30d' | 'month' | 'year';
 
 // --- STATE ---
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Chart.js instances stored as opaque objects
 const charts: Record<string, any> = {}; // Store chart instances
 
 // --- MAIN FUNCTION ---
@@ -194,11 +196,11 @@ async function updateCharts(
       renderPaymentChart(aggregated);
       renderFuelMixChart(aggregated);
     } else {
-      console.error('Chart.js not found');
+      logger.error('Chart.js not found');
     }
-
   } catch (err) {
-    showErrorMessage(container, err);
+    logger.error('showAnalyticsTab', err);
+    showErrorMessage(container, err as Error);
   }
 }
 
@@ -225,6 +227,7 @@ function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Dat
   let loopCount = 0;
   while (currentDate <= endDate && loopCount < 400) {
     const iso = getISODate(currentDate); // YYYY-MM-DD
+    // eslint-disable-next-line security/detect-object-injection -- iso is a generated YYYY-MM-DD key within controlled loop
     days[iso] = {
       date: iso,
       revenue: 0,
@@ -240,16 +243,21 @@ function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Dat
     const day = s.closed_at.substring(0, 10);
     const data = s.closing_data || {};
 
+    // eslint-disable-next-line security/detect-object-injection -- day is a substring of closed_at already validated
     if (days[day]) {
       // Revenue
+      // eslint-disable-next-line security/detect-object-injection -- day is validated above
       const rev = Number(data.ricavo_teorico || 0);
+      // eslint-disable-next-line security/detect-object-injection -- day is validated above
       days[day].revenue += rev;
       totals.revenue += rev;
 
       // Liters
       const lb = Number(data.litri_benzina || 0);
       const lg = Number(data.litri_gasolio || 0);
+      // eslint-disable-next-line security/detect-object-injection -- day is validated above
       days[day].liters_benzina += lb;
+      // eslint-disable-next-line security/detect-object-injection -- day is validated above
       days[day].liters_gasolio += lg;
       totals.benzina += lb;
       totals.gasolio += lg;
@@ -273,8 +281,11 @@ function getChartContext(id: string): HTMLCanvasElement | null {
   if (!ctx) { return null; }
 
   // Destroy existing
+  // eslint-disable-next-line security/detect-object-injection -- id is a literal canvas element id
   if (charts[id]) {
+    // eslint-disable-next-line security/detect-object-injection -- id is a literal canvas element id
     charts[id].destroy();
+    // eslint-disable-next-line security/detect-object-injection -- id is a literal canvas element id
     delete charts[id];
   }
   return ctx;
@@ -284,7 +295,7 @@ function renderRevenueChart(data: AnalyticsResult): void {
   const ctx = getChartContext('revenue-chart');
   if (!ctx) { return; }
 
-  const Chart = (window as any).Chart;
+  const Chart = window.Chart;
   charts['revenue-chart'] = new Chart(ctx, {
     type: 'line',
     data: {

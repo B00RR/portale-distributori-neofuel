@@ -1,6 +1,8 @@
 // ==========================================
 // APP ENTRY POINT
 // ==========================================
+import { registerSW } from 'virtual:pwa-register';
+
 import { showAdminArea } from './admin.js';
 import { initAnalytics, trackLogin } from './core/analytics.js';
 import { supabase } from './core/api.js';
@@ -9,14 +11,13 @@ import {
   handlePasswordReset, requestPasswordReset
 } from './core/auth.js';
 import { LoggedUserData } from './core/auth.js';
+import { logger } from './core/logger.js';
 import { showOperatorMenu } from './operator.js';
 import { store, User as StateUser } from './shared/state.js';
 import { CustomWindow } from './types.js';
 import { Toast } from './ui/toast.js';
 import './ui/ui-settings-panel.js';
 import { initializeCalculationPresets } from './utils/calculation-presets.js';
-
-import { registerSW } from 'virtual:pwa-register';
 
 const customWindow = window as unknown as CustomWindow;
 const APP_VERSION = '1.2.0'; // Increment manually on breaking changes
@@ -31,7 +32,7 @@ async function initializeApp(): Promise<void> {
   // VERSION GUARD: Clear stale session data if version mismatch
   const storedVersion = localStorage.getItem('app_version');
   if (storedVersion !== APP_VERSION) {
-    console.log(`[App] Version mismatch: ${storedVersion} -> ${APP_VERSION}. Clearing Supabase cache.`);
+    logger.info('App', `Version mismatch: ${storedVersion} -> ${APP_VERSION}. Clearing Supabase cache.`);
     const keys = Object.keys(localStorage);
     for (const key of keys) {
       if (key.startsWith('sb-') || key.includes('supabase')) {
@@ -55,7 +56,7 @@ async function initializeApp(): Promise<void> {
       // Ensure stationId is a number
       const stationIdNum = Number(payload.stationId);
       if (isNaN(stationIdNum)) {
-        console.error('[OfflineQueue] Invalid station ID:', payload.stationId);
+        logger.error('OfflineQueue', 'Invalid station ID:', payload.stationId);
         return false;
       }
 
@@ -65,7 +66,7 @@ async function initializeApp(): Promise<void> {
         p_operator_id: payload.operatorId
       });
       if (error || (result && !result.success)) {
-        console.error('[OfflineQueue] Voucher redeem failed:', error || result?.error);
+        logger.error('OfflineQueue', 'Voucher redeem failed:', error || result?.error);
         return false;
       }
       return true;
@@ -85,16 +86,16 @@ async function initializeApp(): Promise<void> {
         p_tank_usage: []
       });
       if (error || (res && !res.success)) {
-        console.error('[OfflineQueue] Shift close failed:', error || res?.error);
+        logger.error('OfflineQueue', 'Shift close failed:', error || res?.error);
         return false;
       }
       return true;
     });
 
     setupAutoSync();
-    console.log('[App] Offline queue initialized with executors');
+    logger.info('App', 'Offline queue initialized with executors');
   } catch (err) {
-    console.warn('[App] Offline queue initialization failed:', err);
+    logger.warn('App', 'Offline queue initialization failed:', err);
   }
 
   // Configura callback login
@@ -132,7 +133,7 @@ async function initializeApp(): Promise<void> {
         try {
           await showOperatorMenu(String(userForStore.id), stId);
         } catch (err) {
-          console.error('[App] Failed to show operator menu:', err);
+          logger.error('App', 'Failed to show operator menu:', err);
           Toast.show('Errore durante il caricamento del menu operatore', 'error');
         }
       } else {
@@ -181,7 +182,7 @@ async function initializeApp(): Promise<void> {
         try {
           await showOperatorMenu(String(loggedUser.id), stId);
         } catch (err) {
-          console.error('[App] Failed to restore operator menu:', err);
+          logger.error('App', 'Failed to restore operator menu:', err);
           Toast.show('Errore durante il ripristino della sessione', 'error');
         }
       } else {
@@ -213,16 +214,17 @@ const updateSW = registerSW({
       action: {
         text: 'AGGIORNA',
         onClick: () => {
-          console.log('[PWA] Update button clicked');
+          logger.info('PWA', 'Update button clicked');
           // Force reload immediately after clicking
           updateSW(true)
             .then(() => {
-              console.log('[PWA] Update accepted, reloading...');
+              logger.info('PWA', 'Update accepted, reloading...');
               // Force hard reload to bypass cache
-              (window.location as any).reload(true);
+              window.location.reload();
+              return undefined;
             })
             .catch(e => {
-              console.error('[PWA] Update failed:', e);
+              logger.error('PWA', 'Update failed:', e);
               // Reload anyway to try to get new version
               window.location.reload();
             });
@@ -233,17 +235,17 @@ const updateSW = registerSW({
   onOfflineReady() {
     Toast.show('App pronta per l\'uso offline', 'success');
   },
-  onRegistered(r) {
+  onRegistered(r: ServiceWorkerRegistration | undefined): void {
     if (!r) {return;}
 
     // Poll for updates every 60 seconds (less aggressive)
     setInterval(() => {
-      r.update().catch(() => { });
+      r.update().catch(() => { /* ignore */ });
     }, 60 * 1000);
 
     // Immediate check when window gets focus
     window.addEventListener('focus', () => {
-      r.update().catch(() => { });
+      r.update().catch(() => { /* ignore */ });
     });
   }
 });

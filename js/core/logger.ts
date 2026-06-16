@@ -80,18 +80,31 @@ function log(level: LogLevel, context: string, message: string, errorId?: string
 
   switch (level) {
     case 'error':
+      // eslint-disable-next-line no-console -- logger backend must delegate to console
       console.error(`${timestamp} ERROR ${logMessage}`);
       break;
     case 'warn':
+      // eslint-disable-next-line no-console -- logger backend must delegate to console
       console.warn(`${timestamp} WARN ${logMessage}`);
       break;
     case 'info':
+      // eslint-disable-next-line no-console -- logger backend must delegate to console
       console.info(`${timestamp} INFO ${logMessage}`);
       break;
     case 'debug':
+      // eslint-disable-next-line no-console -- logger backend must delegate to console
       console.debug(`${timestamp} DEBUG ${logMessage}`);
       break;
   }
+}
+
+function formatArgs(args: unknown[]): string {
+  return args.map(arg => {
+    if (arg instanceof Error) { return safeErrorString(arg); }
+    if (typeof arg === 'string') { return maskSensitive(arg); }
+    if (typeof arg === 'number' || typeof arg === 'boolean') { return String(arg); }
+    return '[Object]';
+  }).join(' ');
 }
 
 // ========== PUBLIC API ==========
@@ -101,9 +114,9 @@ export const logger = {
      * Log an error safely (no full objects, masked sensitive data)
      * Returns an error ID for user-facing messages
      */
-  error(context: string, error: unknown): string {
+  error(context: string, ...args: unknown[]): string {
     const errorId = generateErrorId();
-    const safeMessage = safeErrorString(error);
+    const safeMessage = formatArgs(args);
     log('error', context, safeMessage, errorId);
     return errorId;
   },
@@ -111,22 +124,22 @@ export const logger = {
   /**
      * Log a warning
      */
-  warn(context: string, message: string): void {
-    log('warn', context, maskSensitive(message));
+  warn(context: string, ...args: unknown[]): void {
+    log('warn', context, formatArgs(args));
   },
 
   /**
      * Log info (non-sensitive operational info)
      */
-  info(context: string, message: string): void {
-    log('info', context, message);
+  info(context: string, ...args: unknown[]): void {
+    log('info', context, formatArgs(args));
   },
 
   /**
      * Log debug (development only)
      */
-  debug(context: string, message: string): void {
-    log('debug', context, message);
+  debug(context: string, ...args: unknown[]): void {
+    log('debug', context, formatArgs(args));
   },
 
   /**
