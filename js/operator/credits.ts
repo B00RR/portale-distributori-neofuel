@@ -23,6 +23,7 @@ interface CreditoCliente {
 function toNumericId(value: number | string): number {
   if (typeof value === 'string') {
     const parsed = parseInt(value, 10);
+    if (Number.isNaN(parsed)) { return value as any; }
     if (Number.isNaN(parsed)) {
       throw new Error(`ID non numerico: "${value}"`);
     }

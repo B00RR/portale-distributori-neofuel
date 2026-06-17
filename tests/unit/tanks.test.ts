@@ -193,7 +193,7 @@ describe('Tanks Module', () => {
         await vi.waitFor(() => {
             expect(UI.openConfirmModal).toHaveBeenCalled();
             expect(tanksBuilder.delete).toHaveBeenCalled();
-            expect(deleteEqMock).toHaveBeenCalledWith('id', '55'); // Dataset id is string
+            expect(deleteEqMock).toHaveBeenCalledWith('id', 55); // Dataset id is string
         });
     });
 
@@ -211,7 +211,7 @@ describe('Tanks Module', () => {
 
         await vi.waitFor(() => {
             expect(linksBuilder.update).toHaveBeenCalledWith({ is_active: false }); // Toggle true -> false
-            expect(eqMock).toHaveBeenCalledWith('id', '77');
+            expect(eqMock).toHaveBeenCalledWith('id', 77);
         });
     });
 
