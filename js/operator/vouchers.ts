@@ -23,8 +23,7 @@ export async function showVoucherMenu(stationId: number | string, userId: string
   // Listen for completion events to maybe close modal or refresh data
   // Note: We use 'any' cast for custom event typing if needed, 
   // or simply trust the event structure.
-  manager.addEventListener('voucher-redeemed', ((e: CustomEvent) => {
-    console.log('Voucher redeemed:', e.detail);
+  manager.addEventListener('voucher-redeemed', ((_e: CustomEvent) => {
     // Optional: Refresh dashboard data if needed, or let user close modal manually
     // closeModal(); // Or keep open for next scan (VoucherManager UI allows 'Nuova Scansione')
   }) as EventListener);

@@ -55,7 +55,6 @@ class OperatorRouter {
     }
 
     this.currentView = view;
-    console.log('[Router] Navigating to:', view);
 
     switch (view) {
       case 'apertura':

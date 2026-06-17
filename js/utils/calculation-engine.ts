@@ -191,7 +191,6 @@ class CalculationEngine {
 
       if (error) { throw error; }
       if (!data || !data.active_version_id) {
-        console.info(`Nessuna versione attiva per scope "${scope}"`);
         return null;
       }
 

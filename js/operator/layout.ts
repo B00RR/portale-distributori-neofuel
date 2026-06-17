@@ -157,7 +157,6 @@ export async function updateTurnoButton(
   }
 
   const opening = await (checkOpeningStatus as any)(stationId) as OpeningData | null;
-  console.log('[Layout] Opening Data:', opening);
 
   const turnoIcon = btnTurno.querySelector('#turno-icon') as HTMLElement | null;
   const turnoText = btnTurno.querySelector('#turno-text') as HTMLElement | null;
@@ -165,8 +164,6 @@ export async function updateTurnoButton(
   // Debug badge
   if (!badge) {
     console.error('[Layout] Badge opening-status NOT FOUND in DOM.');
-  } else {
-    console.log('[Layout] Badge opening-status FOUND.', badge);
   }
 
   if (opening) {
@@ -179,7 +176,6 @@ export async function updateTurnoButton(
     if (badge) {
       const hasPartial = opening.closing_data?.closure_stage === 'partial';
       const text = hasPartial ? 'Parziale' : 'Aperto';
-      console.log('[Layout] Setting badge text to:', text);
       badge.textContent = text;
       badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
       badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
@@ -193,7 +189,6 @@ export async function updateTurnoButton(
     btnTurno.onclick = () => handlers.onOpening(String(stationId), String(userId));
 
     if (badge) {
-      console.log('[Layout] Setting badge text to: Chiuso');
       badge.textContent = 'Chiuso';
       badge.className = 'status-badge status-closed';
       badge.title = 'Nessuna apertura attiva';

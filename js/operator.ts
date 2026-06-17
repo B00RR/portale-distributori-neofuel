@@ -12,11 +12,9 @@ import { store } from './shared/state.js';
  * @param userId - ID dell'operatore
  * @param stationId - ID della stazione
  */
-export async function showOperatorMenu(userId: string, stationId: string | number): Promise<void> {
+export async function showOperatorMenu(_userId: string, stationId: string | number): Promise<void> {
   const mainContent = document.getElementById('main-content');
   if (!mainContent) { return; }
-
-  console.log('[Operator] Initializing Operator Area. User:', userId, 'Station:', stationId);
 
   // Ensure state is updated (if not already set by app.js)
   const user = store.getUser();
@@ -24,7 +22,6 @@ export async function showOperatorMenu(userId: string, stationId: string | numbe
     // FORCE update of station_id to ensure it matches the one passed by app.js (authoritative from DB)
     const newStationId = typeof stationId === 'string' ? parseInt(stationId) : stationId;
     if (user.station_id !== newStationId) {
-      console.log('[Operator] Updating stale station_id in store:', user.station_id, '->', newStationId);
       user.station_id = newStationId;
       store.setUser(user);
     }
@@ -48,7 +45,6 @@ export async function showOperatorMenu(userId: string, stationId: string | numbe
     const opening = await checkOpeningStatus(stationId);
 
     if (opening) {
-      console.log('[Operator] Active shift found, redirecting to closure/dashboard...');
       // Optional: We could just show the menu (default) or go to specific page
       // For now, let's keep it on the dashboard (empty state but with menu) OR go to 'chiusura'
       // To be less intrusive, we might just let them choose. 
@@ -64,7 +60,6 @@ export async function showOperatorMenu(userId: string, stationId: string | numbe
       // OR: Navigate to a "Status" view.
       // Let's stick to the plan: if closed -> apertura.
     } else {
-      console.log('[Operator] No active shift, redirecting to Opening...');
       router.navigateTo('apertura');
     }
   } catch (err) {

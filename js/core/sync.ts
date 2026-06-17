@@ -19,7 +19,6 @@ class SyncManager {
   private _init(): void {
     // Ascolta l'evento online del browser
     window.addEventListener('online', () => {
-      console.log('Connessione ripristinata. Avvio sincronizzazione...');
       this.sync();
     });
 
@@ -39,7 +38,6 @@ class SyncManager {
     if (count === 0) { return; }
 
     this.isSyncing = true;
-    console.log(`Sincronizzazione di ${count} operazioni in corso...`);
 
     try {
       const queue = await offlineDB.getQueue();
@@ -88,10 +86,9 @@ class SyncManager {
      * Elabora un singolo elemento della coda
      * @param {QueuedMutation} item 
      */
-  private async _processItem(item: QueuedMutation): Promise<void> {
+  private async _processItem(_item: QueuedMutation): Promise<void> {
     // Implementazione placeholder: qui andrebbe la logica specifica 
     // per mappare 'mutation_retry' verso la tabella corretta di Supabase.
-    console.log('Processing sync item:', item);
     return new Promise(resolve => setTimeout(resolve, 500));
   }
 }

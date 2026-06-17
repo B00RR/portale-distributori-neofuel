@@ -6,7 +6,6 @@ import { CustomWindow } from '../types.js';
 
 // Accesso sicuro alle variabili d'ambiente Vite
 const env = (import.meta as any).env || {};
-const PLAUSIBLE_DOMAIN = env.VITE_ANALYTICS_DOMAIN || 'neofuel-portal.local';
 const PLAUSIBLE_ENABLED = env.VITE_ANALYTICS_ENABLED === 'true';
 
 /**
@@ -14,14 +13,11 @@ const PLAUSIBLE_ENABLED = env.VITE_ANALYTICS_ENABLED === 'true';
  */
 export function initAnalytics(): void {
   if (!PLAUSIBLE_ENABLED) {
-    console.info('[Analytics] Disabled');
     return;
   }
 
   // Plausible script is loaded via CDN in index.html
   // This module provides helper functions for custom events
-
-  console.info('[Analytics] Initialized for domain:', PLAUSIBLE_DOMAIN);
 }
 
 /**
@@ -31,7 +27,6 @@ export function initAnalytics(): void {
  */
 export function trackEvent(eventName: string, props: Record<string, any> = {}): void {
   if (!PLAUSIBLE_ENABLED || !(window as unknown as CustomWindow).plausible) {
-    console.debug('[Analytics] Event:', eventName, props);
     return;
   }
 

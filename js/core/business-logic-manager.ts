@@ -34,7 +34,6 @@ export const BusinessLogicManager = {
       if (error) {
         // If not found, return defaults and try to seed
         if (error.message?.includes('Object not found') || error.status === 404 || error.message === 'Storage download timeout') {
-          console.info('[BusinessLogic] Config not found or timeout, using defaults.');
           return DEFAULT_BUSINESS_RULES;
         }
         throw error;

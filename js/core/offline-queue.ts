@@ -46,7 +46,6 @@ export async function initOfflineQueue(): Promise<void> {
 
     request.onsuccess = () => {
       db = request.result;
-      console.log('[OfflineQueue] IndexedDB initialized');
       resolve();
     };
 
@@ -54,7 +53,6 @@ export async function initOfflineQueue(): Promise<void> {
       const database = (event.target as IDBOpenDBRequest).result;
       if (!database.objectStoreNames.contains(STORE_NAME)) {
         database.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        console.log('[OfflineQueue] Created object store:', STORE_NAME);
       }
     };
   });
@@ -87,7 +85,6 @@ export async function queueAction(
     const request = store.add(action);
 
     request.onsuccess = () => {
-      console.log('[OfflineQueue] Action queued:', action.id);
       Toast.show('Azione salvata. Verrà sincronizzata quando online.', 'info');
       resolve(action.id);
     };
@@ -134,7 +131,6 @@ export async function removeAction(id: string): Promise<void> {
     const request = store.delete(id);
 
     request.onsuccess = () => {
-      console.log('[OfflineQueue] Action removed:', id);
       resolve();
     };
 
@@ -169,7 +165,6 @@ async function incrementRetry(action: QueuedAction): Promise<void> {
  */
 export function registerExecutor(type: QueuedAction['type'], executor: ActionExecutor): void {
   executors.set(type, executor);
-  console.log('[OfflineQueue] Registered executor for:', type);
 }
 
 // ========== SYNC LOGIC ==========
@@ -184,7 +179,6 @@ export async function syncPendingActions(): Promise<{ success: number; failed: n
     return { success: 0, failed: 0 };
   }
 
-  console.log(`[OfflineQueue] Syncing ${pending.length} pending actions...`);
   Toast.show(`Sincronizzazione di ${pending.length} azioni...`, 'info');
 
   let success = 0;
@@ -244,12 +238,10 @@ export async function syncPendingActions(): Promise<{ success: number; failed: n
  */
 export function setupAutoSync(): void {
   window.addEventListener('online', () => {
-    console.log('[OfflineQueue] Back online, starting sync...');
     syncPendingActions();
   });
 
   window.addEventListener('offline', () => {
-    console.log('[OfflineQueue] Went offline');
     Toast.show('Connessione persa. Le azioni verranno salvate localmente.', 'warning');
   });
 

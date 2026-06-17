@@ -69,7 +69,6 @@ class AdminRouter {
   init(userRole: string | null | undefined): void {
     this.userRole = (userRole as UserRole) || 'operator';
     this.isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(this.userRole);
-    console.log('[Router] Initialized for role:', this.userRole, 'isFullAdmin:', this.isFullAdmin);
   }
 
   /**
