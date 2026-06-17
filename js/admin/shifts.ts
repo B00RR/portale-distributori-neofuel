@@ -220,9 +220,9 @@ export async function showChiusureTab(
                   <td><span class="badge ${closureClass}">${closureType}</span>${staleIndicator}</td>
                   <td>${total}</td>
                   <td>
-                    <button class="icon-btn view-closure" data-id="${c.id}" title="Dettagli"><i class="fas fa-eye"></i></button>
-                    <button class="icon-btn export-closure" data-id="${c.id}" title="Export"><i class="fas fa-file-export"></i></button>
-                    <button class="icon-btn delete-closure" data-id="${c.id}" title="Elimina" style="color: #dc2626;"><i class="fas fa-trash-alt"></i></button>
+                    <button class="icon-btn view-closure" data-id="${c.id}" title="Dettagli" aria-label="Dettagli"><i class="fas fa-eye"></i></button>
+                    <button class="icon-btn export-closure" data-id="${c.id}" title="Export" aria-label="Export"><i class="fas fa-file-export"></i></button>
+                    <button class="icon-btn delete-closure" data-id="${c.id}" title="Elimina" aria-label="Elimina" style="color: #dc2626;"><i class="fas fa-trash-alt"></i></button>
                   </td>
                 </tr>
               `;

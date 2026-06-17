@@ -11,18 +11,29 @@ import { Toast } from '../toast.js';
 import { BaseComponent } from './BaseComponent.js';
 declare const window: Window & { Html5Qrcode?: any };
 
+interface RpcResult {
+  success: boolean;
+  error?: string;
+}
+
+function isRpcResult(value: unknown): value is RpcResult {
+  return typeof value === 'object' && value !== null && 'success' in value && typeof value.success === 'boolean';
+}
+
 interface Voucher {
     code: string;
     amount: number;
-    voucher_batches?: { customer_name?: string };
+    voucher_batches?: { customer_name?: string } | null;
     customer_name?: string;
-    // Add other fields as needed based on DB schema
     id?: string;
-    status?: string;
-    batch_id?: number;
+    status?: string | null;
+    batch_id?: string | null;
     created_at?: string;
-    expires_at?: string;
-    redeemed_at?: string;
+    expiration_date?: string | null;
+    redeemed_at?: string | null;
+    redeemed_by?: string | null;
+    serial_number?: number | null;
+    station_id?: number | null;
 }
 
 export class VoucherManager extends BaseComponent {
@@ -330,7 +341,7 @@ export class VoucherManager extends BaseComponent {
           throw new Error('Codice non trovato.');
         }
 
-        const voucher = vouchers[0];
+        const voucher = vouchers[0] ?? null;
         const validation = validateVoucher(voucher);
 
         if (!validation.valid) {
@@ -375,12 +386,12 @@ export class VoucherManager extends BaseComponent {
         console.log('[Voucher] Redeeming voucher:', this.activeVoucher.code, 'Station:', this.stationId, 'Operator UUID:', this.userId);
         const { data: result, error } = await supabase.rpc('redeem_voucher_validated', {
           p_voucher_code: this.activeVoucher.code,
-          p_station_id: this.stationId,
+          p_station_id: Number(this.stationId),
           p_operator_id: this.userId
         });
 
         if (error) {throw error;}
-        if (result && !result.success) {throw new Error(result.error);}
+        if (result && isRpcResult(result) && !result.success) {throw new Error(result.error);}
 
         Toast.show('Voucher Riscattato!', 'success');
         this.mode = 'success';

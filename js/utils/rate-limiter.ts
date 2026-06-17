@@ -24,6 +24,8 @@ export function isRateLimited(
   maxAttempts: number = 5,
   windowMs: number = 60000 // 1 minute default
 ): boolean {
+  if (maxAttempts <= 0) {return true;}
+
   const now = Date.now();
   const entry = rateLimitStore.get(key);
 

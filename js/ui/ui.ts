@@ -121,7 +121,7 @@ export function openModal(title: string = ''): void {
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 id="modal-title"></h3>
-                    <button id="modal-close-btn">&times;</button>
+                    <button id="modal-close-btn" aria-label="Chiudi" title="Chiudi">&times;</button>
                 </div>
                 <div id="modal-body" class="modal-body"></div>
             </div>
