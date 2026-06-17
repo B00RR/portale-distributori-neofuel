@@ -2,7 +2,7 @@
 // OPERATOR OPENING SHIFT MANAGEMENT
 // Gestione apertura turno con caricamento contatori
 // ==========================================
-import { supabase } from '../core/api.js';
+import { supabase, type Json } from '../core/api.js';
 import { Shift } from '../types.js';
 import { closeModal, openModal } from '../ui/ui.js';
 
@@ -11,6 +11,14 @@ import {
 } from './ui-components.js';
 // Import component to register it
 import '../ui/components/ShiftOpener.js';
+
+function getClosingStage(data: Json | null): 'partial' | 'final' | undefined {
+  if (data && typeof data === 'object' && !Array.isArray(data) && 'closure_stage' in data) {
+    const stage = (data as Record<string, Json>).closure_stage;
+    if (stage === 'partial' || stage === 'final') return stage;
+  }
+  return undefined;
+}
 
 /**
  * Aggiorna il badge di stato apertura nel menu principale
@@ -23,7 +31,7 @@ export async function updateOpeningStatus(stationId: number | string): Promise<v
   const activeOpening = await checkOpeningStatus(stationId);
 
   if (activeOpening) {
-    const hasPartial = activeOpening.closing_data?.closure_stage === 'partial';
+    const hasPartial = getClosingStage(activeOpening.closing_data) === 'partial';
     const statusLabel = hasPartial ? 'Parziale' : 'Aperto';
     badge.textContent = statusLabel;
     badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
@@ -46,7 +54,7 @@ export async function checkOpeningStatus(stationId: number | string): Promise<Sh
     const { data, error } = await supabase
       .from('shifts')
       .select('id, opened_at, operator_id, status, opening_data, closing_data, users!operator_id(full_name)')
-      .eq('station_id', stationId)
+      .eq('station_id', Number(stationId))
       .is('closed_at', null)
       .order('opened_at', { ascending: false })
       .limit(1)
