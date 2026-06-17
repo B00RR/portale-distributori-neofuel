@@ -97,7 +97,7 @@ export async function showIslandsModal(stationId: number | string): Promise<void
           island_name,
           pistole (id)
         `)
-        .eq('station_id', stationId)
+        .eq('station_id', Number(stationId))
         .order('island_id', { ascending: true });
 
       if (error) { throw error; }
@@ -292,7 +292,7 @@ async function openIslandForm(stationId: number | string, islandId: number | nul
       const payload = {
         nome: nome,
         island_name: nome,
-        station_id: stationId
+        station_id: Number(stationId)
       };
 
       try {

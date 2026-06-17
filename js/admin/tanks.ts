@@ -425,6 +425,7 @@ function renderTanksAdminContent(
 // --- MAIN FUNCTIONS ---
 
 export async function showTanksAdminModal(stationId: number | string): Promise<void> {
+  const stationIdNum = Number(stationId);
   const stationName = await getStationName(stationId);
   openModal(`Gestione Cisterne - ${escapeHtml(stationName)}`);
   const target = document.getElementById('modal-body');
@@ -440,7 +441,7 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
         supabase
           .from('tanks')
           .select('*')
-          .eq('station_id', stationId)
+          .eq('station_id', stationIdNum)
           .order('name'),
         supabase
           .from('tank_pump_links')
@@ -457,12 +458,12 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
                       tanks ( id, name, fuel_type ),
                       pistole ( id, nome, tipo_carburante, islands(nome) )
                     `)
-          .eq('station_id', stationId)
+          .eq('station_id', stationIdNum)
           .order('pump_id'),
         supabase
           .from('pistole')
           .select('id, nome, tipo_carburante, islands!inner(island_id, nome, station_id)')
-          .eq('islands.station_id', stationId)
+          .eq('islands.station_id', stationIdNum)
           .order('nome')
       ]);
 
@@ -502,7 +503,7 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
           if (!confirmed) { return; }
           const id = btn.dataset.id;
           if (id) {
-            await safeSupabaseQuery(() => supabase.from('tanks').delete().eq('id', id));
+            await safeSupabaseQuery(() => supabase.from('tanks').delete().eq('id', Number(id)));
             renderTanks();
           }
         });
@@ -514,7 +515,7 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
         const form = e.target as HTMLFormElement;
         const fd = new FormData(form);
         const payload = {
-          station_id: stationId,
+          station_id: stationIdNum,
           name: fd.get('name')?.toString() || '',
           fuel_type: fd.get('fuel_type')?.toString() || '',
           capacity: parseFloat(fd.get('capacity')?.toString() || '0')
@@ -564,7 +565,7 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
         const fd = new FormData(form);
         const mode = fd.get('mode')?.toString() || 'auto';
         const payload = {
-          station_id: stationId,
+          station_id: stationIdNum,
           pump_id: parseInt(fd.get('pump_id')?.toString() || '0', 10),
           tank_id: parseInt(fd.get('tank_id')?.toString() || '0', 10),
           mode,
@@ -591,7 +592,7 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
           const id = btn.dataset.id;
           const current = btn.dataset.active === 'true';
           if (id) {
-            await safeSupabaseQuery(() => supabase.from('tank_pump_links').update({ is_active: !current }).eq('id', id));
+            await safeSupabaseQuery(() => supabase.from('tank_pump_links').update({ is_active: !current }).eq('id', Number(id)));
             renderTanks();
           }
         });
@@ -605,7 +606,7 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
           if (!confirmed) { return; }
           const id = btn.dataset.id;
           if (id) {
-            await safeSupabaseQuery(() => supabase.from('tank_pump_links').delete().eq('id', id));
+            await safeSupabaseQuery(() => supabase.from('tank_pump_links').delete().eq('id', Number(id)));
             renderTanks();
           }
         });

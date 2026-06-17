@@ -6,10 +6,37 @@ import { BusinessLogicManager } from '../../core/business-logic-manager.js';
 import { type BusinessRules, DEFAULT_BUSINESS_RULES } from '../../core/business-rules-schema.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { Pistola, Island, Shift } from '../../types.js';
+import type { Json } from '../../core/api.js';
 import { formatEuro } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
 
 import { BaseComponent } from './BaseComponent.js';
+
+interface RpcResult {
+  success: boolean;
+  error?: string;
+}
+
+function isRpcResult(value: unknown): value is RpcResult {
+  return typeof value === 'object' && value !== null && 'success' in value && typeof value.success === 'boolean';
+}
+
+function getRpcError(value: unknown): string | undefined {
+  if (isRpcResult(value)) {
+    return value.error;
+  }
+  return undefined;
+}
+
+function getClosingStage(data: Json | null): 'partial' | 'final' | undefined {
+  if (data && typeof data === 'object' && !Array.isArray(data) && 'closure_stage' in data) {
+    const stage = (data as Record<string, Json>).closure_stage;
+    if (stage === 'partial' || stage === 'final') {
+      return stage;
+    }
+  }
+  return undefined;
+}
 
 interface ClosureWizardState {
     step: 1 | 2 | 3;
@@ -21,6 +48,10 @@ export class ClosureWizard extends BaseComponent {
     @property({ type: String }) stationId: string = '';
     @property({ type: String }) userId: string = '';
     @property({ type: String }) shiftId: string = '';  // Optional: Can be used to load specific shift
+
+    private get numericStationId(): number {
+      return Number(this.stationId);
+    }
 
     @state() private wizardState: ClosureWizardState = {
       step: 1,
@@ -223,7 +254,7 @@ export class ClosureWizard extends BaseComponent {
         const { data: shiftResult, error: sError } = await supabase
           .from('shifts')
           .select('*, users!operator_id(full_name)')
-          .eq('station_id', this.stationId)
+          .eq('station_id', this.numericStationId)
           .is('closed_at', null)
           .order('opened_at', { ascending: false })
           .limit(1)
@@ -234,23 +265,29 @@ export class ClosureWizard extends BaseComponent {
           this.wizardState = { mode: 'error', errorMessage: 'Nessun turno aperto trovato per questa stazione.', step: 1 };
           return;
         }
-        this.activeOpening = shiftResult as unknown as Shift;
+        const activeOpening = shiftResult;
+        this.activeOpening = activeOpening;
 
+        const shiftId = activeOpening.id;
+        if (!shiftId) {
+          this.wizardState = { mode: 'error', errorMessage: 'Turno senza ID valido.', step: 1 };
+          return;
+        }
         const [islandsRes, prezziRes, configRes, countersRes, rules] = await Promise.all([
-          supabase.from('islands').select('island_id, nome, island_name').eq('station_id', this.stationId).order('island_id'),
-          supabase.from('prezzi_distributore').select('*').eq('station_id', this.stationId).order('data_validita', { ascending: false }).limit(1).maybeSingle(),
-          supabase.from('fuel_stations').select('allow_partial_closure').eq('station_id', this.stationId).single(),
-          supabase.from('shift_pistols').select('pistola_id, opened_at_counter').eq('shift_id', this.activeOpening.id),
+          supabase.from('islands').select('island_id, nome, island_name').eq('station_id', this.numericStationId).order('island_id'),
+          supabase.from('prezzi_distributore').select('*').eq('station_id', this.numericStationId).order('data_validita', { ascending: false }).limit(1).maybeSingle(),
+          supabase.from('fuel_stations').select('allow_partial_closure').eq('station_id', this.numericStationId).single(),
+          supabase.from('shift_pistols').select('pistola_id, opened_at_counter').eq('shift_id', shiftId),
           BusinessLogicManager.loadRules()
         ]);
 
         if (islandsRes.error) {throw islandsRes.error;}
 
-        this.islands = islandsRes.data.map((i: any, idx: number) => ({
+        this.islands = islandsRes.data.map((i: { island_id: number | null; nome: string | null; island_name: string | null }, idx: number) => ({
           island_id: i.island_id ?? idx + 1,
           nome: i.nome ?? i.island_name ?? `Isola ${idx + 1}`,
-          station_id: Number(this.stationId)
-        })) as unknown as Island[];
+          station_id: this.numericStationId
+        }));
 
         this.prezzi = prezziRes.data;
         this.stationConfig = configRes.data;
@@ -259,12 +296,12 @@ export class ClosureWizard extends BaseComponent {
         const islandIds = this.islands.map(i => i.island_id);
         const { data: pData, error: pError } = await supabase
           .from('pistole')
-          .select('*, islands(nome)')
+          .select('*, islands(island_id, nome, station_id)')
           .in('island_id', islandIds)
           .order('id');
 
         if (pError) {throw pError;}
-        this.pistole = (pData || []) as unknown as Pistola[];
+        this.pistole = pData ?? [];
 
         const countersMap: Record<number, number> = {};
         (countersRes.data || []).forEach((c: any) => {
@@ -308,7 +345,7 @@ export class ClosureWizard extends BaseComponent {
 
     private renderStep1(): TemplateResult {
       const canPartial = this.stationConfig?.allow_partial_closure !== false;
-      const isPartialCompleted = this.activeOpening?.closing_data?.closure_stage === 'partial';
+      const isPartialCompleted = getClosingStage(this.activeOpening?.closing_data ?? null) === 'partial';
 
       return html`
             <div class="section-title">Step 1: Configurazione & Contatori</div>
@@ -482,12 +519,21 @@ export class ClosureWizard extends BaseComponent {
         discrepanza: totalIncasso - this.ricavoTeorico, is_final: isFinal
       };
 
+      if (!this.activeOpening) {
+        Toast.show('Nessun turno aperto selezionato', 'error');
+        this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
+        return;
+      }
+
+      const activeOpening = this.activeOpening;
+      const activeOpeningId = Number(activeOpening.id);
+
       // Check if offline - queue action for later sync
       if (isOffline()) {
         try {
           await queueAction('shift_close', {
-            shiftId: this.activeOpening?.id,
-            stationId: Number(this.stationId),
+            shiftId: String(activeOpeningId),
+            stationId: this.numericStationId,
             closingData: dataJson,
             isFinal,
             finalCounters: this.includeCounters ? this.finalCounters : null
@@ -502,11 +548,13 @@ export class ClosureWizard extends BaseComponent {
       }
 
       try {
+        const closingDataJson: Json = dataJson;
+        const finalCountersJson: Json = this.includeCounters ? this.finalCounters : null;
         const { data: res, error } = await supabase.rpc('submit_shift_closure', {
-          p_shift_id: this.activeOpening?.id, p_station_id: Number(this.stationId), p_closing_data: dataJson,
-          p_is_final: isFinal, p_final_counters: this.includeCounters ? this.finalCounters : null, p_tank_usage: []
+          p_shift_id: String(activeOpeningId), p_station_id: this.numericStationId, p_closing_data: closingDataJson,
+          p_is_final: isFinal, p_final_counters: finalCountersJson, p_tank_usage: []
         });
-        if (error || (res && !res.success)) {throw new Error(error?.message || res?.error);}
+        if (error || (res && isRpcResult(res) && !res.success)) {throw new Error(error?.message || getRpcError(res));}
         Toast.show('Chiusura completata!', 'success');
         setTimeout(() => window.location.reload(), 2000);
       } catch (error: any) {

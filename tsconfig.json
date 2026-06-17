@@ -28,7 +28,8 @@
         "checkJs": false
     },
     "include": [
-        "js/**/*.ts"
+        "js/**/*.ts",
+        "supabase/database.types.ts"
     ],
     "exclude": [
         "node_modules",

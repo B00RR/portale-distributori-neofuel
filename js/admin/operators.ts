@@ -59,7 +59,7 @@ export async function showOperatorsTab(container: HTMLElement, actionsContainer:
 
     if (error) { throw error; }
 
-    const users = rawUsers as User[];
+    const users = rawUsers as unknown as User[];
 
     if (!users || users.length === 0) {
       container.innerHTML = '<p>Nessun operatore trovato.</p>';
@@ -174,8 +174,8 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
 
   let user: Partial<User> = {};
   if (userId) {
-    const { data } = await supabase.from('users').select('*').eq('user_id', userId).single();
-    user = (data as User) || {};
+    const { data } = await supabase.from('users').select('*').eq('user_id', Number(userId)).single();
+    user = (data as User | null) ?? {};
   }
 
   target.innerHTML = `
@@ -243,7 +243,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
           await safeSupabaseQuery(() => supabase.from('users').update({
             full_name: validation.data.full_name,
             role: validation.data.role
-          }).eq('user_id', userId));
+          }).eq('user_id', Number(userId)));
         } else {
           // Usa la Edge Function per creare l'utente senza perdere la sessione Admin
           const { data: fnData, error: fnError } = await supabase.functions.invoke('admin_create_user_v2', {
@@ -284,7 +284,7 @@ export async function openAssignStationModal(userId: string): Promise<void> {
 
   const [stationsRes, currentRes] = await Promise.all([
     supabase.from('fuel_stations').select('*'),
-    supabase.from('user_stations').select('station_id').eq('user_id', userId).maybeSingle()
+    supabase.from('user_stations').select('station_id').eq('user_id', Number(userId)).maybeSingle()
   ]);
 
   const stations = (stationsRes.data as FuelStation[]) || [];
@@ -316,10 +316,11 @@ export async function openAssignStationModal(userId: string): Promise<void> {
         setButtonLoading(submitBtn, true, 'Salvataggio...');
 
         // Use server-side RPC function for secure station assignment
-        const { error } = await supabase.rpc('admin_assign_station', {
-          p_user_id: userId,
-          p_station_id: stationId ? parseInt(stationId, 10) : null
-        });
+        const rpcArgs: { p_user_id: string; p_station_id?: number } = { p_user_id: userId };
+        if (stationId) {
+          rpcArgs.p_station_id = parseInt(stationId, 10);
+        }
+        const { error } = await supabase.rpc('admin_assign_station', rpcArgs);
 
         if (error) { throw error; }
 

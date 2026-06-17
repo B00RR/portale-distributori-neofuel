@@ -14,6 +14,8 @@ import { logger } from './logger.js';
 
 // ========== TYPE DEFINITIONS ==========
 
+export type Json = Database['public']['Functions']['submit_shift_closure']['Args']['p_closing_data'];
+
 export type AppSupabaseClient = SupabaseClient<Database>;
 
 export interface SupabaseQueryResult<T = unknown> {
@@ -27,7 +29,7 @@ interface PostgrestErrorExt extends PostgrestError {
     statusCode?: number;
 }
 
-export type QueryFunction = () => Promise<SupabaseQueryResult<unknown>>;
+export type QueryFunction<T = unknown> = () => PromiseLike<{ data: T | null; error: PostgrestError | null; offline?: boolean }>;
 
 // ========== SUPABASE CLIENT ==========
 
@@ -50,7 +52,7 @@ if (!globalThis.__supabaseClient) {
  * Modified to handle offline queue for mutations (insert, update, upsert, delete)
  */
 export async function safeSupabaseQuery<T = unknown>(
-  queryFn: QueryFunction,
+  queryFn: QueryFunction<T>,
   errorMessage: string = 'Errore nella query'
 ): Promise<SupabaseQueryResult<T>> {
   // Detect if the query is a mutation (rough but effective for PostgREST query builder)
@@ -95,7 +97,7 @@ export async function safeSupabaseQuery<T = unknown>(
  * Attempts to extract data from query function to save offline
  * @param _queryFn - The query function to queue (unused in current implementation)
  */
-async function handleOfflineMutation(_queryFn: QueryFunction): Promise<void> {
+async function handleOfflineMutation(_queryFn: QueryFunction<unknown>): Promise<void> {
   const { offlineDB } = await import('./offline-db.js');
   const { Toast } = await import('../ui/toast.js');
 

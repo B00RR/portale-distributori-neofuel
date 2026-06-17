@@ -8,7 +8,7 @@ export interface Voucher {
     id?: string;
     code: string;
     amount: number;
-    status: 'active' | 'redeemed' | 'expired' | 'void';
+    status: string | null;
     expiration_date?: string | null;
     redeemed_at?: string | null;
 }

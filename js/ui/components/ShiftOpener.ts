@@ -161,8 +161,8 @@ export class ShiftOpener extends BaseComponent {
       try {
         // 1. Parallel fetch of core station data
         const [islandsRes, tanksRes] = await Promise.all([
-          supabase.from('islands').select('island_id, nome, island_name').eq('station_id', this.stationId).order('island_id'),
-          supabase.from('tanks').select('*').eq('station_id', this.stationId).order('name')
+          supabase.from('islands').select('island_id, nome, island_name').eq('station_id', Number(this.stationId)).order('island_id'),
+          supabase.from('tanks').select('*').eq('station_id', Number(this.stationId)).order('name')
         ]);
 
         if (islandsRes.error) {throw islandsRes.error;}
@@ -196,8 +196,8 @@ export class ShiftOpener extends BaseComponent {
         const counters: Record<number, number> = {};
         this.pistole.forEach(p => {
           // Priority: shift_pistols -> chiusura_turno_pistole -> current numero_litri
-          const lastShift = newCounters.data?.find((c: { pistola_id?: number; closed_at_counter?: number }) => c.pistola_id === p.id);
-          const lastOld = oldCounters.data?.find((c: { pistola_id?: number; numeratore_chiusura?: number }) => c.pistola_id === p.id);
+          const lastShift = newCounters.data?.find(c => c.pistola_id === p.id);
+          const lastOld = oldCounters.data?.find(c => c.pistola_id === p.id);
 
           counters[p.id] = lastShift?.closed_at_counter ??
                     lastOld?.numeratore_chiusura ??
@@ -273,18 +273,18 @@ export class ShiftOpener extends BaseComponent {
           pos_amount: Number(formData.get('pos_amount')) || 0,
           total_amount: Number(formData.get('total_amount')) || 0,
           uta_dkv_iscard: Number(formData.get('uta_dkv_iscard')) || 0,
-          cash_in_minus_out: (Number(formData.get('cash_in')) || 0) - (Number(formData.get('cash_out')) || 0)
+          cash_in_minus_out: (Number(formData.get('cash_in')) || 0) - (Number(formData.get('cash_out')) || 0),
+          notes: String(formData.get('notes') ?? '')
         };
 
         const { data: shift, error: shiftError } = await supabase
           .from('shifts')
           .insert([{
-            station_id: this.stationId,
-            operator_id: this.userId,
+            station_id: Number(this.stationId),
+            operator_id: Number(this.userId),
             status: 'open',
             opened_at: new Date().toISOString(),
-            opening_data: openingData,
-            notes: formData.get('notes')
+            opening_data: openingData
           }])
           .select()
           .single();
@@ -309,11 +309,12 @@ export class ShiftOpener extends BaseComponent {
           const shiftTanks = this.tanks.map(t => ({
             shift_id: shift.id,
             tank_id: t.id,
-            opening_level: Number(formData.get(`tank_${t.id}`)) || 0
+            liters: Number(formData.get(`tank_${t.id}`)) || 0,
+            reading_type: 'opening'
           }));
 
           const { error: stError } = await supabase
-            .from('shift_tanks')
+            .from('tank_readings')
             .insert(shiftTanks);
 
           if (stError) {throw stError;}

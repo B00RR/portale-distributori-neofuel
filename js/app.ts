@@ -14,6 +14,7 @@ import { LoggedUserData } from './core/auth.js';
 import { logger } from './core/logger.js';
 import { showOperatorMenu } from './operator.js';
 import { store, User as StateUser } from './shared/state.js';
+import type { Json } from './core/api.js';
 import { CustomWindow } from './types.js';
 import { Toast } from './ui/toast.js';
 import './ui/ui-settings-panel.js';
@@ -21,6 +22,69 @@ import { initializeCalculationPresets } from './utils/calculation-presets.js';
 
 const customWindow = window as unknown as CustomWindow;
 const APP_VERSION = '1.2.0'; // Increment manually on breaking changes
+
+interface RpcResult {
+  success: boolean;
+  error?: string;
+}
+
+function isRpcResult(value: unknown): value is RpcResult {
+  return typeof value === 'object' && value !== null && 'success' in value && typeof value.success === 'boolean';
+}
+
+function getRpcError(value: unknown): string | undefined {
+  if (isRpcResult(value)) {
+    return value.error;
+  }
+  return undefined;
+}
+
+function toJsonValue(value: unknown): Json {
+  if (value === undefined) {
+    return null;
+  }
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value as Json;
+  }
+  if (Array.isArray(value)) {
+    return value.map(toJsonValue) as Json;
+  }
+  if (typeof value === 'object' && value !== null) {
+    const result: { [key: string]: Json | undefined } = {};
+    for (const key of Object.keys(value)) {
+      result[key] = toJsonValue((value as Record<string, unknown>)[key]);
+    }
+    return result;
+  }
+  return null;
+}
+
+function parseUserId(userId: string | number | undefined): number | undefined {
+  if (userId === undefined || userId === null || userId === '') {
+    return undefined;
+  }
+  const parsed = Number(userId);
+  if (Number.isNaN(parsed)) {
+    return undefined;
+  }
+  return parsed;
+}
+
+function mapLoggedUserToStoreUser(loggedUser: LoggedUserData): StateUser {
+  return {
+    id: loggedUser.id,
+    user_id: String(loggedUser.user_id),
+    email: loggedUser.email,
+    full_name: loggedUser.full_name,
+    role: loggedUser.role,
+    station_id: loggedUser.station_id ?? null
+  };
+}
 
 // Espone funzioni globali per compatibilità
 customWindow.requestPasswordReset = requestPasswordReset;
@@ -65,8 +129,8 @@ async function initializeApp(): Promise<void> {
         p_station_id: stationIdNum,
         p_operator_id: payload.operatorId
       });
-      if (error || (result && !result.success)) {
-        logger.error('OfflineQueue', 'Voucher redeem failed:', error || result?.error);
+      if (error || (result && isRpcResult(result) && !result.success)) {
+        logger.error('OfflineQueue', 'Voucher redeem failed:', error || getRpcError(result));
         return false;
       }
       return true;
@@ -74,19 +138,24 @@ async function initializeApp(): Promise<void> {
 
     registerExecutor('shift_close', async (action) => {
       const payload = action.payload as {
-                shiftId: number; stationId: number; closingData: Record<string, unknown>;
-                isFinal: boolean; finalCounters: unknown
-            };
+        shiftId: string;
+        stationId: number;
+        closingData: { [key: string]: unknown };
+        isFinal: boolean;
+        finalCounters: unknown;
+      };
+      const closingData = toJsonValue(payload.closingData);
+      const finalCounters = toJsonValue(payload.finalCounters);
       const { data: res, error } = await supabase.rpc('submit_shift_closure', {
         p_shift_id: payload.shiftId,
         p_station_id: payload.stationId,
-        p_closing_data: payload.closingData,
+        p_closing_data: closingData,
         p_is_final: payload.isFinal,
-        p_final_counters: payload.finalCounters,
+        p_final_counters: finalCounters,
         p_tank_usage: []
       });
-      if (error || (res && !res.success)) {
-        logger.error('OfflineQueue', 'Shift close failed:', error || res?.error);
+      if (error || (res && isRpcResult(res) && !res.success)) {
+        logger.error('OfflineQueue', 'Shift close failed:', error || getRpcError(res));
         return false;
       }
       return true;
@@ -101,17 +170,7 @@ async function initializeApp(): Promise<void> {
   // Configura callback login
   // Configura callback login
   setOnLoginSuccess(async (loggedUser: LoggedUserData) => {
-    // Explicitly map LoggedUserData to the User interface required by store
-    // We ensure all required properties are present
-    const userForStore: StateUser = {
-      id: loggedUser.id,
-      user_id: String(loggedUser.user_id),
-      email: loggedUser.email,
-      full_name: loggedUser.full_name,
-      role: loggedUser.role as StateUser['role'],
-      station_id: loggedUser.station_id
-    } as StateUser;
-
+    const userForStore = mapLoggedUserToStoreUser(loggedUser);
     store.setUser(userForStore);
 
     // Track login event
@@ -122,9 +181,14 @@ async function initializeApp(): Promise<void> {
       showAdminArea();
     } else {
       // ALWAYS fetch the authoritative station_id from DB, ignoring potential stale session data
-      let stId: number | null = null;
-      const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', userForStore.user_id).maybeSingle();
-      stId = us?.station_id;
+      const dbUserId = parseUserId(userForStore.user_id);
+      if (dbUserId === undefined) {
+        logger.error('App', 'Invalid user_id from store:', userForStore.user_id);
+        Toast.show('Errore identificativo utente', 'error');
+        return;
+      }
+      const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', dbUserId).maybeSingle();
+      const stId = us?.station_id ?? null;
 
       if (stId) {
         // Update the user object in store with the fresh station_id
@@ -156,7 +220,7 @@ async function initializeApp(): Promise<void> {
   const loggedUser = await loadSession();
   if (loggedUser) {
     setLoggedUser(loggedUser);
-    store.setUser(loggedUser as unknown as StateUser);
+    store.setUser(mapLoggedUserToStoreUser(loggedUser));
 
     const loginContainer = document.getElementById('login-container');
     const appContainer = document.getElementById('app-container');
@@ -172,21 +236,26 @@ async function initializeApp(): Promise<void> {
       document.body.classList.remove('admin-layout', 'desktop-layout');
 
       // ALWAYS fetch the authoritative station_id from DB
-      let stId: number | null = null;
-      const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', String(loggedUser.user_id)).maybeSingle();
-      stId = us?.station_id;
-
-      if (stId) {
-        const freshUser = { ...loggedUser, station_id: stId } as unknown as StateUser;
-        store.setUser(freshUser);
-        try {
-          await showOperatorMenu(String(loggedUser.id), stId);
-        } catch (err) {
-          logger.error('App', 'Failed to restore operator menu:', err);
-          Toast.show('Errore durante il ripristino della sessione', 'error');
-        }
+      const dbUserId = parseUserId(loggedUser.user_id);
+      if (dbUserId === undefined) {
+        logger.error('App', 'Invalid user_id from session:', loggedUser.user_id);
+        Toast.show('Errore identificativo utente', 'error');
       } else {
-        Toast.show('Nessuna stazione assegnata all\'utente', 'error');
+        const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', dbUserId).maybeSingle();
+        const stId = us?.station_id ?? null;
+
+        if (stId) {
+          const freshUser = mapLoggedUserToStoreUser({ ...loggedUser, station_id: stId });
+          store.setUser(freshUser);
+          try {
+            await showOperatorMenu(String(loggedUser.id), stId);
+          } catch (err) {
+            logger.error('App', 'Failed to restore operator menu:', err);
+            Toast.show('Errore durante il ripristino della sessione', 'error');
+          }
+        } else {
+          Toast.show('Nessuna stazione assegnata all\'utente', 'error');
+        }
       }
     }
   } else {
