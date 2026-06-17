@@ -23,11 +23,11 @@ jobs:
         run: npm ci
       
       - name: Run ESLint
-        run: npx eslint js/**/*.js --max-warnings 0
+        run: npx eslint js --max-warnings 0
         continue-on-error: true
-      
+
       - name: Run Prettier Check
-        run: npx prettier --check "js/**/*.js"
+        run: npx prettier --check "js/**/*.{js,ts}"
         continue-on-error: true
 
   unit-tests:

@@ -119,6 +119,7 @@ export function isSafeUrl(url: string): boolean {
 
   // Block dangerous protocols
   if (
+    // eslint-disable-next-line no-script-url -- il literale serve a rilevare e bloccare il protocollo pericoloso
     trimmedUrl.startsWith('javascript:') ||
         trimmedUrl.startsWith('data:') ||
         trimmedUrl.startsWith('vbscript:') ||

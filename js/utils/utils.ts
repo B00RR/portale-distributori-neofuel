@@ -80,7 +80,7 @@ export function parseGunCounter(value: number | string | null | undefined): numb
   if (typeof value === 'number') {return Number.isFinite(value) ? value : 0;}
 
   const cleaned = value.toString()
-    .replace(/[\.\s]/g, '')   // Remove thousand separators (dots or spaces)
+    .replace(/[.\s]/g, '')   // Remove thousand separators (dots or spaces)
     .replace(',', '.');       // Replace comma with dot
 
   const num = parseFloat(cleaned);

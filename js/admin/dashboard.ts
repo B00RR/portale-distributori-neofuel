@@ -2,7 +2,6 @@
 import { supabase } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
-// @ts-ignore
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
@@ -315,7 +314,8 @@ export async function showDashboard(
         if (visibleKpis.includes('volume_erogato')) {renderVolumeChart(analyticsData, 'chart-volume_erogato');}
         if (visibleKpis.includes('metodi_pagamento')) {renderPaymentChart(analyticsData, 'chart-metodi_pagamento');}
         if (visibleKpis.includes('mix_carburanti')) {renderFuelMixChart(analyticsData, 'chart-mix_carburanti');}
-      });
+        return analyticsData;
+      }).catch(err => console.error('Errore nel rendering dei grafici analytics:', err));
     }
 
     // Initialize Sortable for dashboard grid

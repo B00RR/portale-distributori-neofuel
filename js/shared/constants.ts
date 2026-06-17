@@ -46,6 +46,10 @@ export const THOUSANDS_SEPARATOR = '.';
 // === Regex Patterns ===
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const PHONE_REGEX = /^[+]?[0-9]{10,15}$/;
+// Regex sicura: i due gruppi \d+ sono separati dalla classe [.,] (disgiunta
+// dalle cifre), quindi non c'e' ambiguita' ne' backtracking catastrofico.
+// Falso positivo dell'euristica safe-regex.
+// eslint-disable-next-line security/detect-unsafe-regex
 export const NUMERIC_REGEX = /^-?\d+([.,]\d+)?$/;
 
 // === HTTP Status Codes ===
