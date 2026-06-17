@@ -129,8 +129,8 @@ function renderExtraIncomeForm(container: HTMLElement, stationId: number | strin
         const { error } = await supabase
           .from('movimenti_cassa')
           .insert([{
-            station_id: stationId,
-            operator_id: userId,
+            station_id: Number(stationId),
+            operator_id: Number(userId),
             tipo: 'incasso', // Tipo per identificare gli incassi extra
             importo: amount,
             descrizione: `[${type.toUpperCase()}] ${description}`,
