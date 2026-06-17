@@ -13,9 +13,7 @@ import {
 } from '../utils/export_utils.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
-// @ts-ignore
 import { FilterBar } from './components/FilterBar.js';
-// @ts-ignore
 import { Pagination } from './components/Pagination.js';
 
 // ========== INTERFACES ==========
