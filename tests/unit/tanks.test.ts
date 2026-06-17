@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment happy-dom
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Dynamic import variables
@@ -193,7 +196,7 @@ describe('Tanks Module', () => {
         await vi.waitFor(() => {
             expect(UI.openConfirmModal).toHaveBeenCalled();
             expect(tanksBuilder.delete).toHaveBeenCalled();
-            expect(deleteEqMock).toHaveBeenCalledWith('id', '55'); // Dataset id is string
+            expect(deleteEqMock).toHaveBeenCalledWith('id', 55); // id converted to number via Number()
         });
     });
 
@@ -211,7 +214,7 @@ describe('Tanks Module', () => {
 
         await vi.waitFor(() => {
             expect(linksBuilder.update).toHaveBeenCalledWith({ is_active: false }); // Toggle true -> false
-            expect(eqMock).toHaveBeenCalledWith('id', '77');
+            expect(eqMock).toHaveBeenCalledWith('id', 77); // id converted to number via Number()
         });
     });
 
