@@ -484,7 +484,7 @@ export class VoucherManager extends BaseComponent {
                 </div>
             `;
 
-        case 'error':
+        case 'error': {
           const isValidationErr = this.validationResult && !this.validationResult.valid;
           return html`
                 <div class="error-box-container">
@@ -506,6 +506,7 @@ export class VoucherManager extends BaseComponent {
                     </button>
                 </div>
              `;
+        }
 
         case 'success':
           return html`
