@@ -347,7 +347,7 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
       .single()
     );
     if (error) {throw error;}
-    gun = (data as Gun) || gun;
+    gun = (data as Gun | null) || gun;
   }
 
   target.innerHTML = '';
