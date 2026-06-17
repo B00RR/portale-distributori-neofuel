@@ -225,8 +225,18 @@ async function initializeApp(): Promise<void> {
     const loginContainer = document.getElementById('login-container');
     const appContainer = document.getElementById('app-container');
 
-    if (loginContainer) { loginContainer.style.display = 'none'; }
-    if (appContainer) { appContainer.style.display = 'block'; }
+    // NB: la classe .hidden usa `display: none !important`, quindi impostare
+    // solo lo style inline non basta: va rimossa/aggiunta la classe come fa
+    // il percorso di login (auth.ts), altrimenti al ripristino sessione
+    // (reload con sessione valida) l'app resterebbe nascosta.
+    if (loginContainer) {
+      loginContainer.classList.add('hidden');
+      loginContainer.style.display = 'none';
+    }
+    if (appContainer) {
+      appContainer.classList.remove('hidden');
+      appContainer.style.display = 'block';
+    }
 
     const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(loggedUser.role);
     if (isAdminRole) {
