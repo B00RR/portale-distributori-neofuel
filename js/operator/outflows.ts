@@ -104,8 +104,8 @@ function renderOutflowForm(container: HTMLElement, stationId: number | string, u
         const { error } = await supabase
           .from('movimenti_cassa')
           .insert([{
-            station_id: stationId,
-            operator_id: userId,
+            station_id: Number(stationId),
+            operator_id: Number(userId),
             tipo: 'uscita',
             importo: amount,
             descrizione: `[${type.toUpperCase()}] ${description}`,
