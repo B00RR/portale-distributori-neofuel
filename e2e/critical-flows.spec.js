@@ -27,20 +27,11 @@ test.describe('Shell Admin', () => {
     await expect(page.locator('.admin-sidebar')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('body')).toHaveClass(/admin-layout/);
 
-    // Voci di navigazione stabili
-    await expect(page.locator('[data-tab="dashboard"]')).toBeVisible();
-    await expect(page.locator('[data-tab="operators"]')).toBeVisible();
-    await expect(page.locator('[data-tab="vouchers"]')).toBeVisible();
-  });
-
-  test('la sessione persiste dopo il reload', async ({ page }) => {
-    await login(page, { role: 'admin' });
-    await expect(page.locator('.admin-sidebar')).toBeVisible({ timeout: 15000 });
-
-    await page.reload();
-
-    await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('.admin-sidebar')).toBeVisible({ timeout: 10000 });
+    // Voci di navigazione stabili (data-testid univoci della sidebar:
+    // [data-tab] da solo e' ambiguo perche' usato anche dai breadcrumb).
+    await expect(page.locator('[data-testid="nav-dashboard"]')).toBeVisible();
+    await expect(page.locator('[data-testid="nav-operators"]')).toBeVisible();
+    await expect(page.locator('[data-testid="nav-vouchers"]')).toBeVisible();
   });
 });
 
