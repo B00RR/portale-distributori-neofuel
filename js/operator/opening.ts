@@ -15,7 +15,9 @@ import '../ui/components/ShiftOpener.js';
 function getClosingStage(data: Json | null): 'partial' | 'final' | undefined {
   if (data && typeof data === 'object' && !Array.isArray(data) && 'closure_stage' in data) {
     const stage = (data as Record<string, Json>).closure_stage;
-    if (stage === 'partial' || stage === 'final') return stage;
+    if (stage === 'partial' || stage === 'final') {
+      return stage;
+    }
   }
   return undefined;
 }
