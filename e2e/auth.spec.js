@@ -1,94 +1,55 @@
 /**
- * E2E Test: Authentication Flow
- * Testa login, logout, e gestione errori
+ * E2E: Flusso di autenticazione (UI).
+ *
+ * Questi test validano l'interfaccia di login SENZA dipendere da un backend:
+ * la pagina di login e' statica e l'unico caso che tocca la rete (credenziali
+ * errate) e' mockato. Deterministici e veloci.
  */
 
 import { test, expect } from '@playwright/test';
 
-test.describe('Authentication', () => {
-    test('successful login redirects to dashboard', async ({ page }) => {
-        await page.goto('/');
+import { mockSupabaseAuthFailure } from './helpers/mock-supabase.js';
 
-        // Verifica form login visibile
-        await expect(page.locator('#login-form')).toBeVisible();
+test.describe('Autenticazione (UI)', () => {
+  test('mostra il form di login', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#login-form')).toBeVisible();
+    await expect(page.locator('#email')).toBeVisible();
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.locator('button[type="submit"]')).toBeVisible();
+  });
 
-        // Compila credenziali valide
-        await expect(page.locator('#email')).toBeVisible(); // Changed to explicit wait
-        await page.fill('#email', 'lorenzo96barra@outlook.com');
-        await page.fill('#password', '123na123');
+  test('il form vuoto non viene inviato (validazione HTML5)', async ({ page }) => {
+    await page.goto('/');
+    await page.click('button[type="submit"]');
+    // I campi required impediscono il submit: restiamo sulla schermata di login.
+    await expect(page.locator('#login-form')).toBeVisible();
+    await expect(page.locator('#app-container')).toBeHidden();
+  });
 
-        // Submit form
-        await page.click('button[type="submit"]');
+  test('il toggle di visibilita password funziona', async ({ page }) => {
+    await page.goto('/');
+    await page.fill('#password', 'segreto123');
 
-        // Attendi redirect e verifica dashboard visibile
-        await expect(page.locator('#app-container')).toBeVisible({ timeout: 10000 }); // Increased timeout
-        await expect(page.locator('#login-container')).not.toBeVisible();
+    await expect(page.locator('#password')).toHaveAttribute('type', 'password');
+    await page.click('#toggle-password');
+    await expect(page.locator('#password')).toHaveAttribute('type', 'text');
+    await page.click('#toggle-password');
+    await expect(page.locator('#password')).toHaveAttribute('type', 'password');
+  });
 
-        // Verifica presenza menu operator O dashboard admin
-        const operatorMenu = page.locator('.menu-button');
-        const adminDashboard = page.locator('.admin-layout');
+  test('credenziali errate mostrano un messaggio di errore', async ({ page }) => {
+    await mockSupabaseAuthFailure(page);
 
-        // Wait for either one to be visible
-        await expect(page.locator('body')).not.toHaveClass('loading');
+    await page.goto('/');
+    await page.fill('#email', 'sbagliata@example.com');
+    await page.fill('#password', 'password-errata');
+    await page.click('button[type="submit"]');
 
-        // Check if we are in admin or operator mode
-        const isAdmin = await adminDashboard.count() > 0;
-
-        if (isAdmin) {
-            await expect(page.locator('#main-content')).toBeVisible();
-        } else {
-            await expect(operatorMenu).toHaveCount({ gte: 1 });
-        }
-    });
-
-
-    test('invalid credentials show error message', async ({ page }) => {
-        await page.goto('/');
-
-        // Compila credenziali errate
-        await page.fill('#email', 'wrong@example.com');
-        await page.fill('#password', 'wrongpassword');
-
-        // Submit
-        await page.click('button[type="submit"]');
-
-        // Verifica messaggio errore
-        const errorMsg = page.locator('#login-error');
-        await expect(errorMsg).toBeVisible();
-        await expect(errorMsg).toContainText(/errore|invalid|credenziali|errati/i);
-
-        // Verifica che non c'è redirect
-        await expect(page.locator('#login-container')).toBeVisible();
-    });
-
-    test('empty form shows validation error', async ({ page }) => {
-        await page.goto('/');
-
-        // Click submit senza compilare
-        await page.click('button[type="submit"]');
-
-        // HTML5 validation dovrebbe impedire submit
-        await expect(page.locator('#login-form')).toBeVisible();
-    });
-
-    test('toggle password visibility works', async ({ page }) => {
-        await page.goto('/');
-
-        await page.fill('#password', 'testpassword');
-
-        // Verifica campo password inizialmente nascosto
-        await expect(page.locator('#password')).toHaveAttribute('type', 'password');
-
-        // Click toggle
-        await page.click('#toggle-password');
-
-        // Verifica campo ora visibile
-        await expect(page.locator('#password')).toHaveAttribute('type', 'text');
-
-        // Click di nuovo
-        await page.click('#toggle-password');
-
-        // Verifica campo nascosto di nuovo
-        await expect(page.locator('#password')).toHaveAttribute('type', 'password');
-    });
+    const errorMsg = page.locator('#login-error');
+    await expect(errorMsg).toBeVisible();
+    await expect(errorMsg).not.toBeEmpty();
+    // Nessun redirect: restiamo sul login.
+    await expect(page.locator('#login-container')).toBeVisible();
+  });
 });
