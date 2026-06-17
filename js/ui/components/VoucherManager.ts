@@ -1,26 +1,39 @@
 import { html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
-import { BaseComponent } from './BaseComponent.js';
+
 import { supabase } from '../../core/api.js';
-import { createRateLimiter } from '../../utils/utils.js';
-import { Toast } from '../toast.js';
-import { validateVoucher } from '../../core/rules.js';
-import { formatEuro, formatDate } from '../../utils/utils.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
+import { validateVoucher } from '../../core/rules.js';
+import { createRateLimiter } from '../../utils/utils.js';
+import { formatEuro, formatDate } from '../../utils/utils.js';
+import { Toast } from '../toast.js';
+
+import { BaseComponent } from './BaseComponent.js';
 declare const window: Window & { Html5Qrcode?: any };
+
+interface RpcResult {
+  success: boolean;
+  error?: string;
+}
+
+function isRpcResult(value: unknown): value is RpcResult {
+  return typeof value === 'object' && value !== null && 'success' in value && typeof value.success === 'boolean';
+}
 
 interface Voucher {
     code: string;
     amount: number;
-    voucher_batches?: { customer_name?: string };
+    voucher_batches?: { customer_name?: string } | null;
     customer_name?: string;
-    // Add other fields as needed based on DB schema
     id?: string;
-    status?: string;
-    batch_id?: number;
+    status?: string | null;
+    batch_id?: string | null;
     created_at?: string;
-    expires_at?: string;
-    redeemed_at?: string;
+    expiration_date?: string | null;
+    redeemed_at?: string | null;
+    redeemed_by?: string | null;
+    serial_number?: number | null;
+    station_id?: number | null;
 }
 
 export class VoucherManager extends BaseComponent {
@@ -40,8 +53,8 @@ export class VoucherManager extends BaseComponent {
 
     // Styles
     static override styles: CSSResultGroup = [
-        BaseComponent.styles,
-        css`
+      BaseComponent.styles,
+      css`
       :host {
         display: block;
         max-width: 600px;
@@ -211,186 +224,186 @@ export class VoucherManager extends BaseComponent {
     ];
 
     constructor() {
-        super();
-        // Html5Qrcode will be loaded on-demand in startScanner()
+      super();
+      // Html5Qrcode will be loaded on-demand in startScanner()
     }
 
     override createRenderRoot() {
-        return this; // Disable Shadow DOM so Html5Qrcode can find #reader
+      return this; // Disable Shadow DOM so Html5Qrcode can find #reader
     }
 
     override disconnectedCallback() {
-        super.disconnectedCallback();
-        this.stopScanner();
+      super.disconnectedCallback();
+      this.stopScanner();
     }
 
     private async startScanner() {
-        this.mode = 'scan';
-        // Small delay to allow render
-        await this.updateComplete;
+      this.mode = 'scan';
+      // Small delay to allow render
+      await this.updateComplete;
 
-        // Load Html5Qrcode library on-demand if not already loaded
-        if (!window.Html5Qrcode && !document.querySelector('script[src*="html5-qrcode"]')) {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/html5-qrcode';
-            document.head.appendChild(script);
-        }
+      // Load Html5Qrcode library on-demand if not already loaded
+      if (!window.Html5Qrcode && !document.querySelector('script[src*="html5-qrcode"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/html5-qrcode';
+        document.head.appendChild(script);
+      }
 
-        // Check if library is loaded with retries
-        let retries = 0;
-        while (!window.Html5Qrcode && retries < 20) {
-            await new Promise(r => setTimeout(r, 200));
-            retries++;
-        }
+      // Check if library is loaded with retries
+      let retries = 0;
+      while (!window.Html5Qrcode && retries < 20) {
+        await new Promise(r => setTimeout(r, 200));
+        retries++;
+      }
 
-        if (!window.Html5Qrcode) {
-            this.errorMessage = "Libreria scanner non caricata. Riprova o ricarica la pagina.";
-            this.mode = 'error';
-            return;
-        }
+      if (!window.Html5Qrcode) {
+        this.errorMessage = 'Libreria scanner non caricata. Riprova o ricarica la pagina.';
+        this.mode = 'error';
+        return;
+      }
 
-        // Check for Secure Context (HTTPS) - required for camera access on mobile
-        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            this.errorMessage = "Errore: Lo scanner richiede una connessione sicura (HTTPS). Se stai accedendo via IP locale, la fotocamera sarà bloccata dal browser.";
-            this.mode = 'error';
-            return;
-        }
+      // Check for Secure Context (HTTPS) - required for camera access on mobile
+      if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        this.errorMessage = 'Errore: Lo scanner richiede una connessione sicura (HTTPS). Se stai accedendo via IP locale, la fotocamera sarà bloccata dal browser.';
+        this.mode = 'error';
+        return;
+      }
 
-        try {
-            this.html5QrCode = new window.Html5Qrcode("reader");
-            await this.html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                (decodedText: string) => this.handleCodeFound(decodedText),
-                () => { } // Ignore failures
-            );
-        } catch (e: any) {
-            console.error("Scanner error", e);
-            const errDetails = e.name ? `${e.name}: ${e.message}` : String(e);
-            this.errorMessage = `Impossibile avviare la fotocamera. Dettaglio: ${errDetails}`;
-            this.mode = 'error';
-        }
+      try {
+        this.html5QrCode = new window.Html5Qrcode('reader');
+        await this.html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText: string) => this.handleCodeFound(decodedText),
+          () => { } // Ignore failures
+        );
+      } catch (e: any) {
+        console.error('Scanner error', e);
+        const errDetails = e.name ? `${e.name}: ${e.message}` : String(e);
+        this.errorMessage = `Impossibile avviare la fotocamera. Dettaglio: ${errDetails}`;
+        this.mode = 'error';
+      }
     }
 
     private async stopScanner() {
-        if (this.html5QrCode) {
-            try {
-                await this.html5QrCode.stop();
-                this.html5QrCode.clear();
-            } catch (e) {
-                console.warn("Error stopping scanner", e);
-            }
-            this.html5QrCode = null;
+      if (this.html5QrCode) {
+        try {
+          await this.html5QrCode.stop();
+          this.html5QrCode.clear();
+        } catch (e) {
+          console.warn('Error stopping scanner', e);
         }
+        this.html5QrCode = null;
+      }
     }
 
     private handleCodeFound(code: string) {
-        this.stopScanner();
-        if (navigator.vibrate) navigator.vibrate(200);
-        this.processCode(code);
+      this.stopScanner();
+      if (navigator.vibrate) {navigator.vibrate(200);}
+      this.processCode(code);
     }
 
     private async processCode(code: string) {
-        if (!this.rateLimiter.check()) {
-            Toast.show('Troppi tentativi. Riprova tra un minuto.', 'error');
-            return;
+      if (!this.rateLimiter.check()) {
+        Toast.show('Troppi tentativi. Riprova tra un minuto.', 'error');
+        return;
+      }
+
+      this.mode = 'loading';
+      this.errorMessage = '';
+
+      // OFFLINE MODE: Skip validation and prepare for deferred redemption
+      if (isOffline()) {
+        // Create a minimal voucher object for offline queueing
+        this.activeVoucher = {
+          code: code,
+          amount: 0, // Will be determined when synced
+          customer_name: 'Verifica al ritorno online'
+        };
+        this.mode = 'verify';
+        Toast.show('Modalità offline: il voucher verrà validato al ritorno online.', 'warning');
+        return;
+      }
+
+      try {
+        // Online query for validation
+        let query = supabase.from('vouchers').select('*, voucher_batches(customer_name)');
+
+        if (code.length === 4) {
+          query = query.like('code', `${code}%`);
+        } else {
+          query = query.eq('code', code);
         }
 
-        this.mode = 'loading';
-        this.errorMessage = '';
+        const { data: vouchers, error } = await query;
 
-        // OFFLINE MODE: Skip validation and prepare for deferred redemption
-        if (isOffline()) {
-            // Create a minimal voucher object for offline queueing
-            this.activeVoucher = {
-                code: code,
-                amount: 0, // Will be determined when synced
-                customer_name: 'Verifica al ritorno online'
-            };
-            this.mode = 'verify';
-            Toast.show('Modalità offline: il voucher verrà validato al ritorno online.', 'warning');
-            return;
+        if (error || !vouchers || vouchers.length === 0) {
+          throw new Error('Codice non trovato.');
         }
 
-        try {
-            // Online query for validation
-            let query = supabase.from('vouchers').select('*, voucher_batches(customer_name)');
+        const voucher = vouchers[0] ?? null;
+        const validation = validateVoucher(voucher);
 
-            if (code.length === 4) {
-                query = query.like('code', `${code}%`);
-            } else {
-                query = query.eq('code', code);
-            }
-
-            const { data: vouchers, error } = await query;
-
-            if (error || !vouchers || vouchers.length === 0) {
-                throw new Error('Codice non trovato.');
-            }
-
-            const voucher = vouchers[0];
-            const validation = validateVoucher(voucher);
-
-            if (!validation.valid) {
-                this.activeVoucher = voucher;
-                this.validationResult = validation;
-                this.mode = 'error'; // Show specific validation error
-            } else {
-                this.activeVoucher = voucher;
-                this.mode = 'verify';
-            }
-
-        } catch (e: any) {
-            this.errorMessage = e.message || "Errore di controllo";
-            this.mode = 'error';
+        if (!validation.valid) {
+          this.activeVoucher = voucher;
+          this.validationResult = validation;
+          this.mode = 'error'; // Show specific validation error
+        } else {
+          this.activeVoucher = voucher;
+          this.mode = 'verify';
         }
+
+      } catch (e: any) {
+        this.errorMessage = e.message || 'Errore di controllo';
+        this.mode = 'error';
+      }
     }
 
     private async confirmRedeem() {
-        if (!this.activeVoucher || !this.stationId || !this.userId) return;
+      if (!this.activeVoucher || !this.stationId || !this.userId) {return;}
 
-        this.mode = 'loading';
+      this.mode = 'loading';
 
-        // Check if offline - queue action for later sync
-        if (isOffline()) {
-            try {
-                await queueAction('voucher_redeem', {
-                    voucherCode: this.activeVoucher.code,
-                    stationId: this.stationId,
-                    operatorId: this.userId,
-                    voucherAmount: this.activeVoucher.amount
-                });
-                this.mode = 'success';
-                this.emit('voucher-redeemed', { voucher: this.activeVoucher, queued: true });
-            } catch {
-                this.errorMessage = "Impossibile salvare l'azione offline";
-                this.mode = 'error';
-            }
-            return;
-        }
-
+      // Check if offline - queue action for later sync
+      if (isOffline()) {
         try {
-            console.log('[Voucher] Redeeming voucher:', this.activeVoucher.code, 'Station:', this.stationId, 'Operator UUID:', this.userId);
-            const { data: result, error } = await supabase.rpc('redeem_voucher_validated', {
-                p_voucher_code: this.activeVoucher.code,
-                p_station_id: this.stationId,
-                p_operator_id: this.userId
-            });
-
-            if (error) throw error;
-            if (result && !result.success) throw new Error(result.error);
-
-            Toast.show('Voucher Riscattato!', 'success');
-            this.mode = 'success';
-            this.emit('voucher-redeemed', { voucher: this.activeVoucher });
-        } catch (e: any) {
-            this.errorMessage = e.message || "Riscatto fallito";
-            this.mode = 'error';
+          await queueAction('voucher_redeem', {
+            voucherCode: this.activeVoucher.code,
+            stationId: this.stationId,
+            operatorId: this.userId,
+            voucherAmount: this.activeVoucher.amount
+          });
+          this.mode = 'success';
+          this.emit('voucher-redeemed', { voucher: this.activeVoucher, queued: true });
+        } catch {
+          this.errorMessage = "Impossibile salvare l'azione offline";
+          this.mode = 'error';
         }
+        return;
+      }
+
+      try {
+        console.log('[Voucher] Redeeming voucher:', this.activeVoucher.code, 'Station:', this.stationId, 'Operator UUID:', this.userId);
+        const { data: result, error } = await supabase.rpc('redeem_voucher_validated', {
+          p_voucher_code: this.activeVoucher.code,
+          p_station_id: Number(this.stationId),
+          p_operator_id: this.userId
+        });
+
+        if (error) {throw error;}
+        if (result && isRpcResult(result) && !result.success) {throw new Error(result.error);}
+
+        Toast.show('Voucher Riscattato!', 'success');
+        this.mode = 'success';
+        this.emit('voucher-redeemed', { voucher: this.activeVoucher });
+      } catch (e: any) {
+        this.errorMessage = e.message || 'Riscatto fallito';
+        this.mode = 'error';
+      }
     }
 
     override render(): TemplateResult {
-        return html`
+      return html`
       <div class="voucher-manager">
         ${this.renderContent()}
       </div>
@@ -398,9 +411,9 @@ export class VoucherManager extends BaseComponent {
     }
 
     private renderContent() {
-        switch (this.mode) {
-            case 'menu':
-                return html`
+      switch (this.mode) {
+        case 'menu':
+          return html`
                 <div class="menu-grid">
                     <button class="action-btn primary" @click=${() => this.startScanner()}>
                         <i class="fas fa-camera fa-2x"></i>
@@ -413,8 +426,8 @@ export class VoucherManager extends BaseComponent {
                 </div>
             `;
 
-            case 'scan':
-                return html`
+        case 'scan':
+          return html`
                 <div class="scanner-wrapper">
                     <div id="reader" class="scanner-container"></div>
                     <button class="action-btn mt-3 w-100" @click=${() => { this.stopScanner(); this.mode = 'menu'; }}>
@@ -423,8 +436,8 @@ export class VoucherManager extends BaseComponent {
                 </div>
             `;
 
-            case 'manual':
-                return html`
+        case 'manual':
+          return html`
                 <div class="manual-entry">
                     <h3>Inserisci Codice</h3>
                     <div class="manual-input-container">
@@ -445,17 +458,17 @@ export class VoucherManager extends BaseComponent {
                 </div>
             `;
 
-            case 'loading':
-                return html`
+        case 'loading':
+          return html`
                 <div class="loading-state spinner-wrapper">
                     <i class="fas fa-spinner fa-spin spinner-lg"></i>
                     <p class="mt-3">Elaborazione in corso...</p>
                 </div>
             `;
 
-            case 'verify':
-                if (!this.activeVoucher) return html``;
-                return html`
+        case 'verify':
+          if (!this.activeVoucher) {return html``;}
+          return html`
                 <div class="card-preview">
                     <div class="icon-success-wrapper">
                         <i class="fas fa-check-circle"></i>
@@ -472,20 +485,20 @@ export class VoucherManager extends BaseComponent {
                 </div>
             `;
 
-            case 'error':
-                const isValidationErr = this.validationResult && !this.validationResult.valid;
-                return html`
+        case 'error':
+          const isValidationErr = this.validationResult && !this.validationResult.valid;
+          return html`
                 <div class="error-box-container">
                     <div class="icon-error-wrapper">
                         <i class="fas fa-exclamation-triangle icon-error"></i>
                     </div>
                     <h2 class="title-lg">${isValidationErr ? this.validationResult?.error : 'Errore'}</h2>
                     <p class="subtitle-gray">${isValidationErr
-                        ? (this.validationResult?.reason === 'redeemed'
+    ? (this.validationResult?.reason === 'redeemed'
 
-                            ? `Usato il ${formatDate(this.validationResult?.details?.date)}`
-                            : 'Voucher non valido')
-                        : this.errorMessage}</p>
+      ? `Usato il ${formatDate(this.validationResult?.details?.date)}`
+      : 'Voucher non valido')
+    : this.errorMessage}</p>
                     
                     <button class="small-btn outline" 
                             style="background: #0A2342 !important; color: white !important; width: 100% !important; max-width: 300px !important; padding: 0.85rem !important; border-radius: 50px !important; font-weight: 700 !important; cursor: pointer !important; border: none !important; font-size: 1.1rem !important; margin-top: 2rem !important; display: block !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;"
@@ -495,8 +508,8 @@ export class VoucherManager extends BaseComponent {
                 </div>
              `;
 
-            case 'success':
-                return html`
+        case 'success':
+          return html`
                 <div class="card-preview" style="padding: 2.5rem 0 !important; text-align: center !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 100% !important;">
                     <div style="background: white !important; width: 100px !important; height: 100px !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto 2rem auto !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;">
                         <i class="fas fa-check fa-3x" style="color: #8DC63F !important; display: block !important;"></i>
@@ -511,12 +524,12 @@ export class VoucherManager extends BaseComponent {
                 </div>
             `;
 
-            default:
-                return html`<div>Mode unknown: ${this.mode}</div>`;
-        }
+        default:
+          return html`<div>Mode unknown: ${this.mode}</div>`;
+      }
     }
 }
 
 if (!customElements.get('voucher-manager')) {
-    customElements.define('voucher-manager', VoucherManager);
+  customElements.define('voucher-manager', VoucherManager);
 }

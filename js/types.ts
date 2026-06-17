@@ -3,6 +3,8 @@
 // Definizioni TypeScript per i modelli del database
 // ==========================================
 
+import type { Json } from './core/api.js';
+
 export interface FuelStation {
     station_id: number;
     station_name: string;
@@ -12,13 +14,17 @@ export interface FuelStation {
 }
 
 export interface User {
-    user_id: string; // UUID
+    user_id: number;
     email: string;
-    full_name: string;
-    role: 'admin' | 'super_admin' | 'accounting' | 'billing' | 'operator' | 'full_admin';
-    station_id?: number;
-    is_active: boolean;
-    created_at: string;
+    full_name: string | null;
+    role: string;
+    station_id?: number | null;
+    is_active: boolean | null;
+    created_at: string | null;
+    username?: string;
+    password_hash?: string;
+    created_by_auth?: string | null;
+    updated_at?: string | null;
     assignedStations?: { id: number; name: string }[];
 }
 
@@ -40,17 +46,19 @@ export interface ShiftClosingData {
 }
 
 export interface Shift {
-    id: string; // UUID
+    id: number;
     station_id: number;
-    operator_id: string; // UUID
+    operator_id: number;
     opened_at: string;
-    closed_at?: string | null;
-    status: 'open' | 'partial' | 'closed';
-    opening_data: ShiftOpeningData;
-    closing_data?: ShiftClosingData | null;
+    closed_at: string | null;
+    status: string;
+    opening_data: Json | null;
+    closing_data: Json | null;
+    updated_at: string;
+    created_at: string;
     users?: {
-        full_name: string;
-    };
+        full_name: string | null;
+    } | null;
 }
 
 export interface Island {
@@ -62,15 +70,17 @@ export interface Island {
 
 export interface Pistola {
     id: number;
-    island_id: number;
-    nome: string;
-    tipo_carburante: 'benzina' | 'gasolio' | 'gpl' | 'metano' | 'adblue';
-    numero_litri: number;
-    tank_id?: number;
+    island_id: number | null;
+    nome: string | null;
+    tipo_carburante: string | null;
+    numero_litri: number | null;
+    created_at?: string | null;
+    station_id?: number | null;
+    tank_id?: number | null;
     islands?: {
-        nome: string;
-        station_id: number;
-    };
+        nome: string | null;
+        station_id: number | null;
+    } | null;
 }
 
 export interface Tank {
@@ -83,14 +93,17 @@ export interface Tank {
 }
 
 export interface Voucher {
-    id: string; // UUID
-    batch_id: string; // UUID
+    id: string;
+    batch_id: string | null;
     code: string;
     amount: number;
-    status: 'active' | 'redeemed' | 'expired' | 'void';
-    expiration_date?: string;
-    redeemed_at?: string;
-    serial_number: number;
+    status: string | null;
+    expiration_date: string | null;
+    redeemed_at: string | null;
+    redeemed_by: string | null;
+    serial_number: number | null;
+    station_id: number | null;
+    created_at: string;
 }
 
 export interface VoucherBatch {

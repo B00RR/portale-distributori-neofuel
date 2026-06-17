@@ -4,10 +4,11 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getStationName } from '../core/api.js';
 import { clearSession } from '../core/auth.js';
 import { store, User } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
-import { getStationName } from '../core/api.js';
+
 import { checkOpeningStatus } from './opening.js';
 import { OperatorView } from './router.js';
 
@@ -39,14 +40,14 @@ interface OpeningData {
  * Render the operator shell layout
  */
 export async function renderOperatorShell(container: HTMLElement, handlers: OperatorHandlers): Promise<void> {
-    const user = store.getUser() as ExtendedUser | null;
-    const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
+  const user = store.getUser() as ExtendedUser | null;
+  const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
 
-    if (!document.getElementById('operator-custom-styles')) {
-        injectStyles();
-    }
+  if (!document.getElementById('operator-custom-styles')) {
+    injectStyles();
+  }
 
-    container.innerHTML = `
+  container.innerHTML = `
         <div class="operator-container">
             <header class="operator-header">
                 <div class="header-left">
@@ -113,165 +114,165 @@ export async function renderOperatorShell(container: HTMLElement, handlers: Oper
         </div>
     `;
 
-    const userId = user?.id || user?.user_id;
+  const userId = user?.id || user?.user_id;
 
-    if (stationId && userId) {
-        updateStationBadge(String(stationId));
-        updateTurnoButton(String(stationId), String(userId), handlers);
-    }
+  if (stationId && userId) {
+    updateStationBadge(String(stationId));
+    updateTurnoButton(String(stationId), String(userId), handlers);
+  }
 
-    attachEventListeners(handlers);
-    updateSyncBadge();
+  attachEventListeners(handlers);
+  updateSyncBadge();
 
-    document.addEventListener('sync-status-changed', updateSyncBadge);
+  document.addEventListener('sync-status-changed', updateSyncBadge);
 }
 
 /**
  * Update the station badge with the real name
  */
 async function updateStationBadge(stationId: string | number): Promise<void> {
-    try {
-        const name = await getStationName(stationId);
-        const badge = document.getElementById('station-badge');
-        if (badge) badge.textContent = name;
-    } catch (err) {
-        console.error('Error updating station badge:', err);
-    }
+  try {
+    const name = await getStationName(stationId);
+    const badge = document.getElementById('station-badge');
+    if (badge) {badge.textContent = name;}
+  } catch (err) {
+    console.error('Error updating station badge:', err);
+  }
 }
 
 /**
  * Update the dynamic "Turno" button state
  */
 export async function updateTurnoButton(
-    stationId: string | number,
-    userId: string | number,
-    handlers: OperatorHandlers
+  stationId: string | number,
+  userId: string | number,
+  handlers: OperatorHandlers
 ): Promise<void> {
-    const btnTurno = document.getElementById('btn-turno');
-    const badge = document.getElementById('opening-status');
+  const btnTurno = document.getElementById('btn-turno');
+  const badge = document.getElementById('opening-status');
 
-    if (!btnTurno) {
-        console.error('Btn Turno not found');
-        return;
+  if (!btnTurno) {
+    console.error('Btn Turno not found');
+    return;
+  }
+
+  const opening = await (checkOpeningStatus as any)(stationId) as OpeningData | null;
+  console.log('[Layout] Opening Data:', opening);
+
+  const turnoIcon = btnTurno.querySelector('#turno-icon') as HTMLElement | null;
+  const turnoText = btnTurno.querySelector('#turno-text') as HTMLElement | null;
+
+  // Debug badge
+  if (!badge) {
+    console.error('[Layout] Badge opening-status NOT FOUND in DOM.');
+  } else {
+    console.log('[Layout] Badge opening-status FOUND.', badge);
+  }
+
+  if (opening) {
+    if (turnoIcon) {turnoIcon.className = 'fas fa-door-closed';}
+    if (turnoText) {turnoText.textContent = 'Chiusura';}
+
+    // Remove old listeners by using onclick property (safest simple way)
+    btnTurno.onclick = () => handlers.onClosure(String(stationId), String(userId));
+
+    if (badge) {
+      const hasPartial = opening.closing_data?.closure_stage === 'partial';
+      const text = hasPartial ? 'Parziale' : 'Aperto';
+      console.log('[Layout] Setting badge text to:', text);
+      badge.textContent = text;
+      badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
+      badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
+      // Force visibility
+      badge.style.display = 'inline-block';
     }
+  } else {
+    if (turnoIcon) {turnoIcon.className = 'fas fa-door-open';}
+    if (turnoText) {turnoText.textContent = 'Apertura';}
 
-    const opening = await (checkOpeningStatus as any)(stationId) as OpeningData | null;
-    console.log('[Layout] Opening Data:', opening);
+    btnTurno.onclick = () => handlers.onOpening(String(stationId), String(userId));
 
-    const turnoIcon = btnTurno.querySelector('#turno-icon') as HTMLElement | null;
-    const turnoText = btnTurno.querySelector('#turno-text') as HTMLElement | null;
-
-    // Debug badge
-    if (!badge) {
-        console.error('[Layout] Badge opening-status NOT FOUND in DOM.');
-    } else {
-        console.log('[Layout] Badge opening-status FOUND.', badge);
+    if (badge) {
+      console.log('[Layout] Setting badge text to: Chiuso');
+      badge.textContent = 'Chiuso';
+      badge.className = 'status-badge status-closed';
+      badge.title = 'Nessuna apertura attiva';
+      badge.style.display = 'inline-block';
     }
-
-    if (opening) {
-        if (turnoIcon) turnoIcon.className = 'fas fa-door-closed';
-        if (turnoText) turnoText.textContent = 'Chiusura';
-
-        // Remove old listeners by using onclick property (safest simple way)
-        btnTurno.onclick = () => handlers.onClosure(String(stationId), String(userId));
-
-        if (badge) {
-            const hasPartial = opening.closing_data?.closure_stage === 'partial';
-            const text = hasPartial ? 'Parziale' : 'Aperto';
-            console.log('[Layout] Setting badge text to:', text);
-            badge.textContent = text;
-            badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
-            badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
-            // Force visibility
-            badge.style.display = 'inline-block';
-        }
-    } else {
-        if (turnoIcon) turnoIcon.className = 'fas fa-door-open';
-        if (turnoText) turnoText.textContent = 'Apertura';
-
-        btnTurno.onclick = () => handlers.onOpening(String(stationId), String(userId));
-
-        if (badge) {
-            console.log('[Layout] Setting badge text to: Chiuso');
-            badge.textContent = 'Chiuso';
-            badge.className = 'status-badge status-closed';
-            badge.title = 'Nessuna apertura attiva';
-            badge.style.display = 'inline-block';
-        }
-    }
+  }
 }
 
 /**
  * Update the sync indicator badge
  */
 async function updateSyncBadge(): Promise<void> {
-    try {
-        const { offlineDB } = await import("../core/offline-db.js") as any;
-        const count = await offlineDB.getQueueCount();
-        const badge = document.getElementById('sync-indicator');
-        const countSpan = document.getElementById('sync-count');
-        if (badge && countSpan) {
-            countSpan.textContent = count.toString();
-            badge.classList.toggle('active', count > 0);
-        }
-    } catch (err) {
-        console.warn('Sync indicator failed:', err);
+  try {
+    const { offlineDB } = await import('../core/offline-db.js') as any;
+    const count = await offlineDB.getQueueCount();
+    const badge = document.getElementById('sync-indicator');
+    const countSpan = document.getElementById('sync-count');
+    if (badge && countSpan) {
+      countSpan.textContent = count.toString();
+      badge.classList.toggle('active', count > 0);
     }
+  } catch (err) {
+    console.warn('Sync indicator failed:', err);
+  }
 }
 
 /**
  * Attach global event listeners
  */
 function attachEventListeners(handlers: OperatorHandlers): void {
-    const logoutBtn = document.getElementById('op-logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            const confirmed = await openConfirmModal('Vuoi uscire dal portale operatore?');
-            if (confirmed) {
-                await clearSession();
-                await new Promise(resolve => setTimeout(resolve, 100));
-                window.location.href = window.location.pathname;
-            }
-        });
-    }
-
-    const btnMovimenti = document.getElementById('btn-movimenti');
-    const movimentiContent = document.getElementById('movimenti-content');
-    if (btnMovimenti && movimentiContent) {
-        btnMovimenti.addEventListener('click', () => {
-            const isOpen = movimentiContent.classList.contains('open');
-            movimentiContent.classList.toggle('open');
-            const icon = btnMovimenti.querySelector('.accordion-icon') as HTMLElement | null;
-            if (icon) {
-                icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
-            }
-        });
-    }
-
-    const menuMap: Record<string, OperatorView> = {
-        'btn-crediti': 'crediti',
-        'btn-voucher': 'voucher',
-        'btn-uscite': 'uscite',
-        'btn-incassi': 'incassi',
-        'btn-fatture': 'fatture',
-        'btn-prezzi': 'prezzi'
-    };
-
-    Object.entries(menuMap).forEach(([id, view]) => {
-        const btn = document.getElementById(id);
-        if (btn) {
-            btn.addEventListener('click', () => handlers.onNavigate(view));
-        }
+  const logoutBtn = document.getElementById('op-logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      const confirmed = await openConfirmModal('Vuoi uscire dal portale operatore?');
+      if (confirmed) {
+        await clearSession();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        window.location.href = window.location.pathname;
+      }
     });
+  }
+
+  const btnMovimenti = document.getElementById('btn-movimenti');
+  const movimentiContent = document.getElementById('movimenti-content');
+  if (btnMovimenti && movimentiContent) {
+    btnMovimenti.addEventListener('click', () => {
+      const isOpen = movimentiContent.classList.contains('open');
+      movimentiContent.classList.toggle('open');
+      const icon = btnMovimenti.querySelector('.accordion-icon') as HTMLElement | null;
+      if (icon) {
+        icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+    });
+  }
+
+  const menuMap: Record<string, OperatorView> = {
+    'btn-crediti': 'crediti',
+    'btn-voucher': 'voucher',
+    'btn-uscite': 'uscite',
+    'btn-incassi': 'incassi',
+    'btn-fatture': 'fatture',
+    'btn-prezzi': 'prezzi'
+  };
+
+  Object.entries(menuMap).forEach(([id, view]) => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.addEventListener('click', () => handlers.onNavigate(view));
+    }
+  });
 }
 
 /**
  * Inject local styles
  */
 function injectStyles(): void {
-    const style = document.createElement('style');
-    style.id = 'operator-custom-styles';
-    style.innerHTML = `
+  const style = document.createElement('style');
+  style.id = 'operator-custom-styles';
+  style.innerHTML = `
       .result-item {
         display: flex; justify-content: space-between; align-items: center;
         padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;
@@ -299,5 +300,5 @@ function injectStyles(): void {
         100% { opacity: 1; }
       }
     `;
-    document.head.appendChild(style);
+  document.head.appendChild(style);
 }

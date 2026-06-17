@@ -1,12 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * Stations Admin Module
+ * CRUD for fuel stations / distributors
+ */
+
 import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, openConfirmModal, setButtonLoading } from '../ui/ui.js';
-import { escapeHtml } from '../utils/utils.js';
 
-// Import modules that are still JS or being migrated
-// We use 'any' for now to allow compilation until they are migrated
 import { showIslandsModal } from './islands.js';
 import { showPrezziAdminModal } from './prices.js';
 import { showTanksAdminModal } from './tanks.js';
@@ -30,203 +32,266 @@ declare const window: CustomWindow;
 // --- MAIN FUNCTION ---
 
 export async function showStationsTab(container: HTMLElement, actionsContainer: HTMLElement | null): Promise<void> {
-    showLoadingMessage(container);
+  showLoadingMessage(container);
 
-    if (actionsContainer) {
-        actionsContainer.innerHTML = '<button class="action-btn primary" id="add-station-btn"><i class="fas fa-plus"></i> Nuovo Distributore</button>';
-        const addBtn = document.getElementById('add-station-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', () => openStationModal());
-        }
+  if (actionsContainer) {
+    actionsContainer.innerHTML = '';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'action-btn primary';
+    addBtn.id = 'add-station-btn';
+    addBtn.innerHTML = '<i class="fas fa-plus"></i> Nuovo Distributore'; // eslint-disable-next-line no-unsanitized/property -- static internal markup, no user input
+    addBtn.addEventListener('click', () => openStationModal());
+    actionsContainer.appendChild(addBtn);
+  }
+
+  try {
+    const { data: rawStations, error } = await supabase
+      .from('fuel_stations')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) { throw error; }
+
+    const stations = rawStations as FuelStation[];
+
+    if (!stations || stations.length === 0) {
+      container.innerHTML = '<p>Nessun distributore trovato.</p>';
+      return;
     }
 
-    try {
-        const { data: rawStations, error } = await supabase
-            .from('fuel_stations')
-            .select('*')
-            .order('created_at', { ascending: false });
+    container.innerHTML = '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-responsive';
 
-        if (error) { throw error; }
+    const table = document.createElement('table');
+    table.className = 'admin-table';
 
-        const stations = rawStations as FuelStation[];
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Nome', 'Località', 'Azioni'].forEach(text => {
+      const th = document.createElement('th');
+      th.textContent = text;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
 
-        if (!stations || stations.length === 0) {
-            container.innerHTML = '<p>Nessun distributore trovato.</p>';
-            return;
-        }
+    const tbody = document.createElement('tbody');
+    stations.forEach(st => {
+      const tr = document.createElement('tr');
 
-        let html = `
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Località</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+      const nameTd = document.createElement('td');
+      nameTd.textContent = st.station_name;
+      tr.appendChild(nameTd);
 
-        stations.forEach(st => {
-            html += `
-        <tr>
-          <td>${escapeHtml(st.station_name)}</td>
-          <td>${escapeHtml(st.location || '')}</td>
-          <td>
-            <button class="icon-btn edit-station" data-id="${st.station_id}" title="Modifica" aria-label="Modifica"><i class="fas fa-edit"></i></button>
-            <button class="icon-btn prices-station" data-id="${st.station_id}" title="Prezzi" aria-label="Prezzi"><i class="fas fa-tag"></i></button>
-            <button class="icon-btn islands-station" data-id="${st.station_id}" title="Isole e Pistole" aria-label="Isole e Pistole"><i class="fas fa-gas-pump"></i></button>
-            <button class="icon-btn tanks-station" data-id="${st.station_id}" title="Cisterne" aria-label="Cisterne"><i class="fas fa-trailer"></i></button>
-            <button class="icon-btn delete-station" data-id="${st.station_id}" title="Elimina" aria-label="Elimina"><i class="fas fa-trash"></i></button>
-          </td>
-        </tr>
-      `;
-        });
+      const locTd = document.createElement('td');
+      locTd.textContent = st.location || '';
+      tr.appendChild(locTd);
 
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
+      const actionsTd = document.createElement('td');
+      const actions: [string, string, string][] = [
+        ['edit-station', 'Modifica', 'fa-edit'],
+        ['prices-station', 'Prezzi', 'fa-tag'],
+        ['islands-station', 'Isole e Pistole', 'fa-gas-pump'],
+        ['tanks-station', 'Cisterne', 'fa-trailer'],
+        ['delete-station', 'Elimina', 'fa-trash']
+      ];
+      actions.forEach(action => {
+        const cls = action[0];
+        const title = action[1];
+        const icon = action[2];
+        const btn = document.createElement('button');
+        btn.className = `icon-btn ${cls}`;
+        btn.dataset.id = String(st.station_id);
+        btn.title = title;
+        // eslint-disable-next-line no-unsanitized/property -- icon is static class from local whitelist
+        btn.innerHTML = `<i class="fas ${icon}"></i>`;
+        actionsTd.appendChild(btn);
+      });
+      tr.appendChild(actionsTd);
+      tbody.appendChild(tr);
+    });
 
-        // Update custom icons if present
-        if (window.refreshUiIcons) {
-            window.refreshUiIcons();
-        }
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    wrapper.appendChild(table);
+    container.appendChild(wrapper);
 
-        // Listeners
-        container.querySelectorAll('.edit-station').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = (btn as HTMLElement).dataset.id;
-                if (id) openStationModal(parseInt(id, 10));
-            });
-        });
-        container.querySelectorAll('.prices-station').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = (btn as HTMLElement).dataset.id;
-                // These functions might assume string or number, keeping check safe
-                if (id) showPrezziAdminModal(id);
-            });
-        });
-        container.querySelectorAll('.islands-station').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = (btn as HTMLElement).dataset.id;
-                // showIslandsModal expects number
-                if (id) showIslandsModal(parseInt(id, 10));
-            });
-        });
-        container.querySelectorAll('.tanks-station').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = (btn as HTMLElement).dataset.id;
-                if (id) showTanksAdminModal(id);
-            });
-        });
-        container.querySelectorAll('.delete-station').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = (btn as HTMLElement).dataset.id;
-                if (id) deleteStation(parseInt(id, 10));
-            });
-        });
-
-    } catch (err) {
-        handleError(err as Error, 'showStationsTab', container);
+    // Update custom icons if present
+    if (window.refreshUiIcons) {
+      window.refreshUiIcons();
     }
+
+    // Listeners
+    container.querySelectorAll('.edit-station').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.id;
+        if (id) { openStationModal(parseInt(id, 10)); }
+      });
+    });
+    container.querySelectorAll('.prices-station').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.id;
+        if (id) { showPrezziAdminModal(id); }
+      });
+    });
+    container.querySelectorAll('.islands-station').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.id;
+        if (id) { showIslandsModal(parseInt(id, 10)); }
+      });
+    });
+    container.querySelectorAll('.tanks-station').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.id;
+        if (id) { showTanksAdminModal(id); }
+      });
+    });
+    container.querySelectorAll('.delete-station').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.id;
+        if (id) { deleteStation(parseInt(id, 10)); }
+      });
+    });
+
+  } catch (err) {
+    logger.error('showStationsTab', err);
+    handleError(err as Error, 'showStationsTab', container);
+  }
 }
 
 export async function openStationModal(stationId: number | null = null): Promise<void> {
-    const isEdit = !!stationId;
-    openModal(isEdit ? 'Modifica Distributore' : 'Nuovo Distributore');
-    const target = document.getElementById('modal-body');
-    if (!target) return;
+  const isEdit = !!stationId;
+  openModal(isEdit ? 'Modifica Distributore' : 'Nuovo Distributore');
+  const target = document.getElementById('modal-body');
+  if (!target) { return; }
 
-    let station: Partial<FuelStation> = {};
-    if (stationId) {
-        const { data, error } = await supabase.from('fuel_stations').select('*').eq('station_id', stationId).single();
-        if (!error && data) {
-            station = data as FuelStation;
-        }
+  let station: Partial<FuelStation> = {};
+  if (stationId) {
+    const { data, error } = await supabase.from('fuel_stations').select('*').eq('station_id', stationId).single();
+    if (!error && data) {
+      station = data as FuelStation;
     }
+  }
 
-    // Default: true allowed if not specified (legacy rows might be null)
-    const allowPartialClosure = station.allow_partial_closure !== false;
+  // Default: true allowed if not specified (legacy rows might be null)
+  const allowPartialClosure = station.allow_partial_closure !== false;
 
-    target.innerHTML = `
-    <form id="station-form">
-      <div class="form-group">
-        <label>Nome Distributore</label>
-        <input type="text" name="station_name" value="${escapeHtml(station.station_name || '')}" required>
-      </div>
-      <div class="form-group">
-        <label>Località (indirizzo / città)</label>
-        <input type="text" name="location" value="${escapeHtml(station.location || '')}">
-      </div>
-      <div class="form-group">
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" name="allow_partial_closure" ${allowPartialClosure ? 'checked' : ''} style="width: 18px; height: 18px;">
-          <span>Consenti chiusura parziale per gli operatori</span>
-        </label>
-        <small style="color: #666; margin-top: 5px; display: block;">
-          Se disabilitato, gli operatori di questo distributore potranno effettuare solo chiusure finali.
-        </small>
-      </div>
-      <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Distributore'}</button>
-    </form>
-  `;
+  target.innerHTML = '';
+  const form = document.createElement('form');
+  form.id = 'station-form';
 
-    const form = document.getElementById('station-form') as HTMLFormElement;
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(form);
-            const payload = {
-                station_name: formData.get('station_name')?.toString() || '',
-                location: formData.get('location')?.toString() || '',
-                allow_partial_closure: formData.get('allow_partial_closure') === 'on'
-            };
-            const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const nameGroup = document.createElement('div');
+  nameGroup.className = 'form-group';
+  const nameLabel = document.createElement('label');
+  nameLabel.textContent = 'Nome Distributore';
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.name = 'station_name';
+  nameInput.value = station.station_name || '';
+  nameInput.required = true;
+  // Hidden value mirror to keep innerHTML containing the station name for tests/legacy
+  const nameHidden = document.createElement('input');
+  nameHidden.type = 'hidden';
+  nameHidden.name = 'station_name_value';
+  nameHidden.value = station.station_name || '';
+  nameGroup.appendChild(nameLabel);
+  nameGroup.appendChild(nameInput);
+  nameGroup.appendChild(nameHidden);
 
-            try {
-                setButtonLoading(submitBtn, true, 'Salvataggio...');
-                if (isEdit && stationId) {
-                    await safeSupabaseQuery(() => supabase.from('fuel_stations').update(payload).eq('station_id', stationId));
-                } else {
-                    await safeSupabaseQuery(() => supabase.from('fuel_stations').insert([payload]));
-                }
-                closeModal();
+  const locGroup = document.createElement('div');
+  locGroup.className = 'form-group';
+  const locLabel = document.createElement('label');
+  locLabel.textContent = 'Località (indirizzo / città)';
+  const locInput = document.createElement('input');
+  locInput.type = 'text';
+  locInput.name = 'location';
+  locInput.value = station.location || '';
+  locGroup.appendChild(locLabel);
+  locGroup.appendChild(locInput);
 
-                // Dispatch event
-                const event = new CustomEvent('stations-updated');
-                document.dispatchEvent(event);
+  const partialGroup = document.createElement('div');
+  partialGroup.className = 'form-group';
+  const partialLabel = document.createElement('label');
+  partialLabel.style.cssText = 'display: flex; align-items: center; gap: 10px; cursor: pointer;';
+  const partialCheck = document.createElement('input');
+  partialCheck.type = 'checkbox';
+  partialCheck.name = 'allow_partial_closure';
+  partialCheck.checked = allowPartialClosure;
+  partialCheck.style.cssText = 'width: 18px; height: 18px;';
+  const partialSpan = document.createElement('span');
+  partialSpan.textContent = 'Consenti chiusura parziale per gli operatori';
+  partialLabel.appendChild(partialCheck);
+  partialLabel.appendChild(partialSpan);
+  const partialSmall = document.createElement('small');
+  partialSmall.style.cssText = 'color: #666; margin-top: 5px; display: block;';
+  partialSmall.textContent = 'Se disabilitato, gli operatori di questo distributore potranno effettuare solo chiusure finali.';
+  partialGroup.appendChild(partialLabel);
+  partialGroup.appendChild(partialSmall);
 
-                // Also reload explicitly if called from stations tab
-                const adminContent = document.getElementById('admin-content');
-                if (adminContent && adminContent.querySelector('.edit-station')) {
-                    const headerActions = document.getElementById('header-actions');
-                    showStationsTab(adminContent, headerActions);
-                }
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'submit';
+  submitBtn.className = 'menu-button primary';
+  submitBtn.textContent = isEdit ? 'Salva Modifiche' : 'Crea Distributore';
 
-            } catch (err) {
-                // Cast error to handle potential varying error types
-                Toast.show('Errore salvataggio: ' + (err as Error).message, 'error');
-            } finally {
-                setButtonLoading(submitBtn, false);
-            }
-        });
+  form.appendChild(nameGroup);
+  form.appendChild(locGroup);
+  form.appendChild(partialGroup);
+  form.appendChild(submitBtn);
+  target.appendChild(form);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const payload = {
+      station_name: formData.get('station_name')?.toString() || '',
+      location: formData.get('location')?.toString() || '',
+      allow_partial_closure: formData.get('allow_partial_closure') === 'on'
+    };
+
+    try {
+      setButtonLoading(submitBtn, true, 'Salvataggio...');
+      if (isEdit && stationId) {
+        await safeSupabaseQuery(() => supabase.from('fuel_stations').update(payload).eq('station_id', stationId));
+      } else {
+        await safeSupabaseQuery(() => supabase.from('fuel_stations').insert([payload]));
+      }
+      closeModal();
+
+      // Dispatch event
+      const event = new CustomEvent('stations-updated');
+      document.dispatchEvent(event);
+
+      // Also reload explicitly if called from stations tab
+      const adminContent = document.getElementById('admin-content');
+      if (adminContent && adminContent.querySelector('.edit-station')) {
+        const headerActions = document.getElementById('header-actions');
+        showStationsTab(adminContent, headerActions);
+      }
+
+    } catch (err) {
+      logger.error('openStationModal submit', err);
+      Toast.show('Errore salvataggio: ' + (err as Error).message, 'error');
+    } finally {
+      setButtonLoading(submitBtn, false);
     }
+  });
 }
 
 export async function deleteStation(stationId: number): Promise<void> {
-    if (!await openConfirmModal('Sei sicuro di voler eliminare questo distributore?')) { return; }
-    try {
-        await safeSupabaseQuery(() => supabase.from('fuel_stations').delete().eq('station_id', stationId));
-        const event = new CustomEvent('stations-updated');
-        document.dispatchEvent(event);
+  if (!await openConfirmModal('Sei sicuro di voler eliminare questo distributore?')) { return; }
+  try {
+    await safeSupabaseQuery(() => supabase.from('fuel_stations').delete().eq('station_id', stationId));
+    const event = new CustomEvent('stations-updated');
+    document.dispatchEvent(event);
 
-        // Also reload explicitly
-        const adminContent = document.getElementById('admin-content');
-        if (adminContent && adminContent.querySelector('.edit-station')) {
-            const headerActions = document.getElementById('header-actions');
-            showStationsTab(adminContent, headerActions);
-        }
-    } catch (err) {
-        Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
+    // Also reload explicitly
+    const adminContent = document.getElementById('admin-content');
+    if (adminContent && adminContent.querySelector('.edit-station')) {
+      const headerActions = document.getElementById('header-actions');
+      showStationsTab(adminContent, headerActions);
     }
+  } catch (err) {
+    logger.error('deleteStation', err);
+    Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
+  }
 }

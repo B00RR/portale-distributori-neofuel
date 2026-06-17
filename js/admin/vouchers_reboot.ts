@@ -70,31 +70,31 @@ declare const window: CustomWindow;
 
 // --- STATE ---
 const voucherState: VoucherState = {
-    batches: [],
-    customers: [],
-    activeTab: 'generator',
-    dashboardView: 'batches',
-    currentPage: 1,
-    pageSize: 25,
-    totalCount: 0,
-    filters: {
-        status: '',
-        dateFrom: '',
-        dateTo: '',
-        clientSearch: ''
-    }
+  batches: [],
+  customers: [],
+  activeTab: 'generator',
+  dashboardView: 'batches',
+  currentPage: 1,
+  pageSize: 25,
+  totalCount: 0,
+  filters: {
+    status: '',
+    dateFrom: '',
+    dateTo: '',
+    clientSearch: ''
+  }
 };
 
 // --- INITIALIZATION ---
 export async function showVoucherAdminTab(container: HTMLElement, _headerActions?: HTMLElement | null): Promise<void> {
-    console.log('[APP] showVoucherAdminTab called. activeTab:', voucherState.activeTab);
+  console.log('[APP] showVoucherAdminTab called. activeTab:', voucherState.activeTab);
 
-    // Initial structure rendering (Shell)
-    // We only re-render the full container if it's the first time or if forced
-    const isAlreadyRendered = container.querySelector('[data-testid="voucher-admin-panel"]');
+  // Initial structure rendering (Shell)
+  // We only re-render the full container if it's the first time or if forced
+  const isAlreadyRendered = container.querySelector('[data-testid="voucher-admin-panel"]');
 
-    if (!isAlreadyRendered) {
-        container.innerHTML = `
+  if (!isAlreadyRendered) {
+    container.innerHTML = `
             <div class="app-container" data-testid="voucher-admin-panel" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
                 <div class="top-bar-title">
                     <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher V3</h2>
@@ -111,40 +111,40 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
             </div>
         `;
 
-        // Bind Tabs ONCE using Delegation on the permanent tabs container
-        const tabsContainer = document.getElementById('voucher-tabs');
-        if (tabsContainer) {
-            tabsContainer.addEventListener('click', (e) => {
-                const btn = (e.target as HTMLElement).closest('.menu-button[data-tab]');
-                if (!btn) return;
+    // Bind Tabs ONCE using Delegation on the permanent tabs container
+    const tabsContainer = document.getElementById('voucher-tabs');
+    if (tabsContainer) {
+      tabsContainer.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest('.menu-button[data-tab]');
+        if (!btn) {return;}
 
-                const tabId = (btn as HTMLElement).dataset.tab as 'generator' | 'dashboard';
-                if (!tabId || tabId === voucherState.activeTab) return;
+        const tabId = (btn as HTMLElement).dataset.tab as 'generator' | 'dashboard';
+        if (!tabId || tabId === voucherState.activeTab) {return;}
 
-                voucherState.activeTab = tabId;
-                updateTabButtons();
-                renderActiveTab();
-            });
-        }
-
-        // Single Listener for offline sync
-        window.removeEventListener('offline-sync-complete', syncHandler);
-        window.addEventListener('offline-sync-complete', syncHandler);
+        voucherState.activeTab = tabId;
+        updateTabButtons();
+        renderActiveTab();
+      });
     }
 
-    // Always update buttons to reflect active state
-    updateTabButtons();
+    // Single Listener for offline sync
+    window.removeEventListener('offline-sync-complete', syncHandler);
+    window.addEventListener('offline-sync-complete', syncHandler);
+  }
 
-    // Load dependencies and render content
-    await loadCustomers();
-    renderActiveTab();
+  // Always update buttons to reflect active state
+  updateTabButtons();
+
+  // Load dependencies and render content
+  await loadCustomers();
+  renderActiveTab();
 }
 
 function updateTabButtons(): void {
-    const tabsContainer = document.getElementById('voucher-tabs');
-    if (!tabsContainer) return;
+  const tabsContainer = document.getElementById('voucher-tabs');
+  if (!tabsContainer) {return;}
 
-    tabsContainer.innerHTML = `
+  tabsContainer.innerHTML = `
         <button class="menu-button ${voucherState.activeTab === 'generator' ? 'primary' : 'outline'}" data-tab="generator" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
             <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
                 <i class="fas fa-plus-circle"></i> Genera
@@ -163,50 +163,50 @@ function updateTabButtons(): void {
 
 // Global reference for the sync handler to allow removal
 const syncHandler = () => {
-    if (voucherState.activeTab === 'dashboard') {
-        Toast.show('Dati aggiornati dopo sincronizzazione', 'info');
-        renderActiveTab();
-    }
+  if (voucherState.activeTab === 'dashboard') {
+    Toast.show('Dati aggiornati dopo sincronizzazione', 'info');
+    renderActiveTab();
+  }
 };
 
 async function loadCustomers(): Promise<void> {
-    try {
-        // Fetch active customers for the dropdown
-        const { data, error } = await supabase
-            .from('crediti_clienti')
-            .select('id, cliente')
-            .order('cliente');
+  try {
+    // Fetch active customers for the dropdown
+    const { data, error } = await supabase
+      .from('crediti_clienti')
+      .select('id, cliente')
+      .order('cliente');
 
-        if (error) { throw error; }
-        voucherState.customers = (data as Customer[]) || [];
-    } catch (err) {
-        console.error('Error loading customers:', err);
-        Toast.show('Errore caricamento clienti', 'error');
-    }
+    if (error) { throw error; }
+    voucherState.customers = (data as Customer[]) || [];
+  } catch (err) {
+    console.error('Error loading customers:', err);
+    Toast.show('Errore caricamento clienti', 'error');
+  }
 }
 
 async function renderActiveTab(): Promise<void> {
-    const content = document.getElementById('voucher-content');
-    if (!content) { return; }
+  const content = document.getElementById('voucher-content');
+  if (!content) { return; }
 
-    switch (voucherState.activeTab) {
-        case 'generator':
-            renderGenerator(content);
-            break;
-        case 'dashboard':
-            renderDashboard(content);
-            break;
-    }
+  switch (voucherState.activeTab) {
+    case 'generator':
+      renderGenerator(content);
+      break;
+    case 'dashboard':
+      renderDashboard(content);
+      break;
+  }
 }
 
 // --- GENERATOR TAB ---
 function renderGenerator(container: HTMLElement): void {
-    const today = new Date().toISOString().split('T')[0];
-    const nextYear = new Date();
-    nextYear.setFullYear(nextYear.getFullYear() + 1);
-    const nextYearStr = nextYear.toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
+  const nextYear = new Date();
+  nextYear.setFullYear(nextYear.getFullYear() + 1);
+  const nextYearStr = nextYear.toISOString().split('T')[0];
 
-    container.innerHTML = `
+  container.innerHTML = `
         <div class="menu-card" style="max-width: 900px; margin: 40px auto; padding: 50px; border-radius: 20px; box-shadow: var(--shadow-md);">
             <div style="text-align: center; margin-bottom: 50px;">
                 <h3 style="font-size: 2rem; margin-bottom: 12px; color: var(--primary-color);">Crea Nuovi Voucher</h3>
@@ -252,148 +252,148 @@ function renderGenerator(container: HTMLElement): void {
         </div>
     `;
 
-    document.getElementById('voucher-generator-form')?.addEventListener('submit', handleGeneration);
+  document.getElementById('voucher-generator-form')?.addEventListener('submit', handleGeneration);
 }
 
 async function handleGeneration(e: Event): Promise<void> {
-    e.preventDefault();
-    const target = e.target as HTMLFormElement;
-    const formData = new FormData(target);
-    const amount = parseFloat(formData.get('amount')?.toString() || '0');
-    const customer = formData.get('customer_name')?.toString() || '';
-    const expiration = formData.get('expiration_date')?.toString() || '';
-    const quantity = parseInt(formData.get('quantity')?.toString() || '0');
+  e.preventDefault();
+  const target = e.target as HTMLFormElement;
+  const formData = new FormData(target);
+  const amount = parseFloat(formData.get('amount')?.toString() || '0');
+  const customer = formData.get('customer_name')?.toString() || '';
+  const expiration = formData.get('expiration_date')?.toString() || '';
+  const quantity = parseInt(formData.get('quantity')?.toString() || '0');
 
-    if (!amount || quantity < 1) { return; }
+  if (!amount || quantity < 1) { return; }
 
-    const confirmed = await openConfirmModal(`Confermi la generazione di ${quantity} voucher da ${formatEuro(amount)} ciascuno?\nTotale Valore Nominale: ${formatEuro(amount * quantity)}`);
-    if (!confirmed) {
-        return;
+  const confirmed = await openConfirmModal(`Confermi la generazione di ${quantity} voucher da ${formatEuro(amount)} ciascuno?\nTotale Valore Nominale: ${formatEuro(amount * quantity)}`);
+  if (!confirmed) {
+    return;
+  }
+
+  const content = document.getElementById('voucher-content');
+  if (content) {showLoadingMessage(content);}
+
+  try {
+    // 1. Create Batch
+    const batchDesc = `${quantity}x ${formatEuro(amount)}`;
+    const { data: batch, error: batchError } = await supabase
+      .from('voucher_batches')
+      .insert([{
+        description: batchDesc,
+        customer_name: customer || null,
+        expiration_date: expiration || null
+      }])
+      .select()
+      .single();
+
+    if (batchError || !batch) { throw batchError || new Error('Failed to create batch'); }
+
+    // 2. Generate Vouchers
+    const vouchersPayload = [];
+    for (let i = 0; i < quantity; i++) {
+      // Generate unique unpredictable code
+      const uniqueCode = generateVoucherCode();
+
+      vouchersPayload.push({
+        batch_id: batch.id,
+        code: uniqueCode,
+        amount: amount,
+        status: 'active',
+        expiration_date: expiration || null,
+        // serial_number could be auto-incremented by DB or calculated here relative to batch
+        serial_number: i + 1
+      });
     }
 
+    const { error: vouchersError } = await supabase
+      .from('vouchers')
+      .insert(vouchersPayload);
+
+    if (vouchersError) { throw vouchersError; }
+
+    Toast.show('Voucher generati con successo!', 'success');
+
+    // Redirect to Print Tab
+    voucherState.activeTab = 'dashboard';
+    voucherState.dashboardView = 'batches';
+    updateTabButtons();
+    renderActiveTab();
+
+  } catch (err: any) {
+    console.error(err);
     const content = document.getElementById('voucher-content');
-    if (content) showLoadingMessage(content);
-
-    try {
-        // 1. Create Batch
-        const batchDesc = `${quantity}x ${formatEuro(amount)}`;
-        const { data: batch, error: batchError } = await supabase
-            .from('voucher_batches')
-            .insert([{
-                description: batchDesc,
-                customer_name: customer || null,
-                expiration_date: expiration || null
-            }])
-            .select()
-            .single();
-
-        if (batchError || !batch) { throw batchError || new Error("Failed to create batch"); }
-
-        // 2. Generate Vouchers
-        const vouchersPayload = [];
-        for (let i = 0; i < quantity; i++) {
-            // Generate unique unpredictable code
-            const uniqueCode = generateVoucherCode();
-
-            vouchersPayload.push({
-                batch_id: batch.id,
-                code: uniqueCode,
-                amount: amount,
-                status: 'active',
-                expiration_date: expiration || null,
-                // serial_number could be auto-incremented by DB or calculated here relative to batch
-                serial_number: i + 1
-            });
-        }
-
-        const { error: vouchersError } = await supabase
-            .from('vouchers')
-            .insert(vouchersPayload);
-
-        if (vouchersError) { throw vouchersError; }
-
-        Toast.show('Voucher generati con successo!', 'success');
-
-        // Redirect to Print Tab
-        voucherState.activeTab = 'dashboard';
-        voucherState.dashboardView = 'batches';
-        updateTabButtons();
-        renderActiveTab();
-
-    } catch (err: any) {
-        console.error(err);
-        const content = document.getElementById('voucher-content');
-        if (content) renderGenerator(content); // Reset UI
-        Toast.show('Errore Generazione: ' + (err.message || ''), 'error');
-    }
+    if (content) {renderGenerator(content);} // Reset UI
+    Toast.show('Errore Generazione: ' + (err.message || ''), 'error');
+  }
 }
 
 function generateVoucherCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I, O, 0, 1 to avoid confusion
-    let result = '';
-    for (let i = 0; i < 12; i++) {
-        if (i === 4 || i === 8) { result += '-'; }
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result; // e.g. A4K9-XP3M-9L2N
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I, O, 0, 1 to avoid confusion
+  let result = '';
+  for (let i = 0; i < 12; i++) {
+    if (i === 4 || i === 8) { result += '-'; }
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result; // e.g. A4K9-XP3M-9L2N
 }
 
 // --- DASHBOARD TAB ---
 async function renderDashboard(container: HTMLElement): Promise<void> {
-    container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento Dashboard...</div>';
+  container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento Dashboard...</div>';
 
-    try {
-        // Fetch stats
-        const { count: totalGen } = await supabase.from('vouchers').select('*', { count: 'exact', head: true });
-        const { count: totalRedeemed } = await supabase.from('vouchers').select('*', { count: 'exact', head: true }).eq('status', 'redeemed');
-        const { count: totalActive } = await supabase.from('vouchers').select('*', { count: 'exact', head: true }).eq('status', 'active');
+  try {
+    // Fetch stats
+    const { count: totalGen } = await supabase.from('vouchers').select('*', { count: 'exact', head: true });
+    const { count: totalRedeemed } = await supabase.from('vouchers').select('*', { count: 'exact', head: true }).eq('status', 'redeemed');
+    const { count: totalActive } = await supabase.from('vouchers').select('*', { count: 'exact', head: true }).eq('status', 'active');
 
-        // PREPARE DATA - BATCHES VIEW ONLY
-        const { data: batches, error: batchError } = await supabase
-            .from('voucher_batches')
-            .select('*')
-            .order('created_at', { ascending: false });
+    // PREPARE DATA - BATCHES VIEW ONLY
+    const { data: batches, error: batchError } = await supabase
+      .from('voucher_batches')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-        if (batchError) { throw batchError; }
+    if (batchError) { throw batchError; }
 
-        // Fetch aggregation data (all vouchers) needed for stats
-        const { data: allVouchers, error: vouchersError } = await supabase
-            .from('vouchers')
-            .select('batch_id, status, amount');
+    // Fetch aggregation data (all vouchers) needed for stats
+    const { data: allVouchers, error: vouchersError } = await supabase
+      .from('vouchers')
+      .select('batch_id, status, amount');
 
-        if (vouchersError) { throw vouchersError; }
+    if (vouchersError) { throw vouchersError; }
 
-        // Calculate stats per batch AND global monetary stats
-        const batchStats: Record<string, BatchStats> = {};
-        let globalRedeemedValue = 0;
-        let globalCirculatingValue = 0;
+    // Calculate stats per batch AND global monetary stats
+    const batchStats: Record<string, BatchStats> = {};
+    let globalRedeemedValue = 0;
+    let globalCirculatingValue = 0;
 
-        (allVouchers as Voucher[]).forEach(v => {
-            let stats = batchStats[v.batch_id];
-            if (!stats) {
-                stats = { totalAmount: 0, redeemedAmount: 0, totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0 };
-                batchStats[v.batch_id] = stats;
-            }
-            stats.totalAmount += v.amount;
-            stats.totalCount++;
+    (allVouchers as Voucher[]).forEach(v => {
+      let stats = batchStats[v.batch_id];
+      if (!stats) {
+        stats = { totalAmount: 0, redeemedAmount: 0, totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0 };
+        batchStats[v.batch_id] = stats;
+      }
+      stats.totalAmount += v.amount;
+      stats.totalCount++;
 
-            if (v.status === 'redeemed') {
-                stats.redeemedCount++;
-                stats.redeemedAmount += v.amount;
-                globalRedeemedValue += v.amount;
-            } else if (v.status === 'active') {
-                stats.activeCount++;
-                globalCirculatingValue += v.amount;
-            } else if (v.status === 'void') {
-                stats.voidCount++;
-            }
-        });
+      if (v.status === 'redeemed') {
+        stats.redeemedCount++;
+        stats.redeemedAmount += v.amount;
+        globalRedeemedValue += v.amount;
+      } else if (v.status === 'active') {
+        stats.activeCount++;
+        globalCirculatingValue += v.amount;
+      } else if (v.status === 'void') {
+        stats.voidCount++;
+      }
+    });
 
-        const styleId = 'voucher-grid-styles';
-        if (!document.getElementById(styleId)) {
-            const style = document.createElement('style');
-            style.id = styleId;
-            style.textContent = `
+    const styleId = 'voucher-grid-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
                 /* Custom Scrollbar to make it OBVIOUS */
                 .voucher-scroll-wrapper::-webkit-scrollbar {
                     height: 12px;
@@ -550,10 +550,10 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                     }
                 }
             `;
-            document.head.appendChild(style);
-        }
+      document.head.appendChild(style);
+    }
 
-        const tableHtml = `
+    const tableHtml = `
             <div class="voucher-list-container">
                 <div class="voucher-scroll-wrapper">
                     <div class="voucher-grid-inner">
@@ -570,31 +570,31 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
 
                         <!-- ROWS -->
                         ${(batches as VoucherBatch[]).map(b => {
-            const stats = batchStats[b.id] || { totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0, totalAmount: 0, redeemedAmount: 0 };
-            const residualAmount = stats.totalAmount - stats.redeemedAmount;
-            const isExpired = b.expiration_date && new Date(b.expiration_date) < new Date();
+    const stats = batchStats[b.id] || { totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0, totalAmount: 0, redeemedAmount: 0 };
+    const residualAmount = stats.totalAmount - stats.redeemedAmount;
+    const isExpired = b.expiration_date && new Date(b.expiration_date) < new Date();
 
-            let statusLabel = 'Attivo';
-            let statusClass = 'badge-success';
+    let statusLabel = 'Attivo';
+    let statusClass = 'badge-success';
 
-            if (stats.voidCount === stats.totalCount && stats.totalCount > 0) {
-                statusLabel = 'Bloccato';
-                statusClass = 'badge-danger';
-            } else if (stats.redeemedCount === stats.totalCount && stats.totalCount > 0) {
-                statusLabel = 'Riscattato';
-                statusClass = 'badge-secondary';
-            } else if (isExpired) {
-                statusLabel = 'Scaduto';
-                statusClass = 'badge-danger';
-            } else if (stats.activeCount === 0 && stats.totalCount > 0) {
-                statusLabel = 'Riscattato';
-                statusClass = 'badge-secondary';
-            }
+    if (stats.voidCount === stats.totalCount && stats.totalCount > 0) {
+      statusLabel = 'Bloccato';
+      statusClass = 'badge-danger';
+    } else if (stats.redeemedCount === stats.totalCount && stats.totalCount > 0) {
+      statusLabel = 'Riscattato';
+      statusClass = 'badge-secondary';
+    } else if (isExpired) {
+      statusLabel = 'Scaduto';
+      statusClass = 'badge-danger';
+    } else if (stats.activeCount === 0 && stats.totalCount > 0) {
+      statusLabel = 'Riscattato';
+      statusClass = 'badge-secondary';
+    }
 
-            const singleAmount = stats.totalCount > 0 ? (stats.totalAmount / stats.totalCount) : 0;
-            const lottoStr = `${stats.totalCount} / ${formatEuro(singleAmount)}`;
+    const singleAmount = stats.totalCount > 0 ? (stats.totalAmount / stats.totalCount) : 0;
+    const lottoStr = `${stats.totalCount} / ${formatEuro(singleAmount)}`;
 
-            return `
+    return `
                             <div class="voucher-grid-row">
                                 <div class="voucher-cell">
                                     <div style="color: #334155; font-weight: 500;">${escapeHtml(b.customer_name || '-')}</div>
@@ -640,12 +640,12 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                                 </div>
                             </div>
                         `;
-        }).join('')}
+  }).join('')}
                     </div>
                 </div>
             </div>`;
 
-        container.innerHTML = `
+    container.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 1rem;">
                 <h3 style="margin: 0; font-size: 1.25rem; color: #0f172a;">Gestione Voucher</h3>
                 <button id="refresh-dashboard-btn" class="menu-button primary" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: 0.95rem;">
@@ -705,162 +705,162 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
         `;
 
 
-        // Bind action buttons with event delegation
-        container.addEventListener('click', (e) => {
-            const btn = (e.target as HTMLElement).closest('[data-action]');
-            if (!btn) { return; }
+    // Bind action buttons with event delegation
+    container.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('[data-action]');
+      if (!btn) { return; }
 
-            const action = (btn as HTMLElement).dataset.action;
-            const batchId = (btn as HTMLElement).dataset.batchId;
+      const action = (btn as HTMLElement).dataset.action;
+      const batchId = (btn as HTMLElement).dataset.batchId;
 
-            if (!batchId) { return; }
+      if (!batchId) { return; }
 
-            switch (action) {
-                case 'print':
-                    openPrintView(batchId);
-                    break;
-                case 'details':
-                    showBatchDetails(batchId);
-                    break;
-                case 'delete':
-                    handleDeleteBatch(batchId);
-                    break;
-            }
-        });
+      switch (action) {
+        case 'print':
+          openPrintView(batchId);
+          break;
+        case 'details':
+          showBatchDetails(batchId);
+          break;
+        case 'delete':
+          handleDeleteBatch(batchId);
+          break;
+      }
+    });
 
-        // Global Actions Exposed
-        if (!window.voucherActions) {
-            window.voucherActions = {
-                openPrintView,
-                showBatchDetails,
-                handleDeleteBatch
-            };
-        }
-
-        // Initialize Column Resizing
-        setupColumnResizing(container.querySelector('.voucher-list-container') as HTMLElement);
-
-        // Bind Refresh Button
-        const refreshBtn = document.getElementById('refresh-dashboard-btn') as HTMLButtonElement | null;
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', async () => {
-                const icon = refreshBtn.querySelector('i');
-                if (icon) icon.classList.add('fa-spin');
-                refreshBtn.disabled = true;
-
-                try {
-                    await renderDashboard(container);
-                    Toast.show('Dashboard aggiornata', 'success');
-                } catch (error) {
-                    Toast.show('Errore durante l\'aggiornamento', 'error');
-                    console.error(error);
-                } finally {
-                    if (icon) icon.classList.remove('fa-spin');
-                    refreshBtn.disabled = false;
-                }
-            });
-        }
-
-    } catch (err: any) {
-        container.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
-        console.error(err);
+    // Global Actions Exposed
+    if (!window.voucherActions) {
+      window.voucherActions = {
+        openPrintView,
+        showBatchDetails,
+        handleDeleteBatch
+      };
     }
+
+    // Initialize Column Resizing
+    setupColumnResizing(container.querySelector('.voucher-list-container') as HTMLElement);
+
+    // Bind Refresh Button
+    const refreshBtn = document.getElementById('refresh-dashboard-btn') as HTMLButtonElement | null;
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        const icon = refreshBtn.querySelector('i');
+        if (icon) {icon.classList.add('fa-spin');}
+        refreshBtn.disabled = true;
+
+        try {
+          await renderDashboard(container);
+          Toast.show('Dashboard aggiornata', 'success');
+        } catch (error) {
+          Toast.show('Errore durante l\'aggiornamento', 'error');
+          console.error(error);
+        } finally {
+          if (icon) {icon.classList.remove('fa-spin');}
+          refreshBtn.disabled = false;
+        }
+      });
+    }
+
+  } catch (err: any) {
+    container.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
+    console.error(err);
+  }
 }
 
 // --- COLUMN RESIZING UTILS ---
 function setupColumnResizing(table: HTMLElement | null): void {
-    if (!table) { return; }
+  if (!table) { return; }
 
-    // LOAD SAVED WIDTHS
-    try {
-        const saved = localStorage.getItem('voucher_table_widths');
-        if (saved) {
-            const widths = JSON.parse(saved);
-            Object.keys(widths).forEach(key => {
-                table.style.setProperty(`--col-${key}`, widths[key]);
-            });
-        }
-    } catch (e) {
-        console.error('Failed to load column widths', e);
+  // LOAD SAVED WIDTHS
+  try {
+    const saved = localStorage.getItem('voucher_table_widths');
+    if (saved) {
+      const widths = JSON.parse(saved);
+      Object.keys(widths).forEach(key => {
+        table.style.setProperty(`--col-${key}`, widths[key]);
+      });
     }
+  } catch (e) {
+    console.error('Failed to load column widths', e);
+  }
 
-    const headers = table.querySelectorAll('.voucher-grid-header .voucher-header-cell');
+  const headers = table.querySelectorAll('.voucher-grid-header .voucher-header-cell');
 
-    headers.forEach((header, index) => {
-        if (index === headers.length - 1) { return; }
+  headers.forEach((header, index) => {
+    if (index === headers.length - 1) { return; }
 
-        const resizer = document.createElement('div');
-        resizer.classList.add('resizer');
-        header.appendChild(resizer);
-        createResizableColumn(header as HTMLElement, resizer, index + 1, table);
-    });
+    const resizer = document.createElement('div');
+    resizer.classList.add('resizer');
+    header.appendChild(resizer);
+    createResizableColumn(header as HTMLElement, resizer, index + 1, table);
+  });
 }
 
 function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex: number, table: HTMLElement): void {
-    let x = 0;
-    let w = 0;
+  let x = 0;
+  let w = 0;
 
-    const mouseMoveHandler = function (e: MouseEvent): void {
-        const dx = e.clientX - x;
-        const newWidth = w + dx;
-        if (newWidth > 50) {
-            table.style.setProperty(`--col-${colIndex}`, `${newWidth}px`);
-        }
-    };
+  const mouseMoveHandler = function (e: MouseEvent): void {
+    const dx = e.clientX - x;
+    const newWidth = w + dx;
+    if (newWidth > 50) {
+      table.style.setProperty(`--col-${colIndex}`, `${newWidth}px`);
+    }
+  };
 
-    const mouseUpHandler = function (): void {
-        document.removeEventListener('mousemove', mouseMoveHandler);
-        document.removeEventListener('mouseup', mouseUpHandler);
-        resizer.classList.remove('resizing');
+  const mouseUpHandler = function (): void {
+    document.removeEventListener('mousemove', mouseMoveHandler);
+    document.removeEventListener('mouseup', mouseUpHandler);
+    resizer.classList.remove('resizing');
 
-        // SAVE WIDTHS
-        try {
-            const widths: Record<string, string> = {};
-            for (let i = 1; i <= 6; i++) {
-                const val = table.style.getPropertyValue(`--col-${i}`);
-                if (val) { widths[i] = val; }
-            }
-            localStorage.setItem('voucher_table_widths', JSON.stringify(widths));
-        } catch (e) {
-            console.error('Failed to save column widths', e);
-        }
-    };
+    // SAVE WIDTHS
+    try {
+      const widths: Record<string, string> = {};
+      for (let i = 1; i <= 6; i++) {
+        const val = table.style.getPropertyValue(`--col-${i}`);
+        if (val) { widths[i] = val; }
+      }
+      localStorage.setItem('voucher_table_widths', JSON.stringify(widths));
+    } catch (e) {
+      console.error('Failed to save column widths', e);
+    }
+  };
 
-    const mouseDownHandler = function (e: MouseEvent): void {
-        x = e.clientX;
-        w = col.getBoundingClientRect().width;
+  const mouseDownHandler = function (e: MouseEvent): void {
+    x = e.clientX;
+    w = col.getBoundingClientRect().width;
 
-        document.addEventListener('mousemove', mouseMoveHandler);
-        document.addEventListener('mouseup', mouseUpHandler);
-        resizer.classList.add('resizing');
-    };
+    document.addEventListener('mousemove', mouseMoveHandler);
+    document.addEventListener('mouseup', mouseUpHandler);
+    resizer.classList.add('resizing');
+  };
 
-    resizer.addEventListener('mousedown', mouseDownHandler);
+  resizer.addEventListener('mousedown', mouseDownHandler);
 }
 
 async function showBatchDetails(batchId: string): Promise<void> {
-    openModal('Dettaglio Lotto Voucher');
-    const modalBody = document.getElementById('modal-body');
-    if (!modalBody) return;
+  openModal('Dettaglio Lotto Voucher');
+  const modalBody = document.getElementById('modal-body');
+  if (!modalBody) {return;}
 
-    modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento dettagli...</div>';
+  modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento dettagli...</div>';
 
-    try {
-        const { data: vouchers, error } = await supabase
-            .from('vouchers')
-            .select('*')
-            .eq('batch_id', batchId)
-            .order('serial_number');
+  try {
+    const { data: vouchers, error } = await supabase
+      .from('vouchers')
+      .select('*')
+      .eq('batch_id', batchId)
+      .order('serial_number');
 
-        if (error) { throw error; }
+    if (error) { throw error; }
 
-        const { data: batch } = await supabase
-            .from('voucher_batches')
-            .select('description')
-            .eq('id', batchId)
-            .single();
+    const { data: batch } = await supabase
+      .from('voucher_batches')
+      .select('description')
+      .eq('id', batchId)
+      .single();
 
-        modalBody.innerHTML = `
+    modalBody.innerHTML = `
             <div style="padding: 10px;">
                 <h3 style="margin-bottom: 20px;">${escapeHtml(batch?.description || 'Dettaglio Lotto')}</h3>
                 <div class="table-responsive" style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -875,22 +875,22 @@ async function showBatchDetails(batchId: string): Promise<void> {
                         </thead>
                         <tbody>
                             ${(vouchers as Voucher[]).map(v => {
-            const isRedeemed = v.status === 'redeemed';
-            return `
+    const isRedeemed = v.status === 'redeemed';
+    return `
                                     <tr style="background: ${isRedeemed ? '#f1f5f9' : 'white'}; border-bottom: 1px solid #f1f5f9;">
                                         <td style="padding: 12px; font-weight: 500;">#${v.serial_number}</td>
                                         <td style="padding: 12px; font-family: monospace; font-size: 1.1em;">${v.code}</td>
                                         <td style="padding: 12px; text-align: center;">
                                             ${isRedeemed
-                    ? '<span class="badge badge-secondary"><i class="fas fa-check"></i> Riscattato</span>'
-                    : '<span class="badge badge-success">Attivo</span>'}
+    ? '<span class="badge badge-secondary"><i class="fas fa-check"></i> Riscattato</span>'
+    : '<span class="badge badge-success">Attivo</span>'}
                                         </td>
                                         <td style="padding: 12px; color: #64748b; font-size: 0.9rem;">
                                             ${v.redeemed_at ? formatDate(v.redeemed_at) : '-'}
                                         </td>
                                     </tr>
                                 `;
-        }).join('')}
+  }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -900,132 +900,132 @@ async function showBatchDetails(batchId: string): Promise<void> {
             </div>
         `;
 
-        document.getElementById('btn-close-details')?.addEventListener('click', () => closeModal());
+    document.getElementById('btn-close-details')?.addEventListener('click', () => closeModal());
 
-    } catch (err: any) {
-        console.error(err);
-        modalBody.innerHTML = `<div class="alert alert-danger">Errore caricamento: ${err.message}</div>`;
-    }
+  } catch (err: any) {
+    console.error(err);
+    modalBody.innerHTML = `<div class="alert alert-danger">Errore caricamento: ${err.message}</div>`;
+  }
 }
 
 async function handleDeleteBatch(batchId: string): Promise<void> {
-    const confirmed = await openConfirmModal('PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.');
-    if (!confirmed) { return; }
+  const confirmed = await openConfirmModal('PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.');
+  if (!confirmed) { return; }
 
-    try {
-        const { error } = await supabase
-            .from('voucher_batches')
-            .delete()
-            .eq('id', batchId);
+  try {
+    const { error } = await supabase
+      .from('voucher_batches')
+      .delete()
+      .eq('id', batchId);
 
-        if (error) { throw error; }
-        Toast.show('Lotto eliminato correttamente.', 'success');
-        renderActiveTab();
-    } catch (err: any) {
-        console.error(err);
-        Toast.show('Errore eliminazione: ' + err.message, 'error');
-    }
+    if (error) { throw error; }
+    Toast.show('Lotto eliminato correttamente.', 'success');
+    renderActiveTab();
+  } catch (err: any) {
+    console.error(err);
+    Toast.show('Errore eliminazione: ' + err.message, 'error');
+  }
 }
 
 
 
 export async function openPrintView(batchId: string | undefined): Promise<void> {
-    if (!batchId) return;
+  if (!batchId) {return;}
 
-    // 1. OPEN WINDOW IMMEDIATELY (Synchronous) to bypass Popup Blocker
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        showInfoModal('Attenzione: Il browser ha bloccato il popup. Autorizza i popup per stampare.', 'Stampa Bloccata');
-        return;
-    }
+  // 1. OPEN WINDOW IMMEDIATELY (Synchronous) to bypass Popup Blocker
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showInfoModal('Attenzione: Il browser ha bloccato il popup. Autorizza i popup per stampare.', 'Stampa Bloccata');
+    return;
+  }
 
-    // 2. Show Loading State in the new window
-    printWindow.document.write('<html><head><title>Caricamento...</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;"><h2>Generazione Voucher in corso...</h2><p>Attendere prego...</p></body></html>');
+  // 2. Show Loading State in the new window
+  printWindow.document.write('<html><head><title>Caricamento...</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;"><h2>Generazione Voucher in corso...</h2><p>Attendere prego...</p></body></html>');
 
-    const container = document.getElementById('voucher-content');
-    if (container) showLoadingMessage(container); // Loader in parent too
+  const container = document.getElementById('voucher-content');
+  if (container) {showLoadingMessage(container);} // Loader in parent too
 
-    try {
-        // 3. Fetch Data (Async)
-        const { data: vouchers, error } = await supabase
-            .from('vouchers')
-            .select('*')
-            .eq('batch_id', batchId)
-            .order('serial_number');
+  try {
+    // 3. Fetch Data (Async)
+    const { data: vouchers, error } = await supabase
+      .from('vouchers')
+      .select('*')
+      .eq('batch_id', batchId)
+      .order('serial_number');
 
-        if (error) { throw error; }
+    if (error) { throw error; }
 
-        renderActiveTab(); // Refresh list to update icons if needed
+    renderActiveTab(); // Refresh list to update icons if needed
 
-        // 4. Update Window Content
-        await generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
+    // 4. Update Window Content
+    await generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
 
-    } catch (err: any) {
-        console.error(err);
-        Toast.show('Errore recupero voucher: ' + err.message, 'error');
-        if (container) renderDashboard(container); // Reset UI
+  } catch (err: any) {
+    console.error(err);
+    Toast.show('Errore recupero voucher: ' + err.message, 'error');
+    if (container) {renderDashboard(container);} // Reset UI
 
-        // Show error in popup
-        printWindow.document.body.innerHTML = `<h3 style="color:red">Errore: ${err.message}</h3>`;
-    }
+    // Show error in popup
+    printWindow.document.body.innerHTML = `<h3 style="color:red">Errore: ${err.message}</h3>`;
+  }
 }
 
 async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<void> {
-    const frontBg = 'assets/templates/template_voucher_pagina 1.jpg';
-    const backBg = 'assets/templates/template_voucher_pagina 2.jpg';
+  const frontBg = 'assets/templates/template_voucher_pagina 1.jpg';
+  const backBg = 'assets/templates/template_voucher_pagina 2.jpg';
 
-    // Dynamic import to avoid startup crashes if bundling fails
-    let QRCode: any;
-    try {
-        // @ts-ignore
-        const module = await import('qrcode');
-        QRCode = module.default || module;
-    } catch (e) {
-        console.error('Failed to load QRCode library', e);
+  // Dynamic import to avoid startup crashes if bundling fails
+  let QRCode: any;
+  try {
+    // @ts-ignore
+    const module = await import('qrcode');
+    QRCode = module.default || module;
+  } catch (e) {
+    console.error('Failed to load QRCode library', e);
+  }
+
+  // 1. Pre-build HTML content in the main thread (Safest)
+  let pagesHtml = '';
+
+  if (!vouchers || vouchers.length === 0) {
+    pagesHtml = '<div style="text-align:center; padding: 50px;"><h3>Nessun voucher da stampare in questo lotto.</h3></div>';
+  } else {
+    const chunkSize = 1; // 1 Voucher per Page
+
+    // Generate all QR Codes in parallel first
+    const qrCodeMap: Record<string, string> = {};
+
+    if (QRCode) {
+      await Promise.all(vouchers.map(async (v) => {
+        try {
+          qrCodeMap[v.code] = await QRCode.toDataURL(v.code, {
+            errorCorrectionLevel: 'H',
+            margin: 0,
+            width: 160,
+            color: {
+              dark: '#000000',
+              light: '#ffffff00' // Transparent background
+            }
+          });
+        } catch (err) {
+          console.error('QR Generation failed for', v.code, err);
+          qrCodeMap[v.code] = ''; // Handle gracefully
+        }
+      }));
     }
 
-    // 1. Pre-build HTML content in the main thread (Safest)
-    let pagesHtml = '';
+    for (let i = 0; i < vouchers.length; i += chunkSize) {
+      const chunk = vouchers.slice(i, i + chunkSize);
 
-    if (!vouchers || vouchers.length === 0) {
-        pagesHtml = '<div style="text-align:center; padding: 50px;"><h3>Nessun voucher da stampare in questo lotto.</h3></div>';
-    } else {
-        const chunkSize = 1; // 1 Voucher per Page
+      // --- FRONT PAGE ---
+      let frontContent = '';
+      chunk.forEach((v) => {
+        const date = v.expiration_date ? new Date(v.expiration_date).toLocaleDateString('it-IT') : 'Illimitata';
+        const amount = Math.floor(v.amount) + ' euro';
+        const visibleCode = v.code.substring(0, 4);
+        const qrSrc = qrCodeMap[v.code] || '';
 
-        // Generate all QR Codes in parallel first
-        const qrCodeMap: Record<string, string> = {};
-
-        if (QRCode) {
-            await Promise.all(vouchers.map(async (v) => {
-                try {
-                    qrCodeMap[v.code] = await QRCode.toDataURL(v.code, {
-                        errorCorrectionLevel: 'H',
-                        margin: 0,
-                        width: 160,
-                        color: {
-                            dark: '#000000',
-                            light: '#ffffff00' // Transparent background
-                        }
-                    });
-                } catch (err) {
-                    console.error('QR Generation failed for', v.code, err);
-                    qrCodeMap[v.code] = ''; // Handle gracefully
-                }
-            }));
-        }
-
-        for (let i = 0; i < vouchers.length; i += chunkSize) {
-            const chunk = vouchers.slice(i, i + chunkSize);
-
-            // --- FRONT PAGE ---
-            let frontContent = '';
-            chunk.forEach((v) => {
-                const date = v.expiration_date ? new Date(v.expiration_date).toLocaleDateString('it-IT') : 'Illimitata';
-                const amount = Math.floor(v.amount) + ' euro';
-                const visibleCode = v.code.substring(0, 4);
-                const qrSrc = qrCodeMap[v.code] || '';
-
-                frontContent += `
+        frontContent += `
                     <div class="voucher-front">
                         <div class="voucher-amount">${amount}</div>
                         <div class="voucher-code">${visibleCode}</div>
@@ -1038,17 +1038,17 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                         <div class="voucher-expiry">${date}</div>
                     </div>
                 `;
-            });
+      });
 
-            pagesHtml += `<div class="page page-front">${frontContent}</div>`;
+      pagesHtml += `<div class="page page-front">${frontContent}</div>`;
 
-            // --- BACK PAGE (Empty for duplex printing alignment) ---
-            pagesHtml += `<div class="page page-back"></div>`;
-        }
+      // --- BACK PAGE (Empty for duplex printing alignment) ---
+      pagesHtml += '<div class="page page-back"></div>';
     }
+  }
 
-    // 2. Build the Full Document
-    const html = `<!DOCTYPE html>
+  // 2. Build the Full Document
+  const html = `<!DOCTYPE html>
             <html>
                 <head>
                     <base href="${window.location.origin}/">
@@ -1164,12 +1164,12 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                 </body>
             </html>`;
 
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
 
-    // Auto-trigger print after short delay to ensure images render
-    setTimeout(() => {
-        // win.print(); // Optional: User might prefer manual control
-    }, 1000);
+  // Auto-trigger print after short delay to ensure images render
+  setTimeout(() => {
+    // win.print(); // Optional: User might prefer manual control
+  }, 1000);
 }

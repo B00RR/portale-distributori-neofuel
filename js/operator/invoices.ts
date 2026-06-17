@@ -3,13 +3,13 @@
 // Gestione richieste fattura (Non fiscale / Non incide su cassa)
 // ==========================================
 import { supabase } from '../core/api.js';
+import { Customer } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
 import { escapeHtml } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
-import { Customer } from '../types.js';
 
 /**
  * Mostra il menu per la richiesta fatture
@@ -17,16 +17,16 @@ import { Customer } from '../types.js';
  * @param {string} userId - ID dell'operatore
  */
 export async function showInvoiceMenu(stationId: number | string, userId: string): Promise<void> {
-    openModal('Richiesta Fattura');
-    const modalBody = document.getElementById('modal-body');
-    if (!modalBody) { return; }
-    modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
+  openModal('Richiesta Fattura');
+  const modalBody = document.getElementById('modal-body');
+  if (!modalBody) { return; }
+  modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
 
-    try {
-        // Verifica apertura turno
-        const activeOpening = await checkOpeningStatus(stationId);
-        if (!activeOpening) {
-            modalBody.innerHTML = `
+  try {
+    // Verifica apertura turno
+    const activeOpening = await checkOpeningStatus(stationId);
+    if (!activeOpening) {
+      modalBody.innerHTML = `
                 <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
                     <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
                     <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter registrare richieste di fattura.</p>
@@ -34,30 +34,30 @@ export async function showInvoiceMenu(stationId: number | string, userId: string
                 </div>
             `;
 
-            const closeBtn = document.getElementById('btn-close-warning');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => closeModal());
-            }
-            return;
-        }
-
-        renderCustomerChoice(modalBody, stationId, userId);
-
-    } catch (err) {
-        modalBody.innerHTML = createErrorMessage('Errore Caricamento', err) +
-            '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>';
-        const closeBtn = document.getElementById('btn-close-err');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => closeModal());
-        }
+      const closeBtn = document.getElementById('btn-close-warning');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => closeModal());
+      }
+      return;
     }
+
+    renderCustomerChoice(modalBody, stationId, userId);
+
+  } catch (err) {
+    modalBody.innerHTML = createErrorMessage('Errore Caricamento', err) +
+            '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>';
+    const closeBtn = document.getElementById('btn-close-err');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => closeModal());
+    }
+  }
 }
 
 /**
  * Renderizza la scelta tra nuovo cliente e cliente esistente
  */
 function renderCustomerChoice(container: HTMLElement, stationId: number | string, userId: string): void {
-    container.innerHTML = `
+  container.innerHTML = `
       <div class="content-box">
         <p class="section-subtitle">Seleziona il tipo di cliente</p>
         <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 20px;">
@@ -81,24 +81,24 @@ function renderCustomerChoice(container: HTMLElement, stationId: number | string
       </div>
     `;
 
-    document.getElementById('btn-new-customer')?.addEventListener('click', () => {
-        renderNewCustomerForm(container, stationId, userId);
-    });
+  document.getElementById('btn-new-customer')?.addEventListener('click', () => {
+    renderNewCustomerForm(container, stationId, userId);
+  });
 
-    document.getElementById('btn-existing-customer')?.addEventListener('click', () => {
-        renderExistingCustomerForm(container, stationId, userId);
-    });
+  document.getElementById('btn-existing-customer')?.addEventListener('click', () => {
+    renderExistingCustomerForm(container, stationId, userId);
+  });
 
-    document.getElementById('btn-cancel-choice')?.addEventListener('click', () => {
-        closeModal();
-    });
+  document.getElementById('btn-cancel-choice')?.addEventListener('click', () => {
+    closeModal();
+  });
 }
 
 /**
  * Renderizza il form per nuovo cliente
  */
 function renderNewCustomerForm(container: HTMLElement, stationId: number | string, userId: string): void {
-    container.innerHTML = `
+  container.innerHTML = `
       <div class="content-box">
         <p class="section-subtitle">Nuovo Cliente</p>
         <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
@@ -136,88 +136,88 @@ function renderNewCustomerForm(container: HTMLElement, stationId: number | strin
       </div>
     `;
 
-    container.querySelector('#btn-cancel')?.addEventListener('click', () => {
-        renderCustomerChoice(container, stationId, userId);
+  container.querySelector('#btn-cancel')?.addEventListener('click', () => {
+    renderCustomerChoice(container, stationId, userId);
+  });
+
+  const form = document.getElementById('new-customer-form') as HTMLFormElement | null;
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const nome = (formData.get('nome') as string)?.trim() || '';
+      const partitaIva = (formData.get('partita_iva') as string)?.trim() || '';
+      const codiceUnivoco = (formData.get('codice_univoco_pec') as string)?.trim() || '';
+      const telefono = (formData.get('telefono') as string)?.trim() || '';
+      const targa = (formData.get('targa') as string)?.trim() || '';
+
+      // Validazione: se tutti i campi sono vuoti, almeno il telefono è obbligatorio
+      if (!nome && !partitaIva && !codiceUnivoco && !telefono && !targa) {
+        Toast.show('Inserire almeno il numero di telefono o altri dati del cliente.', 'warning');
+        return;
+      }
+
+      try {
+        // Salva o recupera cliente
+        let clienteId: number;
+
+        // Cerca se esiste già un cliente con questi dati
+        const { data: existingCustomer } = await supabase
+          .from('clienti_fatturazione')
+          .select('id')
+          .or(`nome.ilike.%${nome}%,partita_iva.eq.${partitaIva || 'null'},telefono.eq.${telefono || 'null'}`)
+          .maybeSingle();
+
+        if (existingCustomer) {
+          // Aggiorna cliente esistente
+          const updateData: Partial<Customer> = {};
+          if (nome) { updateData.nome = nome; }
+          if (partitaIva) { updateData.partita_iva = partitaIva; }
+          if (codiceUnivoco) { updateData.codice_univoco_pec = codiceUnivoco; }
+          if (telefono) { updateData.telefono = telefono; }
+          if (targa) { updateData.targa = targa; }
+          updateData.updated_at = new Date().toISOString();
+
+          const { error: updateError } = await supabase
+            .from('clienti_fatturazione')
+            .update(updateData)
+            .eq('id', existingCustomer.id);
+
+          if (updateError) { throw updateError; }
+          clienteId = existingCustomer.id;
+        } else {
+          // Crea nuovo cliente
+          const { data: newCustomer, error: createError } = await supabase
+            .from('clienti_fatturazione')
+            .insert([{
+              nome: nome || null,
+              partita_iva: partitaIva || null,
+              codice_univoco_pec: codiceUnivoco || null,
+              telefono: telefono || null,
+              targa: targa || null
+            }])
+            .select()
+            .single();
+
+          if (createError) { throw createError; }
+          clienteId = (newCustomer as Customer).id;
+        }
+
+        // Procedi con il form della fattura
+        renderInvoiceForm(container, stationId, userId, clienteId, nome || telefono || 'Cliente');
+
+      } catch (err: any) {
+        Toast.show('Errore salvataggio cliente: ' + err.message, 'error');
+      }
     });
-
-    const form = document.getElementById('new-customer-form') as HTMLFormElement | null;
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(form);
-            const nome = (formData.get('nome') as string)?.trim() || '';
-            const partitaIva = (formData.get('partita_iva') as string)?.trim() || '';
-            const codiceUnivoco = (formData.get('codice_univoco_pec') as string)?.trim() || '';
-            const telefono = (formData.get('telefono') as string)?.trim() || '';
-            const targa = (formData.get('targa') as string)?.trim() || '';
-
-            // Validazione: se tutti i campi sono vuoti, almeno il telefono è obbligatorio
-            if (!nome && !partitaIva && !codiceUnivoco && !telefono && !targa) {
-                Toast.show('Inserire almeno il numero di telefono o altri dati del cliente.', 'warning');
-                return;
-            }
-
-            try {
-                // Salva o recupera cliente
-                let clienteId: number;
-
-                // Cerca se esiste già un cliente con questi dati
-                const { data: existingCustomer } = await supabase
-                    .from('clienti_fatturazione')
-                    .select('id')
-                    .or(`nome.ilike.%${nome}%,partita_iva.eq.${partitaIva || 'null'},telefono.eq.${telefono || 'null'}`)
-                    .maybeSingle();
-
-                if (existingCustomer) {
-                    // Aggiorna cliente esistente
-                    const updateData: Partial<Customer> = {};
-                    if (nome) { updateData.nome = nome; }
-                    if (partitaIva) { updateData.partita_iva = partitaIva; }
-                    if (codiceUnivoco) { updateData.codice_univoco_pec = codiceUnivoco; }
-                    if (telefono) { updateData.telefono = telefono; }
-                    if (targa) { updateData.targa = targa; }
-                    updateData.updated_at = new Date().toISOString();
-
-                    const { error: updateError } = await supabase
-                        .from('clienti_fatturazione')
-                        .update(updateData)
-                        .eq('id', existingCustomer.id);
-
-                    if (updateError) { throw updateError; }
-                    clienteId = existingCustomer.id;
-                } else {
-                    // Crea nuovo cliente
-                    const { data: newCustomer, error: createError } = await supabase
-                        .from('clienti_fatturazione')
-                        .insert([{
-                            nome: nome || null,
-                            partita_iva: partitaIva || null,
-                            codice_univoco_pec: codiceUnivoco || null,
-                            telefono: telefono || null,
-                            targa: targa || null
-                        }])
-                        .select()
-                        .single();
-
-                    if (createError) { throw createError; }
-                    clienteId = (newCustomer as Customer).id;
-                }
-
-                // Procedi con il form della fattura
-                renderInvoiceForm(container, stationId, userId, clienteId, nome || telefono || 'Cliente');
-
-            } catch (err: any) {
-                Toast.show('Errore salvataggio cliente: ' + err.message, 'error');
-            }
-        });
-    }
+  }
 }
 
 /**
  * Renderizza il form per cliente esistente con autocompletamento
  */
 function renderExistingCustomerForm(container: HTMLElement, stationId: number | string, userId: string): void {
-    container.innerHTML = `
+  container.innerHTML = `
       <div class="content-box">
         <p class="section-subtitle">Cliente Esistente</p>
         <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
@@ -239,37 +239,37 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
       </div>
     `;
 
-    const searchInput = document.getElementById('customer-search') as HTMLInputElement | null;
-    const suggestionsDiv = document.getElementById('customer-suggestions') as HTMLElement | null;
-    const customerIdInput = document.getElementById('selected-customer-id') as HTMLInputElement | null;
+  const searchInput = document.getElementById('customer-search') as HTMLInputElement | null;
+  const suggestionsDiv = document.getElementById('customer-suggestions') as HTMLElement | null;
+  const customerIdInput = document.getElementById('selected-customer-id') as HTMLInputElement | null;
 
-    if (!searchInput || !suggestionsDiv || !customerIdInput) { return; }
+  if (!searchInput || !suggestionsDiv || !customerIdInput) { return; }
 
-    // Autocompletamento
-    let searchTimeout: any;
-    searchInput.addEventListener('input', async (e) => {
-        const query = (e.target as HTMLInputElement).value.trim();
+  // Autocompletamento
+  let searchTimeout: any;
+  searchInput.addEventListener('input', async (e) => {
+    const query = (e.target as HTMLInputElement).value.trim();
 
-        clearTimeout(searchTimeout);
+    clearTimeout(searchTimeout);
 
-        if (query.length < 2) {
-            suggestionsDiv.style.display = 'none';
-            customerIdInput.value = '';
-            return;
-        }
+    if (query.length < 2) {
+      suggestionsDiv.style.display = 'none';
+      customerIdInput.value = '';
+      return;
+    }
 
-        searchTimeout = setTimeout(async () => {
-            try {
-                const { data: customers, error } = await supabase
-                    .from('clienti_fatturazione')
-                    .select('id, nome, partita_iva, telefono, targa')
-                    .or(`nome.ilike.%${query}%,partita_iva.ilike.%${query}%,telefono.ilike.%${query}%,targa.ilike.%${query}%`)
-                    .limit(10);
+    searchTimeout = setTimeout(async () => {
+      try {
+        const { data: customers, error } = await supabase
+          .from('clienti_fatturazione')
+          .select('id, nome, partita_iva, telefono, targa')
+          .or(`nome.ilike.%${query}%,partita_iva.ilike.%${query}%,telefono.ilike.%${query}%,targa.ilike.%${query}%`)
+          .limit(10);
 
-                if (error) { throw error; }
+        if (error) { throw error; }
 
-                if (customers && customers.length > 0) {
-                    suggestionsDiv.innerHTML = customers.map((c: any) => `
+        if (customers && customers.length > 0) {
+          suggestionsDiv.innerHTML = customers.map((c: any) => `
                         <div class="suggestion-item" data-id="${c.id}" data-name="${c.nome || c.telefono || 'Cliente'}" style="padding: 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" 
                              onmouseover="this.style.background='#f8fafc'" 
                              onmouseout="this.style.background='white'">
@@ -279,81 +279,81 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
                             ${c.targa ? `<div style="font-size: 0.85rem; color: #64748b;">Targa: ${escapeHtml(c.targa)}</div>` : ''}
                         </div>
                     `).join('');
-                    suggestionsDiv.style.display = 'block';
+          suggestionsDiv.style.display = 'block';
 
-                    // Event listeners per i suggerimenti
-                    suggestionsDiv.querySelectorAll('.suggestion-item').forEach(itemElement => {
-                        const item = itemElement as HTMLElement;
-                        item.addEventListener('click', () => {
-                            const customerId = item.dataset.id;
-                            const customerName = item.dataset.name || '';
-                            searchInput.value = customerName;
-                            customerIdInput.value = customerId || '';
-                            suggestionsDiv.style.display = 'none';
-                        });
-                    });
-                } else {
-                    suggestionsDiv.innerHTML = '<div style="padding: 12px; color: #64748b; text-align: center;">Nessun cliente trovato</div>';
-                    suggestionsDiv.style.display = 'block';
-                }
-            } catch (err) {
-                console.error('Errore ricerca clienti:', err);
-            }
-        }, 300);
-    });
-
-    // Chiudi suggerimenti quando si clicca fuori
-    const clickHandler = (e: MouseEvent) => {
-        if (!searchInput.contains(e.target as Node) && !suggestionsDiv.contains(e.target as Node)) {
-            suggestionsDiv.style.display = 'none';
+          // Event listeners per i suggerimenti
+          suggestionsDiv.querySelectorAll('.suggestion-item').forEach(itemElement => {
+            const item = itemElement as HTMLElement;
+            item.addEventListener('click', () => {
+              const customerId = item.dataset.id;
+              const customerName = item.dataset.name || '';
+              searchInput.value = customerName;
+              customerIdInput.value = customerId || '';
+              suggestionsDiv.style.display = 'none';
+            });
+          });
+        } else {
+          suggestionsDiv.innerHTML = '<div style="padding: 12px; color: #64748b; text-align: center;">Nessun cliente trovato</div>';
+          suggestionsDiv.style.display = 'block';
         }
-    };
-    document.addEventListener('click', clickHandler);
+      } catch (err) {
+        console.error('Errore ricerca clienti:', err);
+      }
+    }, 300);
+  });
 
-    container.querySelector('#btn-cancel')?.addEventListener('click', () => {
-        document.removeEventListener('click', clickHandler);
-        renderCustomerChoice(container, stationId, userId);
-    });
-
-    const form = document.getElementById('existing-customer-form') as HTMLFormElement | null;
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const customerId = customerIdInput.value;
-            const customerName = searchInput.value.trim();
-
-            if (!customerId || !customerName) {
-                Toast.show('Seleziona un cliente dalla lista.', 'warning');
-                return;
-            }
-
-            try {
-                // Recupera dati cliente
-                const { data: customer, error } = await supabase
-                    .from('clienti_fatturazione')
-                    .select('*')
-                    .eq('id', customerId)
-                    .single();
-
-                if (error) {
-                    Toast.show('Errore recupero cliente: ' + error.message, 'error');
-                    return;
-                }
-
-                // Procedi con il form della fattura
-                renderInvoiceForm(container, stationId, userId, customerId, (customer as Customer).nome || (customer as Customer).telefono || 'Cliente');
-            } catch (err: any) {
-                Toast.show('Errore recupero cliente: ' + err.message, 'error');
-            }
-        });
+  // Chiudi suggerimenti quando si clicca fuori
+  const clickHandler = (e: MouseEvent) => {
+    if (!searchInput.contains(e.target as Node) && !suggestionsDiv.contains(e.target as Node)) {
+      suggestionsDiv.style.display = 'none';
     }
+  };
+  document.addEventListener('click', clickHandler);
+
+  container.querySelector('#btn-cancel')?.addEventListener('click', () => {
+    document.removeEventListener('click', clickHandler);
+    renderCustomerChoice(container, stationId, userId);
+  });
+
+  const form = document.getElementById('existing-customer-form') as HTMLFormElement | null;
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const customerId = customerIdInput.value;
+      const customerName = searchInput.value.trim();
+
+      if (!customerId || !customerName) {
+        Toast.show('Seleziona un cliente dalla lista.', 'warning');
+        return;
+      }
+
+      try {
+        // Recupera dati cliente
+        const { data: customer, error } = await supabase
+          .from('clienti_fatturazione')
+          .select('*')
+          .eq('id', customerId)
+          .single();
+
+        if (error) {
+          Toast.show('Errore recupero cliente: ' + error.message, 'error');
+          return;
+        }
+
+        // Procedi con il form della fattura
+        renderInvoiceForm(container, stationId, userId, customerId, (customer as Customer).nome || (customer as Customer).telefono || 'Cliente');
+      } catch (err: any) {
+        Toast.show('Errore recupero cliente: ' + err.message, 'error');
+      }
+    });
+  }
 }
 
 /**
  * Renderizza il form per la richiesta fattura
  */
 function renderInvoiceForm(container: HTMLElement, stationId: number | string, userId: string, clienteId: number | string, customerName: string): void {
-    container.innerHTML = `
+  container.innerHTML = `
       <div class="content-box">
         <p class="section-subtitle">Richiesta Fattura - ${escapeHtml(customerName)}</p>
         <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
@@ -405,82 +405,82 @@ function renderInvoiceForm(container: HTMLElement, stationId: number | string, u
       </div>
     `;
 
-    // Mostra/nascondi campo prodotto se "Altro" è selezionato
-    const productCategorySelect = document.getElementById('product-category') as HTMLSelectElement | null;
-    const productNoteGroup = document.getElementById('product-note-group') as HTMLElement | null;
-    const productNoteInput = document.getElementById('product-note') as HTMLInputElement | null;
+  // Mostra/nascondi campo prodotto se "Altro" è selezionato
+  const productCategorySelect = document.getElementById('product-category') as HTMLSelectElement | null;
+  const productNoteGroup = document.getElementById('product-note-group') as HTMLElement | null;
+  const productNoteInput = document.getElementById('product-note') as HTMLInputElement | null;
 
-    if (productCategorySelect && productNoteGroup && productNoteInput) {
-        productCategorySelect.addEventListener('change', (e) => {
-            if ((e.target as HTMLSelectElement).value === 'altro') {
-                productNoteGroup.style.display = 'block';
-                productNoteInput.required = true;
-            } else {
-                productNoteGroup.style.display = 'none';
-                productNoteInput.required = false;
-                productNoteInput.value = '';
-            }
-        });
-    }
-
-    container.querySelector('#btn-cancel')?.addEventListener('click', () => {
-        renderCustomerChoice(container, stationId, userId);
+  if (productCategorySelect && productNoteGroup && productNoteInput) {
+    productCategorySelect.addEventListener('change', (e) => {
+      if ((e.target as HTMLSelectElement).value === 'altro') {
+        productNoteGroup.style.display = 'block';
+        productNoteInput.required = true;
+      } else {
+        productNoteGroup.style.display = 'none';
+        productNoteInput.required = false;
+        productNoteInput.value = '';
+      }
     });
+  }
 
-    const form = document.getElementById('invoice-form') as HTMLFormElement | null;
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(form);
-            const amount = parseFloat(formData.get('amount') as string || '0');
-            const paymentMethod = formData.get('payment_method') as string || '';
-            const productCategory = formData.get('product_category') as string || '';
-            const productNote = (formData.get('product_note') as string)?.trim() || '';
-            const notes = (formData.get('notes') as string)?.trim() || '';
+  container.querySelector('#btn-cancel')?.addEventListener('click', () => {
+    renderCustomerChoice(container, stationId, userId);
+  });
 
-            // Validazione categoria prodotto
-            if (productCategory === 'altro' && !productNote) {
-                Toast.show("Selezionando 'Altro' è obbligatorio specificare il prodotto nella nota.", 'warning');
-                return;
-            }
+  const form = document.getElementById('invoice-form') as HTMLFormElement | null;
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const amount = parseFloat(formData.get('amount') as string || '0');
+      const paymentMethod = formData.get('payment_method') as string || '';
+      const productCategory = formData.get('product_category') as string || '';
+      const productNote = (formData.get('product_note') as string)?.trim() || '';
+      const notes = (formData.get('notes') as string)?.trim() || '';
 
-            if (amount <= 0 || !paymentMethod || !productCategory) {
-                Toast.show('Inserire tutti i dati obbligatori.', 'warning');
-                return;
-            }
+      // Validazione categoria prodotto
+      if (productCategory === 'altro' && !productNote) {
+        Toast.show("Selezionando 'Altro' è obbligatorio specificare il prodotto nella nota.", 'warning');
+        return;
+      }
 
-            // Combina note prodotto e note generali
-            let finalNotes = notes;
-            if (productCategory === 'altro' && productNote) {
-                finalNotes = `${productNote}${notes ? '\n' + notes : ''}`;
-            }
+      if (amount <= 0 || !paymentMethod || !productCategory) {
+        Toast.show('Inserire tutti i dati obbligatori.', 'warning');
+        return;
+      }
 
-            try {
-                const { error } = await supabase
-                    .from('invoices')
-                    .insert([{
-                        station_id: stationId,
-                        operator_id: userId,
-                        cliente_id: clienteId,
-                        customer_name: customerName,
-                        amount: amount,
-                        payment_method: paymentMethod,
-                        product_category: productCategory,
-                        description: finalNotes,
-                        status: 'pending',
-                        created_at: new Date().toISOString(),
-                        invoice_number: `REQ-${Date.now()}`, // Genera un ID richiesta temporaneo
-                        invoice_date: new Date().toISOString().split('T')[0] // Data odierna
-                    }]);
+      // Combina note prodotto e note generali
+      let finalNotes = notes;
+      if (productCategory === 'altro' && productNote) {
+        finalNotes = `${productNote}${notes ? '\n' + notes : ''}`;
+      }
 
-                if (error) { throw error; }
+      try {
+        const { error } = await supabase
+          .from('invoices')
+          .insert([{
+            station_id: stationId,
+            operator_id: userId,
+            cliente_id: clienteId,
+            customer_name: customerName,
+            amount: amount,
+            payment_method: paymentMethod,
+            product_category: productCategory,
+            description: finalNotes,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            invoice_number: `REQ-${Date.now()}`, // Genera un ID richiesta temporaneo
+            invoice_date: new Date().toISOString().split('T')[0] // Data odierna
+          }]);
 
-                closeModal();
-                showInfoModal(`Richiesta fattura per ${customerName} inviata correttamente.`);
+        if (error) { throw error; }
 
-            } catch (err: any) {
-                Toast.show('Errore salvataggio: ' + err.message, 'error');
-            }
-        });
-    }
+        closeModal();
+        showInfoModal(`Richiesta fattura per ${customerName} inviata correttamente.`);
+
+      } catch (err: any) {
+        Toast.show('Errore salvataggio: ' + err.message, 'error');
+      }
+    });
+  }
 }

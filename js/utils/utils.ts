@@ -5,11 +5,11 @@
 type EscapeMapKey = '&' | '<' | '>' | '"' | "'";
 
 const escapeMap: Record<EscapeMapKey, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#039;'
 };
 
 /**
@@ -21,8 +21,8 @@ const escapeMap: Record<EscapeMapKey, string> = {
  * // => '&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;'
  */
 export function escapeHtml(text: string | number | null | undefined): string {
-    if (text == null) return '';
-    return String(text).replace(/[&<>"']/g, (match) => escapeMap[match as EscapeMapKey]);
+  if (text == null) {return '';}
+  return String(text).replace(/[&<>"']/g, (match) => escapeMap[match as EscapeMapKey]);
 }
 
 /**
@@ -31,8 +31,8 @@ export function escapeHtml(text: string | number | null | undefined): string {
  * @returns Safe string representation of the number
  */
 export function escapeNumber(num: number | string | null | undefined): string {
-    if (num == null || num === '') return '';
-    return String(parseFloat(String(num)));
+  if (num == null || num === '') {return '';}
+  return String(parseFloat(String(num)));
 }
 
 /**
@@ -42,20 +42,20 @@ export function escapeNumber(num: number | string | null | undefined): string {
  * @returns Formatted string (e.g., "17.153,00")
  */
 export function formatNumberIt(value: number | string, fractionDigits: number = 0): string {
-    const num = Number(value);
-    const safeNum = Number.isFinite(num) ? num : 0;
-    return new Intl.NumberFormat('it-IT', {
-        minimumFractionDigits: fractionDigits,
-        maximumFractionDigits: fractionDigits,
-        useGrouping: true  // Explicitly enable thousands separator
-    }).format(safeNum);
+  const num = Number(value);
+  const safeNum = Number.isFinite(num) ? num : 0;
+  return new Intl.NumberFormat('it-IT', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+    useGrouping: true  // Explicitly enable thousands separator
+  }).format(safeNum);
 }
 
 /**
  * Formats liters with 2 decimal places
  */
 export function formatLitri(value: number | string): string {
-    return formatNumberIt(value, 2);
+  return formatNumberIt(value, 2);
 }
 
 /**
@@ -64,82 +64,82 @@ export function formatLitri(value: number | string): string {
  * @returns Formatted string (e.g., "1.234,56")
  */
 export function formatGunCounter(value: number | string): string {
-    const num = Number(value);
-    const safeNum = Number.isFinite(num) ? num : 0;
-    return new Intl.NumberFormat('it-IT', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(safeNum);
+  const num = Number(value);
+  const safeNum = Number.isFinite(num) ? num : 0;
+  return new Intl.NumberFormat('it-IT', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(safeNum);
 }
 
 /**
  * Parse gun counter from Italian format (e.g., "1.234,567" -> 1234.567)
  */
 export function parseGunCounter(value: number | string | null | undefined): number {
-    if (value == null || value === '') return 0;
-    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value == null || value === '') {return 0;}
+  if (typeof value === 'number') {return Number.isFinite(value) ? value : 0;}
 
-    const cleaned = value.toString()
-        .replace(/[\.\s]/g, '')   // Remove thousand separators (dots or spaces)
-        .replace(',', '.');       // Replace comma with dot
+  const cleaned = value.toString()
+    .replace(/[\.\s]/g, '')   // Remove thousand separators (dots or spaces)
+    .replace(',', '.');       // Replace comma with dot
 
-    const num = parseFloat(cleaned);
-    return Number.isFinite(num) ? num : 0;
+  const num = parseFloat(cleaned);
+  return Number.isFinite(num) ? num : 0;
 }
 
 /**
  * Parse a number flexibly from various formats
  */
 export function parseNumberFlexible(value: number | string | null | undefined): number {
-    if (value == null || value === '') return 0;
-    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    if (typeof value === 'string') {
-        const trimmed = value.trim();
-        if (!trimmed) return 0;
-        if (trimmed.includes(',')) {
-            const normalized = trimmed.replace(/\./g, '').replace(',', '.');
-            const num = Number(normalized);
-            return Number.isFinite(num) ? num : 0;
-        }
-        const num = Number(trimmed);
-        return Number.isFinite(num) ? num : 0;
+  if (value == null || value === '') {return 0;}
+  if (typeof value === 'number') {return Number.isFinite(value) ? value : 0;}
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {return 0;}
+    if (trimmed.includes(',')) {
+      const normalized = trimmed.replace(/\./g, '').replace(',', '.');
+      const num = Number(normalized);
+      return Number.isFinite(num) ? num : 0;
     }
-    return 0;
+    const num = Number(trimmed);
+    return Number.isFinite(num) ? num : 0;
+  }
+  return 0;
 }
 
 /**
  * Creates a URL-safe slug from text
  */
 export function slugifyLabel(text: string | null | undefined): string {
-    return (text || '')
-        .toString()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '') || 'chiusura';
+  return (text || '')
+    .toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '') || 'chiusura';
 }
 
 /**
  * Converts base64 string to ArrayBuffer
  */
 export function base64ToArrayBuffer(base64: string | null | undefined): ArrayBuffer | null {
-    const cleaned = (base64 || '').replace(/\s+/g, '');
-    if (!cleaned) return null;
-    const binary = atob(cleaned);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
+  const cleaned = (base64 || '').replace(/\s+/g, '');
+  if (!cleaned) {return null;}
+  const binary = atob(cleaned);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
 }
 
 /**
  * Formats a value as Euro currency
  */
 export function formatEuro(value: number | string): string {
-    const num = Number(value);
-    const safe = Number.isFinite(num) ? num : 0;
-    return `€ ${formatNumberIt(safe, 2)}`;
+  const num = Number(value);
+  const safe = Number.isFinite(num) ? num : 0;
+  return `€ ${formatNumberIt(safe, 2)}`;
 }
 
 /**
@@ -149,44 +149,44 @@ export function formatEuro(value: number | string): string {
  * @returns Debounced function
  */
 export function debounce<T extends (...args: unknown[]) => void>(
-    func: T,
-    wait: number
+  func: T,
+  wait: number
 ): (...args: Parameters<T>) => void {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
 
-    return function executedFunction(...args: Parameters<T>): void {
-        const later = (): void => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+  return function executedFunction(...args: Parameters<T>): void {
+    const later = (): void => {
+      clearTimeout(timeout);
+      func(...args);
     };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
 }
 
 /**
  * Formats a date value to Italian format
  */
 export function formatDate(value: string | Date | null | undefined): string {
-    if (!value) return '';
-    try {
-        const date = new Date(value);
-        if (isNaN(date.getTime())) return String(value);
-        return new Intl.DateTimeFormat('it-IT').format(date);
-    } catch {
-        return String(value);
-    }
+  if (!value) {return '';}
+  try {
+    const date = new Date(value);
+    if (isNaN(date.getTime())) {return String(value);}
+    return new Intl.DateTimeFormat('it-IT').format(date);
+  } catch {
+    return String(value);
+  }
 }
 
 /**
  * Gets ISO date string (YYYY-MM-DD) from a date
  */
 export function getISODate(date: string | Date | null | undefined): string {
-    if (!date) return '';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return '';
-    const isoString = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-    return isoString || '';
+  if (!date) {return '';}
+  const d = new Date(date);
+  if (isNaN(d.getTime())) {return '';}
+  const isoString = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  return isoString || '';
 }
 
 /**
@@ -196,18 +196,18 @@ export function getISODate(date: string | Date | null | undefined): string {
  * @returns Throttled function
  */
 export function throttle<T extends (...args: unknown[]) => void>(
-    func: T,
-    limit: number
+  func: T,
+  limit: number
 ): (...args: Parameters<T>) => void {
-    let inThrottle = false;
+  let inThrottle = false;
 
-    return function (this: unknown, ...args: Parameters<T>): void {
-        if (!inThrottle) {
-            func.apply(this, args);
-            inThrottle = true;
-            setTimeout(() => { inThrottle = false; }, limit);
-        }
-    };
+  return function (this: unknown, ...args: Parameters<T>): void {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => { inThrottle = false; }, limit);
+    }
+  };
 }
 
 /**
@@ -230,34 +230,34 @@ export interface RateLimiter {
  * @returns Rate limiter object
  */
 export function createRateLimiter(maxCalls: number = 5, windowMs: number = 60000): RateLimiter {
-    const calls: number[] = [];
+  const calls: number[] = [];
 
-    return {
-        check(): boolean {
-            const now = Date.now();
-            // Remove calls outside the window
-            while (calls.length > 0 && (calls[0] ?? 0) < now - windowMs) {
-                calls.shift();
-            }
+  return {
+    check(): boolean {
+      const now = Date.now();
+      // Remove calls outside the window
+      while (calls.length > 0 && (calls[0] ?? 0) < now - windowMs) {
+        calls.shift();
+      }
 
-            if (calls.length >= maxCalls) {
-                return false;
-            }
+      if (calls.length >= maxCalls) {
+        return false;
+      }
 
-            calls.push(now);
-            return true;
-        },
+      calls.push(now);
+      return true;
+    },
 
-        reset(): void {
-            calls.length = 0;
-        },
+    reset(): void {
+      calls.length = 0;
+    },
 
-        getRemainingTime(): number {
-            if (calls.length === 0) return 0;
-            const oldest = calls[0];
-            if (oldest === undefined) return 0;
-            const remaining = (oldest + windowMs) - Date.now();
-            return Math.max(0, remaining);
-        }
-    };
+    getRemainingTime(): number {
+      if (calls.length === 0) {return 0;}
+      const oldest = calls[0];
+      if (oldest === undefined) {return 0;}
+      const remaining = (oldest + windowMs) - Date.now();
+      return Math.max(0, remaining);
+    }
+  };
 }

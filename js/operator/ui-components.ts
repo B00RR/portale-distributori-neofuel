@@ -2,8 +2,8 @@
 // OPERATOR UI COMPONENTS
 // Componenti riutilizzabili per eliminare duplicazione codice
 // ==========================================
-import { escapeHtml, formatLitri } from '../utils/utils.js';
 import { Pistola } from '../types.js';
+import { escapeHtml, formatLitri } from '../utils/utils.js';
 
 /**
  * Crea un messaggio di warning standardizzato
@@ -113,9 +113,9 @@ export function createPistolaCard(
       <div class="form-group ${readonly ? 'readonly-field' : ''}">
         <label>Contatore ${closingCounter !== null ? 'Apertura' : 'Iniziale'} (litri)</label>
         ${readonly
-      ? `<div class="readonly-value">${formatLitri(openingCounter)}</div>`
-      : `<input type="number" value="${openingCounter}" class="big-input" disabled>`
-    }
+    ? `<div class="readonly-value">${formatLitri(openingCounter)}</div>`
+    : `<input type="number" value="${openingCounter}" class="big-input" disabled>`
+}
       </div>
       ${closingCounter !== null ? `
         <div class="form-group">

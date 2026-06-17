@@ -5,6 +5,7 @@
 
 import { html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
+
 import { BaseComponent } from './BaseComponent.js';
 
 export interface FormFieldOption {
@@ -16,7 +17,7 @@ export class FormField extends BaseComponent {
   @property({ type: String }) label: string = '';
   @property({ type: String }) name: string = '';
   @property({ type: String }) type: string = 'text';
-  @property({ type: String }) value: any = '';
+  @property({ type: String }) value: string | number | boolean = '';
   @property({ type: String }) placeholder: string = '';
   @property({ type: Boolean }) required: boolean = false;
   @property({ type: Boolean }) disabled: boolean = false;
@@ -125,15 +126,15 @@ export class FormField extends BaseComponent {
             @change="${this._handleChange}"
           >
             ${!this.required ? html`<option value="">Seleziona...</option>` : ''}
-            ${this.options.map((opt: any) => {
-          const val = typeof opt === 'object' ? opt.value : opt;
-          const label = typeof opt === 'object' ? opt.label : opt;
-          return html`
+            ${this.options.map((opt: FormFieldOption | string) => {
+    const val = typeof opt === 'object' ? opt.value : opt;
+    const label = typeof opt === 'object' ? opt.label : opt;
+    return html`
                 <option value="${val}" ?selected="${this.value === val}">
                   ${label}
                 </option>
               `;
-        })}
+  })}
           </select>
         `;
 
@@ -203,21 +204,23 @@ export class FormField extends BaseComponent {
     }
   }
 
-  private _handleInput(e: any): void {
-    this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+  private _handleInput(e: Event): void {
+    const target = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+    this.value = target.type === 'checkbox' ? (target as HTMLInputElement).checked : target.value;
     this.emit('input', { name: this.name, value: this.value });
   }
 
-  private _handleChange(e: any): void {
-    this.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+  private _handleChange(e: Event): void {
+    const target = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+    this.value = target.type === 'checkbox' ? (target as HTMLInputElement).checked : target.value;
     this.emit('change', { name: this.name, value: this.value });
   }
 
-  public getValue(): any {
-    const input = this.shadowRoot?.querySelector('input, select, textarea') as any;
+  public getValue(): string | number | boolean {
+    const input = this.shadowRoot?.querySelector('input, select, textarea');
     if (!input) { return this.value; }
-    if (input.type === 'checkbox') { return input.checked; }
-    return input.value;
+    if ((input as HTMLInputElement).type === 'checkbox') { return (input as HTMLInputElement).checked; }
+    return (input as HTMLInputElement).value;
   }
 
   public setError(message: string): void {

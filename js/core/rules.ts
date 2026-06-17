@@ -8,7 +8,7 @@ export interface Voucher {
     id?: string;
     code: string;
     amount: number;
-    status: 'active' | 'redeemed' | 'expired' | 'void';
+    status: string | null;
     expiration_date?: string | null;
     redeemed_at?: string | null;
 }
@@ -67,93 +67,93 @@ export interface CashResult {
  * Validates a voucher object against business rules.
  */
 export function validateVoucher(voucher: Voucher | null | undefined): ValidationResult {
-    if (!voucher) {
-        return { valid: false, error: 'Voucher inesistente', reason: 'not_found' };
+  if (!voucher) {
+    return { valid: false, error: 'Voucher inesistente', reason: 'not_found' };
+  }
+
+  // 1. Check if already redeemed
+  if (voucher.status === 'redeemed') {
+    return {
+      valid: false,
+      error: 'Voucher Già Riscattato',
+      reason: 'redeemed',
+      details: { date: voucher.redeemed_at || null }
+    };
+  }
+
+  // 2. Check expiration
+  const now = new Date();
+  let isExpired = voucher.status === 'expired';
+
+  if (voucher.expiration_date) {
+    const expDate = new Date(voucher.expiration_date);
+    if (expDate < now) {
+      isExpired = true;
     }
+  }
 
-    // 1. Check if already redeemed
-    if (voucher.status === 'redeemed') {
-        return {
-            valid: false,
-            error: 'Voucher Già Riscattato',
-            reason: 'redeemed',
-            details: { date: voucher.redeemed_at || null }
-        };
-    }
+  if (isExpired) {
+    return {
+      valid: false,
+      error: 'Voucher Scaduto',
+      reason: 'expired',
+      details: { date: voucher.expiration_date || null }
+    };
+  }
 
-    // 2. Check expiration
-    const now = new Date();
-    let isExpired = voucher.status === 'expired';
-
-    if (voucher.expiration_date) {
-        const expDate = new Date(voucher.expiration_date);
-        if (expDate < now) {
-            isExpired = true;
-        }
-    }
-
-    if (isExpired) {
-        return {
-            valid: false,
-            error: 'Voucher Scaduto',
-            reason: 'expired',
-            details: { date: voucher.expiration_date || null }
-        };
-    }
-
-    // 3. Success
-    return { valid: true };
+  // 3. Success
+  return { valid: true };
 }
 
 /**
  * Summarizes movements by type
  */
 export function summarizeMovimenti(movimenti: Movement[] = []): MovimentiSummary {
-    const normalize = (value: number | string | undefined): number => Number(value) || 0;
-    const toLower = (value: string | undefined): string => (value || "").toString().toLowerCase();
+  const normalize = (value: number | string | undefined): number => Number(value) || 0;
+  const toLower = (value: string | undefined): string => (value || '').toString().toLowerCase();
 
-    const sumBy = (filterFn: (m: Movement) => boolean): number =>
-        movimenti.reduce((sum, m) => sum + (filterFn(m) ? normalize(m.importo) : 0), 0);
+  const sumBy = (filterFn: (m: Movement) => boolean): number =>
+    movimenti.reduce((sum, m) => sum + (filterFn(m) ? normalize(m.importo) : 0), 0);
 
-    return {
-        credits: sumBy(m => (m.tipo === "credito" || (toLower(m.descrizione).includes("credito") && m.tipo !== "incasso"))),
-        vouchers: sumBy(m => (m.tipo === "voucher" || m.tipo === "punti" || toLower(m.descrizione).includes("voucher") || toLower(m.descrizione).includes("punti"))),
-        refunds: sumBy(m => (m.tipo === "pagamento" || m.tipo === "uscita" || toLower(m.descrizione).includes("rimborso"))),
-        extra_cash: sumBy(m => m.tipo === "incasso")
-    };
+  return {
+    credits: sumBy(m => (m.tipo === 'credito' || (toLower(m.descrizione).includes('credito') && m.tipo !== 'incasso'))),
+    vouchers: sumBy(m => (m.tipo === 'voucher' || m.tipo === 'punti' || toLower(m.descrizione).includes('voucher') || toLower(m.descrizione).includes('punti'))),
+    refunds: sumBy(m => (m.tipo === 'pagamento' || m.tipo === 'uscita' || toLower(m.descrizione).includes('rimborso'))),
+    extra_cash: sumBy(m => m.tipo === 'incasso')
+  };
 }
 
 /**
  * Calculates theoretic revenue for a shift
  */
 export function calculateTheoreticRevenue({ litersB, litersG, priceB, priceG }: RevenueParams): number {
-    const round = (val: number): number => Math.round((val || 0) * 100) / 100;
-    return round((litersB * priceB) + (litersG * priceG));
+  const round = (val: number): number => Math.round((val || 0) * 100) / 100;
+  return round((litersB * priceB) + (litersG * priceG));
 }
 
 /**
  * Calculates expected cash for a shift
  */
 export function calculateExpectedCash(params: CashParams): CashResult {
-    const {
-        carburanteAtteso,
-        totalPosOperatore,
-        totalUtaOperatore,
-        selfPos,
-        creditsSum,
-        vouchersSum,
-        selfCashIn,
-        selfCashOut,
-        refundsSum,
-        extraCashSum,
-        cashReal,
-        tolerance = 5
-    } = params;
+  const {
+    carburanteAtteso,
+    totalPosOperatore,
+    totalUtaOperatore,
+    selfPos,
+    creditsSum,
+    vouchersSum,
+    selfCashIn,
+    selfCashOut,
+    refundsSum,
+    extraCashSum,
+    cashReal,
+    tolerance = 5
+  } = params;
 
-    const round = (val: number): number => Math.round((val || 0) * 100) / 100;
-    const deltaSelf = (Number(selfCashIn) || 0) - (Number(selfCashOut) || 0);
+  const round = (val: number): number => Math.round((val || 0) * 100) / 100;
+  const deltaSelf = (Number(selfCashIn) || 0) - (Number(selfCashOut) || 0);
 
-    const expectedCash = (Number(carburanteAtteso) || 0)
+  const expectedCash = (Number(carburanteAtteso) || 0)
         - (Number(totalPosOperatore) || 0)
         - (Number(totalUtaOperatore) || 0)
         - (Number(selfPos) || 0)
@@ -163,14 +163,14 @@ export function calculateExpectedCash(params: CashParams): CashResult {
         - (Number(refundsSum) || 0)
         + (Number(extraCashSum) || 0);
 
-    const roundedExpected = round(expectedCash);
-    const cashRealNum = Number(cashReal) || 0;
-    const cashDiff = round(cashRealNum - roundedExpected);
-    const isValid = Math.abs(cashDiff) <= tolerance;
+  const roundedExpected = round(expectedCash);
+  const cashRealNum = Number(cashReal) || 0;
+  const cashDiff = round(cashRealNum - roundedExpected);
+  const isValid = Math.abs(cashDiff) <= tolerance;
 
-    return {
-        expected_cash: roundedExpected,
-        cash_diff: cashDiff,
-        is_valid: isValid
-    };
+  return {
+    expected_cash: roundedExpected,
+    cash_diff: cashDiff,
+    is_valid: isValid
+  };
 }

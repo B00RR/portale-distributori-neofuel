@@ -3,13 +3,14 @@
  * Renders the Business Logic settings in a card layout.
  */
 
-import { BUSINESS_LOGIC_FIELDS } from './ui-settings-constants.js';
+import { loadDashboardConfig, saveDashboardConfig, KPI_CATALOG, DashboardConfig, KPIConfigItem } from '../admin/dashboard-config.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
-import { loadDashboardConfig, saveDashboardConfig, KPI_CATALOG } from '../admin/dashboard-config.js';
+
+import { BUSINESS_LOGIC_FIELDS } from './ui-settings-constants.js';
 import { escapeHtml } from '../utils/utils.js';
 
 export async function renderSettingsPanel(container: HTMLElement): Promise<void> {
-  if (!container) return;
+  if (!container) {return;}
 
   // Render Skeleton Structure
   container.innerHTML = `
@@ -42,10 +43,8 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
 
   try {
     // Parallel Fetch
-    const [rules, dashConfig] = await Promise.all([
-      BusinessLogicManager.loadRules(),
-      loadDashboardConfig()
-    ]);
+    const rules = await BusinessLogicManager.loadRules();
+    const dashConfig: DashboardConfig = await loadDashboardConfig();
 
     // 1. RENDER BUSINESS RULES
     let rulesHtml = '';
@@ -93,12 +92,12 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
 
     // 2. RENDER DASHBOARD KPI SELECTOR
     // Sort items by current order to keep logic consistent
-    const sortedKpis = dashConfig.kpiLayout.sort((a, b) => a.order - b.order);
+    const sortedKpis = dashConfig.kpiLayout.sort((a: KPIConfigItem, b: KPIConfigItem) => a.order - b.order);
 
     let kpiListHtml = '';
-    sortedKpis.forEach(item => {
+    sortedKpis.forEach((item: KPIConfigItem) => {
       const meta = KPI_CATALOG[item.id];
-      if (!meta) return;
+      if (!meta) {return;}
 
       kpiListHtml += `
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--bg-body); border-radius: 8px; margin-bottom: 8px;">

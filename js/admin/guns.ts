@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal, openConfirmModal, showLoadingMessage } from '../ui/ui.js';
 import { escapeHtml, formatGunCounter, parseGunCounter } from '../utils/utils.js';
@@ -23,9 +23,55 @@ interface CounterRecord {
   turno_id: number;
 }
 
+// --- DOM HELPERS ---
+
+function createIcon(className: string): HTMLElement {
+  const icon = document.createElement('i');
+  icon.className = className;
+  return icon;
+}
+
+function createEl<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  options: {
+    id?: string;
+    classes?: string[];
+    text?: string;
+    attrs?: Record<string, string>;
+    dataset?: Record<string, string>;
+    style?: Record<string, string>;
+    children?: (HTMLElement | Node)[];
+  } = {}
+): HTMLElementTagNameMap[K] {
+  const el = document.createElement(tag);
+  if (options.id) {el.id = options.id;}
+  if (options.classes) {el.classList.add(...options.classes.filter(Boolean));}
+  if (options.text !== undefined) {el.textContent = options.text;}
+  if (options.attrs) {
+    Object.entries(options.attrs).forEach(([key, value]) => {
+      el.setAttribute(key, value);
+    });
+  }
+  if (options.dataset) {
+    Object.entries(options.dataset).forEach(([key, value]) => {
+      el.setAttribute(`data-${key}`, value);
+    });
+  }
+  if (options.style) {
+    Object.entries(options.style).forEach(([key, value]) => {
+      el.style.setProperty(key, value);
+    });
+  }
+  if (options.children) {
+    options.children.forEach(child => el.appendChild(child));
+  }
+  return el;
+}
+
 // --- MAIN FUNCTIONS ---
 
 export async function showGunsModal(islandId: number, islandName: string, stationId: number | string): Promise<void> {
+  const stationIdNumber = typeof stationId === 'string' ? parseInt(stationId, 10) : stationId;
   openModal(`Pistole - ${escapeHtml(islandName)}`);
   // Remove narrow class if present
   const modalContent = document.querySelector('#app-modal .modal-content');
@@ -33,32 +79,36 @@ export async function showGunsModal(islandId: number, islandName: string, statio
     modalContent.classList.remove('modal-narrow');
   }
   const target = document.getElementById('modal-body');
-  if (!target) return;
+  if (!target) {return;}
 
   showLoadingMessage(target);
 
-  await renderGuns(target, islandId, islandName, stationId);
+  await renderGuns(target, islandId, islandName, stationIdNumber);
 }
 
-async function renderGuns(target: HTMLElement, islandId: number, islandName: string, stationId: number | string): Promise<void> {
+async function renderGuns(target: HTMLElement, islandId: number, islandName: string, stationId: number): Promise<void> {
   try {
-    const { data: rawGuns, error } = await supabase
+    const { data: rawGuns, error } = await safeSupabaseQuery(async () => await supabase
       .from('pistole')
       .select('*')
       .eq('island_id', islandId)
-      .order('nome');
+      .order('nome')
+    );
 
-    if (error) throw error;
+    if (error) {throw error;}
 
     const guns = rawGuns as Gun[];
 
     // Load latest counters
     const latestCounters: Record<number, number> = {};
-    const { data: rawCounters } = await supabase
+    const { data: rawCounters, error: countersError } = await safeSupabaseQuery(async () => await supabase
       .from('chiusura_turno_pistole')
       .select('pistola_id, numeratore_chiusura, turno_id')
       .order('turno_id', { ascending: false })
-      .limit(200);
+      .limit(200)
+    );
+
+    if (countersError) {throw countersError;}
 
     const allCounters = rawCounters as CounterRecord[];
 
@@ -70,16 +120,30 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
       });
     }
 
+    target.innerHTML = '';
+
     if (!guns || guns.length === 0) {
-      target.innerHTML = `
-        <div style="text-align: center; padding: 40px; color: #6b7280;">
-          <i class="fas fa-gas-pump" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
-          <p style="font-size: 1.125rem; margin-bottom: 20px;">Nessuna pistola configurata per questa isola</p>
-          <button class="menu-button primary" id="add-gun-btn">
-            <i class="fas fa-plus"></i> Aggiungi Prima Pistola
-          </button>
-        </div>
-      `;
+      const emptyState = createEl('div', {
+        style: {
+          textAlign: 'center',
+          padding: '40px',
+          color: '#6b7280'
+        },
+        children: [
+          createIcon('fas fa-gas-pump'),
+          createEl('p', {
+            style: { fontSize: '1.125rem', marginBottom: '20px' },
+            text: 'Nessuna pistola configurata per questa isola'
+          }),
+          createEl('button', {
+            id: 'add-gun-btn',
+            classes: ['menu-button', 'primary'],
+            children: [createIcon('fas fa-plus'), document.createTextNode(' Aggiungi Prima Pistola')]
+          })
+        ]
+      });
+      emptyState.querySelector('.fa-gas-pump')?.setAttribute('style', 'font-size: 3rem; margin-bottom: 15px; opacity: 0.3;');
+      target.appendChild(emptyState);
 
       const addFirstBtn = document.getElementById('add-gun-btn');
       if (addFirstBtn) {
@@ -95,7 +159,18 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
       gasolio: '#eab308'
     };
 
-    const gunsHtml = guns.map(gun => {
+    const wrapper = createEl('div', {
+      style: { marginBottom: '20px' },
+      children: [
+        createEl('button', {
+          id: 'add-gun-btn',
+          classes: ['menu-button', 'primary'],
+          children: [createIcon('fas fa-plus'), document.createTextNode(' Aggiungi Pistola')]
+        })
+      ]
+    });
+
+    guns.forEach(gun => {
       const latestVal = latestCounters[gun.id];
       // Fallback to gun.numero_litri if no closure record exists
       const currentCounter = latestVal !== undefined ? latestVal : gun.numero_litri;
@@ -103,83 +178,108 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
       const counter = formatGunCounter(currentCounter);
       const color = fuelColors[gun.tipo_carburante] || '#6b7280';
 
-      return `
-        <div class="gun-card" style="
-          background: white;
-          border-radius: 12px;
-          padding: 20px;
-          margin-bottom: 15px;
-          border-left: 4px solid ${color};
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        ">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-            <div>
-              <h3 style="margin: 0 0 8px 0; font-size: 1.25rem; color: #1f2937;">
-                <i class="fas fa-gas-pump" style="color: ${color}; margin-right: 8px;"></i>
-                ${escapeHtml(gun.nome)}
-              </h3>
-              <div style="display: flex; gap: 15px; align-items: center;">
-                <span style="
-                  background: ${color}15;
-                  color: ${color};
-                  padding: 4px 12px;
-                  border-radius: 6px;
-                  font-size: 0.875rem;
-                  font-weight: 600;
-                  text-transform: uppercase;
-                ">
-                  ${escapeHtml(gun.tipo_carburante)}
-                </span>
-                <span style="color: #6b7280; font-size: 0.875rem;">
-                  ID: ${gun.id}
-                </span>
-              </div>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="icon-btn edit-gun" data-id="${gun.id}" title="Modifica Pistola" aria-label="Modifica Pistola">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button class="icon-btn delete-gun" data-id="${gun.id}" title="Elimina Pistola" aria-label="Elimina Pistola">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          </div>
-          
-          <div style="
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-          ">
-            <div style="font-size: 0.875rem; color: #0369a1; margin-bottom: 5px; font-weight: 500;">
-              <i class="fas fa-tachometer-alt"></i> Numeratore Attuale
-            </div>
-            <div style="font-size: 1.75rem; font-weight: 700; color: #0c4a6e;">
-              ${counter} <span style="font-size: 1rem; font-weight: 400;">L</span>
-            </div>
-          </div>
+      const card = createEl('div', {
+        classes: ['gun-card'],
+        style: {
+          background: 'white',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '15px',
+          borderLeft: `4px solid ${color}`,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }
+      });
 
-          <button 
-            class="menu-button secondary edit-counter" 
-            data-id="${gun.id}" 
-            data-name="${escapeHtml(gun.nome)}"
-            data-counter="${currentCounter}"
-            style="width: 100%;"
-          >
-            <i class="fas fa-edit"></i> Modifica Numeratore
-          </button>
-        </div>
-      `;
-    }).join('');
+      const header = createEl('div', {
+        style: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '15px' },
+        children: [
+          createEl('div', {
+            children: [
+              createEl('h3', {
+                style: { margin: '0 0 8px 0', fontSize: '1.25rem', color: '#1f2937' },
+                children: [
+                  createIcon('fas fa-gas-pump'),
+                  document.createTextNode(` ${escapeHtml(gun.nome)}`)
+                ]
+              }),
+              createEl('div', {
+                style: { display: 'flex', gap: '15px', alignItems: 'center' },
+                children: [
+                  createEl('span', {
+                    style: {
+                      background: `${color}15`,
+                      color,
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      textTransform: 'uppercase'
+                    },
+                    text: gun.tipo_carburante
+                  }),
+                  createEl('span', { style: { color: '#6b7280', fontSize: '0.875rem' }, text: `ID: ${gun.id}` })
+                ]
+              })
+            ]
+          }),
+          createEl('div', {
+            style: { display: 'flex', gap: '8px' },
+            children: [
+              createEl('button', {
+                classes: ['icon-btn', 'edit-gun'],
+                dataset: { id: String(gun.id) },
+                attrs: { title: 'Modifica Pistola' },
+                children: [createIcon('fas fa-edit')]
+              }),
+              createEl('button', {
+                classes: ['icon-btn', 'delete-gun'],
+                dataset: { id: String(gun.id) },
+                attrs: { title: 'Elimina Pistola' },
+                children: [createIcon('fas fa-trash')]
+              })
+            ]
+          })
+        ]
+      });
+      card.appendChild(header);
 
-    target.innerHTML = `
-      <div style="margin-bottom: 20px;">
-        <button class="menu-button primary" id="add-gun-btn">
-          <i class="fas fa-plus"></i> Aggiungi Pistola
-        </button>
-      </div>
-      ${gunsHtml}
-    `;
+      header.querySelector('.fa-gas-pump')?.setAttribute('style', `color: ${color}; margin-right: 8px;`);
+
+      const counterBox = createEl('div', {
+        style: {
+          background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+          padding: '15px',
+          borderRadius: '8px',
+          marginBottom: '12px'
+        },
+        children: [
+          createEl('div', {
+            style: { fontSize: '0.875rem', color: '#0369a1', marginBottom: '5px', fontWeight: '500' },
+            children: [createIcon('fas fa-tachometer-alt'), document.createTextNode(' Numeratore Attuale')]
+          }),
+          createEl('div', {
+            style: { fontSize: '1.75rem', fontWeight: '700', color: '#0c4a6e' },
+            children: [
+              document.createTextNode(`${counter} `),
+              createEl('span', { style: { fontSize: '1rem', fontWeight: '400' }, text: 'L' })
+            ]
+          })
+        ]
+      });
+      card.appendChild(counterBox);
+
+      const editCounterBtn = createEl('button', {
+        classes: ['menu-button', 'secondary', 'edit-counter'],
+        dataset: { id: String(gun.id), name: gun.nome, counter: String(currentCounter) },
+        style: { width: '100%' },
+        children: [createIcon('fas fa-edit'), document.createTextNode(' Modifica Numeratore')]
+      });
+      card.appendChild(editCounterBtn);
+
+      wrapper.appendChild(card);
+    });
+
+    target.appendChild(wrapper);
 
     // Event listeners
     const addBtn = document.getElementById('add-gun-btn');
@@ -201,7 +301,7 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
       const b = btn as HTMLElement;
       b.addEventListener('click', () => {
         const id = b.dataset.id;
-        if (id) deleteGun(parseInt(id, 10), islandId, islandName, stationId);
+        if (id) {deleteGun(parseInt(id, 10), islandId, islandName, stationId);}
       });
     });
 
@@ -220,62 +320,91 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
     });
 
   } catch (err) {
-    target.innerHTML = `
-      <div style="color: #dc2626; padding: 20px; text-align: center;">
-        <i class="fas fa-exclamation-triangle"></i> Errore: ${escapeHtml((err as Error).message)}
-      </div>
-    `;
+    target.innerHTML = '';
+    const errorDiv = createEl('div', {
+      style: { color: '#dc2626', padding: '20px', textAlign: 'center' },
+      children: [
+        createIcon('fas fa-exclamation-triangle'),
+        document.createTextNode(` Errore: ${escapeHtml((err as Error).message)}`)
+      ]
+    });
+    target.appendChild(errorDiv);
   }
 }
 
-async function openGunForm(islandId: number, islandName: string, stationId: number | string, gunId: number | null = null): Promise<void> {
+async function openGunForm(islandId: number, islandName: string, stationId: number, gunId: number | null = null): Promise<void> {
   const isEdit = !!gunId;
   openModal(isEdit ? 'Modifica Pistola' : 'Nuova Pistola');
   const target = document.getElementById('modal-body');
-  if (!target) return;
+  if (!target) {return;}
 
   let gun: Partial<Gun> = { nome: '', tipo_carburante: 'benzina', numero_litri: 0 };
   if (isEdit && gunId) {
-    const { data } = await supabase
+    const { data, error } = await safeSupabaseQuery(async () => await supabase
       .from('pistole')
       .select('*')
       .eq('id', gunId)
-      .single();
+      .single()
+    );
+    if (error) {throw error;}
     gun = (data as Gun) || gun;
   }
 
+  target.innerHTML = '';
+
   const counterFormatted = formatGunCounter(gun.numero_litri || 0);
 
-  target.innerHTML = `
-    <form id="gun-form">
-      <div class="form-group">
-        <label>Nome Pistola</label>
-        <input type="text" name="nome" value="${escapeHtml(gun.nome || '')}" required placeholder="es. Pistola 1">
-      </div>
-      <div class="form-group">
-        <label>Tipo Carburante</label>
-        <select name="tipo_carburante" required>
-          <option value="benzina" ${gun.tipo_carburante === 'benzina' ? 'selected' : ''}>Benzina</option>
-          <option value="gasolio" ${gun.tipo_carburante === 'gasolio' ? 'selected' : ''}>Gasolio</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Numeratore Iniziale</label>
-        <input 
-          type="text" 
-          name="numero_litri" 
-          value="${counterFormatted}" 
-          required 
-          placeholder="es. 1.234,56"
-          pattern="[0-9.,]+"
-        >
-      </div>
-      <div style="display: flex; gap: 10px;">
-        <button type="button" class="menu-button btn-danger" id="cancel-btn">Annulla</button>
-        <button type="submit" class="menu-button btn-success">${isEdit ? 'Salva Modifiche' : 'Crea Pistola'}</button>
-      </div>
-    </form>
-  `;
+  const form = createEl('form', { id: 'gun-form' });
+
+  const nomeGroup = createEl('div', { classes: ['form-group'] });
+  nomeGroup.appendChild(createEl('label', { text: 'Nome Pistola' }));
+  const nomeInput = createEl('input', {
+    attrs: { type: 'text', name: 'nome', required: 'required', placeholder: 'es. Pistola 1', value: gun.nome || '' }
+  });
+  nomeGroup.appendChild(nomeInput);
+  form.appendChild(nomeGroup);
+
+  const tipoGroup = createEl('div', { classes: ['form-group'] });
+  tipoGroup.appendChild(createEl('label', { text: 'Tipo Carburante' }));
+  const tipoSelect = createEl('select', { attrs: { name: 'tipo_carburante', required: 'required' } });
+  const benzinaOption = createEl('option', { attrs: { value: 'benzina' }, text: 'Benzina' });
+  if (gun.tipo_carburante === 'benzina') {benzinaOption.selected = true;}
+  const gasolioOption = createEl('option', { attrs: { value: 'gasolio' }, text: 'Gasolio' });
+  if (gun.tipo_carburante === 'gasolio') {gasolioOption.selected = true;}
+  tipoSelect.appendChild(benzinaOption);
+  tipoSelect.appendChild(gasolioOption);
+  tipoGroup.appendChild(tipoSelect);
+  form.appendChild(tipoGroup);
+
+  const numeroGroup = createEl('div', { classes: ['form-group'] });
+  numeroGroup.appendChild(createEl('label', { text: 'Numeratore Iniziale' }));
+  numeroGroup.appendChild(createEl('input', {
+    attrs: {
+      type: 'text',
+      name: 'numero_litri',
+      required: 'required',
+      placeholder: 'es. 1.234,56',
+      pattern: '[0-9.,]+',
+      value: counterFormatted
+    }
+  }));
+  form.appendChild(numeroGroup);
+
+  const actions = createEl('div', { style: { display: 'flex', gap: '10px' } });
+  actions.appendChild(createEl('button', {
+    id: 'cancel-btn',
+    classes: ['menu-button', 'btn-danger'],
+    attrs: { type: 'button' },
+    text: 'Annulla'
+  }));
+  actions.appendChild(createEl('button', {
+    classes: ['menu-button', 'btn-success'],
+    attrs: { type: 'submit' },
+    text: isEdit ? 'Salva Modifiche' : 'Crea Pistola'
+  }));
+  form.appendChild(actions);
+
+  target.appendChild(form);
 
   const cancelBtn = document.getElementById('cancel-btn');
   if (cancelBtn) {
@@ -285,9 +414,9 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
     });
   }
 
-  const form = document.getElementById('gun-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
+  const gunForm = document.getElementById('gun-form');
+  if (gunForm) {
+    gunForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target as HTMLFormElement);
 
@@ -303,14 +432,12 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
 
       try {
         if (isEdit && gunId) {
-          await safeSupabaseQuery(() =>
-            supabase.from('pistole').update(payload).eq('id', gunId)
-          );
+          const { error: updateError } = await safeSupabaseQuery(async () => await supabase.from('pistole').update(payload).eq('id', gunId));
+          if (updateError) { throw updateError; }
           showInfoModal('Pistola aggiornata con successo!');
         } else {
-          await safeSupabaseQuery(() =>
-            supabase.from('pistole').insert([payload])
-          );
+          const { error: insertError } = await safeSupabaseQuery(async () => await supabase.from('pistole').insert([payload]));
+          if (insertError) { throw insertError; }
           showInfoModal('Pistola creata con successo!');
         }
         closeModal();
@@ -322,45 +449,84 @@ async function openGunForm(islandId: number, islandName: string, stationId: numb
   }
 }
 
-async function showCounterEditModal(gunId: number, gunName: string, currentCounter: number, islandId: number, islandName: string, stationId: number | string): Promise<void> {
+async function showCounterEditModal(gunId: number, gunName: string, currentCounter: number, islandId: number, islandName: string, stationId: number): Promise<void> {
   openModal(`Modifica Numeratore - ${escapeHtml(gunName)}`);
   const target = document.getElementById('modal-body');
-  if (!target) return;
+  if (!target) {return;}
+
+  target.innerHTML = '';
 
   const counterFormatted = formatGunCounter(Number(currentCounter));
 
-  target.innerHTML = `
-    <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0284c7;">
-      <div style="font-size: 0.875rem; color: #0369a1; margin-bottom: 5px;">Numeratore Attuale</div>
-      <div style="font-size: 1.5rem; font-weight: 700; color: #0c4a6e;">${counterFormatted} L</div>
-    </div>
+  const currentBox = createEl('div', {
+    style: {
+      background: '#f0f9ff',
+      padding: '15px',
+      borderRadius: '8px',
+      marginBottom: '20px',
+      borderLeft: '4px solid #0284c7'
+    },
+    children: [
+      createEl('div', { style: { fontSize: '0.875rem', color: '#0369a1', marginBottom: '5px' }, text: 'Numeratore Attuale' }),
+      createEl('div', { style: { fontSize: '1.5rem', fontWeight: '700', color: '#0c4a6e' }, text: `${counterFormatted} L` })
+    ]
+  });
+  target.appendChild(currentBox);
 
-    <form id="counter-form">
-      <div class="form-group">
-        <label>Nuovo Numeratore</label>
-        <input 
-          type="text" 
-          name="numero_litri" 
-          value="${counterFormatted}" 
-          required 
-          placeholder="es. 12.345,67"
-          pattern="[0-9.,]+"
-          style="font-size: 1.125rem; font-weight: 600;"
-        >
-      </div>
+  const form = createEl('form', { id: 'counter-form' });
 
-      <div style="background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 3px solid #f59e0b;">
-        <div style="font-size: 0.875rem; color: #92400e;">
-          <i class="fas fa-exclamation-triangle"></i> <strong>Attenzione:</strong> Modificare il numeratore influenzerà i calcoli delle chiusure future.
-        </div>
-      </div>
+  const numeroGroup = createEl('div', { classes: ['form-group'] });
+  numeroGroup.appendChild(createEl('label', { text: 'Nuovo Numeratore' }));
+  numeroGroup.appendChild(createEl('input', {
+    attrs: {
+      type: 'text',
+      name: 'numero_litri',
+      required: 'required',
+      placeholder: 'es. 12.345,67',
+      pattern: '[0-9.,]+',
+      value: counterFormatted
+    },
+    style: { fontSize: '1.125rem', fontWeight: '600' }
+  }));
+  form.appendChild(numeroGroup);
 
-      <div style="display: flex; gap: 10px;">
-        <button type="button" class="menu-button btn-danger" id="cancel-btn">Annulla</button>
-        <button type="submit" class="menu-button btn-success">Salva Numeratore</button>
-      </div>
-    </form>
-  `;
+  const warningBox = createEl('div', {
+    style: {
+      background: '#fef3c7',
+      padding: '12px',
+      borderRadius: '6px',
+      marginBottom: '15px',
+      borderLeft: '3px solid #f59e0b'
+    },
+    children: [
+      createEl('div', {
+        style: { fontSize: '0.875rem', color: '#92400e' },
+        children: [
+          createIcon('fas fa-exclamation-triangle'),
+          document.createTextNode(' '),
+          createEl('strong', { text: 'Attenzione:' }),
+          document.createTextNode(' Modificare il numeratore influenzerà i calcoli delle chiusure future.')
+        ]
+      })
+    ]
+  });
+  form.appendChild(warningBox);
+
+  const actions = createEl('div', { style: { display: 'flex', gap: '10px' } });
+  actions.appendChild(createEl('button', {
+    id: 'cancel-btn',
+    classes: ['menu-button', 'btn-danger'],
+    attrs: { type: 'button' },
+    text: 'Annulla'
+  }));
+  actions.appendChild(createEl('button', {
+    classes: ['menu-button', 'btn-success'],
+    attrs: { type: 'submit' },
+    text: 'Salva Numeratore'
+  }));
+  form.appendChild(actions);
+
+  target.appendChild(form);
 
   const cancelBtn = document.getElementById('cancel-btn');
   if (cancelBtn) {
@@ -370,9 +536,9 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
     });
   }
 
-  const form = document.getElementById('counter-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
+  const counterForm = document.getElementById('counter-form');
+  if (counterForm) {
+    counterForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target as HTMLFormElement);
 
@@ -386,60 +552,68 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
 
       try {
         // 1. Update basic record
-        await safeSupabaseQuery(() =>
-          supabase.from('pistole').update({ numero_litri: numeroLitri }).eq('id', gunId)
-        );
+        const { error: basicError } = await safeSupabaseQuery(async () => await supabase.from('pistole').update({ numero_litri: numeroLitri }).eq('id', gunId));
+        if (basicError) { throw basicError; }
 
         // 2. Find latest turno_id
         let currentTurnoId: number | null = null;
         try {
-          const { data: lastCounters } = await supabase
+          const { data: lastCounters, error: lastCountersError } = await safeSupabaseQuery(async () => await supabase
             .from('chiusura_turno_pistole')
             .select('turno_id')
             .order('turno_id', { ascending: false })
-            .limit(1);
+            .limit(1)
+          );
+
+          if (lastCountersError) {throw lastCountersError;}
 
           const lastData = lastCounters as { turno_id: number }[];
           if (lastData && lastData.length > 0) {
-            currentTurnoId = lastData[0]!.turno_id;
+            const first = lastData[0];
+            if (first) {
+              currentTurnoId = first.turno_id;
+            }
           }
         } catch (err) {
-          console.warn('Errore recupero ultimo turno_id:', err);
+          logger.warn('showCounterEditModal', 'Errore recupero ultimo turno_id: ' + (err as Error).message);
         }
 
         // 3. Update or Insert
         if (currentTurnoId !== null) {
-          const { data: existing } = await supabase
+          const { data: existing, error: existingError } = await safeSupabaseQuery(async () => await supabase
             .from('chiusura_turno_pistole')
             .select('id')
             .eq('pistola_id', gunId)
             .eq('turno_id', currentTurnoId)
-            .single();
+            .single()
+          );
+
+          if (existingError && existingError.code !== 'PGRST116') {throw existingError;}
 
           if (existing) {
-            await safeSupabaseQuery(() =>
-              supabase.from('chiusura_turno_pistole')
-                .update({ numeratore_chiusura: numeroLitri })
-                .eq('pistola_id', gunId)
-                .eq('turno_id', currentTurnoId)
+            const { error: updateCounterError } = await safeSupabaseQuery(async () => await supabase.from('chiusura_turno_pistole')
+              .update({ numeratore_chiusura: numeroLitri })
+              .eq('pistola_id', gunId)
+              .eq('turno_id', currentTurnoId)
             );
+            if (updateCounterError) { throw updateCounterError; }
           } else {
-            await safeSupabaseQuery(() =>
-              supabase.from('chiusura_turno_pistole').insert([{
-                pistola_id: gunId,
-                numeratore_chiusura: numeroLitri,
-                turno_id: currentTurnoId
-              }])
-            );
-          }
-        } else {
-          await safeSupabaseQuery(() =>
-            supabase.from('chiusura_turno_pistole').insert([{
+            const { error: insertCounterError } = await safeSupabaseQuery(async () => await supabase.from('chiusura_turno_pistole').insert([{
               pistola_id: gunId,
               numeratore_chiusura: numeroLitri,
-              turno_id: 1 // Init with 1 if nothing exists
+              turno_id: currentTurnoId
             }])
+            );
+            if (insertCounterError) { throw insertCounterError; }
+          }
+        } else {
+          const { error: initCounterError } = await safeSupabaseQuery(async () => await supabase.from('chiusura_turno_pistole').insert([{
+            pistola_id: gunId,
+            numeratore_chiusura: numeroLitri,
+            turno_id: 1 // Init with 1 if nothing exists
+          }])
           );
+          if (initCounterError) { throw initCounterError; }
         }
 
         showInfoModal(`Numeratore aggiornato a ${formatGunCounter(numeroLitri)} L`);
@@ -452,13 +626,12 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
   }
 }
 
-async function deleteGun(gunId: number, islandId: number, islandName: string, stationId: number | string): Promise<void> {
+async function deleteGun(gunId: number, islandId: number, islandName: string, stationId: number): Promise<void> {
   try {
     if (!await openConfirmModal('Sei sicuro di voler eliminare questa pistola?')) { return; }
 
-    await safeSupabaseQuery(() =>
-      supabase.from('pistole').delete().eq('id', gunId)
-    );
+    const { error: deleteError } = await safeSupabaseQuery(async () => await supabase.from('pistole').delete().eq('id', gunId));
+    if (deleteError) { throw deleteError; }
 
     showInfoModal('Pistola eliminata con successo!');
     showGunsModal(islandId, islandName, stationId);

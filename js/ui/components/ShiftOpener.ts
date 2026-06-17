@@ -1,8 +1,11 @@
 import { html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
-import { BaseComponent } from './BaseComponent.js';
+
 import { supabase } from '../../core/api.js';
+import { logger } from '../../core/logger.js';
 import { Pistola, Tank, Island } from '../../types.js';
+
+import { BaseComponent } from './BaseComponent.js';
 
 interface ShiftOpenerState {
     mode: 'loading' | 'form' | 'submitting' | 'success' | 'error';
@@ -14,8 +17,8 @@ export class ShiftOpener extends BaseComponent {
     @property({ type: String }) userId: string = '';
 
     @state() private state: ShiftOpenerState = {
-        mode: 'loading',
-        errorMessage: ''
+      mode: 'loading',
+      errorMessage: ''
     };
 
     @state() private islands: Island[] = [];
@@ -24,8 +27,8 @@ export class ShiftOpener extends BaseComponent {
     @state() private lastCounters: Record<number, number> = {};
 
     static override styles: CSSResultGroup = [
-        BaseComponent.styles,
-        css`
+      BaseComponent.styles,
+      css`
             :host {
                 display: block;
                 max-width: 800px;
@@ -149,70 +152,70 @@ export class ShiftOpener extends BaseComponent {
         `
     ];
 
-    protected override firstUpdated() {
-        this.loadInitialData();
+    protected override firstUpdated(): void {
+      this.loadInitialData();
     }
 
-    private async loadInitialData() {
-        this.state = { ...this.state, mode: 'loading' };
-        try {
-            // 1. Parallel fetch of core station data
-            const [islandsRes, tanksRes] = await Promise.all([
-                supabase.from('islands').select('island_id, nome, island_name').eq('station_id', this.stationId).order('island_id'),
-                supabase.from('tanks').select('*').eq('station_id', this.stationId).order('name')
-            ]);
+    private async loadInitialData(): Promise<void> {
+      this.state = { ...this.state, mode: 'loading' };
+      try {
+        // 1. Parallel fetch of core station data
+        const [islandsRes, tanksRes] = await Promise.all([
+          supabase.from('islands').select('island_id, nome, island_name').eq('station_id', Number(this.stationId)).order('island_id'),
+          supabase.from('tanks').select('*').eq('station_id', Number(this.stationId)).order('name')
+        ]);
 
-            if (islandsRes.error) throw islandsRes.error;
+        if (islandsRes.error) {throw islandsRes.error;}
 
-            this.islands = islandsRes.data.map((i: any, idx: number) => ({
-                island_id: i.island_id ?? idx + 1,
-                nome: i.nome ?? i.island_name ?? `Isola ${idx + 1}`,
-                station_id: Number(this.stationId)
-            })) as unknown as Island[];
+        this.islands = islandsRes.data.map((i: { island_id?: number; nome?: string; island_name?: string }, idx: number) => ({
+          island_id: i.island_id ?? idx + 1,
+          nome: i.nome ?? i.island_name ?? `Isola ${idx + 1}`,
+          station_id: Number(this.stationId)
+        })) as unknown as Island[];
 
-            this.tanks = (tanksRes.data || []) as unknown as Tank[];
+        this.tanks = (tanksRes.data || []) as unknown as Tank[];
 
-            // 2. Fetch all pistols for these islands
-            const islandIds = this.islands.map(i => i.island_id);
-            const { data: pistoleData, error: pError } = await supabase
-                .from('pistole')
-                .select('*, islands(nome)')
-                .in('island_id', islandIds)
-                .order('id');
+        // 2. Fetch all pistols for these islands
+        const islandIds = this.islands.map(i => i.island_id);
+        const { data: pistoleData, error: pError } = await supabase
+          .from('pistole')
+          .select('*, islands(nome)')
+          .in('island_id', islandIds)
+          .order('id');
 
-            if (pError) throw pError;
-            this.pistole = (pistoleData || []) as unknown as Pistola[];
+        if (pError) {throw pError;}
+        this.pistole = (pistoleData || []) as unknown as Pistola[];
 
-            // 3. Fetch smart counters (last closure values)
-            const pIds = this.pistole.map(p => p.id);
-            const [newCounters, oldCounters] = await Promise.all([
-                supabase.from('shift_pistols').select('pistola_id, closed_at_counter').in('pistola_id', pIds).not('closed_at_counter', 'is', null).order('created_at', { ascending: false }),
-                supabase.from('chiusura_turno_pistole').select('pistola_id, numeratore_chiusura').in('pistola_id', pIds).order('created_at', { ascending: false })
-            ]);
+        // 3. Fetch smart counters (last closure values)
+        const pIds = this.pistole.map(p => p.id);
+        const [newCounters, oldCounters] = await Promise.all([
+          supabase.from('shift_pistols').select('pistola_id, closed_at_counter').in('pistola_id', pIds).not('closed_at_counter', 'is', null).order('created_at', { ascending: false }),
+          supabase.from('chiusura_turno_pistole').select('pistola_id, numeratore_chiusura').in('pistola_id', pIds).order('created_at', { ascending: false })
+        ]);
 
-            const counters: Record<number, number> = {};
-            this.pistole.forEach(p => {
-                // Priority: shift_pistols -> chiusura_turno_pistole -> current numero_litri
-                const lastShift = newCounters.data?.find((c: any) => c.pistola_id === p.id);
-                const lastOld = oldCounters.data?.find((c: any) => c.pistola_id === p.id);
+        const counters: Record<number, number> = {};
+        this.pistole.forEach(p => {
+          // Priority: shift_pistols -> chiusura_turno_pistole -> current numero_litri
+          const lastShift = newCounters.data?.find(c => c.pistola_id === p.id);
+          const lastOld = oldCounters.data?.find(c => c.pistola_id === p.id);
 
-                counters[p.id] = lastShift?.closed_at_counter ??
+          counters[p.id] = lastShift?.closed_at_counter ??
                     lastOld?.numeratore_chiusura ??
                     p.numero_litri ?? 0;
-            });
-            this.lastCounters = counters;
+        });
+        this.lastCounters = counters;
 
-            this.state = { ...this.state, mode: 'form' };
-        } catch (error: any) {
-            console.error('Error loading ShiftOpener data:', error);
-            this.state = { mode: 'error', errorMessage: error.message || 'Errore imprevisto durante il caricamento' };
-        }
+        this.state = { ...this.state, mode: 'form' };
+      } catch (error: unknown) {
+        logger.error('Error loading ShiftOpener data:', error);
+        this.state = { mode: 'error', errorMessage: (error instanceof Error ? error.message : 'Errore imprevisto durante il caricamento') };
+      }
     }
 
     override render(): TemplateResult {
-        switch (this.state.mode) {
-            case 'loading':
-                return html`
+      switch (this.state.mode) {
+        case 'loading':
+          return html`
                     <div class="opener-container">
                         <div class="loading-spinner">
                             <i class="fas fa-spinner fa-spin fa-3x"></i>
@@ -221,11 +224,11 @@ export class ShiftOpener extends BaseComponent {
                     </div>
                 `;
 
-            case 'form':
-                return this.renderForm();
+        case 'form':
+          return this.renderForm();
 
-            case 'error':
-                return html`
+        case 'error':
+          return html`
                     <div class="opener-container">
                         <div style="text-align: center; padding: 2rem; color: #c53030;">
                             <i class="fas fa-exclamation-circle fa-4x" style="margin-bottom: 1rem;"></i>
@@ -236,8 +239,8 @@ export class ShiftOpener extends BaseComponent {
                     </div>
                 `;
 
-            case 'success':
-                return html`
+        case 'success':
+          return html`
                     <div class="opener-container">
                         <div style="text-align: center; padding: 2rem;">
                             <div style="width: 80px; height: 80px; background: #8DC63F; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto; color: white;">
@@ -250,84 +253,85 @@ export class ShiftOpener extends BaseComponent {
                     </div>
                 `;
 
-            default:
-                return html`<div>Stato sconosciuto: ${this.state.mode}</div>`;
-        }
+        default:
+          return html`<div>Stato sconosciuto: ${this.state.mode}</div>`;
+      }
     }
 
-    private async handleFormSubmit(e: Event) {
-        e.preventDefault();
-        const form = e.target as HTMLFormElement;
-        const formData = new FormData(form);
+    private async handleFormSubmit(e: Event): Promise<void> {
+      e.preventDefault();
+      const form = e.target as HTMLFormElement;
+      const formData = new FormData(form);
 
-        this.state = { ...this.state, mode: 'submitting' };
+      this.state = { ...this.state, mode: 'submitting' };
 
-        try {
-            // 1. Create Shift record
-            const openingData = {
-                cash_in: Number(formData.get('cash_in')) || 0,
-                cash_out: Number(formData.get('cash_out')) || 0,
-                pos_amount: Number(formData.get('pos_amount')) || 0,
-                total_amount: Number(formData.get('total_amount')) || 0,
-                uta_dkv_iscard: Number(formData.get('uta_dkv_iscard')) || 0,
-                cash_in_minus_out: (Number(formData.get('cash_in')) || 0) - (Number(formData.get('cash_out')) || 0)
-            };
+      try {
+        // 1. Create Shift record
+        const openingData = {
+          cash_in: Number(formData.get('cash_in')) || 0,
+          cash_out: Number(formData.get('cash_out')) || 0,
+          pos_amount: Number(formData.get('pos_amount')) || 0,
+          total_amount: Number(formData.get('total_amount')) || 0,
+          uta_dkv_iscard: Number(formData.get('uta_dkv_iscard')) || 0,
+          cash_in_minus_out: (Number(formData.get('cash_in')) || 0) - (Number(formData.get('cash_out')) || 0),
+          notes: String(formData.get('notes') ?? '')
+        };
 
-            const { data: shift, error: shiftError } = await supabase
-                .from('shifts')
-                .insert([{
-                    station_id: this.stationId,
-                    operator_id: this.userId,
-                    status: 'open',
-                    opened_at: new Date().toISOString(),
-                    opening_data: openingData,
-                    notes: formData.get('notes')
-                }])
-                .select()
-                .single();
+        const { data: shift, error: shiftError } = await supabase
+          .from('shifts')
+          .insert([{
+            station_id: Number(this.stationId),
+            operator_id: Number(this.userId),
+            status: 'open',
+            opened_at: new Date().toISOString(),
+            opening_data: openingData
+          }])
+          .select()
+          .single();
 
-            if (shiftError) throw shiftError;
+        if (shiftError) {throw shiftError;}
 
-            // 2. Save Pistol Counters
-            const shiftPistols = this.pistole.map(p => ({
-                shift_id: shift.id,
-                pistola_id: p.id,
-                opened_at_counter: Number(formData.get(`p_${p.id}`)) || 0
-            }));
+        // 2. Save Pistol Counters
+        const shiftPistols = this.pistole.map(p => ({
+          shift_id: shift.id,
+          pistola_id: p.id,
+          opened_at_counter: Number(formData.get(`p_${p.id}`)) || 0
+        }));
 
-            const { error: spError } = await supabase
-                .from('shift_pistols')
-                .insert(shiftPistols);
+        const { error: spError } = await supabase
+          .from('shift_pistols')
+          .insert(shiftPistols);
 
-            if (spError) throw spError;
+        if (spError) {throw spError;}
 
-            // 3. Save Tank Levels (if any)
-            if (this.tanks.length > 0) {
-                const shiftTanks = this.tanks.map(t => ({
-                    shift_id: shift.id,
-                    tank_id: t.id,
-                    opening_level: Number(formData.get(`tank_${t.id}`)) || 0
-                }));
+        // 3. Save Tank Levels (if any)
+        if (this.tanks.length > 0) {
+          const shiftTanks = this.tanks.map(t => ({
+            shift_id: shift.id,
+            tank_id: t.id,
+            liters: Number(formData.get(`tank_${t.id}`)) || 0,
+            reading_type: 'opening'
+          }));
 
-                const { error: stError } = await supabase
-                    .from('shift_tanks')
-                    .insert(shiftTanks);
+          const { error: stError } = await supabase
+            .from('tank_readings')
+            .insert(shiftTanks);
 
-                if (stError) throw stError;
-            }
-
-            this.state = { ...this.state, mode: 'success' };
-            this.emit('success', { shift });
-
-        } catch (error: any) {
-            console.error('Error opening shift:', error);
-            this.state = { ...this.state, mode: 'form', errorMessage: error.message };
-            alert(`Errore durante l'apertura del turno: ${error.message}`);
+          if (stError) {throw stError;}
         }
+
+        this.state = { ...this.state, mode: 'success' };
+        this.emit('success', { shift });
+
+      } catch (error: unknown) {
+        logger.error('Error opening shift:', error);
+        this.state = { ...this.state, mode: 'form', errorMessage: (error instanceof Error ? error.message : 'Errore sconosciuto') };
+        alert(`Errore durante l'apertura del turno: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
+      }
     }
 
     private renderForm(): TemplateResult {
-        return html`
+      return html`
             <div class="opener-container">
                 <form id="apertura-form" @submit=${this.handleFormSubmit}>
                     <div class="form-grid">
@@ -398,5 +402,5 @@ export class ShiftOpener extends BaseComponent {
 }
 
 if (!customElements.get('shift-opener')) {
-    customElements.define('shift-opener', ShiftOpener);
+  customElements.define('shift-opener', ShiftOpener);
 }

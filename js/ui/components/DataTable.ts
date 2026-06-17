@@ -5,18 +5,19 @@
 
 import { html, css, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
+
 import { BaseComponent } from './BaseComponent.js';
 
 export interface DataTableColumn {
   key: string;
   label: string;
   sortable?: boolean;
-  render?: (row: any) => TemplateResult | typeof html | any;
+  render?: (row: Record<string, unknown>) => TemplateResult | string;
 }
 
 export class DataTable extends BaseComponent {
   @property({ type: Array }) columns: DataTableColumn[] = [];
-  @property({ type: Array }) data: any[] = [];
+  @property({ type: Array }) data: Record<string, unknown>[] = [];
   @property({ type: String }) sortColumn: string = '';
   @property({ type: String }) sortDirection: 'asc' | 'desc' = 'asc';
   @property({ type: Boolean }) loading: boolean = false;
@@ -145,11 +146,12 @@ export class DataTable extends BaseComponent {
       : html`<i class="fas fa-sort-down sort-icon"></i>`;
   }
 
-  private _renderCell(row: any, column: DataTableColumn): any {
+  private _renderCell(row: Record<string, unknown>, column: DataTableColumn): TemplateResult | string {
     if (column.render) {
       return column.render(row);
     }
-    return row[column.key] || '-';
+    const value = row[column.key];
+    return value === undefined || value === null ? '-' : String(value);
   }
 
   private _handleSort(columnKey: string): void {
@@ -162,11 +164,11 @@ export class DataTable extends BaseComponent {
     this.emit('sort', { column: this.sortColumn, direction: this.sortDirection });
   }
 
-  private _handleRowClick(row: any): void {
+  private _handleRowClick(row: Record<string, unknown>): void {
     this.emit('row-click', { row });
   }
 
-  private _getSortedData(): any[] {
+  private _getSortedData(): Record<string, unknown>[] {
     if (!this.sortColumn) { return this.data; }
 
     return [...this.data].sort((a, b) => {
@@ -174,6 +176,8 @@ export class DataTable extends BaseComponent {
       const bVal = b[this.sortColumn];
 
       if (aVal === bVal) { return 0; }
+      if (aVal === null || aVal === undefined) { return 1; }
+      if (bVal === null || bVal === undefined) { return -1; }
 
       const comparison = aVal < bVal ? -1 : 1;
       return this.sortDirection === 'asc' ? comparison : -comparison;

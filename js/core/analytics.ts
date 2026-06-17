@@ -13,15 +13,15 @@ const PLAUSIBLE_ENABLED = env.VITE_ANALYTICS_ENABLED === 'true';
  * Initialize analytics tracking
  */
 export function initAnalytics(): void {
-    if (!PLAUSIBLE_ENABLED) {
-        console.info('[Analytics] Disabled');
-        return;
-    }
+  if (!PLAUSIBLE_ENABLED) {
+    console.info('[Analytics] Disabled');
+    return;
+  }
 
-    // Plausible script is loaded via CDN in index.html
-    // This module provides helper functions for custom events
+  // Plausible script is loaded via CDN in index.html
+  // This module provides helper functions for custom events
 
-    console.info('[Analytics] Initialized for domain:', PLAUSIBLE_DOMAIN);
+  console.info('[Analytics] Initialized for domain:', PLAUSIBLE_DOMAIN);
 }
 
 /**
@@ -30,12 +30,12 @@ export function initAnalytics(): void {
  * @param {Object} props - Event properties (optional)
  */
 export function trackEvent(eventName: string, props: Record<string, any> = {}): void {
-    if (!PLAUSIBLE_ENABLED || !(window as unknown as CustomWindow).plausible) {
-        console.debug('[Analytics] Event:', eventName, props);
-        return;
-    }
+  if (!PLAUSIBLE_ENABLED || !(window as unknown as CustomWindow).plausible) {
+    console.debug('[Analytics] Event:', eventName, props);
+    return;
+  }
 
-    (window as unknown as CustomWindow).plausible(eventName, { props });
+  (window as unknown as CustomWindow).plausible(eventName, { props });
 }
 
 /**
@@ -43,11 +43,11 @@ export function trackEvent(eventName: string, props: Record<string, any> = {}): 
  * @param {string} path - Page path
  */
 export function trackPageView(path: string): void {
-    if (!PLAUSIBLE_ENABLED || !(window as unknown as CustomWindow).plausible) {
-        return;
-    }
+  if (!PLAUSIBLE_ENABLED || !(window as unknown as CustomWindow).plausible) {
+    return;
+  }
 
-    (window as unknown as CustomWindow).plausible('pageview', { u: path });
+  (window as unknown as CustomWindow).plausible('pageview', { u: path });
 }
 
 // Predefined event tracking functions
@@ -57,7 +57,7 @@ export function trackPageView(path: string): void {
  * @param {string} role - User role (admin, operator, etc.)
  */
 export function trackLogin(role: string): void {
-    trackEvent('Login', { role });
+  trackEvent('Login', { role });
 }
 
 /**
@@ -65,7 +65,7 @@ export function trackLogin(role: string): void {
  * @param {string | number} stationId - Station ID
  */
 export function trackShiftOpen(stationId: string | number): void {
-    trackEvent('Shift:Open', { station: stationId });
+  trackEvent('Shift:Open', { station: stationId });
 }
 
 /**
@@ -74,7 +74,7 @@ export function trackShiftOpen(stationId: string | number): void {
  * @param {number} duration - Shift duration in minutes
  */
 export function trackShiftClose(stationId: string | number, duration: number): void {
-    trackEvent('Shift:Close', { station: stationId, duration: Math.round(duration) });
+  trackEvent('Shift:Close', { station: stationId, duration: Math.round(duration) });
 }
 
 /**
@@ -82,7 +82,7 @@ export function trackShiftClose(stationId: string | number, duration: number): v
  * @param {number} amount - Voucher amount
  */
 export function trackVoucherRedeem(amount: number): void {
-    trackEvent('Voucher:Redeem', { amount: Math.round(amount) });
+  trackEvent('Voucher:Redeem', { amount: Math.round(amount) });
 }
 
 /**
@@ -91,7 +91,7 @@ export function trackVoucherRedeem(amount: number): void {
  * @param {string} section - What was exported (closure, vouchers, etc.)
  */
 export function trackExport(type: string, section: string): void {
-    trackEvent('Export', { type, section });
+  trackEvent('Export', { type, section });
 }
 
 /**
@@ -99,7 +99,7 @@ export function trackExport(type: string, section: string): void {
  * @param {string} section - Where search was performed
  */
 export function trackSearch(section: string): void {
-    trackEvent('Search', { section });
+  trackEvent('Search', { section });
 }
 
 /**
@@ -108,5 +108,5 @@ export function trackSearch(section: string): void {
  * @param {string} context - Where error occurred
  */
 export function trackError(type: string, context: string): void {
-    trackEvent('Error', { type, context });
+  trackEvent('Error', { type, context });
 }
