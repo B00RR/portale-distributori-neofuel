@@ -5,6 +5,8 @@
 import { supabase, type Json } from '../core/api.js';
 import { Shift } from '../types.js';
 import { closeModal, openModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
+import { escapeHtml } from '../utils/utils.js';
 
 import {
   createWarningMessage
@@ -87,11 +89,11 @@ export async function showAperturaForm(stationId: number | string, userId: strin
       openModal('Apertura Già Effettuata');
       const modalBody = document.getElementById('modal-body');
       if (modalBody) {
-        modalBody.innerHTML = createWarningMessage(
+        setSafeHTML(modalBody, createWarningMessage(
           'Apertura Già Effettuata',
           'Il turno è già stato aperto',
           `Data apertura: ${openingDate}. Devi prima chiudere il turno corrente prima di aprirne uno nuovo.`
-        ) + '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>';
+        ) + '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>');
 
         const closeBtn = document.getElementById('btn-close-warning');
         if (closeBtn) {
@@ -106,7 +108,7 @@ export async function showAperturaForm(stationId: number | string, userId: strin
     const modalBody = document.getElementById('modal-body');
     if (!modalBody) { return; }
 
-    modalBody.innerHTML = ''; // Pulisci modal
+    setSafeHTML(modalBody, ''); // Pulisci modal
 
     const opener = document.createElement('shift-opener');
     opener.setAttribute('stationId', stationId.toString());
@@ -131,7 +133,7 @@ export async function showAperturaForm(stationId: number | string, userId: strin
     openModal('Errore');
     const errorModalBody = document.getElementById('modal-body');
     if (errorModalBody) {
-      errorModalBody.innerHTML = `<p style="color: red; padding: 20px;">${err.message || 'Errore imprevisto'}</p>`;
+      setSafeHTML(errorModalBody, `<p style="color: red; padding: 20px;">${escapeHtml(err.message || 'Errore imprevisto')}</p>`);
     }
   }
 }

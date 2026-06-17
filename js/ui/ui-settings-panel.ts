@@ -8,12 +8,13 @@ import { BusinessLogicManager } from '../core/business-logic-manager.js';
 
 import { BUSINESS_LOGIC_FIELDS } from './ui-settings-constants.js';
 import { escapeHtml } from '../utils/utils.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 export async function renderSettingsPanel(container: HTMLElement): Promise<void> {
   if (!container) {return;}
 
   // Render Skeleton Structure
-  container.innerHTML = `
+  setSafeHTML(container, `
     <div class="settings-header mb-4">
       <h2>Impostazioni Applicazione</h2>
       <p class="text-secondary">Configura le regole operative e i KPI della dashboard.</p>
@@ -36,7 +37,7 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
             <i class="fas fa-save"></i> Salva Tutto
         </button>
     </div>
-  `;
+  `);
 
   const rulesGrid = container.querySelector('#business-rules-grid') as HTMLElement;
   const dashGrid = container.querySelector('#dashboard-config-grid') as HTMLElement;
@@ -87,7 +88,7 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
         </div>
       `;
     });
-    rulesGrid.innerHTML = rulesHtml || '<p>Nessuna impostazione disponibile.</p>';
+    setSafeHTML(rulesGrid, rulesHtml || '<p>Nessuna impostazione disponibile.</p>');
 
 
     // 2. RENDER DASHBOARD KPI SELECTOR
@@ -115,7 +116,7 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
         `;
     });
 
-    dashGrid.innerHTML = `
+    setSafeHTML(dashGrid, `
         <div class="card" style="grid-column: 1 / -1;">
             <div class="card-header">
                 <h4 class="card-title"><i class="fas fa-eye"></i> Visibilità KPI Dashboard</h4>
@@ -125,7 +126,7 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
                 ${kpiListHtml}
             </div>
         </div>
-    `;
+    `);
 
     // 3. HANDLE SAVE
     const saveBtn = container.querySelector('#save-settings-btn');
@@ -135,7 +136,7 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
 
       try {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
+        setSafeHTML(btn, '<i class="fas fa-spinner fa-spin"></i> Salvataggio...');
 
         // A. Collect Business Rules
         const rulesPayload: any = {};
@@ -166,16 +167,16 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
           saveDashboardConfig(dashConfig)
         ]);
 
-        btn.innerHTML = '<i class="fas fa-check"></i> Salvato!';
+        setSafeHTML(btn, '<i class="fas fa-check"></i> Salvato!');
         setTimeout(() => {
-          btn.innerHTML = originalText;
+          setSafeHTML(btn, originalText);
           btn.disabled = false;
         }, 2000);
 
       } catch (err) {
-        btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Errore';
+        setSafeHTML(btn, '<i class="fas fa-exclamation-triangle"></i> Errore');
         setTimeout(() => {
-          btn.innerHTML = originalText;
+          setSafeHTML(btn, originalText);
           btn.disabled = false;
         }, 3000);
         console.error(err);
@@ -183,6 +184,6 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
     });
 
   } catch (err) {
-    rulesGrid.innerHTML = `<div class="error-box"><p>Errore nel caricamento delle impostazioni: ${escapeHtml(err instanceof Error ? err.message : String(err))}</p></div>`;
+    setSafeHTML(rulesGrid, `<div class="error-box"><p>Errore nel caricamento delle impostazioni: ${escapeHtml(err instanceof Error ? err.message : String(err))}</p></div>`);
   }
 }

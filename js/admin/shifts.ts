@@ -12,6 +12,7 @@ import {
   computeExportSummaryMetrics
 } from '../utils/export_utils.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 import { FilterBar } from './components/FilterBar.js';
 import { Pagination } from './components/Pagination.js';
@@ -81,11 +82,11 @@ export async function showChiusureTab(
   defaultStationId: string | null = null
 ): Promise<void> {
   // Basic structure
-  container.innerHTML = `
+  setSafeHTML(container, `
         <div id="filters-container"></div>
         <div id="data-container"></div>
         <div id="pagination-container"></div>
-    `;
+    `);
 
   // Render Components
   const filterBar = new FilterBar('filters-container');
@@ -95,12 +96,12 @@ export async function showChiusureTab(
 
   if (actionsContainer) {
     // Clear and rebuild to avoid duplicates if re-called
-    actionsContainer.innerHTML = '';
+    setSafeHTML(actionsContainer, '');
 
     const btnBulk = document.createElement('button');
     btnBulk.id = 'btn-bulk-export';
     btnBulk.className = 'menu-button secondary';
-    btnBulk.innerHTML = '<i class="fas fa-file-export"></i> Export Multiplo';
+    setSafeHTML(btnBulk, '<i class="fas fa-file-export"></i> Export Multiplo');
     btnBulk.onclick = openBulkExportModal;
 
     actionsContainer.appendChild(btnBulk);
@@ -167,7 +168,7 @@ export async function showChiusureTab(
       const filteredClosures: Shift[] = (closures as unknown as Shift[]) || [];
 
       if (filteredClosures.length === 0) {
-        dataContainer.innerHTML = '<p>Nessuna chiusura trovata.</p>';
+        setSafeHTML(dataContainer, '<p>Nessuna chiusura trovata.</p>');
         return;
       }
 
@@ -227,7 +228,7 @@ export async function showChiusureTab(
       });
 
       html += '</tbody></table></div>';
-      dataContainer.innerHTML = html;
+      setSafeHTML(dataContainer, html);
 
       dataContainer.querySelectorAll('.view-closure').forEach(btn => {
         btn.addEventListener('click', () => showClosureDetails((btn as HTMLElement).dataset.id!));
@@ -339,7 +340,7 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     const totaleRealeVal = vendutoCarburanteVal + extraVal;
     const totaleReale = formatEuro(totaleRealeVal);
 
-    target.innerHTML = `
+    setSafeHTML(target, `
       <div class="closure-details">
         <div class="closure-details-header">
             <span>ID Chiusura: <b>${closure.id}</b></span>
@@ -388,7 +389,7 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
              </button>
         </div>
       </div>
-    `;
+    `);
 
     // Attach Event Listener for Export Button
     const exportBtn = document.getElementById('btn-export-details');
@@ -399,7 +400,7 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     }
 
   } catch (err) {
-    target.innerHTML = `<p class="error">Errore: ${(err as Error).message}</p>`;
+    setSafeHTML(target, `<p class="error">Errore: ${escapeHtml((err as Error).message)}</p>`);
   }
 }
 
@@ -430,7 +431,7 @@ export async function openBulkExportModal(): Promise<void> {
     }
   } catch (e) { console.error(e); }
 
-  target.innerHTML = `
+  setSafeHTML(target, `
         <div class="p-2">
             <p class="mb-3 text-muted">Seleziona i criteri per scaricare più chiusure in un unico file Excel.</p>
             
@@ -486,7 +487,7 @@ export async function openBulkExportModal(): Promise<void> {
                 <i class="fas fa-spinner fa-spin"></i> Generazione in corso...
             </div>
         </div>
-    `;
+    `);
 
   // Handle Radio Change Events (CSP Safe)
   const radioLastN = document.getElementById('radio-last-n');

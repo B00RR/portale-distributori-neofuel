@@ -2,6 +2,7 @@
 import { supabase } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, showInfoModal, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatEuro, formatDate } from '../utils/utils.js';
 
 // --- INTERFACES ---
@@ -94,7 +95,7 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
   const isAlreadyRendered = container.querySelector('[data-testid="voucher-admin-panel"]');
 
   if (!isAlreadyRendered) {
-    container.innerHTML = `
+    setSafeHTML(container, `
             <div class="app-container" data-testid="voucher-admin-panel" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
                 <div class="top-bar-title">
                     <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher V3</h2>
@@ -109,7 +110,7 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
                     <!-- Content injected here -->
                 </div>
             </div>
-        `;
+        `);
 
     // Bind Tabs ONCE using Delegation on the permanent tabs container
     const tabsContainer = document.getElementById('voucher-tabs');
@@ -144,7 +145,7 @@ function updateTabButtons(): void {
   const tabsContainer = document.getElementById('voucher-tabs');
   if (!tabsContainer) {return;}
 
-  tabsContainer.innerHTML = `
+  setSafeHTML(tabsContainer, `
         <button class="menu-button ${voucherState.activeTab === 'generator' ? 'primary' : 'outline'}" data-tab="generator" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
             <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
                 <i class="fas fa-plus-circle"></i> Genera
@@ -158,7 +159,7 @@ function updateTabButtons(): void {
             </div>
             <div style="font-size: 0.85rem; opacity: 0.8;">Statistiche e liste</div>
         </button>
-    `;
+    `);
 }
 
 // Global reference for the sync handler to allow removal
@@ -206,7 +207,7 @@ function renderGenerator(container: HTMLElement): void {
   nextYear.setFullYear(nextYear.getFullYear() + 1);
   const nextYearStr = nextYear.toISOString().split('T')[0];
 
-  container.innerHTML = `
+  setSafeHTML(container, `
         <div class="menu-card" style="max-width: 900px; margin: 40px auto; padding: 50px; border-radius: 20px; box-shadow: var(--shadow-md);">
             <div style="text-align: center; margin-bottom: 50px;">
                 <h3 style="font-size: 2rem; margin-bottom: 12px; color: var(--primary-color);">Crea Nuovi Voucher</h3>
@@ -250,7 +251,7 @@ function renderGenerator(container: HTMLElement): void {
                 </div>
             </form>
         </div>
-    `;
+    `);
 
   document.getElementById('voucher-generator-form')?.addEventListener('submit', handleGeneration);
 }
@@ -340,7 +341,7 @@ function generateVoucherCode(): string {
 
 // --- DASHBOARD TAB ---
 async function renderDashboard(container: HTMLElement): Promise<void> {
-  container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento Dashboard...</div>';
+  setSafeHTML(container, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento Dashboard...</div>');
 
   try {
     // Fetch stats
@@ -645,7 +646,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                 </div>
             </div>`;
 
-    container.innerHTML = `
+    setSafeHTML(container, `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 1rem;">
                 <h3 style="margin: 0; font-size: 1.25rem; color: #0f172a;">Gestione Voucher</h3>
                 <button id="refresh-dashboard-btn" class="menu-button primary" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: 0.95rem;">
@@ -702,7 +703,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
             <div class="menu-card" style="padding: 0; background: transparent; box-shadow: none; max-width: 100%; overflow: hidden;">
                 ${tableHtml}
             </div>
-        `;
+        `);
 
 
     // Bind action buttons with event delegation
@@ -762,7 +763,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
     }
 
   } catch (err: any) {
-    container.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
+    setSafeHTML(container, `<p class="error-text">Errore: ${escapeHtml(err.message)}</p>`);
     console.error(err);
   }
 }
@@ -843,7 +844,7 @@ async function showBatchDetails(batchId: string): Promise<void> {
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) {return;}
 
-  modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento dettagli...</div>';
+  setSafeHTML(modalBody, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento dettagli...</div>');
 
   try {
     const { data: vouchers, error } = await supabase
@@ -860,7 +861,7 @@ async function showBatchDetails(batchId: string): Promise<void> {
       .eq('id', batchId)
       .single();
 
-    modalBody.innerHTML = `
+    setSafeHTML(modalBody, `
             <div style="padding: 10px;">
                 <h3 style="margin-bottom: 20px;">${escapeHtml(batch?.description || 'Dettaglio Lotto')}</h3>
                 <div class="table-responsive" style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -879,7 +880,7 @@ async function showBatchDetails(batchId: string): Promise<void> {
     return `
                                     <tr style="background: ${isRedeemed ? '#f1f5f9' : 'white'}; border-bottom: 1px solid #f1f5f9;">
                                         <td style="padding: 12px; font-weight: 500;">#${v.serial_number}</td>
-                                        <td style="padding: 12px; font-family: monospace; font-size: 1.1em;">${v.code}</td>
+                                        <td style="padding: 12px; font-family: monospace; font-size: 1.1em;">${escapeHtml(v.code)}</td>
                                         <td style="padding: 12px; text-align: center;">
                                             ${isRedeemed
     ? '<span class="badge badge-secondary"><i class="fas fa-check"></i> Riscattato</span>'
@@ -898,13 +899,13 @@ async function showBatchDetails(batchId: string): Promise<void> {
                     <button class="menu-button primary" id="btn-close-details">Chiudi</button>
                 </div>
             </div>
-        `;
+        `);
 
     document.getElementById('btn-close-details')?.addEventListener('click', () => closeModal());
 
   } catch (err: any) {
     console.error(err);
-    modalBody.innerHTML = `<div class="alert alert-danger">Errore caricamento: ${err.message}</div>`;
+    setSafeHTML(modalBody, `<div class="alert alert-danger">Errore caricamento: ${escapeHtml(err.message)}</div>`);
   }
 }
 
@@ -966,7 +967,7 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
     if (container) {renderDashboard(container);} // Reset UI
 
     // Show error in popup
-    printWindow.document.body.innerHTML = `<h3 style="color:red">Errore: ${err.message}</h3>`;
+    setSafeHTML(printWindow.document.body, `<h3 style="color:red">Errore: ${escapeHtml(err.message)}</h3>`);
   }
 }
 
@@ -1027,7 +1028,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
         frontContent += `
                     <div class="voucher-front">
                         <div class="voucher-amount">${amount}</div>
-                        <div class="voucher-code">${visibleCode}</div>
+                        <div class="voucher-code">${escapeHtml(visibleCode)}</div>
                         
                         <!-- QR Code Image directly embedded -->
                         <div class="qr-code">
@@ -1164,6 +1165,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
             </html>`;
 
   win.document.open();
+  // eslint-disable-next-line no-unsanitized/method -- finestra di stampa generata dall'app; i valori dinamici sono escaped
   win.document.write(html);
   win.document.close();
 

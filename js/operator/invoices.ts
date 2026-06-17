@@ -6,6 +6,7 @@ import { supabase } from '../core/api.js';
 import { Customer } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
@@ -20,19 +21,19 @@ export async function showInvoiceMenu(stationId: number | string, userId: string
   openModal('Richiesta Fattura');
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) { return; }
-  modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
+  setSafeHTML(modalBody, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>');
 
   try {
     // Verifica apertura turno
     const activeOpening = await checkOpeningStatus(stationId);
     if (!activeOpening) {
-      modalBody.innerHTML = `
+      setSafeHTML(modalBody, `
                 <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
                     <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
                     <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter registrare richieste di fattura.</p>
                     <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
                 </div>
-            `;
+            `);
 
       const closeBtn = document.getElementById('btn-close-warning');
       if (closeBtn) {
@@ -44,8 +45,8 @@ export async function showInvoiceMenu(stationId: number | string, userId: string
     renderCustomerChoice(modalBody, stationId, userId);
 
   } catch (err) {
-    modalBody.innerHTML = createErrorMessage('Errore Caricamento', err) +
-            '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>';
+    setSafeHTML(modalBody, createErrorMessage('Errore Caricamento', err) +
+            '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>');
     const closeBtn = document.getElementById('btn-close-err');
     if (closeBtn) {
       closeBtn.addEventListener('click', () => closeModal());
@@ -57,7 +58,7 @@ export async function showInvoiceMenu(stationId: number | string, userId: string
  * Renderizza la scelta tra nuovo cliente e cliente esistente
  */
 function renderCustomerChoice(container: HTMLElement, stationId: number | string, userId: string): void {
-  container.innerHTML = `
+  setSafeHTML(container, `
       <div class="content-box">
         <p class="section-subtitle">Seleziona il tipo di cliente</p>
         <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 20px;">
@@ -79,7 +80,7 @@ function renderCustomerChoice(container: HTMLElement, stationId: number | string
             </button>
         </div>
       </div>
-    `;
+    `);
 
   document.getElementById('btn-new-customer')?.addEventListener('click', () => {
     renderNewCustomerForm(container, stationId, userId);
@@ -98,7 +99,7 @@ function renderCustomerChoice(container: HTMLElement, stationId: number | string
  * Renderizza il form per nuovo cliente
  */
 function renderNewCustomerForm(container: HTMLElement, stationId: number | string, userId: string): void {
-  container.innerHTML = `
+  setSafeHTML(container, `
       <div class="content-box">
         <p class="section-subtitle">Nuovo Cliente</p>
         <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
@@ -134,7 +135,7 @@ function renderNewCustomerForm(container: HTMLElement, stationId: number | strin
             ${createFormActions({ confirmText: 'Continua', confirmClass: 'btn-success' })}
         </form>
       </div>
-    `;
+    `);
 
   container.querySelector('#btn-cancel')?.addEventListener('click', () => {
     renderCustomerChoice(container, stationId, userId);
@@ -217,7 +218,7 @@ function renderNewCustomerForm(container: HTMLElement, stationId: number | strin
  * Renderizza il form per cliente esistente con autocompletamento
  */
 function renderExistingCustomerForm(container: HTMLElement, stationId: number | string, userId: string): void {
-  container.innerHTML = `
+  setSafeHTML(container, `
       <div class="content-box">
         <p class="section-subtitle">Cliente Esistente</p>
         <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
@@ -237,7 +238,7 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
             ${createFormActions({ confirmText: 'Continua', confirmClass: 'btn-success' })}
         </form>
       </div>
-    `;
+    `);
 
   const searchInput = document.getElementById('customer-search') as HTMLInputElement | null;
   const suggestionsDiv = document.getElementById('customer-suggestions') as HTMLElement | null;
@@ -269,8 +270,8 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
         if (error) { throw error; }
 
         if (customers && customers.length > 0) {
-          suggestionsDiv.innerHTML = customers.map((c: any) => `
-                        <div class="suggestion-item" data-id="${c.id}" data-name="${c.nome || c.telefono || 'Cliente'}" style="padding: 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" 
+          setSafeHTML(suggestionsDiv, customers.map((c: any) => `
+                        <div class="suggestion-item" data-id="${c.id}" data-name="${escapeHtml(c.nome || c.telefono || 'Cliente')}" style="padding: 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s;"
                              onmouseover="this.style.background='#f8fafc'" 
                              onmouseout="this.style.background='white'">
                             <div style="font-weight: 600;">${escapeHtml(c.nome || c.telefono || 'Cliente')}</div>
@@ -278,7 +279,7 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
                             ${c.telefono ? `<div style="font-size: 0.85rem; color: #64748b;">Tel: ${escapeHtml(c.telefono)}</div>` : ''}
                             ${c.targa ? `<div style="font-size: 0.85rem; color: #64748b;">Targa: ${escapeHtml(c.targa)}</div>` : ''}
                         </div>
-                    `).join('');
+                    `).join(''));
           suggestionsDiv.style.display = 'block';
 
           // Event listeners per i suggerimenti
@@ -293,7 +294,7 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
             });
           });
         } else {
-          suggestionsDiv.innerHTML = '<div style="padding: 12px; color: #64748b; text-align: center;">Nessun cliente trovato</div>';
+          setSafeHTML(suggestionsDiv, '<div style="padding: 12px; color: #64748b; text-align: center;">Nessun cliente trovato</div>');
           suggestionsDiv.style.display = 'block';
         }
       } catch (err) {
@@ -353,7 +354,7 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
  * Renderizza il form per la richiesta fattura
  */
 function renderInvoiceForm(container: HTMLElement, stationId: number | string, userId: string, clienteId: number | string, customerName: string): void {
-  container.innerHTML = `
+  setSafeHTML(container, `
       <div class="content-box">
         <p class="section-subtitle">Richiesta Fattura - ${escapeHtml(customerName)}</p>
         <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
@@ -403,7 +404,7 @@ function renderInvoiceForm(container: HTMLElement, stationId: number | string, u
             ${createFormActions({ confirmText: 'Invia Richiesta', confirmClass: 'btn-success' })}
         </form>
       </div>
-    `;
+    `);
 
   // Mostra/nascondi campo prodotto se "Altro" è selezionato
   const productCategorySelect = document.getElementById('product-category') as HTMLSelectElement | null;

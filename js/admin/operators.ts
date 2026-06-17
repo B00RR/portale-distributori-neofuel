@@ -4,6 +4,7 @@ import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from '../ui/ui.js';
 import { escapeHtml } from '../utils/utils.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 // --- INTERFACES ---
 
@@ -38,7 +39,7 @@ export async function showOperatorsTab(container: HTMLElement, actionsContainer:
   showLoadingMessage(container);
 
   if (actionsContainer) {
-    actionsContainer.innerHTML = '<button class="action-btn primary" id="add-operator-btn"><i class="fas fa-plus"></i> Nuovo Operatore</button>';
+    setSafeHTML(actionsContainer, '<button class="action-btn primary" id="add-operator-btn"><i class="fas fa-plus"></i> Nuovo Operatore</button>');
     const addBtn = document.getElementById('add-operator-btn');
     if (addBtn) {
       addBtn.addEventListener('click', () => openOperatorModal());
@@ -62,7 +63,7 @@ export async function showOperatorsTab(container: HTMLElement, actionsContainer:
     const users = rawUsers as unknown as User[];
 
     if (!users || users.length === 0) {
-      container.innerHTML = '<p>Nessun operatore trovato.</p>';
+      setSafeHTML(container, '<p>Nessun operatore trovato.</p>');
       return;
     }
 
@@ -117,7 +118,7 @@ export async function showOperatorsTab(container: HTMLElement, actionsContainer:
     });
 
     html += '</tbody></table></div>';
-    container.innerHTML = html;
+    setSafeHTML(container, html);
 
     // Bind events
     container.querySelectorAll('.edit-operator').forEach(btn => {
@@ -178,7 +179,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
     user = (data as User | null) ?? {};
   }
 
-  target.innerHTML = `
+  setSafeHTML(target, `
     <form id="operator-form">
       <div class="form-group">
         <label>Nome Completo</label>
@@ -204,7 +205,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
       </div>
       <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Utente'}</button>
     </form>
-  `;
+  `);
 
   const form = document.getElementById('operator-form') as HTMLFormElement;
   if (form) {
@@ -302,7 +303,7 @@ export async function openAssignStationModal(userId: string): Promise<void> {
       <button type="submit" class="menu-button primary">Salva Assegnazione</button>
     </form>
   `;
-  target.innerHTML = html;
+  setSafeHTML(target, html);
 
   const form = document.getElementById('assign-station-form') as HTMLFormElement;
   if (form) {

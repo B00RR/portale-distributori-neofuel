@@ -13,6 +13,8 @@ import { supabase } from '../core/api.js';
 import { loggedUser } from '../core/auth.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, openConfirmModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
+import { escapeHtml } from '../utils/utils.js';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -355,12 +357,12 @@ export async function renderConfigPanel(container: HTMLElement): Promise<void> {
     return;
   }
 
-  container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento configurazione...</div>';
+  setSafeHTML(container, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento configurazione...</div>');
 
   try {
     const config = await loadDashboardConfig();
 
-    container.innerHTML = `
+    setSafeHTML(container, `
       <div class="dashboard-config-panel">
         <div class="config-section">
           <h4><i class="fas fa-th"></i> Layout Griglia</h4>
@@ -397,17 +399,17 @@ export async function renderConfigPanel(container: HTMLElement): Promise<void> {
           </button>
         </div>
       </div>
-    `;
+    `);
 
     initializeConfigHandlers(config, container);
 
   } catch (err: any) {
-    container.innerHTML = `
+    setSafeHTML(container, `
       <div class="error-message">
         <i class="fas fa-exclamation-circle"></i>
-        <p>Errore caricamento configurazione: ${err.message}</p>
+        <p>Errore caricamento configurazione: ${escapeHtml(err.message)}</p>
       </div>
-    `;
+    `);
   }
 }
 

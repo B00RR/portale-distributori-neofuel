@@ -5,6 +5,7 @@
 import { supabase } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
@@ -41,18 +42,18 @@ export async function showCreditsMenu(stationId: number | string, userId: string
   openModal('Gestione Crediti');
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) { return; }
-  modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
+  setSafeHTML(modalBody, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>');
 
   // Verifica apertura turno
   const activeOpening = await checkOpeningStatus(stationId);
   if (!activeOpening) {
-    modalBody.innerHTML = `
+    setSafeHTML(modalBody, `
             <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
                 <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
                 <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter gestire i crediti.</p>
                 <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
             </div>
-        `;
+        `);
 
     const closeBtn = document.getElementById('btn-close-warning');
     if (closeBtn) {
@@ -61,7 +62,7 @@ export async function showCreditsMenu(stationId: number | string, userId: string
     return;
   }
 
-  modalBody.innerHTML = `
+  setSafeHTML(modalBody, `
         <div class="credits-menu-container">
             <p class="section-subtitle" style="text-align: center; margin-bottom: 20px;">Seleziona un'operazione</p>
             
@@ -136,7 +137,7 @@ export async function showCreditsMenu(stationId: number | string, userId: string
             }
         </style>
       </div>
-    `;
+    `);
 
   document.getElementById('btn-new-credit')?.addEventListener('click', () => showNewCreditForm(stationId, userId));
   document.getElementById('btn-payment-credit')?.addEventListener('click', () => showPaymentSelection(stationId, userId));
@@ -150,7 +151,7 @@ export async function showCreditsMenu(stationId: number | string, userId: string
 async function showNewCreditForm(stationId: number | string, userId: string): Promise<void> {
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) { return; }
-  modalBody.innerHTML = `
+  setSafeHTML(modalBody, `
         <div class="content-box">
             <h3><i class="fas fa-user-plus"></i> Nuovo Credito</h3>
             <p class="section-subtitle">Registra un debito per un cliente</p>
@@ -219,7 +220,7 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
                 }
             </style>
         </div>
-    `;
+    `);
 
   // Back button
   document.getElementById('btn-back-credits')?.addEventListener('click', () => showCreditsMenu(stationId, userId));
@@ -282,9 +283,9 @@ async function searchCustomersForInput(query: string, stationId: number | string
       .limit(5);
 
     if (customers && customers.length > 0) {
-      suggestionsDiv.innerHTML = customers.map((c) => `
+      setSafeHTML(suggestionsDiv, customers.map((c) => `
                 <div class="suggestion-item">${escapeHtml(c.cliente)}</div>
-            `).join('');
+            `).join(''));
       suggestionsDiv.style.display = 'block';
 
       suggestionsDiv.querySelectorAll('.suggestion-item').forEach(itemElement => {
@@ -375,7 +376,7 @@ export async function processNewCredit(stationId: number | string, userId: strin
 async function showPaymentSelection(stationId: number | string, userId: string): Promise<void> {
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) { return; }
-  modalBody.innerHTML = `
+  setSafeHTML(modalBody, `
         <div class="content-box">
             <h3><i class="fas fa-list"></i> Crediti Aperti</h3>
             <div class="form-group">
@@ -390,7 +391,7 @@ async function showPaymentSelection(stationId: number | string, userId: string):
                 </button>
             </div>
         </div>
-    `;
+    `);
 
   document.getElementById('btn-back-credits-2')?.addEventListener('click', () => showCreditsMenu(stationId, userId));
 
@@ -418,11 +419,11 @@ async function showPaymentSelection(stationId: number | string, userId: string):
       if (error) { throw error; }
 
       if (!debtors || debtors.length === 0) {
-        listContainer.innerHTML = '<p style="text-align:center; color:#64748b; padding:20px;">Nessun credito aperto trovato.</p>';
+        setSafeHTML(listContainer, '<p style="text-align:center; color:#64748b; padding:20px;">Nessun credito aperto trovato.</p>');
         return;
       }
 
-      listContainer.innerHTML = debtors.map((d) => `
+      setSafeHTML(listContainer, debtors.map((d) => `
                 <div class="result-item" data-id="${d.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer;">
                     <div>
                         <div style="font-weight: bold; font-size: 1.1rem;">${escapeHtml(d.cliente)}</div>
@@ -433,7 +434,7 @@ async function showPaymentSelection(stationId: number | string, userId: string):
                         <div style="font-size: 0.8rem; color: #3b82f6;">Paga <i class="fas fa-chevron-right"></i></div>
                     </div>
                 </div>
-            `).join('');
+            `).join(''));
 
       // Attach event listeners to items
       listContainer.querySelectorAll('.result-item').forEach(itemElement => {
@@ -447,9 +448,9 @@ async function showPaymentSelection(stationId: number | string, userId: string):
 
     } catch (err) {
       if (err instanceof Error) {
-        listContainer.innerHTML = `<p class="error-text">Errore: ${err.message}</p>`;
+        setSafeHTML(listContainer, `<p class="error-text">Errore: ${escapeHtml(err.message)}</p>`);
       } else {
-        listContainer.innerHTML = '<p class="error-text">Errore imprevisto</p>';
+        setSafeHTML(listContainer, '<p class="error-text">Errore imprevisto</p>');
       }
     }
   };
@@ -466,7 +467,7 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) { return; }
 
-  modalBody.innerHTML = `
+  setSafeHTML(modalBody, `
         <div style="background: #fff1f2; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #fecdd3;">
             <div style="font-size: 0.9rem; color: #9f1239;">Debito Attuale</div>
             <div style="font-size: 2rem; font-weight: 700; color: #e11d48;">${formatEuro(customer.saldo)}</div>
@@ -507,7 +508,7 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
                 </button>
             </div>
         </form>
-    `;
+    `);
 
   // Toggle Info based on method
   const methodSelect = document.getElementById('pay-method') as HTMLSelectElement | null;

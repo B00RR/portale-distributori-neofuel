@@ -5,6 +5,7 @@
 
 import { logger } from '../core/logger.js';
 import { Toast } from '../ui/toast.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
 const isDevelopment = import.meta.env.DEV;
 
@@ -89,7 +90,7 @@ export function handleError(
 
   // Render in page if requested
   if (renderTarget && renderTarget instanceof HTMLElement) {
-    renderTarget.innerHTML = `
+    setSafeHTML(renderTarget, `
             <div class="error-state" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
                 <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: var(--danger-color, #dc3545); margin-bottom: 1rem;"></i>
                 <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">${escapeHtml(userMessage)}</p>
@@ -97,7 +98,7 @@ export function handleError(
                     <i class="fas fa-sync-alt"></i> Ricarica Pagina
                 </button>
             </div>
-        `;
+        `);
   }
 }
 

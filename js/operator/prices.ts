@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
 import { showErrorMessage, showInfoModal, openModal, closeModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
 
 interface PriceRecord {
@@ -33,7 +34,7 @@ export async function showPrezziEditForm(stationId: number): Promise<void> {
     const modalBody = document.getElementById('modal-body');
     if (!modalBody) {return;}
 
-    modalBody.innerHTML = `
+    setSafeHTML(modalBody, `
       <form id="op-prezzi-form">
         <div class="form-row">
           <div class="form-group">
@@ -80,7 +81,7 @@ export async function showPrezziEditForm(stationId: number): Promise<void> {
           color: #3b82f6;
         }
       </style>
-    `;
+    `);
 
     // Event listener per aggiornare stile radio cards
     const radioCards = modalBody.querySelectorAll('.radio-card');
@@ -135,7 +136,7 @@ export async function showPrezziEditForm(stationId: number): Promise<void> {
     const modalBody = document.getElementById('modal-body');
     showErrorMessage(modalBody, err, 'Errore caricamento prezzi');
     if (modalBody) {
-      modalBody.innerHTML = `<p style="color: red; padding: 20px;">${escapeHtml(err.message)}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`;
+      setSafeHTML(modalBody, `<p style="color: red; padding: 20px;">${escapeHtml(err.message)}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`);
       document.getElementById('btn-close-err')?.addEventListener('click', () => closeModal());
     }
   }

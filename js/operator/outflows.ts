@@ -1,6 +1,7 @@
 import { supabase } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
@@ -14,19 +15,19 @@ export async function showOutflowMenu(stationId: number | string, userId: string
   openModal('Registra Uscita Cassa');
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) { return; }
-  modalBody.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>';
+  setSafeHTML(modalBody, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>');
 
   try {
     // Verifica apertura turno
     const activeOpening = await checkOpeningStatus(stationId);
     if (!activeOpening) {
-      modalBody.innerHTML = `
+      setSafeHTML(modalBody, `
                 <div class="warning-box">
                     <h2><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
                     <p>Devi aprire un turno prima di poter registrare delle uscite.</p>
                     <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
                 </div>
-            `;
+            `);
 
       const closeBtn = document.getElementById('btn-close-warning');
       if (closeBtn) {
@@ -38,8 +39,8 @@ export async function showOutflowMenu(stationId: number | string, userId: string
     renderOutflowForm(modalBody, stationId, userId);
 
   } catch (err) {
-    modalBody.innerHTML = createErrorMessage('Errore Caricamento', err) +
-            '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>';
+    setSafeHTML(modalBody, createErrorMessage('Errore Caricamento', err) +
+            '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>');
     const closeBtn = document.getElementById('btn-close-err');
     if (closeBtn) {
       closeBtn.addEventListener('click', () => closeModal());
@@ -51,7 +52,7 @@ export async function showOutflowMenu(stationId: number | string, userId: string
  * Renderizza il form per l'inserimento dell'uscita
  */
 function renderOutflowForm(container: HTMLElement, stationId: number | string, userId: string): void {
-  container.innerHTML = `
+  setSafeHTML(container, `
       <div class="content-box">
         <p class="section-subtitle">Registra una spesa o un prelievo dalla cassa</p>
         <form id="outflow-form">
@@ -78,7 +79,7 @@ function renderOutflowForm(container: HTMLElement, stationId: number | string, u
             ${createFormActions({ confirmText: 'Registra Uscita', confirmClass: 'danger' })}
         </form>
       </div>
-    `;
+    `);
 
   // Event Listeners
   const cancelBtn = container.querySelector('#btn-cancel');
