@@ -6,6 +6,7 @@
 import { BUSINESS_LOGIC_FIELDS } from './ui-settings-constants.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { loadDashboardConfig, saveDashboardConfig, KPI_CATALOG } from '../admin/dashboard-config.js';
+import { escapeHtml } from '../utils/utils.js';
 
 export async function renderSettingsPanel(container: HTMLElement): Promise<void> {
   if (!container) return;
@@ -183,6 +184,6 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
     });
 
   } catch (err) {
-    rulesGrid.innerHTML = `<div class="error-box"><p>Errore nel caricamento delle impostazioni: ${err}</p></div>`;
+    rulesGrid.innerHTML = `<div class="error-box"><p>Errore nel caricamento delle impostazioni: ${escapeHtml(err instanceof Error ? err.message : String(err))}</p></div>`;
   }
 }
