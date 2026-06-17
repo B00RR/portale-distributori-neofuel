@@ -243,7 +243,7 @@ export function setupLoginForm(): void {
         }
         const userEmail = authData.user.email;
 
-        const { data: dbUserData, error: userError } = await supabase
+        const { data: dbUserData, error: _userError } = await supabase
           .from('users')
           .select(`
                     *,
@@ -254,8 +254,6 @@ export function setupLoginForm(): void {
                 `)
           .eq('email', userEmail)
           .maybeSingle();
-
-        console.log('[Auth] User lookup for', userEmail, 'result:', dbUserData, 'error:', userError);
 
         if (dbUserData) {
           const fullName = dbUserData.full_name ||
@@ -329,11 +327,8 @@ export function setupLoginForm(): void {
       const testRole = urlParams.get('test_role');
       if (testRole && (testRole === 'operator' || testRole === 'admin')) {
         const validRole: UserRole = testRole === 'admin' ? 'admin' : 'operator';
-        console.log(`[AUTH-TEST] Overriding role from ${loggedUser.role} to ${validRole}`);
         loggedUser.role = validRole;
       }
-
-      console.log('[Auth] Final LoggedUser:', loggedUser);
 
       // SECURITY: Clean URL to remove any credentials that may have leaked
       if (window.location.search || window.location.hash) {

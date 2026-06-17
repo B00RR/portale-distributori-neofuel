@@ -88,8 +88,6 @@ const voucherState: VoucherState = {
 
 // --- INITIALIZATION ---
 export async function showVoucherAdminTab(container: HTMLElement, _headerActions?: HTMLElement | null): Promise<void> {
-  console.log('[APP] showVoucherAdminTab called. activeTab:', voucherState.activeTab);
-
   // Initial structure rendering (Shell)
   // We only re-render the full container if it's the first time or if forced
   const isAlreadyRendered = container.querySelector('[data-testid="voucher-admin-panel"]');

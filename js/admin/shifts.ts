@@ -74,8 +74,6 @@ interface BulkExportOptions {
 
 // ========== MODULE ==========
 
-console.log('%c SHIFTS MODULE LOADED (v112 - Fix Export - TS)', 'background: #22c55e; color: #fff; padding: 4px; font-weight: bold;');
-
 export async function showChiusureTab(
   container: HTMLElement,
   actionsContainer: HTMLElement | null,
