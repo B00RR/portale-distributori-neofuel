@@ -23,8 +23,7 @@ function isRpcResult(value: unknown): value is RpcResult {
 interface Voucher {
     code: string;
     amount: number;
-    voucher_batches?: { customer_name?: string } | null;
-    customer_name?: string;
+    voucher_batches?: { customer_name: string | null } | null;
     id?: string;
     status?: string | null;
     batch_id?: string | null;
@@ -318,7 +317,7 @@ export class VoucherManager extends BaseComponent {
         this.activeVoucher = {
           code: code,
           amount: 0, // Will be determined when synced
-          customer_name: 'Verifica al ritorno online'
+          voucher_batches: { customer_name: 'Verifica al ritorno online' },
         };
         this.mode = 'verify';
         Toast.show('Modalità offline: il voucher verrà validato al ritorno online.', 'warning');
