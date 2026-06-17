@@ -7,25 +7,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export default defineConfig(({ mode }) => {
-    // Load env file based on `mode` (development/production)
+    // Load env file based on `mode` (development/production).
+    // Vite automatically exposes VITE_-prefixed vars to the client via import.meta.env.
+    // No manual `define` override is needed — it was causing crashes when env vars
+    // were absent (production build, E2E tests) because JSON.stringify(undefined)
+    // injected the bare `undefined` identifier instead of a string fallback.
     const env = loadEnv(mode, process.cwd(), '');
 
-    // Prioritize process.env (Vercel) over loaded .env (Local)
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;
-
-    console.log(`[Vite Build] Supabase URL detected: ${supabaseUrl ? 'YES' : 'NO'}`);
+    // Log presence (not the value) for debugging build config issues
+    console.log(`[Vite Build] Supabase URL detected: ${env.VITE_SUPABASE_URL ? 'YES' : 'NO'}`);
 
     return {
         root: '.',
         base: './',
         publicDir: 'public',
-
-        // Explicitly define env vars to ensure they are injected
-        define: {
-            'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl),
-            'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabaseKey)
-        },
 
         plugins: [
             VitePWA({
