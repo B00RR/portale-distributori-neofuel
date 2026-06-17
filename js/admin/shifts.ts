@@ -143,7 +143,7 @@ export async function showChiusureTab(
                 `, { count: 'exact' });
 
       // 1. Station Filter
-      if (stationId) { query = query.eq('station_id', stationId); }
+      if (stationId) { query = query.eq('station_id', Number(stationId)); }
 
       // 2. Date Range Filter
       if (filters.dateFrom) { query = query.gte('created_at', filters.dateFrom); }
@@ -284,12 +284,12 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     const { data: closureRaw, error } = await supabase
       .from('shifts')
       .select('*')
-      .eq('id', closureId)
+      .eq('id', Number(closureId))
       .single();
 
     if (error || !closureRaw) { throw new Error('Chiusura non trovata'); }
 
-    const closure = closureRaw as Shift;
+    const closure = closureRaw as unknown as Shift;
 
     const closingData = closure.closing_data || {};
     const dettaglio = closingData.dettaglio_incasso || {};
@@ -570,7 +570,7 @@ export async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
         `)
       .order('created_at', { ascending: false });
 
-    if (opts.stationId) { query = query.eq('station_id', opts.stationId); }
+    if (opts.stationId) { query = query.eq('station_id', Number(opts.stationId)); }
 
     if (opts.type === 'last_n') {
       query = query.limit(opts.limit);

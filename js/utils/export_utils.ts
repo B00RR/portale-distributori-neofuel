@@ -325,7 +325,7 @@ export async function fetchClosureExportData(closureId: string | number): Promis
   const { data: closure, error } = await supabase
     .from('shifts')
     .select('*')
-    .eq('id', closureId)
+    .eq('id', Number(closureId))
     .single();
 
   if (error) { throw error; }
@@ -334,7 +334,7 @@ export async function fetchClosureExportData(closureId: string | number): Promis
   const { data: sp } = await supabase
     .from('shift_pistols')
     .select('*')
-    .eq('shift_id', closureId);
+    .eq('shift_id', Number(closureId));
 
   const rawPistols = sp || [];
   let enrichedPistols = [];
@@ -342,7 +342,7 @@ export async function fetchClosureExportData(closureId: string | number): Promis
   if (rawPistols.length > 0) {
     const pistolIds = [...new Set(rawPistols.map((p: any) => p.pistol_id))];
     const { data: pistolDetails } = await supabase
-      .from('pistols')
+      .from('pistole')
       .select(`
                 pistol_id,
                 pistol_name,
@@ -366,7 +366,7 @@ export async function fetchClosureExportData(closureId: string | number): Promis
     }));
   }
 
-  closure.shift_pistols = enrichedPistols;
+  (closure as Record<string, unknown>).shift_pistols = enrichedPistols;
   return closure;
 }
 

@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+/**
+ * @vitest-environment happy-dom
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
     showStationsTab,
     openStationModal,
@@ -160,8 +163,7 @@ describe('Stations Module', () => {
             expect(modalBody?.innerHTML).toContain('Edit Me');
         });
 
-        // TODO: Fix JSDOM FormData interaction issue causing this test to timeout
-        it.skip('should handle form submission (update)', async () => {
+        it('should handle form submission (update)', async () => {
             const { supabase } = await import('../../js/core/api.js');
             const navUpdate = vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) }));
 
@@ -180,7 +182,7 @@ describe('Stations Module', () => {
             const nameInput = form.querySelector('input[name="station_name"]') as HTMLInputElement;
             nameInput.value = "Updated Name";
 
-            form.dispatchEvent(new Event('submit'));
+            form.requestSubmit();
 
             // Wait for handlers
             await new Promise(resolve => setTimeout(resolve, 100));

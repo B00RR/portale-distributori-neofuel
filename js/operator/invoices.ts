@@ -190,7 +190,7 @@ function renderNewCustomerForm(container: HTMLElement, stationId: number | strin
           const { data: newCustomer, error: createError } = await supabase
             .from('clienti_fatturazione')
             .insert([{
-              nome: nome || null,
+              nome: nome ?? '',
               partita_iva: partitaIva || null,
               codice_univoco_pec: codiceUnivoco || null,
               telefono: telefono || null,
@@ -332,7 +332,7 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
         const { data: customer, error } = await supabase
           .from('clienti_fatturazione')
           .select('*')
-          .eq('id', customerId)
+          .eq('id', Number(customerId))
           .single();
 
         if (error) {
@@ -456,12 +456,13 @@ function renderInvoiceForm(container: HTMLElement, stationId: number | string, u
       }
 
       try {
+        const todayStr = new Date().toISOString().split('T')[0] as string;
         const { error } = await supabase
           .from('invoices')
           .insert([{
-            station_id: stationId,
-            operator_id: userId,
-            cliente_id: clienteId,
+            station_id: Number(stationId),
+            operator_id: Number(userId),
+            cliente_id: clienteId ? Number(clienteId) : null,
             customer_name: customerName,
             amount: amount,
             payment_method: paymentMethod,
@@ -470,7 +471,7 @@ function renderInvoiceForm(container: HTMLElement, stationId: number | string, u
             status: 'pending',
             created_at: new Date().toISOString(),
             invoice_number: `REQ-${Date.now()}`, // Genera un ID richiesta temporaneo
-            invoice_date: new Date().toISOString().split('T')[0] // Data odierna
+            invoice_date: todayStr
           }]);
 
         if (error) { throw error; }

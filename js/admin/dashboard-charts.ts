@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { supabase } from '../core/api.js';
+import { supabase, type Json } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { formatEuro, getISODate } from '../utils/utils.js';
 
@@ -24,8 +24,8 @@ interface ClosingData extends Record<string, number | string | null | undefined>
 }
 
 interface ShiftData {
-    closed_at: string;
-    closing_data: ClosingData | null;
+    closed_at: string | null;
+    closing_data: Json | null;
     station_id: number;
 }
 
@@ -90,7 +90,7 @@ export async function fetchAnalyticsData(stationId: string | number | null = nul
       .gte('closed_at', startDate.toISOString())
       .lte('closed_at', endDate.toISOString());
 
-    if (stationId) { query = query.eq('station_id', stationId); }
+    if (stationId) { query = query.eq('station_id', Number(stationId)); }
 
     const { data: shifts, error } = await query;
     if (error) {throw error;}
@@ -98,7 +98,10 @@ export async function fetchAnalyticsData(stationId: string | number | null = nul
     (shifts || []).forEach((s: ShiftData) => {
       if (!s.closed_at) {return;}
       const day = s.closed_at.substring(0, 10);
-      const data = s.closing_data || {};
+      const rawData = s.closing_data;
+      const data: ClosingData = (rawData && typeof rawData === 'object' && !Array.isArray(rawData))
+        ? rawData as ClosingData
+        : {};
 
       // eslint-disable-next-line security/detect-object-injection -- day validated by days map
       if (days[day]) {

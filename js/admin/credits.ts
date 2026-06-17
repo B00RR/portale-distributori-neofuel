@@ -245,8 +245,9 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
           // Opzionale: gestire station_id se necessario
           await safeSupabaseQuery(() => supabase.from('crediti_clienti').insert([{
             cliente,
-            saldo, // Note: saldo usually shouldn't be updated directly via edit, only via movements, but creation allows initial saldo
-            create_at: new Date().toISOString() // Should be created_at if DB has it, likely auto-generated
+            saldo,
+            importo: saldo, // Initial saldo recorded as importo (required field)
+            created_at: new Date().toISOString()
           }]));
         }
         closeModal();

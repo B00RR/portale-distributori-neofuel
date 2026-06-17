@@ -58,7 +58,7 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
     const { data: current, error } = await supabase
       .from('prezzi_distributore')
       .select('*')
-      .eq('station_id', stationId)
+      .eq('station_id', Number(stationId))
       .order('data_validita', { ascending: false })
       .limit(1)
       .maybeSingle();

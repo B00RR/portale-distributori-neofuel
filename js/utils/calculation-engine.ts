@@ -5,7 +5,18 @@ import { supabase, safeSupabaseQuery } from '../core/api.js';
 import { CustomWindow } from '../types.js';
 
 const MODULE_TABLE = 'calculation_modules';
-const VERSION_TABLE = 'calculation_versions';
+
+interface CalcModuleRow {
+  id: string;
+  active_version_id: string | null;
+  calculation_versions: {
+    id: string;
+    version: number;
+    status: string;
+    dsl: unknown;
+    created_at: string;
+  }[] | null;
+}
 
 export type OperationHandler = (node: any, ctx: any, evaluate: (node: any, ctx: any) => any, engine: CalculationEngine) => any;
 
@@ -159,7 +170,7 @@ class CalculationEngine {
 
   private async fetchAndCompile(scope: string): Promise<((ctx: any) => any) | null> {
     try {
-      const { data, error } = await safeSupabaseQuery(() =>
+      const { data, error } = await safeSupabaseQuery<CalcModuleRow | null>(() =>
         supabase
           .from(MODULE_TABLE)
           .select(`
@@ -185,9 +196,9 @@ class CalculationEngine {
       }
 
       // Accedi alle versioni usando il nome corretto della relazione
-      const versions = data.calculation_versions || (data as any)[VERSION_TABLE] || [];
+      const versions = data.calculation_versions || [];
       const activeVersion = Array.isArray(versions)
-        ? versions.find((v: any) => v.id === data.active_version_id && v.status === 'published')
+        ? versions.find((v) => v.id === data.active_version_id && v.status === 'published')
         : null;
 
       if (!activeVersion || !activeVersion.dsl) {
