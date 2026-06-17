@@ -977,7 +977,6 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
   // Dynamic import to avoid startup crashes if bundling fails
   let QRCode: any;
   try {
-    // @ts-ignore
     const module = await import('qrcode');
     QRCode = module.default || module;
   } catch (e) {
