@@ -5,8 +5,9 @@ on:
     # Run every Sunday at midnight
     - cron: '0 0 * * 0'
   workflow_dispatch:  # Allow manual trigger
-  pull_request:
-    branches: [ main ]
+  # NB: l'audit di sicurezza sulle PR e' gia' coperto dal job "Security Audit"
+  # del workflow Quality Gate. Qui resta solo la scansione schedulata/manuale
+  # per evitare check duplicati su ogni PR.
 
 jobs:
   audit:
