@@ -49,14 +49,14 @@ describe('Credits Module - Logic and UI Verification', () => {
 
     it('should warn if no shift open', async () => {
         mockOpening.checkOpeningStatus.mockResolvedValue(null);
-        await showCreditsMenu('ST-123', 'user-456');
+        await showCreditsMenu('123', '456');
         const modalBody = document.getElementById('modal-body');
         expect(modalBody?.innerHTML).toContain('Nessun Turno Aperto');
     });
 
     it('should render credits menu', async () => {
         mockOpening.checkOpeningStatus.mockResolvedValue({ id: 1 });
-        await showCreditsMenu('ST-123', 'user-456');
+        await showCreditsMenu('123', '456');
         const modalBody = document.getElementById('modal-body');
         expect(modalBody?.innerHTML).toContain('Nuovo Credito');
         expect(modalBody?.innerHTML).toContain('Pagamento');
@@ -74,7 +74,7 @@ describe('Credits Module - Logic and UI Verification', () => {
             update: vi.fn().mockReturnThis()
         });
 
-        await processNewCredit('ST-123', 'user-456', 'Nuovo Cliente', 100, 'Gasolio', 'Test note');
+        await processNewCredit('123', '456', 'Nuovo Cliente', 100, 'Gasolio', 'Test note');
 
         // Check customer creation includes importo: 0
         expect(mockSupabase.from).toHaveBeenCalledWith('crediti_clienti');
@@ -94,7 +94,7 @@ describe('Credits Module - Logic and UI Verification', () => {
         });
 
         const customer = { id: 'CUST-1', cliente: 'Cliente Test', saldo: 150 };
-        await processPayment('ST-123', 'user-456', customer as any, 50, 'contanti');
+        await processPayment('123', '456', customer as any, 50, 'contanti');
 
         // Verify balance update
         expect(mockSupabase.from).toHaveBeenCalledWith('crediti_clienti');
@@ -128,7 +128,7 @@ describe('Credits Module - Logic and UI Verification', () => {
             order: vi.fn().mockResolvedValue({ data: [customer], error: null })
         });
 
-        await showCreditsMenu('ST-123', 'user-456');
+        await showCreditsMenu('123', '456');
         document.getElementById('btn-payment-credit')?.click();
         await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -151,7 +151,7 @@ describe('Credits Module - Logic and UI Verification', () => {
             order: vi.fn().mockResolvedValue({ data: [{ id: 1, cliente: 'Test', saldo: 10 }], error: null })
         });
 
-        await showCreditsMenu('ST-123', 'user-456');
+        await showCreditsMenu('123', '456');
         document.getElementById('btn-payment-credit')?.click();
         await new Promise(resolve => setTimeout(resolve, 50));
         (document.querySelector('.result-item') as HTMLElement).click();
