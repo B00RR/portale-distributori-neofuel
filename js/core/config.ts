@@ -9,10 +9,12 @@
 export const SUPABASE_URL: string = import.meta.env.VITE_SUPABASE_URL || '';
 export const SUPABASE_KEY: string = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Validation: Fail fast if credentials are missing
+// Validation: Fail fast if credentials are missing.
+// Throw instead of console.warn so the app doesn't continue with empty strings
+// and crash later inside Supabase with a cryptic "supabaseUrl is required".
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error(
-    '[CONFIG] Missing Supabase credentials. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env'
+  throw new Error(
+    '[CONFIG] Missing Supabase credentials. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env (or as environment variables in production). See .env.example for the template.'
   );
 }
 
