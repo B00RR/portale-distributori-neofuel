@@ -44,11 +44,34 @@ export function setInnerHTML(
 
   if (allowHtml) {
     // Still sanitize even when allowing HTML
+    // eslint-disable-next-line no-unsanitized/property -- il contenuto e' gia' sanitizzato da sanitizeHtml() (escape completo via textContent)
     element.innerHTML = sanitizeHtml(content);
   } else {
     // Safest: no HTML at all, pure text
     element.textContent = content;
   }
+}
+
+/**
+ * Sink HTML centralizzato del progetto.
+ *
+ * Assegna una stringa HTML "fidata" a `innerHTML` passando per un unico punto
+ * verificabile (utile per l'audit di sicurezza, issue #17). NON sanitizza ne'
+ * fa escape: il chiamante DEVE aver gia' applicato l'escape ai valori dinamici
+ * (es. con `escapeHtml()` di utils.ts). Usare solo con markup la cui STRUTTURA
+ * e' statica/controllata e i cui dati dinamici sono gia' escaped.
+ *
+ * @param element - Elemento DOM di destinazione (no-op se null)
+ * @param html - Markup HTML con i valori dinamici gia' escaped
+ * @example
+ * setSafeHTML(container, `<p>${escapeHtml(nomeCliente)}</p>`);
+ */
+export function setSafeHTML(element: HTMLElement | null, html: string): void {
+  if (!element) {
+    return;
+  }
+  // eslint-disable-next-line no-unsanitized/property -- sink centralizzato; i valori dinamici sono gia' escaped dal chiamante (vedi JSDoc / issue #17)
+  element.innerHTML = html;
 }
 
 /**

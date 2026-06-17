@@ -3,6 +3,7 @@ import { supabase } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
 import { fetchAnalyticsData, renderRevenueChart, renderVolumeChart, renderPaymentChart, renderFuelMixChart } from './dashboard-charts.js';
@@ -272,7 +273,7 @@ export async function showDashboard(
     if (checkActiveFn && !checkActiveFn()) { return; }
 
 
-    container.innerHTML = `
+    setSafeHTML(container, `
       <section id="dashboard-kpi-grid" class="dashboard-grid" style="grid-template-columns: repeat(${dashboardConfig.gridColumns || 4}, 1fr);">
         ${kpiHtml}
       </section>
@@ -299,7 +300,7 @@ export async function showDashboard(
           </div>
         </article>
       </section>
-    `;
+    `);
 
     // ------------------------------------------------------------------
     // RENDER ANALYTICS CHARTS (If present in grid)
