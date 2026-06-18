@@ -64,6 +64,15 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
     }
 
     const alerts: HTMLElement[] = [];
+    const errors: string[] = [];
+
+    // Check for query errors
+    if (tanksRes.error) {
+      errors.push('Impossibile caricare i dati dei serbatoi: ' + (tanksRes.error.message || 'Errore sconosciuto'));
+    }
+    if (shiftsRes.error) {
+      errors.push('Impossibile caricare i dati dei turni: ' + (shiftsRes.error.message || 'Errore sconosciuto'));
+    }
 
     // 1. Check Fuel Reserves
     if (tanksRes.data) {
@@ -90,7 +99,23 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
     }
 
     container.innerHTML = '';
-    if (alerts.length === 0) {
+
+    // If there are errors, show them as critical alerts
+    if (errors.length > 0) {
+      const list = document.createElement('div');
+      list.className = 'notifications-list';
+
+      const title = document.createElement('h3');
+      title.textContent = 'Allerta di Sistema';
+      list.appendChild(title);
+
+      errors.forEach(errorMsg => {
+        list.appendChild(createAlertCard('critical', 'fa-exclamation-triangle', 'Errore di Caricamento', errorMsg));
+      });
+
+      alerts.forEach(alert => list.appendChild(alert));
+      container.appendChild(list);
+    } else if (alerts.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty-notifications';
 
