@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // 1. Hoisted mocks
 const { mockOfflineDB, mockToast } = vi.hoisted(() => ({
@@ -16,13 +16,23 @@ vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
 import { safeSupabaseQuery } from '../../js/core/api.js';
 
 describe('API Module', () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
     beforeEach(() => {
         vi.clearAllMocks();
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         mockFetch.mockResolvedValue({
             ok: true,
             json: async () => ({})
         });
         Object.defineProperty(global.navigator, 'onLine', { value: true, writable: true });
+    });
+
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
     });
 
     it('safeSupabaseQuery should return full result object on success', async () => {
