@@ -22,13 +22,33 @@ jobs:
       - name: Install Dependencies
         run: npm ci
       
-      - name: Run ESLint
-        run: npx eslint js --max-warnings 0
-        continue-on-error: true
+      - name: Run ESLint (ratchet)
+        run: npx eslint js --max-warnings 233
 
-      - name: Run Prettier Check
-        run: npx prettier --check "js/**/*.{js,ts}"
-        continue-on-error: true
+      - name: Run Prettier Check (ratchet)
+        run: |
+          set +e
+          npx --yes prettier --check "js/**/*.{js,ts}" 2>&1 | tee prettier-output.txt
+          PRETTIER_STATUS=${PIPESTATUS[0]}
+          set -e
+
+          WARNINGS=$(node - <<'NODE'
+          const fs = require('fs');
+          const output = fs.readFileSync('prettier-output.txt', 'utf8').replace(/\u001b\[[0-9;]*m/g, '');
+          const warnings = output.split('\n').filter((line) => line.replace(String.fromCharCode(13), '').startsWith('[warn] js/')).length;
+          console.log(warnings);
+          NODE
+          )
+          echo "Prettier warnings: ${WARNINGS} / 76 baseline"
+
+          if [ "$WARNINGS" -gt 76 ]; then
+            echo "Prettier warning count increased above baseline (76)."
+            exit 1
+          fi
+
+          if [ "$PRETTIER_STATUS" -ne 0 ]; then
+            echo "Existing Prettier debt is present; ratchet allows the current baseline only."
+          fi
 
   unit-tests:
     name: 🧪 Unit & Integration Tests
@@ -109,10 +129,40 @@ jobs:
           node-version: '20'
           cache: 'npm'
       
-      - name: Run npm audit
-        run: npm audit --audit-level=moderate
-        continue-on-error: true
-      
+      - name: Run npm audit (ratchet)
+        run: |
+          set +e
+          npm audit --audit-level=moderate --json > audit-report.json
+          AUDIT_STATUS=$?
+          set -e
+
+          node - <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('audit-report.json', 'utf8'));
+          const current = report.metadata?.vulnerabilities ?? {};
+          const baseline = { moderate: 8, high: 11, critical: 3 };
+          const levels = ['moderate', 'high', 'critical'];
+
+          let failed = false;
+          for (const level of levels) {
+            const count = current[level] ?? 0;
+            const limit = baseline[level];
+            console.log(`${level}: ${count} / ${limit} baseline`);
+            if (count > limit) {
+              console.error(`npm audit ${level} vulnerabilities increased above baseline (${limit}).`);
+              failed = true;
+            }
+          }
+
+          if (failed) process.exit(1);
+          NODE
+
+          cp audit-report.json security-report.txt
+
+          if [ "$AUDIT_STATUS" -ne 0 ]; then
+            echo "Existing npm audit debt is present; ratchet allows the current baseline only."
+          fi
+
       - name: Dependency Check
         run: npx snyk test --severity-threshold=high
         continue-on-error: true
@@ -157,7 +207,20 @@ jobs:
     steps:
       - name: Check Results
         run: |
-          echo "✅ All quality gates passed!"
+          echo "Quality gate summary:"
+          echo "Lint: ${{ needs.lint.result }}"
           echo "Unit Tests: ${{ needs.unit-tests.result }}"
           echo "E2E Tests: ${{ needs.e2e-tests.result }}"
+          echo "Security Scan: ${{ needs.security-scan.result }}"
           echo "Build: ${{ needs.build-check.result }}"
+
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.unit-tests.result }}" != "success" ] || \
+             [ "${{ needs.e2e-tests.result }}" != "success" ] || \
+             [ "${{ needs.security-scan.result }}" != "success" ] || \
+             [ "${{ needs.build-check.result }}" != "success" ]; then
+            echo "❌ One or more quality gate jobs failed or were skipped."
+            exit 1
+          fi
+
+          echo "✅ All quality gates passed!"
