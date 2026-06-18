@@ -11,9 +11,18 @@ vi.mock('../../js/ui/toast.js', () => ({
 
 describe('Error Handler Module', () => {
 
-    // beforeEach(() => {
-    //     vi.clearAllMocks();
-    // });
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+    });
 
     describe('AppError Class', () => {
         it('should create custom error with code', () => {
