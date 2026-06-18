@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { showAnalyticsTab } from '../../js/admin/analytics.js';
 import { supabase } from '../../js/core/api.js';
-import { showErrorMessage } from '../../js/ui/ui.js';
 
 // --- MOCKS ---
 
@@ -43,7 +42,7 @@ describe('Analytics Module', () => {
     beforeEach(() => {
         // Setup Chart on logical window objects (JSDOM)
         Object.defineProperty(window, 'Chart', { value: mockChartConstructor, writable: true });
-        (global as any).Chart = mockChartConstructor;
+        (global as unknown as { Chart: typeof mockChartConstructor }).Chart = mockChartConstructor;
 
         container = document.createElement('div');
         document.body.appendChild(container);
@@ -69,7 +68,7 @@ describe('Analytics Module', () => {
                 lte: vi.fn(function () { return this; }),
                 order: vi.fn(() => Promise.resolve({ data: [], error: null }))
             }))
-        } as any);
+        } as unknown as Awaited<ReturnType<typeof supabase.from>>);
 
         await showAnalyticsTab(container);
 
@@ -117,7 +116,7 @@ describe('Analytics Module', () => {
                     return Promise.resolve({ data: mockShifts, error: null });
                 })
             }))
-        } as any);
+        } as unknown as Awaited<ReturnType<typeof supabase.from>>);
 
         await showAnalyticsTab(container);
 
@@ -141,7 +140,7 @@ describe('Analytics Module', () => {
                 lte: vi.fn(function () { return this; }),
                 order: vi.fn(() => Promise.resolve({ data: [], error: null }))
             }))
-        } as any);
+        } as unknown as Awaited<ReturnType<typeof supabase.from>>);
 
         await showAnalyticsTab(container);
 
@@ -164,11 +163,11 @@ describe('Analytics Module', () => {
                 lte: vi.fn(function () { return this; }),
                 order: vi.fn(() => Promise.resolve({ data: [], error: null }))
             }))
-        } as any);
+        } as unknown as Awaited<ReturnType<typeof supabase.from>>);
 
         // Clear previous mock calls to track only this test's actions
         mockChartInstance.destroy.mockClear();
-        (mockChartConstructor as any).mockClear();
+        (mockChartConstructor as unknown as { mockClear: () => void }).mockClear();
 
         await showAnalyticsTab(container);
 

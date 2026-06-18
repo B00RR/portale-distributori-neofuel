@@ -61,7 +61,7 @@ describe('Vouchers Reboot Module', () => {
                     order: vi.fn(() => Promise.resolve({ data: [{ id: 1, cliente: 'Test Customer' }], error: null }))
                 })),
                 eq: vi.fn(function () { return this; })
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showVoucherAdminTab(container);
 
@@ -77,7 +77,7 @@ describe('Vouchers Reboot Module', () => {
 
             vi.mocked(supabase.from).mockReturnValue({
                 select: selectMock
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showVoucherAdminTab(container);
 
@@ -92,7 +92,7 @@ describe('Vouchers Reboot Module', () => {
                 select: vi.fn(() => ({
                     order: vi.fn(() => Promise.resolve({ data: [], error: null }))
                 }))
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showVoucherAdminTab(container);
 
@@ -117,10 +117,10 @@ describe('Vouchers Reboot Module', () => {
             const insertVouchersMock = vi.fn(() => Promise.resolve({ error: null }));
 
             vi.mocked(supabase.from).mockImplementation((table) => {
-                if (table === 'crediti_clienti') return { select: () => ({ order: () => Promise.resolve({ data: [], error: null }) }) } as any;
-                if (table === 'voucher_batches') return { insert: insertBatchMock } as any;
-                if (table === 'vouchers') return { insert: insertVouchersMock } as any;
-                return {} as any;
+                if (table === 'crediti_clienti') return { select: () => ({ order: () => Promise.resolve({ data: [], error: null }) }) } as unknown as ReturnType<typeof supabase.from>;
+                if (table === 'voucher_batches') return { insert: insertBatchMock } as unknown as ReturnType<typeof supabase.from>;
+                if (table === 'vouchers') return { insert: insertVouchersMock } as unknown as ReturnType<typeof supabase.from>;
+                return {} as unknown as ReturnType<typeof supabase.from>;
             });
 
             await showVoucherAdminTab(container);
@@ -163,9 +163,8 @@ describe('Vouchers Reboot Module', () => {
                 { batch_id: 'b1', amount: 10, status: 'redeemed' }
             ];
 
-            let callCount = 0;
             vi.mocked(supabase.from).mockImplementation((table) => {
-                if (table === 'crediti_clienti') return { select: () => ({ order: () => Promise.resolve({ data: [], error: null }) }) } as any;
+                if (table === 'crediti_clienti') return { select: () => ({ order: () => Promise.resolve({ data: [], error: null }) }) } as unknown as ReturnType<typeof supabase.from>;
 
                 if (table === 'vouchers') {
                     // Hacky count simulation based on strict ordering of calls in code?
@@ -180,7 +179,7 @@ describe('Vouchers Reboot Module', () => {
                         })),
                         // If it's the "all vouchers" data query:
                         // It uses .select('batch_id...'). No .eq
-                    } as any;
+                    } as unknown as ReturnType<typeof supabase.from>;
                 }
 
                 if (table === 'voucher_batches') {
@@ -188,9 +187,9 @@ describe('Vouchers Reboot Module', () => {
                         select: () => ({
                             order: () => Promise.resolve({ data: mockBatches, error: null })
                         })
-                    } as any;
+                    } as unknown as ReturnType<typeof supabase.from>;
                 }
-                return {} as any;
+                return {} as unknown as ReturnType<typeof supabase.from>;
             });
 
             // We need a more robust mock for the specific sequence in renderDashboard
@@ -208,12 +207,12 @@ describe('Vouchers Reboot Module', () => {
 
                 if (table === 'vouchers') {
                     return {
-                        select: (cols: any, opts: any) => {
+                        select: (cols: string | string[], opts?: Record<string, unknown>) => {
                             if (opts?.count) {
                                 // This is a count query
                                 return {
                                     eq: () => Promise.resolve({ count: 5 }),
-                                    then: (cb: any) => Promise.resolve({ count: 10 }).then(cb) // Default for total
+                                    then: (cb: (val: unknown) => unknown) => Promise.resolve({ count: 10 }).then(cb) // Default for total
                                 };
                             }
                             // This is the data query
@@ -223,7 +222,7 @@ describe('Vouchers Reboot Module', () => {
                 }
                 return {};
             });
-            vi.mocked(supabase.from).mockImplementation(fromMock as any);
+            vi.mocked(supabase.from).mockImplementation(fromMock as unknown as typeof supabase.from);
 
             await showVoucherAdminTab(container);
 

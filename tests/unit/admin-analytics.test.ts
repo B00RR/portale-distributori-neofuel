@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { mockSupabase, mockUI, mockUtils } = vi.hoisted(() => {
-    const queryBuilder: any = {};
-    const chain = vi.fn((...args) => queryBuilder);
+    const queryBuilder: Record<string, unknown> = {};
+    const chain = vi.fn(() => queryBuilder);
     const analyticsResult = { data: [{ closing_data: { ricavo_teorico: 100 }, closed_at: '2024-01-01' }], error: null };
     Object.assign(queryBuilder, {
         select: chain, eq: chain, gte: chain, lte: chain, order: chain, in: chain,
-        then: (resolve: any) => resolve(analyticsResult)
+        then: (resolve: (value: typeof analyticsResult) => unknown) => resolve(analyticsResult)
     });
 
     return {
@@ -40,11 +40,11 @@ describe('Admin Analytics Module', () => {
             fill: vi.fn(), closePath: vi.fn(), strokeRect: vi.fn(), clearRect: vi.fn(), save: vi.fn(),
             restore: vi.fn(), createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
             measureText: vi.fn(() => ({ width: 10 }))
-        }) as any;
+        }) as unknown as CanvasRenderingContext2D;
 
-        global.window = global.window || ({} as any);
+        global.window = global.window || ({} as unknown as Window & typeof globalThis);
         // Chart must be a real class so `new Chart()` works
-        (global.window as any).Chart = class {
+        (global.window as unknown as { Chart: typeof Chart }).Chart = class {
             destroy() {}
             update() {}
         };

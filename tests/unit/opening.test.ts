@@ -85,7 +85,7 @@ describe('Operator Opening Module', () => {
         mockSupabase.from().maybeSingle = vi.fn().mockResolvedValue({
             data: { id: 123, status: 'open', users: { full_name: 'Test' }, opened_at: new Date().toISOString() },
             error: null
-        }) as any;
+        }) as unknown as ReturnType<typeof vi.fn>;
 
         const container = document.getElementById('main-content')!;
         await showAperturaForm(1, 'user-1');

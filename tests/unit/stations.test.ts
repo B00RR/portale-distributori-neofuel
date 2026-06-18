@@ -114,7 +114,7 @@ describe('Stations Module', () => {
                 select: vi.fn(() => ({
                     order: vi.fn(() => Promise.resolve({ data: mockStations, error: null }))
                 }))
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showStationsTab(container, actions);
 
@@ -130,7 +130,7 @@ describe('Stations Module', () => {
                 select: vi.fn(() => ({
                     order: vi.fn(() => Promise.reject(new Error('Fetch failed')))
                 }))
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showStationsTab(container, actions);
 
@@ -145,7 +145,7 @@ describe('Stations Module', () => {
                 select: vi.fn(() => ({
                     order: vi.fn(() => Promise.resolve({ data: [{ station_id: 1, station_name: 'Test' }], error: null }))
                 }))
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showStationsTab(container, actions);
 
@@ -171,7 +171,7 @@ describe('Stations Module', () => {
                         single: vi.fn(() => Promise.resolve({ data: { station_id: 1, station_name: 'Edit Me' }, error: null }))
                     }))
                 }))
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await openStationModal(1);
             const modalBody = document.getElementById('modal-body');
@@ -186,8 +186,8 @@ describe('Stations Module', () => {
                 if (table === 'fuel_stations') return {
                     select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { station_id: 1 }, error: null }) }) }),
                     update: navUpdate
-                } as any;
-                return {} as any;
+                } as unknown as ReturnType<typeof supabase.from>;
+                return {} as unknown as ReturnType<typeof supabase.from>;
             });
 
             await openStationModal(1);
@@ -204,7 +204,7 @@ describe('Stations Module', () => {
 
             const { Toast } = await import('../../js/ui/toast.js');
             if (navUpdate.mock.calls.length === 0) {
-                console.log('Toast calls:', (Toast.show as any).mock.calls);
+                console.log('Toast calls:', (Toast.show as unknown as { mock: { calls: unknown[] } }).mock.calls);
             }
 
             expect(navUpdate).toHaveBeenCalled();
@@ -218,7 +218,7 @@ describe('Stations Module', () => {
 
             vi.mocked(supabase.from).mockReturnValue({
                 delete: deleteMock
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             // We need to attach listeners to verify reload event, but simple function call verification is enough
             await deleteStation(1);

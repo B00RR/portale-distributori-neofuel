@@ -100,7 +100,7 @@ describe('Toast Module', () => {
     });
 
     it('should fallback to default icon if type unknown', () => {
-        Toast.show('Unknown', 'custom' as any);
+        Toast.show('Unknown', 'custom' as unknown as 'success' | 'error' | 'info' | 'warning');
         const toast = document.querySelector('.toast-custom');
         expect(toast?.innerHTML).toContain('fa-info-circle');
     });

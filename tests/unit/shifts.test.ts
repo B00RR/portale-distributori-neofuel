@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
     showChiusureTab,
     showClosureDetails,
-    openExportModal,
     deleteClosure
 } from '../../js/admin/shifts.js';
 
@@ -10,7 +9,7 @@ import {
 
 vi.mock('../../js/core/api.js', () => ({
     supabase: {
-        from: vi.fn((table) => {
+        from: vi.fn(() => {
             const mockChain = {
                 select: vi.fn(() => mockChain),
                 eq: vi.fn(() => mockChain),
@@ -53,7 +52,7 @@ vi.mock('../../js/shared/state.js', () => ({
         getPagination: vi.fn(() => ({ page: 0, pageSize: 20, totalCount: 0 })),
         getFilter: vi.fn(() => null),
         setPagination: vi.fn(),
-        subscribe: vi.fn((key, cb) => () => { })
+        subscribe: vi.fn(() => () => { })
     }
 }));
 
@@ -156,7 +155,7 @@ describe('Shifts Module', () => {
                 limit: vi.fn(() => Promise.resolve({ data: [], error: null }))
             };
 
-            vi.mocked(supabase.from).mockReturnValue(mockChain as any);
+            vi.mocked(supabase.from).mockReturnValue(mockChain as unknown as ReturnType<typeof supabase.from>);
 
             await showChiusureTab(container, null);
 
@@ -189,7 +188,7 @@ describe('Shifts Module', () => {
                         }))
                     }))
                 }))
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showChiusureTab(container, null);
 
@@ -221,7 +220,7 @@ describe('Shifts Module', () => {
                         }))
                     }))
                 }))
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showChiusureTab(container, null);
             await new Promise(r => setTimeout(r, 0));
@@ -253,7 +252,7 @@ describe('Shifts Module', () => {
                         }))
                     }))
                 }))
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showClosureDetails(1);
 
@@ -285,7 +284,7 @@ describe('Shifts Module', () => {
                         }))
                     }))
                 }))
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showClosureDetails(1);
 
@@ -316,12 +315,12 @@ describe('Shifts Module', () => {
                 if (table === 'fuel_stations') {
                     return {
                         select: vi.fn(() => Promise.resolve({ data: mockStations, error: null }))
-                    } as any;
+                    } as unknown as ReturnType<typeof supabase.from>;
                 }
                 // Default shift query fallback
                 return {
                     select: vi.fn(() => ({ range: vi.fn(() => ({ order: vi.fn(() => Promise.resolve({ data: [], count: 0 })) })) }))
-                } as any;
+                } as unknown as ReturnType<typeof supabase.from>;
             });
 
             await showChiusureTab(container, actions);

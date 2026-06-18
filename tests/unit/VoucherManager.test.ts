@@ -37,8 +37,8 @@ const { mockSupabase, mockToast, mockUtils, mockOfflineQueue, mockRules } = vi.h
     };
 });
 
-global.window = global.window || ({} as any);
-(global.window as any).Html5Qrcode = vi.fn().mockImplementation(() => ({
+global.window = global.window || ({} as unknown as typeof global.window);
+(global.window as unknown as Partial<typeof global.window & { Html5Qrcode: unknown }> & Record<string, unknown>).Html5Qrcode = vi.fn().mockImplementation(() => ({
     start: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),
     clear: vi.fn()

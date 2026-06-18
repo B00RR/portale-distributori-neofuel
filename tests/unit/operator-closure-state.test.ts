@@ -28,7 +28,7 @@ describe('Operator Closure State Module', () => {
             station_id: 123,
             user_id: 'user-456',
             data_apertura: '2024-01-01T08:00:00Z'
-        } as any;
+        } as unknown as Partial<{ id: number; station_id: number; user_id: string; data_apertura: string }>;
 
         initClosureState('ST-123', 'user-456', mockShift);
 
@@ -66,7 +66,7 @@ describe('Operator Closure State Module', () => {
     });
 
     it('should persist state across multiple updates', () => {
-        const mockShift = { id: 1 } as any;
+        const mockShift = { id: 1 } as unknown as Partial<{ id: number }>;
 
         initClosureState('ST-789', 'user-789', mockShift);
         setClosureStep(2);

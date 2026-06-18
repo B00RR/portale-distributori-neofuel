@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // 1. Hoist
 const { mockSupabase, mockCharts, mockUI, mockConfig, mockBusinessLogic, mockEngine } = vi.hoisted(() => {
-    const queryBuilder: any = {};
+    const queryBuilder: Record<string, unknown> = {};
     const chain = vi.fn(() => queryBuilder);
     Object.assign(queryBuilder, {
         select: chain, eq: chain, gte: chain, lte: chain, order: chain, in: chain,
-        then: (resolve: any) => resolve({ data: [], count: 5, error: null })
+        then: (resolve: (value: unknown) => unknown) => resolve({ data: [], count: 5, error: null })
     });
 
     return {
@@ -79,7 +79,7 @@ vi.mock('../../js/core/business-logic-manager.js', () => mockBusinessLogic);
 vi.mock('../../js/utils/calculation-engine.js', () => mockEngine);
 
 describe('Admin Dashboard Module', () => {
-    let showDashboard: any;
+    let showDashboard: (container: HTMLElement) => Promise<void>;
 
     beforeEach(async () => {
         vi.clearAllMocks();
@@ -94,9 +94,9 @@ describe('Admin Dashboard Module', () => {
             gridColumns: 4
         });
 
-        global.window = global.window || ({} as any);
-        (global.window as any).Chart = vi.fn();
-        (global.window as any).Sortable = vi.fn();
+        global.window = global.window || ({} as unknown as typeof globalThis.window);
+        (global.window as unknown as { Chart: typeof vi.fn; Sortable: typeof vi.fn }).Chart = vi.fn();
+        (global.window as unknown as { Chart: typeof vi.fn; Sortable: typeof vi.fn }).Sortable = vi.fn();
 
         document.body.innerHTML = '<div id="dashboard-container"></div>';
 
