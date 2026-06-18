@@ -2,7 +2,7 @@
 // EXPORT FUNCTIONS (PDF / EXCEL)
 // ==========================================
 import { supabase } from '../core/api.js';
-import { CustomWindow } from '../types.js';
+import { CustomWindow, Shift } from '../types.js';
 import { Toast } from '../ui/toast.js';
 
 import { closureTemplateXlsxBase64 } from './template_chiusura_base64.js';
@@ -112,8 +112,8 @@ function getClosureTemplateBase64(): string | null {
   return closureTemplateXlsxBase64 || null;
 }
 
-export async function computeExportSummaryMetrics(adminClient: any, closure: any, stationId: number | string | null): Promise<ExportMetrics> {
-  const safeNumber = (value: any) => {
+export async function computeExportSummaryMetrics(adminClient: unknown, closure: unknown, stationId: number | string | null): Promise<ExportMetrics> {
+  const safeNumber = (value: unknown) => {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
   };
@@ -321,7 +321,7 @@ export async function computeExportSummaryMetrics(adminClient: any, closure: any
   }
 }
 
-export async function fetchClosureExportData(closureId: string | number): Promise<any> {
+export async function fetchClosureExportData(closureId: string | number): Promise<Shift & { shift_pistols?: unknown[] }> {
   const { data: closure, error } = await supabase
     .from('shifts')
     .select('*')
@@ -572,8 +572,9 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
 
     Toast.show('Download ZIP completato!', 'success');
 
-  } catch (e: any) {
+  } catch (e) {
     console.error('ZIP Fallback error:', e);
-    Toast.show('Errore fatale export: ' + e.message, 'error');
+    const message = e instanceof Error ? e.message : 'Errore sconosciuto';
+    Toast.show('Errore fatale export: ' + message, 'error');
   }
 }

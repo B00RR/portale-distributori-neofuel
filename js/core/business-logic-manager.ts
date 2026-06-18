@@ -25,11 +25,11 @@ export const BusinessLogicManager = {
         .from(BUCKET_NAME)
         .download(FILE_PATH);
 
-      const timeoutPromise = new Promise<{ data: Blob | null; error: any }>((_, reject) =>
+      const timeoutPromise = new Promise<{ data: Blob | null; error: Error }>((_, reject) =>
         setTimeout(() => reject(new Error('Storage download timeout')), 5000)
       );
 
-      const { data, error } = await Promise.race([downloadPromise, timeoutPromise]) as any;
+      const { data, error } = await Promise.race([downloadPromise, timeoutPromise]) as unknown as { data: Blob | null; error: Error | null };
 
       if (error) {
         // If not found, return defaults and try to seed
@@ -81,9 +81,10 @@ export const BusinessLogicManager = {
 
       cachedRules = validated;
       Toast.show('Regole di business aggiornate con successo', 'success');
-    } catch (err: any) {
+    } catch (err) {
       console.error('[BusinessLogic] Save failed:', err);
-      Toast.show('Errore nel salvataggio: ' + (err.message || 'Errore sconosciuto'), 'error');
+      const message = err instanceof Error ? err.message : 'Errore sconosciuto';
+      Toast.show('Errore nel salvataggio: ' + message, 'error');
       throw err;
     }
   }

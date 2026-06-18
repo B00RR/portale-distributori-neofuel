@@ -3,10 +3,11 @@
  * Handles rendering of operator shell and shared UI components
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getStationName } from '../core/api.js';
 import { clearSession } from '../core/auth.js';
+import { offlineDB } from '../core/offline-db.js';
 import { store, User } from '../shared/state.js';
+import { Shift } from '../types.js';
 import { openConfirmModal } from '../ui/ui.js';
 
 import { checkOpeningStatus } from './opening.js';
@@ -22,16 +23,6 @@ export interface OperatorHandlers {
 
 interface ExtendedUser extends User {
     assignedStations?: Array<{ id: string }>;
-}
-
-interface OpeningData {
-    closing_data?: {
-        closure_stage?: string;
-    };
-    date_time: string;
-    users?: {
-        full_name?: string;
-    };
 }
 
 // ========== FUNCTIONS ==========
@@ -156,7 +147,7 @@ export async function updateTurnoButton(
     return;
   }
 
-  const opening = await (checkOpeningStatus as any)(stationId) as OpeningData | null;
+  const opening = await checkOpeningStatus(stationId);
 
   const turnoIcon = btnTurno.querySelector('#turno-icon') as HTMLElement | null;
   const turnoText = btnTurno.querySelector('#turno-text') as HTMLElement | null;
@@ -174,11 +165,11 @@ export async function updateTurnoButton(
     btnTurno.onclick = () => handlers.onClosure(String(stationId), String(userId));
 
     if (badge) {
-      const hasPartial = opening.closing_data?.closure_stage === 'partial';
+      const hasPartial = opening.closing_data !== null && typeof opening.closing_data === 'object' && 'closure_stage' in opening.closing_data && (opening.closing_data as Record<string, unknown>).closure_stage === 'partial';
       const text = hasPartial ? 'Parziale' : 'Aperto';
       badge.textContent = text;
       badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
-      badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.date_time).toLocaleString('it-IT')}`;
+      badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.opened_at).toLocaleString('it-IT')}`;
       // Force visibility
       badge.style.display = 'inline-block';
     }
@@ -202,7 +193,6 @@ export async function updateTurnoButton(
  */
 async function updateSyncBadge(): Promise<void> {
   try {
-    const { offlineDB } = await import('../core/offline-db.js') as any;
     const count = await offlineDB.getQueueCount();
     const badge = document.getElementById('sync-indicator');
     const countSpan = document.getElementById('sync-count');

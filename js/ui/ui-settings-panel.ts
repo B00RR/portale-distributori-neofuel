@@ -5,10 +5,12 @@
 
 import { loadDashboardConfig, saveDashboardConfig, KPI_CATALOG, DashboardConfig, KPIConfigItem } from '../admin/dashboard-config.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
+import { type BusinessRules } from '../core/business-rules-schema.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
+import { escapeHtml } from '../utils/utils.js';
 
 import { BUSINESS_LOGIC_FIELDS } from './ui-settings-constants.js';
-import { escapeHtml } from '../utils/utils.js';
-import { setSafeHTML } from '../utils/sanitizer.js';
+
 
 export async function renderSettingsPanel(container: HTMLElement): Promise<void> {
   if (!container) {return;}
@@ -50,7 +52,7 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
     // 1. RENDER BUSINESS RULES
     let rulesHtml = '';
     BUSINESS_LOGIC_FIELDS.forEach(field => {
-      const value = (rules as any)[field.key] ?? field.defaultValue;
+      const value = (rules as unknown as Record<string, unknown>)[field.key] ?? field.defaultValue;
 
       let inputHtml = '';
       if (field.type === 'number') {

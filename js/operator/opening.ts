@@ -3,7 +3,7 @@
 // Gestione apertura turno con caricamento contatori
 // ==========================================
 import { supabase, type Json } from '../core/api.js';
-import { Shift } from '../types.js';
+import { Shift, type CustomWindow } from '../types.js';
 import { closeModal, openModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
@@ -121,19 +121,20 @@ export async function showAperturaForm(stationId: number | string, userId: strin
     opener.addEventListener('success', () => {
       // Il componente mostra già un messaggio di successo con reload
       // ma possiamo aggiornare lo status nel menu se necessario
-      if (typeof (window as any).refreshUiIcons === 'function') {
-        (window as any).refreshUiIcons();
+      if (typeof (window as unknown as CustomWindow).refreshUiIcons === 'function') {
+        (window as unknown as CustomWindow).refreshUiIcons();
       }
     });
 
     modalBody.appendChild(opener);
 
-  } catch (err: any) {
+  } catch (err) {
     console.error('Errore apertura form:', err);
     openModal('Errore');
     const errorModalBody = document.getElementById('modal-body');
     if (errorModalBody) {
-      setSafeHTML(errorModalBody, `<p style="color: red; padding: 20px;">${escapeHtml(err.message || 'Errore imprevisto')}</p>`);
+      const message = err instanceof Error ? err.message : 'Errore imprevisto';
+      setSafeHTML(errorModalBody, `<p style="color: red; padding: 20px;">${escapeHtml(message)}</p>`);
     }
   }
 }

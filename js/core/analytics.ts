@@ -5,8 +5,7 @@
 import { CustomWindow } from '../types.js';
 
 // Accesso sicuro alle variabili d'ambiente Vite
-const env = (import.meta as any).env || {};
-const PLAUSIBLE_ENABLED = env.VITE_ANALYTICS_ENABLED === 'true';
+const PLAUSIBLE_ENABLED = import.meta.env.VITE_ANALYTICS_ENABLED === 'true';
 
 /**
  * Initialize analytics tracking
