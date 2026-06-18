@@ -128,7 +128,7 @@ describe('Stations Module', () => {
 
             vi.mocked(supabase.from).mockReturnValue({
                 select: vi.fn(() => ({
-                    order: vi.fn(() => Promise.rejected(new Error('Fetch failed')))
+                    order: vi.fn(() => Promise.reject(new Error('Fetch failed')))
                 }))
             } as any);
 
