@@ -8,9 +8,9 @@
  * @module admin-dashboard-config
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { supabase } from '../core/api.js';
+import { supabase, type Json } from '../core/api.js';
 import { loggedUser } from '../core/auth.js';
+import type { CustomWindow } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, openConfirmModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
@@ -143,7 +143,7 @@ export const CARD_SIZES: CardSizeDefinition[] = [
  */
 async function getCurrentUserId(): Promise<string | number | null> {
   // Priority: Supabase Auth UUID (required for user_dashboard_config table which uses uuid type)
-  const { data: { session } } = await (supabase as any).auth.getSession();
+  const { data: { session } } = await supabase.auth.getSession();
   if (session?.user?.id) { return session.user.id; }
 
   // Fallback to internal ID (though this might cause type errors if table expects uuid)
@@ -176,10 +176,10 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
 
   try {
     // Try to fetch existing config
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('user_dashboard_config')
       .select('kpi_layout, grid_columns')
-      .eq('user_id', userId)
+      .eq('user_id', String(userId))
       .single();
 
     if (error && error.code !== '406' && error.code !== 'PGRST116') {
@@ -193,7 +193,8 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
       return getDefaultConfig();
     }
 
-    let layout = data.kpi_layout || [];
+    // Type guard: kpi_layout should be an array, default to empty if not
+    let layout = Array.isArray(data.kpi_layout) ? (data.kpi_layout as unknown as KPIConfigItem[]) : [];
 
     // SYNC: Add any new items from KPI_CATALOG that are missing in the stored layout
     const storedIds = new Set(layout.map((k: any) => k.id));
@@ -234,11 +235,12 @@ export async function saveDashboardConfig(config: DashboardConfig): Promise<bool
   }
 
   try {
-    const { error } = await (supabase as any)
+    // Cast kpiLayout to Json type for Supabase (safe since it's JSON-serializable)
+    const { error } = await supabase
       .from('user_dashboard_config')
       .upsert({
-        user_id: userId,
-        kpi_layout: config.kpiLayout,
+        user_id: String(userId),
+        kpi_layout: config.kpiLayout as unknown as Json,
         grid_columns: config.gridColumns,
         updated_at: new Date().toISOString()
       }, {
@@ -269,11 +271,12 @@ export async function resetDashboardConfig(): Promise<boolean> {
 
   try {
     const defaultConfig = getDefaultConfig();
-    const { error } = await (supabase as any)
+    // Cast kpiLayout to Json type for Supabase (safe since it's JSON-serializable)
+    const { error } = await supabase
       .from('user_dashboard_config')
       .upsert({
-        user_id: userId,
-        kpi_layout: defaultConfig.kpiLayout,
+        user_id: String(userId),
+        kpi_layout: defaultConfig.kpiLayout as unknown as Json,
         grid_columns: defaultConfig.gridColumns,
         updated_at: new Date().toISOString()
       }, {
@@ -300,11 +303,12 @@ async function ensureDefaultConfig(): Promise<void> {
 
   try {
     const defaultConfig = getDefaultConfig();
-    await (supabase as any)
+    // Cast kpiLayout to Json type for Supabase (safe since it's JSON-serializable)
+    await supabase
       .from('user_dashboard_config')
       .insert({
-        user_id: userId,
-        kpi_layout: defaultConfig.kpiLayout,
+        user_id: String(userId),
+        kpi_layout: defaultConfig.kpiLayout as unknown as Json,
         grid_columns: defaultConfig.gridColumns
       });
   } catch (err: any) {
@@ -596,12 +600,13 @@ function initializeSortable(config: DashboardConfig, container: HTMLElement): vo
   if (!list) { return; }
 
   // Check if Sortable library is available
-  if (typeof (window as any).Sortable === 'undefined') {
+  const customWindow = window as unknown as CustomWindow;
+  if (typeof customWindow.Sortable === 'undefined') {
     console.warn('[Dashboard Config] SortableJS library not loaded. Drag-and-drop disabled.');
     return;
   }
 
-  new (window as any).Sortable(list, {
+  new customWindow.Sortable(list, {
     animation: 150,
     ghostClass: 'kpi-item-ghost',
     chosenClass: 'kpi-item-chosen',

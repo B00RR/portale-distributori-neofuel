@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { handleError } from '../shared/error-handler.js';
-import { store } from '../shared/state.js';
+import { store, type Pagination as PaginationType } from '../shared/state.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import {
@@ -11,8 +10,8 @@ import {
   generateMultiClosureExcel,
   computeExportSummaryMetrics
 } from '../utils/export_utils.js';
-import { escapeHtml, formatEuro } from '../utils/utils.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
+import { escapeHtml, formatEuro } from '../utils/utils.js';
 
 import { FilterBar } from './components/FilterBar.js';
 import { Pagination } from './components/Pagination.js';
@@ -260,7 +259,8 @@ export async function showChiusureTab(
     }
     else if (key === 'pagination') {
       // Only render if PAGE changed. TotalCount change should be ignored (it was set by us)
-      if ((val as any).page !== lastParams.page) {
+      const paginationState = val as unknown as PaginationType;
+      if (paginationState.page !== lastParams.page) {
         renderTable();
       } else {
         // Just re-render pagination UI to be safe
