@@ -11,13 +11,13 @@ import { handleError } from '../../js/shared/error-handler.js';
 // Mock dependencies
 // Mock dependencies
 vi.mock('../../js/core/api.js', () => {
-    const query: any = {};
+    const query: Record<string, unknown> = {};
     const methods = ['select', 'eq', 'order', 'range', 'limit', 'gte', 'lte', 'in', 'single', 'maybeSingle', 'rpc'];
     methods.forEach(m => {
         query[m] = vi.fn(() => query);
     });
     // Ensure then is available for await
-    query.then = (resolve: any) => resolve({ data: [{ id: 123, station_id: 'ST1' }], error: null, count: 1 });
+    query.then = (resolve: (value: { data: { id: number; station_id: string }[]; error: null; count: number }) => unknown) => resolve({ data: [{ id: 123, station_id: 'ST1' }], error: null, count: 1 });
 
     return {
         supabase: {
@@ -51,7 +51,7 @@ vi.mock('../../js/ui/toast.js', () => ({
 
 vi.mock('../../js/ui/ui.js', () => ({
     showLoadingMessage: vi.fn(),
-    openModal: vi.fn((title) => {
+    openModal: vi.fn(() => {
         const body = document.createElement('div');
         body.id = 'modal-body';
         document.body.appendChild(body);
@@ -122,8 +122,8 @@ describe('Admin Shifts Module', () => {
                 eq: vi.fn().mockReturnThis(),
                 order: vi.fn().mockReturnThis(),
                 range: vi.fn().mockReturnThis(),
-                then: (resolve: any) => resolve({ data: [], error: null, count: 0 })
-            } as any);
+                then: (resolve: (value: { data: unknown[]; error: null; count: number }) => unknown) => resolve({ data: [], error: null, count: 0 })
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showChiusureTab(container, actions);
             expect(container.innerHTML).toContain('Nessuna chiusura trovata');
@@ -137,8 +137,8 @@ describe('Admin Shifts Module', () => {
                 eq: vi.fn().mockReturnThis(),
                 order: vi.fn().mockReturnThis(),
                 range: vi.fn().mockReturnThis(),
-                then: (resolve: any) => resolve({ data: null, error: new Error('DB Error') })
-            } as any);
+                then: (resolve: (value: { data: null; error: Error }) => unknown) => resolve({ data: null, error: new Error('DB Error') })
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showChiusureTab(container, actions);
             expect(handleError).toHaveBeenCalled();
@@ -166,8 +166,8 @@ describe('Admin Shifts Module', () => {
                 eq: vi.fn().mockReturnThis(),
                 order: vi.fn().mockReturnThis(),
                 range: vi.fn().mockReturnThis(),
-                then: (resolve: any) => resolve({ data: [sampleShift], error: null, count: 1 })
-            } as any);
+                then: (resolve: (value: { data: unknown[]; error: null; count: number }) => unknown) => resolve({ data: [sampleShift], error: null, count: 1 })
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showChiusureTab(container, actions);
 
@@ -191,7 +191,7 @@ describe('Admin Shifts Module', () => {
                 select: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
                 single: vi.fn().mockResolvedValue({ data: null, error: new Error('Not found') })
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showClosureDetails(999);
             expect(document.body.innerHTML).toContain('Errore: Chiusura non trovata');
@@ -211,7 +211,7 @@ describe('Admin Shifts Module', () => {
                 select: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
                 single: vi.fn().mockResolvedValue({ data: sample, error: null })
-            } as any);
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await showClosureDetails(123);
             expect(document.body.innerHTML).toContain('500,00');
@@ -228,7 +228,7 @@ describe('Admin Shifts Module', () => {
         it('handleBulkExport should call export_utils (last_n)', async () => {
             const exportMod = await import('../../js/utils/export_utils.js');
             vi.spyOn(exportMod, 'generateMultiClosureExcel').mockResolvedValue(undefined);
-            vi.spyOn(exportMod, 'computeExportSummaryMetrics').mockResolvedValue({} as any);
+            vi.spyOn(exportMod, 'computeExportSummaryMetrics').mockResolvedValue({} as Partial<ReturnType<typeof exportMod.computeExportSummaryMetrics>>);
 
             await handleBulkExport({ stationId: 'ST1', type: 'last_n', limit: 10 });
 
@@ -265,8 +265,8 @@ describe('Admin Shifts Module', () => {
                 order: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
                 limit: vi.fn().mockReturnThis(),
-                then: (resolve: any) => resolve({ data: [], error: null })
-            } as any);
+                then: (resolve: (value: { data: unknown[]; error: null }) => unknown) => resolve({ data: [], error: null })
+            } as unknown as ReturnType<typeof supabase.from>);
 
             await handleBulkExport({ stationId: 'ST1', type: 'last_n', limit: 10 });
             expect(handleError).toHaveBeenCalledWith(
