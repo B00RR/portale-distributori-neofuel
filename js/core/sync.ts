@@ -42,7 +42,8 @@ class SyncManager {
     try {
       const queue = await offlineDB.getQueue();
 
-      for (const item of queue) {
+      const safeQueue = Array.isArray(queue) ? queue : [];
+      for (const item of safeQueue) {
         try {
           // Nota: Qui è dove si dovrebbe ricostruire la chiamata API originale.
           // Dato che le query Supabase sono complesse da serializzare,
