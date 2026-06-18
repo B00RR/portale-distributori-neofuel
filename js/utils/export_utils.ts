@@ -572,8 +572,9 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
 
     Toast.show('Download ZIP completato!', 'success');
 
-  } catch (e: any) {
+  } catch (e) {
     console.error('ZIP Fallback error:', e);
-    Toast.show('Errore fatale export: ' + e.message, 'error');
+    const message = e instanceof Error ? e.message : 'Errore sconosciuto';
+    Toast.show('Errore fatale export: ' + message, 'error');
   }
 }

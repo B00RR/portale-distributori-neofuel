@@ -7,8 +7,6 @@ import {
     formatGunCounter,
     parseGunCounter,
     parseNumberFlexible,
-    slugifyLabel,
-    base64ToArrayBuffer,
     formatEuro,
     debounce,
     formatDate,
@@ -100,8 +98,8 @@ describe('Utils Module', () => {
             expect(parseNumberFlexible(null)).toBe(0);
             expect(parseNumberFlexible('invalid')).toBe(0);
             // Cover line 107 (unknown types)
-            expect(parseNumberFlexible({} as any)).toBe(0);
-            expect(parseNumberFlexible(true as any)).toBe(0);
+            expect(parseNumberFlexible({} as unknown as number | string | null)).toBe(0);
+            expect(parseNumberFlexible(true as unknown as number | string | null)).toBe(0);
         });
 
         it('formatDate should handle invalid dates', () => {
@@ -111,12 +109,11 @@ describe('Utils Module', () => {
             // Cover catch block (line 177): Force standard Date constructor to throw (rare, but possible with proxy or bad polyfill)
             // Or easier, pass a symbol which throws on toString if used in Date constructor?
             // Actually new Date(Symbol()) throws TypeError.
-            const badInput = Symbol('bad date') as any;
+            const badInput = Symbol('bad date') as unknown as string | number | Date;
             expect(formatDate(badInput)).toBe('Symbol(bad date)');
         });
 
         it('getISODate should return YYYY-MM-DD', () => {
-            const d = new Date('2023-01-31T12:00:00Z');
             // This might depend on local timezone of runner, mock Date if needed
             // But simpler:
             expect(getISODate('2023-01-31T12:00:00')).toContain('2023-01-31');

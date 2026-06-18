@@ -57,3 +57,6 @@ dev-dist/
 
 # Test coverage
 coverage/
+
+# ESLint cache
+.eslintcache

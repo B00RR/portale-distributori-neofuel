@@ -1,16 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import type { CustomWindow } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { formatEuro, formatLitri, getISODate } from '../utils/utils.js';
-
-// --- TYPES ---
-declare global {
-    interface Window {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Chart.js loaded via CDN
-        Chart: any;
-    }
-}
 
 // Hack: Cast window to 'any' to silence the editor error about 'Chart' missing
 // We access it via window because it's loaded via CDN in index.html
@@ -57,8 +49,8 @@ interface AnalyticsResult {
 type DateRange = '7d' | '30d' | 'month' | 'year';
 
 // --- STATE ---
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Chart.js instances stored as opaque objects
-const charts: Record<string, any> = {}; // Store chart instances
+// Chart.js instances stored as opaque objects
+const charts: Record<string, CustomWindow['Chart']> = {}; // Store chart instances
 
 // --- MAIN FUNCTION ---
 /**
@@ -189,8 +181,8 @@ async function updateCharts(
     const aggregated = processAnalyticsData(shifts as ShiftData[], startDate, endDate);
 
     // 4. Render Charts (Lazy load Chart.js logic if needed, but assuming global Chart)
-    const Chart = (window as any).Chart;
-    if (Chart) {
+    const customWindow = window as unknown as CustomWindow;
+    if (customWindow.Chart) {
       renderRevenueChart(aggregated);
       renderVolumeChart(aggregated);
       renderPaymentChart(aggregated);
@@ -246,7 +238,7 @@ function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Dat
     // eslint-disable-next-line security/detect-object-injection -- day is a substring of closed_at already validated
     if (days[day]) {
       // Revenue
-      // eslint-disable-next-line security/detect-object-injection -- day is validated above
+       
       const rev = Number(data.ricavo_teorico || 0);
       // eslint-disable-next-line security/detect-object-injection -- day is validated above
       days[day].revenue += rev;
@@ -295,7 +287,9 @@ function renderRevenueChart(data: AnalyticsResult): void {
   const ctx = getChartContext('revenue-chart');
   if (!ctx) { return; }
 
-  const Chart = window.Chart;
+  const customWindow = window as unknown as CustomWindow;
+  const Chart = customWindow.Chart;
+  if (!Chart) { return; }
   charts['revenue-chart'] = new Chart(ctx, {
     type: 'line',
     data: {
@@ -323,7 +317,9 @@ function renderVolumeChart(data: AnalyticsResult): void {
   const ctx = getChartContext('volume-chart');
   if (!ctx) { return; }
 
-  const Chart = (window as any).Chart;
+  const customWindow = window as unknown as CustomWindow;
+  const Chart = customWindow.Chart;
+  if (!Chart) { return; }
   charts['volume-chart'] = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -360,7 +356,9 @@ function renderPaymentChart(data: AnalyticsResult): void {
   const ctx = getChartContext('payments-chart');
   if (!ctx) { return; }
 
-  const Chart = (window as any).Chart;
+  const customWindow = window as unknown as CustomWindow;
+  const Chart = customWindow.Chart;
+  if (!Chart) { return; }
   charts['payments-chart'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -384,7 +382,9 @@ function renderFuelMixChart(data: AnalyticsResult): void {
   const ctx = getChartContext('fuels-chart');
   if (!ctx) { return; }
 
-  const Chart = (window as any).Chart;
+  const customWindow = window as unknown as CustomWindow;
+  const Chart = customWindow.Chart;
+  if (!Chart) { return; }
   charts['fuels-chart'] = new Chart(ctx, {
     type: 'pie',
     data: {

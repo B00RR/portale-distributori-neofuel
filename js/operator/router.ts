@@ -3,7 +3,6 @@
  * Handles navigation between different operator views
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { store, User } from '../shared/state.js';
 
 import { startClosureWizard } from './closure.js';
@@ -58,7 +57,7 @@ class OperatorRouter {
 
     switch (view) {
       case 'apertura':
-        (showAperturaForm as any)(stationId, userId);
+        showAperturaForm(stationId, userId);
         break;
       case 'chiusura':
         startClosureWizard(stationId, userId);
@@ -67,19 +66,19 @@ class OperatorRouter {
         showPrezziEditForm(Number(stationId));
         break;
       case 'crediti':
-        (showCreditsMenu as any)(stationId, userId);
+        showCreditsMenu(stationId, userId);
         break;
       case 'uscite':
-        (showOutflowMenu as any)(stationId, userId);
+        showOutflowMenu(stationId, userId);
         break;
       case 'incassi':
-        (showExtraIncomeMenu as any)(stationId, userId);
+        showExtraIncomeMenu(stationId, userId);
         break;
       case 'voucher':
         showVoucherMenu(stationId, userId);
         break;
       case 'fatture':
-        (showInvoiceMenu as any)(stationId, userId);
+        showInvoiceMenu(stationId, userId);
         break;
       default:
         console.warn('[Router] Unknown view:', view);

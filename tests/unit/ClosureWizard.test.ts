@@ -74,8 +74,8 @@ describe('ClosureWizard Component', () => {
         });
 
         it('should have required properties', async () => {
-            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as any;
-            const element = new ClosureWizard();
+            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as unknown as { ClosureWizard: CustomElementConstructor };
+            const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
             expect(element).toHaveProperty('shiftId');
             expect(element).toHaveProperty('stationId');
@@ -84,54 +84,54 @@ describe('ClosureWizard Component', () => {
 
     describe('Wizard Steps', () => {
         it('should start at step 1', async () => {
-            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as any;
-            const element = new ClosureWizard();
+            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as unknown as { ClosureWizard: CustomElementConstructor };
+            const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
-            expect((element as any).wizardState.step).toBe(1);
+            expect((element as unknown as Partial<{ wizardState: { step: number } }>).wizardState?.step).toBe(1);
         });
 
         it('should have 3 total steps', async () => {
-            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as any;
-            const element = new ClosureWizard();
+            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as unknown as { ClosureWizard: CustomElementConstructor };
+            const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
             // Check that component has step navigation logic
-            expect((element as any).totalSteps || 3).toBeGreaterThanOrEqual(3);
+            expect((element as unknown as Partial<{ totalSteps: number }>).totalSteps || 3).toBeGreaterThanOrEqual(3);
         });
     });
 
     describe('Closure Types', () => {
         it('should support partial closure type', async () => {
-            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as any;
-            const element = new ClosureWizard();
+            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as unknown as { ClosureWizard: CustomElementConstructor };
+            const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
             // Set closure type
-            (element as any).closureType = 'partial';
-            expect((element as any).closureType).toBe('partial');
+            (element as unknown as Partial<{ closureType: string }>).closureType = 'partial';
+            expect((element as unknown as Partial<{ closureType: string }>).closureType).toBe('partial');
         });
 
         it('should support final closure type', async () => {
-            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as any;
-            const element = new ClosureWizard();
+            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as unknown as { ClosureWizard: CustomElementConstructor };
+            const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
-            (element as any).closureType = 'final';
-            expect((element as any).closureType).toBe('final');
+            (element as unknown as Partial<{ closureType: string }>).closureType = 'final';
+            expect((element as unknown as Partial<{ closureType: string }>).closureType).toBe('final');
         });
     });
 
     describe('Revenue Calculations', () => {
         it('should initialize with zero theoretical revenue', async () => {
-            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as any;
-            const element = new ClosureWizard();
+            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as unknown as { ClosureWizard: CustomElementConstructor };
+            const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
             // Check initial revenue state
-            const revenue = (element as any).ricavoTeorico || 0;
+            const revenue = (element as unknown as Partial<{ ricavoTeorico: number }>).ricavoTeorico || 0;
             expect(revenue).toBe(0);
         });
     });
 
     describe('CSS Styles', () => {
         it('should have static styles defined', async () => {
-            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as any;
+            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as unknown as { ClosureWizard: CustomElementConstructor & { styles?: unknown } };
 
             expect(ClosureWizard.styles).toBeDefined();
         });
@@ -139,12 +139,12 @@ describe('ClosureWizard Component', () => {
 
     describe('Render Method', () => {
         it('should render without throwing', async () => {
-            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as any;
-            const element = new ClosureWizard();
-            element.shiftId = '1';
-            element.stationId = '1';
+            const { ClosureWizard } = await import('../../js/ui/components/ClosureWizard.js') as unknown as { ClosureWizard: CustomElementConstructor };
+            const element = new (ClosureWizard as unknown as CustomElementConstructor)();
+            (element as unknown as Partial<{ shiftId: string; stationId: string; render(): void }>).shiftId = '1';
+            (element as unknown as Partial<{ shiftId: string; stationId: string; render(): void }>).stationId = '1';
 
-            expect(() => element.render()).not.toThrow();
+            expect(() => (element as unknown as Partial<{ render(): void }>).render?.()).not.toThrow();
         });
     });
 

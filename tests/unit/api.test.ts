@@ -39,7 +39,7 @@ describe('API Module', () => {
         const mockRes = { data: 'success', error: null };
         const queryFn = () => Promise.resolve(mockRes);
 
-        const result = await safeSupabaseQuery(queryFn as any);
+        const result = await safeSupabaseQuery(queryFn as unknown as Parameters<typeof safeSupabaseQuery>[0]);
         expect(result).toEqual(mockRes);
     });
 
@@ -47,7 +47,7 @@ describe('API Module', () => {
         const mockRes = { data: null, error: { message: 'DB Fail' } };
         const queryFn = () => Promise.resolve(mockRes);
 
-        await expect(safeSupabaseQuery(queryFn as any)).rejects.toThrow('DB Fail');
+        await expect(safeSupabaseQuery(queryFn as unknown as Parameters<typeof safeSupabaseQuery>[0])).rejects.toThrow('DB Fail');
     });
 
     it('safeSupabaseQuery should handle offline mutation', async () => {
@@ -59,9 +59,9 @@ describe('API Module', () => {
         const mutationFn = () => Promise.resolve(mockRes);
         mutationFn.toString = () => "function() { return supabase.from('x').insert(...) }";
 
-        const result = await safeSupabaseQuery(mutationFn as any);
+        const result = await safeSupabaseQuery(mutationFn as unknown as Parameters<typeof safeSupabaseQuery>[0]);
 
-        expect(result.offline).toBe(true);
+        expect((result as Partial<typeof result> & { offline: boolean }).offline).toBe(true);
         expect(mockOfflineDB.enqueue).toHaveBeenCalled();
         expect(mockToast.show).toHaveBeenCalled();
     });

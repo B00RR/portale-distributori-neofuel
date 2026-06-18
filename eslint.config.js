@@ -133,5 +133,23 @@ export default tseslint.config(
         }
       ]
     }
+  },
+
+  // Test files: align with the relaxed js/** severities (any/unused-vars as
+  // warnings, not errors). Test mocks legitimately use `any`; without this
+  // override tests inherited tseslint.recommended defaults (error-level),
+  // which made them stricter than production and blocked the pre-commit hook.
+  {
+    files: ['tests/**/*.{js,ts}', 'e2e/**/*.{js,ts}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_'
+        }
+      ]
+    }
   }
 );

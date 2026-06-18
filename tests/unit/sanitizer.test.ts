@@ -108,13 +108,13 @@ describe('Sanitizer Module (Security)', () => {
 
         it('should return false for null/undefined/empty', () => {
             expect(isSafeUrl('')).toBe(false);
-            expect(isSafeUrl(null as any)).toBe(false);
-            expect(isSafeUrl(undefined as any)).toBe(false);
+            expect(isSafeUrl(null as unknown as string)).toBe(false);
+            expect(isSafeUrl(undefined as unknown as string)).toBe(false);
         });
 
         it('should return false for non-string input', () => {
-            expect(isSafeUrl(123 as any)).toBe(false);
-            expect(isSafeUrl({} as any)).toBe(false);
+            expect(isSafeUrl(123 as unknown as string)).toBe(false);
+            expect(isSafeUrl({} as unknown as string)).toBe(false);
         });
     });
 
@@ -198,8 +198,8 @@ describe('Sanitizer Module (Security)', () => {
 
         it('should return default for null/undefined/empty', () => {
             expect(sanitizeFilename('')).toBe('untitled');
-            expect(sanitizeFilename(null as any)).toBe('untitled');
-            expect(sanitizeFilename(undefined as any)).toBe('untitled');
+            expect(sanitizeFilename(null as unknown as string)).toBe('untitled');
+            expect(sanitizeFilename(undefined as unknown as string)).toBe('untitled');
         });
     });
 

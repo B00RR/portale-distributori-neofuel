@@ -30,7 +30,7 @@ describe('Operator Router', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         // Reset singleton state
-        (router as any).currentView = null;
+        (router as unknown as { currentView: string | null }).currentView = null;
 
         mockStore.getUser.mockReturnValue({
             id: 'user-123',

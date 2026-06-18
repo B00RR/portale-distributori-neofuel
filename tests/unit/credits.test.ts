@@ -94,7 +94,7 @@ describe('Credits Module - Logic and UI Verification', () => {
         });
 
         const customer = { id: 'CUST-1', cliente: 'Cliente Test', saldo: 150 };
-        await processPayment('123', '456', customer as any, 50, 'contanti');
+        await processPayment('123', '456', customer as unknown as Partial<{ id: string; cliente: string; saldo: number }>, 50, 'contanti');
 
         // Verify balance update
         expect(mockSupabase.from).toHaveBeenCalledWith('crediti_clienti');
@@ -115,7 +115,7 @@ describe('Credits Module - Logic and UI Verification', () => {
 
     it('should have standard styled "Tutto" button in payment modal', async () => {
         // This requires mocking the flow to open the payment modal
-        const { showPaymentModal } = await import('../../js/operator/credits.js') as any;
+        const { showPaymentModal } = await import('../../js/operator/credits.js') as unknown as { showPaymentModal: unknown };
         const customer = { id: 'CUST-1', cliente: 'Cliente Test', saldo: 150 };
 
         // We can't easily call internal showPaymentModal unless we export it or trigger it via UI
