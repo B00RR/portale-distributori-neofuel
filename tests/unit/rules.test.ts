@@ -272,11 +272,11 @@ describe('Business Rules', () => {
         });
 
         it('should handle missing/undefined values as zero', () => {
-            const params: CashParams = {
+            const params: Partial<CashParams> = {
                 carburanteAtteso: 1000,
                 totalPosOperatore: 200,
-                totalUtaOperatore: undefined as any,
-                selfPos: null as any,
+                totalUtaOperatore: undefined,
+                selfPos: null as unknown as undefined,
                 creditsSum: 0,
                 vouchersSum: 0,
                 selfCashIn: 0,
@@ -286,7 +286,7 @@ describe('Business Rules', () => {
                 cashReal: 800
             };
 
-            const result = calculateExpectedCash(params);
+            const result = calculateExpectedCash(params as unknown as CashParams);
             // Expected = 1000 - 200 - 0 - 0 - 0 - 0 + 0 - 0 + 0 = 800
             expect(result.expected_cash).toBe(800);
             expect(result.cash_diff).toBe(0);
