@@ -43,11 +43,11 @@ describe('Admin Analytics Module', () => {
         }) as any;
 
         global.window = global.window || ({} as any);
-        // Correct Mock: Chart should be a Class (Constructor)
-        (global.window as any).Chart = vi.fn().mockImplementation(() => ({
-            destroy: vi.fn(),
-            update: vi.fn()
-        }));
+        // Chart must be a real class so `new Chart()` works
+        (global.window as any).Chart = class {
+            destroy() {}
+            update() {}
+        };
     });
 
     it('should display analytics structure', async () => {
