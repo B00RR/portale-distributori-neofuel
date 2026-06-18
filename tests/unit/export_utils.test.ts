@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // Polyfill structuredClone
 if (!global.structuredClone) {
-    global.structuredClone = (obj: any) => JSON.parse(JSON.stringify(obj));
+    global.structuredClone = (obj: unknown) => JSON.parse(JSON.stringify(obj));
 }
 
 import { generateMultiClosureExcel } from '../../js/utils/export_utils.js';
@@ -25,7 +25,7 @@ describe('Export Utils Module', () => {
         // If it uses 'exceljs' or 'xlsx', they usually work in Node.
 
         try {
-            await generateMultiClosureExcel(closures as any);
+            await generateMultiClosureExcel(closures as unknown as Parameters<typeof generateMultiClosureExcel>[0]);
             expect(true).toBe(true); // Passed without throwing
         } catch (e) {
             // Check if error is acceptable
