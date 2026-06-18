@@ -56,7 +56,22 @@ describe('Operators Module', () => {
                     invoke: vi.fn().mockResolvedValue({ data: { error: null }, error: null })
                 }
             },
-            safeSupabaseQuery: vi.fn((cb) => cb())
+            safeSupabaseQuery: vi.fn((cb) => cb()),
+            Cache: {
+                getOrFetch: vi.fn((key, fetchFn) => fetchFn()),
+                invalidate: vi.fn(),
+                invalidateByPrefix: vi.fn(),
+                clear: vi.fn(),
+                get: vi.fn(),
+                set: vi.fn(),
+                getStats: vi.fn(() => ({ total: 0, valid: 0, expired: 0 }))
+            },
+            CACHE_KEYS: {
+                STATIONS: 'stations',
+                CUSTOMERS: 'customers',
+                FUEL_TYPES: 'fuel_types',
+                STATION_PREFIX: 'station_'
+            }
         }));
 
         vi.doMock('../../js/ui/ui.js', () => ({

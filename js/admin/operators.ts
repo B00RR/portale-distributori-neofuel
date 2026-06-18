@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from '../ui/ui.js';
@@ -283,12 +283,16 @@ export async function openAssignStationModal(userId: string): Promise<void> {
   const target = document.getElementById('modal-body');
   if (!target) {return;}
 
-  const [stationsRes, currentRes] = await Promise.all([
-    supabase.from('fuel_stations').select('*'),
+  const [stationsData, currentRes] = await Promise.all([
+    Cache.getOrFetch(CACHE_KEYS.STATIONS, async () => {
+      const { data, error } = await supabase.from('fuel_stations').select('*');
+      if (error) { throw error; }
+      return data;
+    }, 10 * 60 * 1000),
     supabase.from('user_stations').select('station_id').eq('user_id', Number(userId)).maybeSingle()
   ]);
 
-  const stations = (stationsRes.data as FuelStation[]) || [];
+  const stations = (stationsData as FuelStation[]) || [];
   const currentStationId = currentRes.data?.station_id;
 
   const html = `

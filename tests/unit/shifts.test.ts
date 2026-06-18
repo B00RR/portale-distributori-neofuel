@@ -25,6 +25,21 @@ vi.mock('../../js/core/api.js', () => ({
             return mockChain;
         }),
         rpc: vi.fn(() => Promise.resolve({ error: null }))
+    },
+    Cache: {
+        getOrFetch: vi.fn((key, fetchFn) => fetchFn()),
+        invalidate: vi.fn(),
+        invalidateByPrefix: vi.fn(),
+        clear: vi.fn(),
+        get: vi.fn(),
+        set: vi.fn(),
+        getStats: vi.fn(() => ({ total: 0, valid: 0, expired: 0 }))
+    },
+    CACHE_KEYS: {
+        STATIONS: 'stations',
+        CUSTOMERS: 'customers',
+        FUEL_TYPES: 'fuel_types',
+        STATION_PREFIX: 'station_'
     }
 }));
 
