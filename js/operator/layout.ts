@@ -7,7 +7,6 @@ import { getStationName } from '../core/api.js';
 import { clearSession } from '../core/auth.js';
 import { offlineDB } from '../core/offline-db.js';
 import { store, User } from '../shared/state.js';
-import { Shift } from '../types.js';
 import { openConfirmModal } from '../ui/ui.js';
 
 import { checkOpeningStatus } from './opening.js';

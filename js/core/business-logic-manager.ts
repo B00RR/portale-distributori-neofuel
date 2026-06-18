@@ -25,11 +25,11 @@ export const BusinessLogicManager = {
         .from(BUCKET_NAME)
         .download(FILE_PATH);
 
-      const timeoutPromise = new Promise<{ data: Blob | null; error: Error }>((_, reject) =>
+      const timeoutPromise = new Promise<{ data: Blob | null; error: any }>((_, reject) =>
         setTimeout(() => reject(new Error('Storage download timeout')), 5000)
       );
 
-      const { data, error } = await Promise.race([downloadPromise, timeoutPromise]) as unknown as { data: Blob | null; error: Error | null };
+      const { data, error } = await Promise.race([downloadPromise, timeoutPromise]) as unknown as { data: Blob | null; error: any };
 
       if (error) {
         // If not found, return defaults and try to seed
@@ -37,6 +37,10 @@ export const BusinessLogicManager = {
           return DEFAULT_BUSINESS_RULES;
         }
         throw error;
+      }
+
+      if (!data) {
+        return DEFAULT_BUSINESS_RULES;
       }
 
       const jsonText = await data.text();

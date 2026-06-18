@@ -2,7 +2,7 @@
 // EXPORT FUNCTIONS (PDF / EXCEL)
 // ==========================================
 import { supabase } from '../core/api.js';
-import { CustomWindow, Shift } from '../types.js';
+import { CustomWindow } from '../types.js';
 import { Toast } from '../ui/toast.js';
 
 import { closureTemplateXlsxBase64 } from './template_chiusura_base64.js';
@@ -112,8 +112,8 @@ function getClosureTemplateBase64(): string | null {
   return closureTemplateXlsxBase64 || null;
 }
 
-export async function computeExportSummaryMetrics(adminClient: unknown, closure: unknown, stationId: number | string | null): Promise<ExportMetrics> {
-  const safeNumber = (value: unknown) => {
+export async function computeExportSummaryMetrics(adminClient: any, closure: any, stationId: number | string | null): Promise<ExportMetrics> {
+  const safeNumber = (value: any) => {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
   };
@@ -321,7 +321,7 @@ export async function computeExportSummaryMetrics(adminClient: unknown, closure:
   }
 }
 
-export async function fetchClosureExportData(closureId: string | number): Promise<Shift & { shift_pistols?: unknown[] }> {
+export async function fetchClosureExportData(closureId: string | number): Promise<any> {
   const { data: closure, error } = await supabase
     .from('shifts')
     .select('*')

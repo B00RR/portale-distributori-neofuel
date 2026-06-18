@@ -121,8 +121,9 @@ export async function showAperturaForm(stationId: number | string, userId: strin
     opener.addEventListener('success', () => {
       // Il componente mostra già un messaggio di successo con reload
       // ma possiamo aggiornare lo status nel menu se necessario
-      if (typeof (window as unknown as CustomWindow).refreshUiIcons === 'function') {
-        (window as unknown as CustomWindow).refreshUiIcons();
+      const refreshFn = (window as unknown as CustomWindow).refreshUiIcons;
+      if (typeof refreshFn === 'function') {
+        refreshFn();
       }
     });
 
