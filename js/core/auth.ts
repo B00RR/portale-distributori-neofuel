@@ -322,15 +322,18 @@ export function setupLoginForm(): void {
         role: userData.role || normalizeUserRole(authData?.user?.user_metadata?.role)
       };
 
-      // [TESTBILITY] Allow role override via query param for E2E testing
-      const urlParams = new URLSearchParams(window.location.search);
-      const testRole = urlParams.get('test_role');
-      if (testRole && (testRole === 'operator' || testRole === 'admin')) {
-        const validRole: UserRole = testRole === 'admin' ? 'admin' : 'operator';
-        loggedUser.role = validRole;
+      // [TESTBILITY] Allow role override via query param for E2E testing (dev-only)
+      if (import.meta.env.DEV) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const testRole = urlParams.get('test_role');
+        if (testRole && (testRole === 'operator' || testRole === 'admin')) {
+          const validRole: UserRole = testRole === 'admin' ? 'admin' : 'operator';
+          loggedUser.role = validRole;
+        }
       }
 
       // SECURITY: Clean URL to remove any credentials that may have leaked
+      // (runs in all environments, not just dev)
       if (window.location.search || window.location.hash) {
         const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);

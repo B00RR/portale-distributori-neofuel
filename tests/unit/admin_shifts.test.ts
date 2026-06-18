@@ -23,6 +23,21 @@ vi.mock('../../js/core/api.js', () => {
         supabase: {
             from: vi.fn(() => query),
             rpc: vi.fn(() => Promise.resolve({ data: null, error: null }))
+        },
+        Cache: {
+            getOrFetch: vi.fn((key, fetchFn) => fetchFn()),
+            invalidate: vi.fn(),
+            invalidateByPrefix: vi.fn(),
+            clear: vi.fn(),
+            get: vi.fn(),
+            set: vi.fn(),
+            getStats: vi.fn(() => ({ total: 0, valid: 0, expired: 0 }))
+        },
+        CACHE_KEYS: {
+            STATIONS: 'stations',
+            CUSTOMERS: 'customers',
+            FUEL_TYPES: 'fuel_types',
+            STATION_PREFIX: 'station_'
         }
     };
 });

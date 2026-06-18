@@ -44,7 +44,24 @@ const { mockSupabase, mockCharts, mockUI, mockConfig, mockBusinessLogic, mockEng
 });
 
 // 2. Mock modules
-vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
+vi.mock('../../js/core/api.js', () => ({
+    supabase: mockSupabase,
+    Cache: {
+        getOrFetch: vi.fn((key, fetchFn) => fetchFn()),
+        invalidate: vi.fn(),
+        invalidateByPrefix: vi.fn(),
+        clear: vi.fn(),
+        get: vi.fn(),
+        set: vi.fn(),
+        getStats: vi.fn(() => ({ total: 0, valid: 0, expired: 0 }))
+    },
+    CACHE_KEYS: {
+        STATIONS: 'stations',
+        CUSTOMERS: 'customers',
+        FUEL_TYPES: 'fuel_types',
+        STATION_PREFIX: 'station_'
+    }
+}));
 vi.mock('../../js/admin/dashboard-charts.js', () => mockCharts);
 vi.mock('../../js/ui/ui.js', () => mockUI);
 vi.mock('../../js/core/auth.js', () => ({ loggedUser: { user_id: 'test-user-id' } }));

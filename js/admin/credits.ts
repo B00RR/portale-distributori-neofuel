@@ -1,4 +1,4 @@
-import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { Validators, validateForm, formatErrorMessages } from '../shared/validators.js';
@@ -53,21 +53,27 @@ export async function showCreditiOverview(
   }
 
   try {
-    let query = supabase.from('crediti_clienti')
-      .select(`
-                *,
-                fuel_stations(station_name)
-            `);
+    // Determine cache key based on stationId
+    const cacheKey = stationId ? `${CACHE_KEYS.CUSTOMERS}_station_${stationId}` : CACHE_KEYS.CUSTOMERS;
 
-    if (stationId) {
-      query = query.eq('station_id', stationId);
-    }
+    const rawCustomers = await Cache.getOrFetch(cacheKey, async () => {
+      let query = supabase.from('crediti_clienti')
+        .select(`
+                  *,
+                  fuel_stations(station_name)
+              `);
 
-    query = query.order('cliente');
+      if (stationId) {
+        query = query.eq('station_id', stationId);
+      }
 
-    const { data: rawCustomers, error } = await query;
+      query = query.order('cliente');
 
-    if (error) { throw error; }
+      const { data, error } = await query;
+
+      if (error) { throw error; }
+      return data;
+    }, 10 * 60 * 1000); // Cache for 10 minutes
 
     const customers = rawCustomers as CreditCustomer[];
 
@@ -251,6 +257,11 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
           }]));
         }
         closeModal();
+
+        // Invalidate cache
+        Cache.invalidate(CACHE_KEYS.CUSTOMERS);
+        Cache.invalidateByPrefix(`${CACHE_KEYS.CUSTOMERS}_station_`);
+
         Toast.show(isEdit ? 'Cliente aggiornato' : 'Cliente creato', 'success');
         refreshCreditsTab();
       } catch (err) {
@@ -266,6 +277,11 @@ async function deleteCustomer(customerId: number): Promise<void> {
   if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) { return; }
   try {
     await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
+
+    // Invalidate cache
+    Cache.invalidate(CACHE_KEYS.CUSTOMERS);
+    Cache.invalidateByPrefix(`${CACHE_KEYS.CUSTOMERS}_station_`);
+
     Toast.show('Cliente eliminato', 'success');
     refreshCreditsTab();
   } catch (err) {

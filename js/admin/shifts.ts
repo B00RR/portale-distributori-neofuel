@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { supabase } from '../core/api.js';
+import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { handleError } from '../shared/error-handler.js';
 import { store } from '../shared/state.js';
@@ -421,7 +421,11 @@ export async function openBulkExportModal(): Promise<void> {
   // Fetch stations for dropdown
   let stationsHtml = '<option value="all">Tutte le stazioni</option>';
   try {
-    const { data: stations } = await supabase.from('fuel_stations').select('station_id, station_name');
+    const stations = await Cache.getOrFetch(CACHE_KEYS.STATIONS, async () => {
+      const { data, error } = await supabase.from('fuel_stations').select('station_id, station_name');
+      if (error) { throw error; }
+      return data;
+    }, 10 * 60 * 1000);
     if (stations) {
       stations.forEach((s: any) => {
         stationsHtml += `<option value="${s.station_id}">${escapeHtml(s.station_name)}</option>`;

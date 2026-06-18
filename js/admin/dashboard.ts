@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { supabase } from '../core/api.js';
+import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
@@ -387,14 +387,24 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
   const { data: closuresData } = await closuresQuery;
 
   // Recupera tutti i distributori (o solo quello filtrato)
-  let stationsQuery = supabase
-    .from('fuel_stations')
-    .select('station_id, station_name')
-    .order('station_name');
-
-  if (numericStationId) { stationsQuery = stationsQuery.eq('station_id', numericStationId); }
-
-  const { data: allStations } = await stationsQuery;
+  const allStations = numericStationId
+    ? await Cache.getOrFetch(`${CACHE_KEYS.STATIONS}_filtered_${numericStationId}`, async () => {
+      const { data, error } = await supabase
+        .from('fuel_stations')
+        .select('station_id, station_name')
+        .eq('station_id', numericStationId)
+        .order('station_name');
+      if (error) { throw error; }
+      return data;
+    }, 10 * 60 * 1000)
+    : await Cache.getOrFetch(CACHE_KEYS.STATIONS, async () => {
+      const { data, error } = await supabase
+        .from('fuel_stations')
+        .select('station_id, station_name')
+        .order('station_name');
+      if (error) { throw error; }
+      return data;
+    }, 10 * 60 * 1000);
 
   // Raggruppa vendite per data e distributore
   const salesByDateAndStation: Record<string, Record<number, number>> = {};
