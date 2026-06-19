@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // 1. Hoisted mocks
-const { mockOfflineDB, mockToast } = vi.hoisted(() => ({
-    mockOfflineDB: { enqueue: vi.fn().mockResolvedValue(true) },
+const { mockQueueAction, mockToast } = vi.hoisted(() => ({
+    mockQueueAction: vi.fn().mockResolvedValue('queued-id'),
     mockToast: { show: vi.fn() }
 }));
 
@@ -10,7 +10,7 @@ const { mockOfflineDB, mockToast } = vi.hoisted(() => ({
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-vi.mock('../../js/core/offline-db.js', () => ({ offlineDB: mockOfflineDB }));
+vi.mock('../../js/core/offline-queue.js', () => ({ queueAction: mockQueueAction }));
 vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
 
 import { safeSupabaseQuery } from '../../js/core/api.js';
@@ -50,19 +50,34 @@ describe('API Module', () => {
         await expect(safeSupabaseQuery(queryFn as unknown as Parameters<typeof safeSupabaseQuery>[0])).rejects.toThrow('DB Fail');
     });
 
-    it('safeSupabaseQuery should handle offline mutation', async () => {
-        // Simulate Offline
+    it('safeSupabaseQuery should not queue an offline mutation without a structured action', async () => {
         Object.defineProperty(global.navigator, 'onLine', { value: false, writable: true });
 
         const mockRes = { error: { message: 'Fetch failed' }, data: null };
-        // Mutation function (detected by .toString() usually or if error is fetch related)
         const mutationFn = () => Promise.resolve(mockRes);
-        mutationFn.toString = () => "function() { return supabase.from('x').insert(...) }";
 
-        const result = await safeSupabaseQuery(mutationFn as unknown as Parameters<typeof safeSupabaseQuery>[0]);
+        await expect(safeSupabaseQuery(mutationFn as unknown as Parameters<typeof safeSupabaseQuery>[0])).rejects.toThrow('Fetch failed');
+        expect(mockQueueAction).not.toHaveBeenCalled();
+    });
+
+    it('safeSupabaseQuery should queue only structured offline actions', async () => {
+        Object.defineProperty(global.navigator, 'onLine', { value: false, writable: true });
+
+        const mockRes = { error: { message: 'Fetch failed' }, data: null };
+        const mutationFn = () => Promise.resolve(mockRes);
+        const offlineAction = {
+            type: 'voucher_redeem' as const,
+            payload: { voucherCode: 'ABCD1234', stationId: '1', operatorId: 'operator-auth-id' }
+        };
+
+        const result = await safeSupabaseQuery(
+            mutationFn as unknown as Parameters<typeof safeSupabaseQuery>[0],
+            'Errore nella query',
+            offlineAction
+        );
 
         expect((result as Partial<typeof result> & { offline: boolean }).offline).toBe(true);
-        expect(mockOfflineDB.enqueue).toHaveBeenCalled();
+        expect(mockQueueAction).toHaveBeenCalledWith(offlineAction.type, offlineAction.payload);
         expect(mockToast.show).toHaveBeenCalled();
     });
 });

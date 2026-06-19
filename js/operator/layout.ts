@@ -5,7 +5,7 @@
 
 import { getStationName } from '../core/api.js';
 import { clearSession } from '../core/auth.js';
-import { offlineDB } from '../core/offline-db.js';
+import { getPendingCount } from '../core/offline-queue.js';
 import { store, User } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
 
@@ -192,7 +192,7 @@ export async function updateTurnoButton(
  */
 async function updateSyncBadge(): Promise<void> {
   try {
-    const count = await offlineDB.getQueueCount();
+    const count = await getPendingCount();
     const badge = document.getElementById('sync-indicator');
     const countSpan = document.getElementById('sync-count');
     if (badge && countSpan) {

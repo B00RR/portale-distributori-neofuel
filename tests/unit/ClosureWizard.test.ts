@@ -32,10 +32,9 @@ vi.mock('../../js/ui/toast.js', () => ({
 }));
 
 // Mock offline queue
-vi.mock('../../js/core/offline-db.js', () => ({
-    offlineDB: {
-        enqueue: vi.fn(() => Promise.resolve())
-    }
+vi.mock('../../js/core/offline-queue.js', () => ({
+    isOffline: vi.fn(() => false),
+    queueAction: vi.fn(() => Promise.resolve('queued-id'))
 }));
 
 // Mock business rules schema to avoid HTTPS CDN import

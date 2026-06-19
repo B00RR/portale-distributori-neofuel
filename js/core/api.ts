@@ -6,11 +6,11 @@
 import { createClient, SupabaseClient, type PostgrestError } from '@supabase/supabase-js';
 
 import type { Database } from '../../supabase/database.types.js';
-
 import { Cache, CACHE_KEYS } from '../utils/cache.js';
 
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 import { logger } from './logger.js';
+import type { QueuedAction } from './offline-queue.js';
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -31,11 +31,15 @@ interface PostgrestErrorExt extends PostgrestError {
 
 export type QueryFunction<T = unknown> = () => PromiseLike<{ data: T | null; error: PostgrestError | null; offline?: boolean }>;
 
+export interface OfflineQueueRequest {
+    type: QueuedAction['type'];
+    payload: Record<string, unknown>;
+}
+
 // ========== SUPABASE CLIENT ==========
 
 // Standard client (anon key) - Singleton pattern to avoid multiple instances during HMR
 declare global {
-  // eslint-disable-next-line no-var
   var __supabaseClient: AppSupabaseClient | undefined;
 }
 
@@ -53,36 +57,24 @@ if (!globalThis.__supabaseClient) {
  */
 export async function safeSupabaseQuery<T = unknown>(
   queryFn: QueryFunction<T>,
-  errorMessage: string = 'Errore nella query'
+  errorMessage: string = 'Errore nella query',
+  offlineAction?: OfflineQueueRequest
 ): Promise<SupabaseQueryResult<T>> {
-  // Detect if the query is a mutation (rough but effective for PostgREST query builder)
-  const queryStr = queryFn.toString();
-  const isMutation =
-    queryStr.includes('.insert') ||
-    queryStr.includes('.update') ||
-    queryStr.includes('.upsert') ||
-    queryStr.includes('.delete');
-
   try {
     const result = await queryFn();
     if (result.error) {
       const extError = result.error as PostgrestErrorExt;
-      // If it's a network error (not permission/logic error) and we're offline or server not responding
-      if (isMutation && (!navigator.onLine || (extError.status ?? -1) === 0 || (extError.status ?? 0) >= 500 || (extError.statusCode ?? -1) === 0 || (extError.statusCode ?? 0) >= 500)) {
-        await handleOfflineMutation(queryFn);
+      if (offlineAction && isOfflineNetworkError(extError)) {
+        await queueStructuredOfflineAction(offlineAction);
         return { data: null, error: null, offline: true };
       }
       throw new Error(result.error.message || errorMessage);
     }
     return result as SupabaseQueryResult<T>;
   } catch (err) {
-    // Fallback for catastrophic errors (like fetch failed)
-    if (
-      isMutation &&
-      (!navigator.onLine || (err instanceof Error && err.message.toLowerCase().includes('fetch')))
-    ) {
+    if (offlineAction && isOfflineThrownError(err)) {
       try {
-        await handleOfflineMutation(queryFn);
+        await queueStructuredOfflineAction(offlineAction);
         return { data: null, error: null, offline: true };
       } catch (queueErr) {
         logger.error('api.offlineQueue', queueErr);
@@ -93,32 +85,32 @@ export async function safeSupabaseQuery<T = unknown>(
   }
 }
 
-/**
- * Attempts to extract data from query function to save offline
- * @param _queryFn - The query function to queue (unused in current implementation)
- */
-async function handleOfflineMutation(_queryFn: QueryFunction<unknown>): Promise<void> {
-  const { offlineDB } = await import('./offline-db.js');
+function isOfflineNetworkError(error: PostgrestErrorExt): boolean {
+  return (
+    !navigator.onLine ||
+    (error.status ?? -1) === 0 ||
+    (error.status ?? 0) >= 500 ||
+    (error.statusCode ?? -1) === 0 ||
+    (error.statusCode ?? 0) >= 500
+  );
+}
+
+function isOfflineThrownError(err: unknown): boolean {
+  return (
+    !navigator.onLine ||
+    (err instanceof Error && err.message.toLowerCase().includes('fetch'))
+  );
+}
+
+async function queueStructuredOfflineAction(action: OfflineQueueRequest): Promise<void> {
+  const { queueAction } = await import('./offline-queue.js');
   const { Toast } = await import('../ui/toast.js');
+  await queueAction(action.type, action.payload);
 
-  // NOTE: Extracting exact parameters from an anonymous function is complex.
-  // In an ideal version, we would pass a structured object to safeSupabaseQuery.
-  // For now, we save the failure for manual/automatic retry when back online.
-  // In Neofuel, most mutations are in operator/vouchers.js and operator/extra-income.js
-
-  // Show warning to user
   Toast.show(
-    'Connessione assente. L\'operazione è stata salvata localmente e verrà sincronizzata appena possibile.',
+    'Connessione assente. L\'operazione e\' stata salvata localmente e verra\' sincronizzata appena possibile.',
     'warning'
   );
-
-  // Simplified save (here we should implement payload extraction if possible)
-  // For Neofuel, we'll implement a more evolved interceptor or refactor critical calls.
-  await offlineDB.enqueue({
-    type: 'mutation_retry',
-    description: 'Operazione database in attesa'
-    // queryFn: queryFn.toString() // May not be directly re-executable
-  });
 }
 
 /**

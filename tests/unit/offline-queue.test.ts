@@ -95,5 +95,30 @@ describe('Offline Queue Module', () => {
         const result = await offlineQueue.syncPendingActions();
         expect(result.success).toBe(1);
         expect(executor).toHaveBeenCalled();
+        expect(await offlineQueue.getPendingActions()).toHaveLength(0);
+    });
+
+    it('should keep queued actions when executor fails', async () => {
+        const executor = vi.fn().mockResolvedValue(false);
+        offlineQueue.registerExecutor('voucher_redeem', executor);
+
+        await offlineQueue.queueAction('voucher_redeem', { voucherCode: 'ABCD1234' });
+
+        const result = await offlineQueue.syncPendingActions();
+        const pending = await offlineQueue.getPendingActions();
+
+        expect(result).toEqual({ success: 0, failed: 1 });
+        expect(pending).toHaveLength(1);
+        expect(pending[0].retryCount).toBe(1);
+    });
+
+    it('should keep queued actions when no executor is registered', async () => {
+        await offlineQueue.queueAction('shift_close', { shiftId: '1' });
+
+        const result = await offlineQueue.syncPendingActions();
+        const pending = await offlineQueue.getPendingActions();
+
+        expect(result).toEqual({ success: 0, failed: 1 });
+        expect(pending).toHaveLength(1);
     });
 });
