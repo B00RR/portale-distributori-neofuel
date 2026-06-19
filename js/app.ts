@@ -6,6 +6,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { showAdminArea } from './admin.js';
 import { initAnalytics, trackLogin } from './core/analytics.js';
 import { supabase } from './core/api.js';
+import type { Json } from './core/api.js';
 import {
   initLoginElements, loadSession, setLoggedUser, setOnLoginSuccess,
   handlePasswordReset, requestPasswordReset
@@ -14,7 +15,6 @@ import { LoggedUserData } from './core/auth.js';
 import { logger } from './core/logger.js';
 import { showOperatorMenu } from './operator.js';
 import { store, User as StateUser } from './shared/state.js';
-import type { Json } from './core/api.js';
 import { CustomWindow } from './types.js';
 import { Toast } from './ui/toast.js';
 import './ui/ui-settings-panel.js';
@@ -138,7 +138,7 @@ async function initializeApp(): Promise<void> {
 
     registerExecutor('shift_close', async (action) => {
       const payload = action.payload as {
-        shiftId: string;
+        shiftId: number;
         stationId: number;
         closingData: { [key: string]: unknown };
         isFinal: boolean;

@@ -1616,7 +1616,7 @@ export type Database = {
           p_closing_data: Json
           p_final_counters?: Json
           p_is_final: boolean
-          p_shift_id: string
+          p_shift_id: number
           p_station_id: number
           p_tank_usage?: Json
         }

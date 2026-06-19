@@ -2,11 +2,11 @@ import { html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 
 import { supabase } from '../../core/api.js';
+import type { Json } from '../../core/api.js';
 import { BusinessLogicManager } from '../../core/business-logic-manager.js';
 import { type BusinessRules, DEFAULT_BUSINESS_RULES } from '../../core/business-rules-schema.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { Pistola, Island, Shift } from '../../types.js';
-import type { Json } from '../../core/api.js';
 import { formatEuro } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
 
@@ -532,7 +532,7 @@ export class ClosureWizard extends BaseComponent {
       if (isOffline()) {
         try {
           await queueAction('shift_close', {
-            shiftId: String(activeOpeningId),
+            shiftId: activeOpeningId,
             stationId: this.numericStationId,
             closingData: dataJson,
             isFinal,
@@ -551,7 +551,7 @@ export class ClosureWizard extends BaseComponent {
         const closingDataJson: Json = dataJson;
         const finalCountersJson: Json = this.includeCounters ? this.finalCounters : null;
         const { data: res, error } = await supabase.rpc('submit_shift_closure', {
-          p_shift_id: String(activeOpeningId), p_station_id: this.numericStationId, p_closing_data: closingDataJson,
+          p_shift_id: activeOpeningId, p_station_id: this.numericStationId, p_closing_data: closingDataJson,
           p_is_final: isFinal, p_final_counters: finalCountersJson, p_tank_usage: []
         });
         if (error || (res && isRpcResult(res) && !res.success)) {throw new Error(error?.message || getRpcError(res));}
