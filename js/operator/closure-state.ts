@@ -5,7 +5,7 @@ import { MovimentoCassa, Pistola, Shift } from '../types.js';
 
 export interface ClosureState {
     step: number;
-    data: any;
+    data: Record<string, unknown>;
 
     // Dati del turno
     activeOpening: Shift | null;
@@ -14,17 +14,17 @@ export interface ClosureState {
 
     // Dati caricati
     pistole: Pistola[];
-    prezzi: any;
+    prezzi: Record<string, number> | null;
     movimenti: MovimentoCassa[];
     openingCounters: Record<number, number>;
     allowPartialClosure: boolean;
-    tankLinks: any[];
+    tankLinks: Record<string, unknown>[];
 
     // Contatori inseriti dall'utente
     closureCounters: Record<number, number>;
 
     // Calcoli
-    calculations: any;
+    calculations: Record<string, unknown> | null;
 }
 
 /**
@@ -101,6 +101,6 @@ export function setClosureCounters(counters: Record<number, number>): void {
 /**
  * Salva i calcoli
  */
-export function setCalculations(calculations: any): void {
+export function setCalculations(calculations: Record<string, unknown>): void {
   closureState.calculations = calculations;
 }

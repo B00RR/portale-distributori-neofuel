@@ -7,7 +7,7 @@ import { Customer } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml } from '../utils/utils.js';
+import { escapeHtml, getErrorMessage } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
@@ -207,8 +207,8 @@ function renderNewCustomerForm(container: HTMLElement, stationId: number | strin
         // Procedi con il form della fattura
         renderInvoiceForm(container, stationId, userId, clienteId, nome || telefono || 'Cliente');
 
-      } catch (err: any) {
-        Toast.show('Errore salvataggio cliente: ' + err.message, 'error');
+      } catch (err: unknown) {
+        Toast.show('Errore salvataggio cliente: ' + getErrorMessage(err), 'error');
       }
     });
   }
@@ -247,7 +247,7 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
   if (!searchInput || !suggestionsDiv || !customerIdInput) { return; }
 
   // Autocompletamento
-  let searchTimeout: any;
+  let searchTimeout: ReturnType<typeof setTimeout>;
   searchInput.addEventListener('input', async (e) => {
     const query = (e.target as HTMLInputElement).value.trim();
 
@@ -270,7 +270,7 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
         if (error) { throw error; }
 
         if (customers && customers.length > 0) {
-          setSafeHTML(suggestionsDiv, customers.map((c: any) => `
+          setSafeHTML(suggestionsDiv, customers.map((c) => `
                         <div class="suggestion-item" data-id="${c.id}" data-name="${escapeHtml(c.nome || c.telefono || 'Cliente')}" style="padding: 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s;"
                              onmouseover="this.style.background='#f8fafc'" 
                              onmouseout="this.style.background='white'">
@@ -343,8 +343,8 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
 
         // Procedi con il form della fattura
         renderInvoiceForm(container, stationId, userId, customerId, (customer as Customer).nome || (customer as Customer).telefono || 'Cliente');
-      } catch (err: any) {
-        Toast.show('Errore recupero cliente: ' + err.message, 'error');
+      } catch (err: unknown) {
+        Toast.show('Errore recupero cliente: ' + getErrorMessage(err), 'error');
       }
     });
   }
@@ -480,8 +480,8 @@ function renderInvoiceForm(container: HTMLElement, stationId: number | string, u
         closeModal();
         showInfoModal(`Richiesta fattura per ${customerName} inviata correttamente.`);
 
-      } catch (err: any) {
-        Toast.show('Errore salvataggio: ' + err.message, 'error');
+      } catch (err: unknown) {
+        Toast.show('Errore salvataggio: ' + getErrorMessage(err), 'error');
       }
     });
   }
