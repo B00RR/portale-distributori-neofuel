@@ -48,4 +48,14 @@ describe('Admin Prices Module', () => {
         await showPricesTab(container, null);
         expect(container.innerHTML).toContain('Gestione Prezzi');
     });
+
+    it('disables the "prossima chiusura" validity option pending backend support (#67)', async () => {
+        await showPrezziAdminModal(1);
+        const prossima = document.querySelector('input[name="validita"][value="prossima"]') as HTMLInputElement | null;
+        const ora = document.querySelector('input[name="validita"][value="ora"]') as HTMLInputElement | null;
+        expect(prossima).not.toBeNull();
+        expect(prossima!.disabled).toBe(true);
+        expect(ora!.disabled).toBe(false);
+        expect(ora!.checked).toBe(true);
+    });
 });

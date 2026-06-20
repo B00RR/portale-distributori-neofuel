@@ -2370,6 +2370,17 @@ button:active {
   font-weight: 600;
 }
 
+.validita-option.disabled span {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f1f5f9;
+}
+
+.validita-option.disabled:hover span {
+  border-color: var(--border-color);
+  background: #f1f5f9;
+}
+
 /* Input prezzi senza frecce numeriche */
 .price-input::-webkit-outer-spin-button,
 .price-input::-webkit-inner-spin-button {
