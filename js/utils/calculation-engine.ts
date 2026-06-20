@@ -74,6 +74,7 @@ const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
     }
     const resolvedArgs: Record<string, any> = {};
     for (const [key, val] of Object.entries(args)) {
+      // eslint-disable-next-line security/detect-object-injection -- key comes from Object.entries() of a local DSL arg object, written to a fresh local Record
       resolvedArgs[key] = evaluate(val, ctx);
     }
     return fn(resolvedArgs, ctx);
@@ -241,12 +242,19 @@ class CalculationEngine {
 }
 
 // Helpers ------------------------------------------------------------
+// Keys that must never be traversed: walking them would expose the prototype
+// chain and enable prototype-pollution style reads through a crafted path.
+const FORBIDDEN_PATH_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
+
 function getByPath(obj: any, path: string): any {
   if (!path) { return obj; }
   const segments = path.split('.');
   let current = obj;
   for (const segment of segments) {
     if (current === null || current === undefined) { return undefined; }
+    if (FORBIDDEN_PATH_SEGMENTS.has(segment)) { return undefined; }
+    if (!Object.prototype.hasOwnProperty.call(current, segment)) { return undefined; }
+    // eslint-disable-next-line security/detect-object-injection -- segment is guarded above (forbidden keys rejected, own-property checked)
     current = current[segment];
   }
   return current;

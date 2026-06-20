@@ -416,6 +416,7 @@ function populateClosureSheet(sheet: any, templateData: ExportMetrics): void {
   const activeCount = Math.min(sections.length, ISLAND_TEMPLATE_BLOCKS.length);
 
   ISLAND_TEMPLATE_BLOCKS.forEach((block, index) => {
+    // eslint-disable-next-line security/detect-object-injection -- index is the forEach loop index (numeric, in-bounds)
     const section = sections[index];
     const isActive = index < activeCount && !!section;
 
@@ -435,6 +436,7 @@ function populateClosureSheet(sheet: any, templateData: ExportMetrics): void {
 
     const pistole = section.pistole || [];
     for (let i = 0; i < block.pistolaRows; i++) {
+      // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
       fillPistolaRow(block.startRow + 2 + i, pistole[i] || null);
     }
   });
@@ -505,6 +507,7 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
     }
 
     for (let i = 0; i < closuresData.length; i++) {
+      // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
       const data = closuresData[i];
       if (!data) {continue;}
 
@@ -546,6 +549,7 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
     const zip = new customWindow.JSZip();
 
     for (let i = 0; i < closuresData.length; i++) {
+      // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
       const data = closuresData[i];
       if (!data) {continue;}
 

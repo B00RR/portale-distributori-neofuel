@@ -128,6 +128,7 @@ export function base64ToArrayBuffer(base64: string | null | undefined): ArrayBuf
   const len = binary.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
+    // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric index into a fixed-length Uint8Array
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes.buffer;
