@@ -220,16 +220,22 @@ export async function showDashboard(
       // Assign Venduto
       if (typeof kpiVendutoRes === 'number') {
         vendutoKpiValue = kpiVendutoRes;
-      } else if (kpiVendutoRes && typeof kpiVendutoRes === 'object' && typeof kpiVendutoRes.value === 'number') {
-        vendutoKpiValue = kpiVendutoRes.value;
+      } else if (kpiVendutoRes && typeof kpiVendutoRes === 'object') {
+        const value = (kpiVendutoRes as Record<string, unknown>).value;
+        if (typeof value === 'number') {
+          vendutoKpiValue = value;
+        }
       }
 
       // Assign Erogato
       if (kpiErogatoRes && typeof kpiErogatoRes === 'object') {
+        const erogato = kpiErogatoRes as Record<string, number | undefined>;
+        const litriBenzina = erogato.litriBenzina ?? totalLitriBenzina;
+        const litriGasolio = erogato.litriGasolio ?? totalLitriGasolio;
         erogatoKpiData = {
-          litriBenzina: kpiErogatoRes.litriBenzina ?? totalLitriBenzina,
-          litriGasolio: kpiErogatoRes.litriGasolio ?? totalLitriGasolio,
-          totale: (kpiErogatoRes.litriBenzina ?? totalLitriBenzina) + (kpiErogatoRes.litriGasolio ?? totalLitriGasolio)
+          litriBenzina,
+          litriGasolio,
+          totale: litriBenzina + litriGasolio
         };
       }
 

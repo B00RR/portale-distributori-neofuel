@@ -18,18 +18,43 @@ interface CalcModuleRow {
   }[] | null;
 }
 
-export type OperationHandler = (node: any, ctx: any, evaluate: (node: any, ctx: any) => any, engine: CalculationEngine) => any;
+/** A value flowing through the calculation engine — genuinely dynamic data. */
+export type CalcValue = unknown;
+/** The evaluation context passed to a compiled scope. */
+export type CalcContext = unknown;
+/** A DSL operation node: an object carrying an `op` discriminator plus operation-specific fields. */
+export type DslOpNode = { op?: string } & Record<string, unknown>;
+/** A DSL node is either an operation node or a literal value. */
+export type DslNode = CalcValue;
+/** Recursive evaluator handed to operation handlers. */
+export type EvaluateFn = (node: DslNode, ctx: CalcContext) => CalcValue;
+/** A compiled scope: takes a context and returns the computed value. */
+export type CompiledScope = (context: CalcContext) => CalcValue;
+/** A custom function registered against the engine. */
+export type CustomFunction = (args: Record<string, unknown>, ctx: CalcContext) => CalcValue;
+
+export type OperationHandler = (
+  node: DslOpNode,
+  ctx: CalcContext,
+  evaluate: EvaluateFn,
+  engine: CalculationEngine
+) => CalcValue;
+
+// Coercizione numerica che preserva la semantica `Number(x || 0)`.
+function toNumber(value: unknown): number {
+  return Number((value as number) || 0);
+}
 
 // Limitiamo le operazioni consentite per sicurezza.
 const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
   constant: ({ value }) => value,
-  input: ({ path }, ctx) => path ? getByPath(ctx, path) : ctx,
+  input: ({ path }, ctx) => (path ? getByPath(ctx, String(path)) : ctx),
   sum: ({ source, selector }, ctx) => {
-    const data = source ? getByPath(ctx, source) : ctx;
+    const data = source ? getByPath(ctx, String(source)) : ctx;
     if (!Array.isArray(data)) { return 0; }
-    return data.reduce((acc, item) => {
+    return data.reduce((acc: number, item) => {
       if (selector) {
-        return acc + (Number(getByPath(item, selector)) || 0);
+        return acc + (Number(getByPath(item, String(selector))) || 0);
       }
       return acc + (Number(item) || 0);
     }, 0);
@@ -37,12 +62,12 @@ const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
   multiply: ({ value, by }, ctx, evaluate) => {
     const left = evaluate(value, ctx);
     const right = evaluate(by, ctx);
-    return Number(left || 0) * Number(right || 0);
+    return toNumber(left) * toNumber(right);
   },
   subtract: ({ minuend, subtrahend }, ctx, evaluate) => {
     const a = evaluate(minuend, ctx);
     const b = evaluate(subtrahend, ctx);
-    return Number(a || 0) - Number(b || 0);
+    return toNumber(a) - toNumber(b);
   },
   divide: ({ dividend, divisor, precision = 2 }, ctx, evaluate) => {
     const a = Number(evaluate(dividend, ctx) || 0);
@@ -58,22 +83,25 @@ const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
     }
     return elseNode ? evaluate(elseNode, ctx) : null;
   },
-  pipeline: ({ steps = [] }, ctx, evaluate) => {
-    return steps.reduce((acc: any, step: any) => evaluate(step, acc), ctx);
+  pipeline: ({ steps }, ctx, evaluate) => {
+    const list = Array.isArray(steps) ? steps : [];
+    return list.reduce((acc, step) => evaluate(step, acc), ctx);
   },
   map: ({ source, iteratee }, ctx, evaluate) => {
-    const data = source ? getByPath(ctx, source) : ctx;
+    const data = source ? getByPath(ctx, String(source)) : ctx;
     if (!Array.isArray(data)) { return []; }
     return data.map(item => evaluate(iteratee, item));
   },
-  function: ({ name, args = {} }, ctx, evaluate, engine) => {
-    const fn = engine.customFunctions.get(name);
+  function: ({ name, args }, ctx, evaluate, engine) => {
+    const fnName = String(name);
+    const fn = engine.customFunctions.get(fnName);
     if (!fn) {
-      console.warn(`Funzione custom "${name}" non registrata`);
+      console.warn(`Funzione custom "${fnName}" non registrata`);
       return null;
     }
-    const resolvedArgs: Record<string, any> = {};
-    for (const [key, val] of Object.entries(args)) {
+    const resolvedArgs: Record<string, unknown> = {};
+    const argEntries = args && typeof args === 'object' ? Object.entries(args as Record<string, unknown>) : [];
+    for (const [key, val] of argEntries) {
       // eslint-disable-next-line security/detect-object-injection -- key comes from Object.entries() of a local DSL arg object, written to a fresh local Record
       resolvedArgs[key] = evaluate(val, ctx);
     }
@@ -93,21 +121,21 @@ export const CALCULATION_SCOPES = {
 };
 
 class CalculationEngine {
-  private cache: Map<string, (ctx: any) => any> = new Map();
-  private pending: Map<string, Promise<((ctx: any) => any) | null>> = new Map();
-  private fallbacks: Map<string, (ctx: any) => any> = new Map();
-  public customFunctions: Map<string, (args: any, ctx: any) => any> = new Map();
+  private cache: Map<string, CompiledScope> = new Map();
+  private pending: Map<string, Promise<CompiledScope | null>> = new Map();
+  private fallbacks: Map<string, CompiledScope> = new Map();
+  public customFunctions: Map<string, CustomFunction> = new Map();
   public operations: Map<string, OperationHandler> = new Map(Object.entries(DEFAULT_OPERATIONS));
   private lastFetchTime: Map<string, number> = new Map();
   private staleAfterMs: number = 5 * 60 * 1000; // 5 minuti
 
   constructor() { }
 
-  public registerFallback(scope: string, evaluator: (ctx: any) => any): void {
+  public registerFallback(scope: string, evaluator: CompiledScope): void {
     this.fallbacks.set(scope, evaluator);
   }
 
-  public registerFunction(name: string, fn: (args: any, ctx: any) => any): void {
+  public registerFunction(name: string, fn: CustomFunction): void {
     this.customFunctions.set(name, fn);
   }
 
@@ -117,7 +145,7 @@ class CalculationEngine {
 
   /**
      * Invalidate cache for a scope or all
-     * @param {string|null} scope 
+     * @param {string|null} scope
      */
   public invalidate(scope: string | null = null): void {
     if (scope) {
@@ -131,7 +159,7 @@ class CalculationEngine {
     this.pending.clear();
   }
 
-  public async run(scope: string, context: any = {}, options: { forceRefresh?: boolean } = {}): Promise<any> {
+  public async run(scope: string, context: CalcContext = {}, options: { forceRefresh?: boolean } = {}): Promise<CalcValue> {
     const compiled = await this.loadScope(scope, options.forceRefresh);
     if (!compiled) {
       const fallback = this.fallbacks.get(scope) || this.fallbacks.get(CALCULATION_SCOPES.DEFAULT);
@@ -142,7 +170,7 @@ class CalculationEngine {
     return compiled(context);
   }
 
-  public async loadScope(scope: string, force: boolean = false): Promise<((ctx: any) => any) | null> {
+  public async loadScope(scope: string, force: boolean = false): Promise<CompiledScope | null> {
     const now = Date.now();
     const lastFetch = this.lastFetchTime.get(scope) || 0;
     if (!force && this.cache.has(scope) && now - lastFetch < this.staleAfterMs) {
@@ -169,7 +197,7 @@ class CalculationEngine {
     return fetchPromise;
   }
 
-  private async fetchAndCompile(scope: string): Promise<((ctx: any) => any) | null> {
+  private async fetchAndCompile(scope: string): Promise<CompiledScope | null> {
     try {
       const { data, error } = await safeSupabaseQuery<CalcModuleRow | null>(() =>
         supabase
@@ -206,7 +234,7 @@ class CalculationEngine {
         return null;
       }
 
-      const parsedDsl = typeof activeVersion.dsl === 'string'
+      const parsedDsl: DslNode = typeof activeVersion.dsl === 'string'
         ? JSON.parse(activeVersion.dsl)
         : activeVersion.dsl;
 
@@ -218,12 +246,12 @@ class CalculationEngine {
     }
   }
 
-  public compile(dsl: any): (context: any) => any {
-    const evaluator = (node: any, ctx: any): any => {
+  public compile(dsl: DslNode): CompiledScope {
+    const evaluator: EvaluateFn = (node, ctx) => {
       if (node === null || node === undefined) { return node; }
       if (typeof node !== 'object') { return node; }
 
-      const { op } = node;
+      const { op } = node as DslOpNode;
       if (!op) {
         console.warn("Nodo DSL senza 'op', restituisco il blob originale");
         return node;
@@ -234,10 +262,10 @@ class CalculationEngine {
         console.warn(`Operazione non supportata: ${op}`);
         return null;
       }
-      return handler(node, ctx, evaluator, this);
+      return handler(node as DslOpNode, ctx, evaluator, this);
     };
 
-    return (context: any) => evaluator(dsl, context);
+    return (context) => evaluator(dsl, context);
   }
 }
 
@@ -246,30 +274,31 @@ class CalculationEngine {
 // chain and enable prototype-pollution style reads through a crafted path.
 const FORBIDDEN_PATH_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
 
-function getByPath(obj: any, path: string): any {
+function getByPath(obj: unknown, path: string): unknown {
   if (!path) { return obj; }
   const segments = path.split('.');
-  let current = obj;
+  let current: unknown = obj;
   for (const segment of segments) {
     if (current === null || current === undefined) { return undefined; }
     if (FORBIDDEN_PATH_SEGMENTS.has(segment)) { return undefined; }
     if (!Object.prototype.hasOwnProperty.call(current, segment)) { return undefined; }
     // eslint-disable-next-line security/detect-object-injection -- segment is guarded above (forbidden keys rejected, own-property checked)
-    current = current[segment];
+    current = (current as Record<string, unknown>)[segment];
   }
   return current;
 }
 
-function truthy(value: any): boolean {
+function truthy(value: unknown): boolean {
   if (Array.isArray(value)) { return value.length > 0; }
   return !!value;
 }
 
-function validateDsl(dsl: any): void {
+function validateDsl(dsl: unknown): void {
   if (!dsl || typeof dsl !== 'object') { throw new Error('DSL non valido'); }
-  if (!dsl.op) { throw new Error("Ogni DSL deve avere la proprietà 'op'"); }
-  if (!DEFAULT_OPERATIONS[dsl.op] && dsl.op !== 'function') {
-    console.warn(`Opzione "${dsl.op}" non predefinita: assicurarsi di registrare l'operazione custom prima dell'uso.`);
+  const op = (dsl as DslOpNode).op;
+  if (!op) { throw new Error("Ogni DSL deve avere la proprietà 'op'"); }
+  if (!(op in DEFAULT_OPERATIONS) && op !== 'function') {
+    console.warn(`Opzione "${op}" non predefinita: assicurarsi di registrare l'operazione custom prima dell'uso.`);
   }
 }
 
