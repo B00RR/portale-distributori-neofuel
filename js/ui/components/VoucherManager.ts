@@ -4,11 +4,11 @@ import { property, state } from 'lit/decorators.js';
 import { supabase } from '../../core/api.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { validateVoucher } from '../../core/rules.js';
+import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
 import { createRateLimiter } from '../../utils/utils.js';
 import { formatEuro, formatDate } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
 
-import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
 
 import { BaseComponent } from './BaseComponent.js';
 declare const window: Window & { Html5Qrcode?: Html5QrcodeConstructor };
@@ -319,7 +319,7 @@ export class VoucherManager extends BaseComponent {
         this.activeVoucher = {
           code: code,
           amount: 0, // Will be determined when synced
-          voucher_batches: { customer_name: 'Verifica al ritorno online' },
+          voucher_batches: { customer_name: 'Verifica al ritorno online' }
         };
         this.mode = 'verify';
         Toast.show('Modalità offline: il voucher verrà validato al ritorno online.', 'warning');

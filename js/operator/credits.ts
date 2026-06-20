@@ -261,13 +261,13 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
         await processNewCredit(stationId, userId, customerName, amount, product, notes);
         closeModal();
         showInfoModal('Credito registrato con successo!');
-        } catch (err) {
+      } catch (err) {
         if (err instanceof Error) {
           Toast.show('Errore: ' + err.message, 'error');
         } else {
           Toast.show('Errore imprevisto', 'error');
         }
-        }
+      }
     });
   }
 }

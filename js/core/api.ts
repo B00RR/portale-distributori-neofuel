@@ -6,9 +6,9 @@
 import { createClient, SupabaseClient, type PostgrestError } from '@supabase/supabase-js';
 
 import type { Database } from '../../supabase/database.types.js';
+import { Toast } from '../ui/toast.js';
 import { Cache, CACHE_KEYS } from '../utils/cache.js';
 
-import { Toast } from '../ui/toast.js';
 
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 import { logger } from './logger.js';
