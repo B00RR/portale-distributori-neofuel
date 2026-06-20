@@ -143,8 +143,8 @@ function renderExtraIncomeForm(container: HTMLElement, stationId: number | strin
         closeModal();
         showInfoModal(`Incasso di € ${amount.toFixed(2)} registrato correttamente.`);
 
-      } catch (err: any) {
-        Toast.show('Errore salvataggio: ' + err.message, 'error');
+      } catch (err: unknown) {
+        Toast.show('Errore salvataggio: ' + (err instanceof Error ? err.message : String(err)), 'error');
       }
     });
   }

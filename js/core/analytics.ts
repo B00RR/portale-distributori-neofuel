@@ -24,7 +24,7 @@ export function initAnalytics(): void {
  * @param {string} eventName - Name of the event
  * @param {Object} props - Event properties (optional)
  */
-export function trackEvent(eventName: string, props: Record<string, any> = {}): void {
+export function trackEvent(eventName: string, props: Record<string, unknown> = {}): void {
   if (!PLAUSIBLE_ENABLED || !(window as unknown as CustomWindow).plausible) {
     return;
   }

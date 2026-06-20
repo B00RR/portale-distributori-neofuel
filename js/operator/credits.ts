@@ -558,8 +558,8 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
         await processPayment(stationId, userId, customer, amount, method);
         closeModal();
         showInfoModal('Pagamento registrato con successo!');
-      } catch (err: any) {
-        Toast.show('Errore: ' + err.message, 'error');
+      } catch (err: unknown) {
+        Toast.show('Errore: ' + (err instanceof Error ? err.message : String(err)), 'error');
       }
     });
   }

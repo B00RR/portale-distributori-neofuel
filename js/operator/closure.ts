@@ -27,11 +27,11 @@ export async function startClosureWizard(stationId: number | string, userId: str
 
     modalBody.appendChild(wizard);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Closure Wrapper] Error starting wizard:', err);
     const modalBody = document.getElementById('modal-body');
     if (modalBody) {
-      setSafeHTML(modalBody, `<p style="color: red; padding: 20px;">Errore: ${escapeHtml(err.message)}</p>`);
+      setSafeHTML(modalBody, `<p style="color: red; padding: 20px;">Errore: ${escapeHtml(err instanceof Error ? err.message : String(err))}</p>`);
     }
   }
 }

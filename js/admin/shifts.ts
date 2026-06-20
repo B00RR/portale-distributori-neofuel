@@ -407,8 +407,8 @@ export async function openExportModal(closureId: string | number): Promise<void>
     const ctx = await fetchClosureExportData(closureId);
     const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id);
     await generateClosureExcel(metrics);
-  } catch (err: any) {
-    Toast.show('Errore export: ' + (err?.message || err), 'error');
+  } catch (err: unknown) {
+    Toast.show('Errore export: ' + (err instanceof Error ? err.message : String(err)), 'error');
     console.error('Errore export:', err);
   }
 }
@@ -427,8 +427,8 @@ export async function openBulkExportModal(): Promise<void> {
       return data;
     }, 10 * 60 * 1000);
     if (stations) {
-      stations.forEach((s: any) => {
-        stationsHtml += `<option value="${s.station_id}">${escapeHtml(s.station_name)}</option>`;
+      stations.forEach((s: Record<string, unknown>) => {
+        stationsHtml += `<option value="${escapeHtml(String(s.station_id))}">${escapeHtml(String(s.station_name))}</option>`;
       });
     }
   } catch (e) { console.error(e); }
@@ -549,9 +549,9 @@ export async function openBulkExportModal(): Promise<void> {
           dateTo
         });
         closeModal();
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        Toast.show('Errore durante export multiplo: ' + err.message, 'error');
+        Toast.show('Errore durante export multiplo: ' + (err instanceof Error ? err.message : String(err)), 'error');
       } finally {
         if (loadingDiv) {loadingDiv.classList.add('hidden');}
         btnElement.disabled = false;

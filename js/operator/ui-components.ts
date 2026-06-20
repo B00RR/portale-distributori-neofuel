@@ -36,15 +36,16 @@ export function createSuccessMessage(title: string, message: string, details: st
 /**
  * Crea un messaggio di errore standardizzato
  */
-export function createErrorMessage(title: string, error: any): string {
+export function createErrorMessage(title: string, error: unknown): string {
+  const e = (error ?? {}) as { message?: string; code?: string; details?: string; hint?: string };
   return `
     <div class="warning-message">
       <i class="fas fa-exclamation-triangle"></i>
       <h3>${escapeHtml(title)}</h3>
-      <p><strong>Errore:</strong> ${escapeHtml(error.message || 'Errore sconosciuto')}</p>
-      ${error.code ? `<p><strong>Codice:</strong> ${escapeHtml(error.code)}</p>` : ''}
-      ${error.details ? `<p class="small-text">Dettagli: ${escapeHtml(error.details)}</p>` : ''}
-      ${error.hint ? `<p class="small-text">Hint: ${escapeHtml(error.hint)}</p>` : ''}
+      <p><strong>Errore:</strong> ${escapeHtml(e.message || 'Errore sconosciuto')}</p>
+      ${e.code ? `<p><strong>Codice:</strong> ${escapeHtml(e.code)}</p>` : ''}
+      ${e.details ? `<p class="small-text">Dettagli: ${escapeHtml(e.details)}</p>` : ''}
+      ${e.hint ? `<p class="small-text">Hint: ${escapeHtml(e.hint)}</p>` : ''}
     </div>
   `;
 }

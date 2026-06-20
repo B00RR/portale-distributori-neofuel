@@ -118,8 +118,8 @@ function renderOutflowForm(container: HTMLElement, stationId: number | string, u
         closeModal();
         showInfoModal(`Uscita di € ${amount.toFixed(2)} registrata correttamente.`);
 
-      } catch (err: any) {
-        Toast.show('Errore salvataggio: ' + err.message, 'error');
+      } catch (err: unknown) {
+        Toast.show('Errore salvataggio: ' + (err instanceof Error ? err.message : String(err)), 'error');
       }
     });
   }
