@@ -8,8 +8,10 @@ import { createRateLimiter } from '../../utils/utils.js';
 import { formatEuro, formatDate } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
 
+import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
+
 import { BaseComponent } from './BaseComponent.js';
-declare const window: Window & { Html5Qrcode?: any };
+declare const window: Window & { Html5Qrcode?: Html5QrcodeConstructor };
 
 interface RpcResult {
   success: boolean;
@@ -43,11 +45,11 @@ export class VoucherManager extends BaseComponent {
     @state() private mode: 'menu' | 'scan' | 'manual' | 'loading' | 'verify' | 'result' | 'success' | 'error' = 'menu';
     @state() private errorMessage: string = '';
     @state() private activeVoucher: Voucher | null = null;
-    @state() private validationResult: { valid: boolean; error?: string; reason?: string; details?: any } | null = null;
+    @state() private validationResult: { valid: boolean; error?: string; reason?: string; details?: { date?: string | null } } | null = null;
     @state() private manualCode: string = '';
 
     // Scanner state
-    private html5QrCode: any = null;
+    private html5QrCode: Html5QrcodeInstance | null = null;
     private rateLimiter = createRateLimiter(5, 60000);
 
     // Styles
@@ -276,9 +278,9 @@ export class VoucherManager extends BaseComponent {
           (decodedText: string) => this.handleCodeFound(decodedText),
           () => { } // Ignore failures
         );
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error('Scanner error', e);
-        const errDetails = e.name ? `${e.name}: ${e.message}` : String(e);
+        const errDetails = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
         this.errorMessage = `Impossibile avviare la fotocamera. Dettaglio: ${errDetails}`;
         this.mode = 'error';
       }
@@ -352,8 +354,8 @@ export class VoucherManager extends BaseComponent {
           this.mode = 'verify';
         }
 
-      } catch (e: any) {
-        this.errorMessage = e.message || 'Errore di controllo';
+      } catch (e: unknown) {
+        this.errorMessage = (e as { message?: string })?.message || 'Errore di controllo';
         this.mode = 'error';
       }
     }
@@ -394,8 +396,8 @@ export class VoucherManager extends BaseComponent {
         Toast.show('Voucher Riscattato!', 'success');
         this.mode = 'success';
         this.emit('voucher-redeemed', { voucher: this.activeVoucher });
-      } catch (e: any) {
-        this.errorMessage = e.message || 'Riscatto fallito';
+      } catch (e: unknown) {
+        this.errorMessage = (e as { message?: string })?.message || 'Riscatto fallito';
         this.mode = 'error';
       }
     }
@@ -441,7 +443,7 @@ export class VoucherManager extends BaseComponent {
                     <div class="manual-input-container">
                         <input type="text" 
                             .value=${this.manualCode} 
-                            @input=${(e: any) => this.manualCode = e.target.value}
+                            @input=${(e: Event) => this.manualCode = (e.target as HTMLInputElement).value}
                             @keypress=${(e: KeyboardEvent) => e.key === 'Enter' && this.processCode(this.manualCode)}
                             placeholder="Codice" 
                             autofocus
