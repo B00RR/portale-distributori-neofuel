@@ -3,7 +3,6 @@
  * Handles navigation between admin tabs with lazy loading
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { handleError } from '../shared/error-handler.js';
 import { store } from '../shared/state.js';
 import { showLoadingMessage } from '../ui/ui.js';

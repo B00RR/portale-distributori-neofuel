@@ -3,6 +3,7 @@
  * Refactored to use modular architecture (Router + Layout)
  */
 
+import { checkOpeningStatus } from './operator/opening.js';
 import { renderOperatorShell, OperatorHandlers } from './operator/layout.js';
 import { router, OperatorView } from './operator/router.js';
 import { store } from './shared/state.js';
@@ -41,7 +42,6 @@ export async function showOperatorMenu(_userId: string, stationId: string | numb
   // If a shift is open -> go to Closure wizard (or stay in dashboard, but Closure is safer default)
   // If closed -> go to Opening
   try {
-    const { checkOpeningStatus } = await import('./operator/opening.js');
     const opening = await checkOpeningStatus(stationId);
 
     if (opening) {

@@ -8,9 +8,11 @@ import { createClient, SupabaseClient, type PostgrestError } from '@supabase/sup
 import type { Database } from '../../supabase/database.types.js';
 import { Cache, CACHE_KEYS } from '../utils/cache.js';
 
+import { Toast } from '../ui/toast.js';
+
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 import { logger } from './logger.js';
-import type { QueuedAction } from './offline-queue.js';
+import { queueAction, type QueuedAction } from './offline-queue.js';
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -103,8 +105,6 @@ function isOfflineThrownError(err: unknown): boolean {
 }
 
 async function queueStructuredOfflineAction(action: OfflineQueueRequest): Promise<void> {
-  const { queueAction } = await import('./offline-queue.js');
-  const { Toast } = await import('../ui/toast.js');
   await queueAction(action.type, action.payload);
 
   Toast.show(

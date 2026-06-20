@@ -116,7 +116,6 @@ export function openModal(title: string = ''): void {
     modal.id = 'app-modal';
     modal.className = 'modal-overlay';
     // Static internal markup — no user input
-    // eslint-disable-next-line no-unsanitized/property
     modal.innerHTML = `
             <div class="modal-content">
                 <div class="modal-header">

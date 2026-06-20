@@ -13,6 +13,7 @@ import {
 } from './core/auth.js';
 import { LoggedUserData } from './core/auth.js';
 import { logger } from './core/logger.js';
+import { initOfflineQueue, setupAutoSync, registerExecutor } from './core/offline-queue.js';
 import { showOperatorMenu } from './operator.js';
 import { store, User as StateUser } from './shared/state.js';
 import { CustomWindow } from './types.js';
@@ -110,7 +111,6 @@ async function initializeApp(): Promise<void> {
 
   // Initialize offline queue for background sync
   try {
-    const { initOfflineQueue, setupAutoSync, registerExecutor } = await import('./core/offline-queue.js');
     await initOfflineQueue();
 
     // Register executors for offline actions

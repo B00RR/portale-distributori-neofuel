@@ -6,7 +6,6 @@ import { formatEuro, getISODate } from '../utils/utils.js';
 // --- TYPES (Simplified for Dashboard) ---
 declare global {
     interface Window {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Chart.js loaded via CDN
         Chart: any;
     }
 }
@@ -52,7 +51,6 @@ interface AnalyticsTotals {
 }
 
 // Global chart instances store to destroy old charts on redraw
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Chart.js instances opaque
 const dashboardCharts: Record<string, any> = {};
 
 /**
@@ -165,7 +163,6 @@ export function renderRevenueChart(data: AnalyticsResult, canvasId: string): voi
       labels: data.daily.map(d => new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
       datasets: [{
         label: 'Ricavi (€)',
-        // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
         data: data.daily.map(d => d.revenue),
         borderColor: '#10b981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',

@@ -118,6 +118,24 @@ describe('Auth Module', () => {
         expect(mockUI.showFullScreenLoader).toHaveBeenCalled();
     });
 
+    it('does not call Supabase auth when required fields are empty (#62)', async () => {
+        const emailInput = document.getElementById('email') as HTMLInputElement;
+        const passwordInput = document.getElementById('password') as HTMLInputElement;
+        emailInput.type = 'email';
+        emailInput.required = true;
+        emailInput.value = '';
+        passwordInput.required = true;
+        passwordInput.value = '';
+
+        const form = document.getElementById('login-form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit'));
+
+        await new Promise(r => setTimeout(r, 50));
+
+        // checkValidity() guard must short-circuit before any network call.
+        expect(mockSupabase.auth.signInWithPassword).not.toHaveBeenCalled();
+    });
+
     it('should handle invalid credentials', async () => {
         mockSupabase.auth.signInWithPassword.mockResolvedValue({
             data: { user: null },
@@ -131,6 +149,32 @@ describe('Auth Module', () => {
 
         const errorDiv = document.getElementById('login-error');
         expect(errorDiv?.textContent).toContain('Email o password errati');
+    });
+
+    it('does not derive a numeric user_id from the auth UUID in the last-resort fallback', async () => {
+        // UUID that starts with digits: parseInt(uuid, 10) used to yield a
+        // truncated, wrong integer (12345678) instead of failing. Regression for #38.
+        const uuid = '12345678-90ab-cdef-1234-567890abcdef';
+        mockSupabase.auth.signInWithPassword.mockResolvedValue({
+            data: { user: { id: uuid, email: 'test@example.com', user_metadata: {} } },
+            error: null
+        });
+        // DB row missing AND get_current_user_id RPC fails -> last-resort fallback.
+        mockSupabase.from.mockReturnValue({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
+        });
+        mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'rpc failed' } });
+
+        const form = document.getElementById('login-form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit'));
+
+        await new Promise(r => setTimeout(r, 50));
+
+        expect(authModule.loggedUser).not.toBeNull();
+        expect(authModule.loggedUser.user_id).not.toBe(12345678);
+        expect(Number.isNaN(authModule.loggedUser.user_id)).toBe(true);
     });
 
     it('should handle rate limiting', async () => {

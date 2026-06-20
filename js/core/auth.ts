@@ -154,6 +154,14 @@ export function setupLoginForm(): void {
     const errorElement = loginError || document.getElementById('login-error');
     if (errorElement) {errorElement.textContent = '';}
 
+    // Defense-in-depth: enforce native HTML5 constraints (required, type=email)
+    // and surface field-level feedback before any further processing. This guards
+    // the path where native validation was bypassed (e.g. inline onsubmit removed).
+    if (loginForm && !loginForm.checkValidity()) {
+      loginForm.reportValidity();
+      return;
+    }
+
     const emailInput = loginForm?.querySelector('#email') as HTMLInputElement | null;
     const passwordInput = loginForm?.querySelector('#password') as HTMLInputElement | null;
 
@@ -299,7 +307,12 @@ export function setupLoginForm(): void {
                 'Operatore';
               userData = {
                 id: authData.user.id,
-                user_id: parseInt(authData.user.id, 10),
+                // No numeric DB user_id is resolvable here: the DB row is missing
+                // and get_current_user_id RPC failed. The auth UUID is NOT a
+                // numeric id, so we must not parseInt() it. Leave it unresolved;
+                // parseUserId() downstream maps NaN to "Errore identificativo
+                // utente" for operator flows, while admin flows never read it.
+                user_id: Number.NaN,
                 email: authData.user.email,
                 full_name: fallbackName,
                 role: normalizeUserRole(authData.user.user_metadata?.role),
@@ -432,7 +445,12 @@ export async function loadSession(): Promise<LoggedUserData | null> {
           'Operatore';
         userData = {
           id: session.user.id,
-          user_id: parseInt(session.user.id, 10),
+          // No numeric DB user_id is resolvable here: the DB row is missing
+          // and get_current_user_id RPC failed. The auth UUID is NOT a numeric
+          // id, so we must not parseInt() it. Leave it unresolved; parseUserId()
+          // downstream maps NaN to "Errore identificativo utente" for operator
+          // flows, while admin flows never read it.
+          user_id: Number.NaN,
           email: email,
           full_name: fallbackName,
           role: normalizeUserRole(session.user.user_metadata?.role),

@@ -19,15 +19,21 @@ interface PriceRecord {
 
 // --- HELPER FUNCTIONS ---
 
-function createRadioOption(name: string, value: string, checked: boolean, labelText: string): HTMLLabelElement {
+function createRadioOption(name: string, value: string, checked: boolean, labelText: string, disabled = false): HTMLLabelElement {
   const label = document.createElement('label');
   label.className = 'validita-option';
+  if (disabled) {
+    label.classList.add('disabled');
+  }
   const input = document.createElement('input');
   input.type = 'radio';
   input.name = name;
   input.value = value;
   if (checked) {
     input.checked = true;
+  }
+  if (disabled) {
+    input.disabled = true;
   }
   const span = document.createElement('span');
   span.textContent = labelText;
@@ -108,7 +114,10 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
     validitaGrid.className = 'validita-grid';
 
     const optionOra = createRadioOption('validita', 'ora', true, 'Da ora');
-    const optionProssima = createRadioOption('validita', 'prossima', false, 'Dalla prossima chiusura');
+    // "Dalla prossima chiusura" is disabled until backend support lands (see #67):
+    // deferring validity to the next shift closure needs an RPC/DB change, so the
+    // option is hidden behind a disabled state instead of silently applying "now".
+    const optionProssima = createRadioOption('validita', 'prossima', false, 'Dalla prossima chiusura (non ancora disponibile)', true);
     validitaGrid.append(optionOra, optionProssima);
     fieldset.append(legend, validitaGrid);
 
@@ -123,14 +132,10 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(form);
-      const validita = fd.get('validita')?.toString() || 'ora';
 
-      // Calcola data validità
+      // Only "Da ora" is selectable; deferred ("prossima chiusura") validity is
+      // disabled pending backend support (#67), so the effective date is now.
       const dataValidita = new Date();
-      if (validita === 'prossima') {
-        // TODO: Implement logic to get next closure date or set a flag
-        // For now, it defaults to now
-      }
 
       const benzina = parseFloat(fd.get('benzina')?.toString() || '0') || 0;
       const gasolio = parseFloat(fd.get('gasolio')?.toString() || '0') || 0;
