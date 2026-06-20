@@ -154,6 +154,14 @@ export function setupLoginForm(): void {
     const errorElement = loginError || document.getElementById('login-error');
     if (errorElement) {errorElement.textContent = '';}
 
+    // Defense-in-depth: enforce native HTML5 constraints (required, type=email)
+    // and surface field-level feedback before any further processing. This guards
+    // the path where native validation was bypassed (e.g. inline onsubmit removed).
+    if (loginForm && !loginForm.checkValidity()) {
+      loginForm.reportValidity();
+      return;
+    }
+
     const emailInput = loginForm?.querySelector('#email') as HTMLInputElement | null;
     const passwordInput = loginForm?.querySelector('#password') as HTMLInputElement | null;
 

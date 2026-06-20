@@ -118,6 +118,24 @@ describe('Auth Module', () => {
         expect(mockUI.showFullScreenLoader).toHaveBeenCalled();
     });
 
+    it('does not call Supabase auth when required fields are empty (#62)', async () => {
+        const emailInput = document.getElementById('email') as HTMLInputElement;
+        const passwordInput = document.getElementById('password') as HTMLInputElement;
+        emailInput.type = 'email';
+        emailInput.required = true;
+        emailInput.value = '';
+        passwordInput.required = true;
+        passwordInput.value = '';
+
+        const form = document.getElementById('login-form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit'));
+
+        await new Promise(r => setTimeout(r, 50));
+
+        // checkValidity() guard must short-circuit before any network call.
+        expect(mockSupabase.auth.signInWithPassword).not.toHaveBeenCalled();
+    });
+
     it('should handle invalid credentials', async () => {
         mockSupabase.auth.signInWithPassword.mockResolvedValue({
             data: { user: null },
