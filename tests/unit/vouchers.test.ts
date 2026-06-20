@@ -108,6 +108,11 @@ describe('Vouchers Reboot Module', () => {
             const { supabase } = await import('../../js/core/api.js');
             const { Toast } = await import('../../js/ui/toast.js');
 
+            // Fail the test if any error is swallowed by the handler's try/catch
+            // (regression guard for #64: the post-submit dashboard render used to
+            // throw a TypeError on an incomplete `vouchers` mock and pass silently).
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+
             // Setup mocks
             const insertBatchMock = vi.fn(() => ({
                 select: vi.fn(() => ({
@@ -118,8 +123,27 @@ describe('Vouchers Reboot Module', () => {
 
             vi.mocked(supabase.from).mockImplementation((table) => {
                 if (table === 'crediti_clienti') return { select: () => ({ order: () => Promise.resolve({ data: [], error: null }) }) } as unknown as ReturnType<typeof supabase.from>;
-                if (table === 'voucher_batches') return { insert: insertBatchMock } as unknown as ReturnType<typeof supabase.from>;
-                if (table === 'vouchers') return { insert: insertVouchersMock } as unknown as ReturnType<typeof supabase.from>;
+                // After a successful generation the handler switches to the dashboard
+                // tab and renders it, so these tables must also support the dashboard
+                // read shapes — not just insert.
+                if (table === 'voucher_batches') return {
+                    insert: insertBatchMock,
+                    select: () => ({ order: () => Promise.resolve({ data: [], error: null }) })
+                } as unknown as ReturnType<typeof supabase.from>;
+                if (table === 'vouchers') return {
+                    insert: insertVouchersMock,
+                    select: (_cols: string | string[], opts?: Record<string, unknown>) => {
+                        if (opts?.count) {
+                            // Count queries: `.select('*', {count}).eq(...)` or awaited directly.
+                            return {
+                                eq: () => Promise.resolve({ count: 0 }),
+                                then: (cb: (val: unknown) => unknown) => Promise.resolve({ count: 0 }).then(cb)
+                            };
+                        }
+                        // Data query: `.select('batch_id, status, amount')` awaited directly.
+                        return Promise.resolve({ data: [], error: null });
+                    }
+                } as unknown as ReturnType<typeof supabase.from>;
                 return {} as unknown as ReturnType<typeof supabase.from>;
             });
 
@@ -129,10 +153,6 @@ describe('Vouchers Reboot Module', () => {
             const form = document.getElementById('voucher-generator-form') as HTMLFormElement;
             if (!form) throw new Error("Form not found");
 
-            // Fill form data mocking
-            // Since we digest FormData in handler, we can mock the values by creating inputs?
-            // Easier: just let the handler run. The test inputs have defaults?
-            // User inputs:
             const inputAmount = form.querySelector('input[name="amount"]') as HTMLInputElement;
             inputAmount.value = '10';
             const inputQty = form.querySelector('input[name="quantity"]') as HTMLInputElement;
@@ -146,6 +166,8 @@ describe('Vouchers Reboot Module', () => {
             expect(insertBatchMock).toHaveBeenCalled(); // Batch creation
             expect(insertVouchersMock).toHaveBeenCalled(); // Voucher generation
             expect(Toast.show).toHaveBeenCalledWith(expect.stringContaining('Voucher generati'), 'success');
+            // No error must be swallowed on the happy path.
+            expect(errorSpy).not.toHaveBeenCalled();
         });
     });
 
