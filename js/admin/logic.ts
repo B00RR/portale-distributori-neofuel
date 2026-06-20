@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { renderSettingsPanel } from '../ui/ui-settings-panel.js';
 
 interface LogicViewContext {

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';

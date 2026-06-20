@@ -39,7 +39,7 @@ export async function showStationsTab(container: HTMLElement, actionsContainer: 
     const addBtn = document.createElement('button');
     addBtn.className = 'action-btn primary';
     addBtn.id = 'add-station-btn';
-    addBtn.innerHTML = '<i class="fas fa-plus"></i> Nuovo Distributore'; // eslint-disable-next-line no-unsanitized/property -- static internal markup, no user input
+    addBtn.innerHTML = '<i class="fas fa-plus"></i> Nuovo Distributore';
     addBtn.addEventListener('click', () => openStationModal());
     actionsContainer.appendChild(addBtn);
   }
