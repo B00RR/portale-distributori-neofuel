@@ -1,9 +1,16 @@
 // ==========================================
 // EXPORT FUNCTIONS (PDF / EXCEL)
 // ==========================================
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 import { supabase } from '../core/api.js';
-import { CustomWindow } from '../types.js';
+import { CustomWindow, type XlsxSheet } from '../types.js';
 import { Toast } from '../ui/toast.js';
+
+/** Narrow an unknown value to a property bag, defaulting to an empty record. */
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
 
 import { closureTemplateXlsxBase64 } from './template_chiusura_base64.js';
 import { formatDate, slugifyLabel, base64ToArrayBuffer } from './utils.js';
@@ -73,7 +80,7 @@ export interface ExportMetrics {
         stationSlug: string;
         dateSlug: string;
         dateDisplay: string;
-        prices: Record<string, any>;
+        prices: Record<string, number>;
         totals: {
             ltGasolio: number;
             ltBenzina: number;
@@ -112,8 +119,8 @@ function getClosureTemplateBase64(): string | null {
   return closureTemplateXlsxBase64 || null;
 }
 
-export async function computeExportSummaryMetrics(adminClient: any, closure: any, stationId: number | string | null): Promise<ExportMetrics> {
-  const safeNumber = (value: any) => {
+export async function computeExportSummaryMetrics(adminClient: SupabaseClient, closure: Record<string, unknown>, stationId: unknown): Promise<ExportMetrics> {
+  const safeNumber = (value: unknown): number => {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
   };
@@ -157,19 +164,21 @@ export async function computeExportSummaryMetrics(adminClient: any, closure: any
         .single();
       if (st) { stationName = st.station_name; }
     }
-    const closingData = closure.closing_data || {};
+    const closingData = asRecord(closure.closing_data);
 
     metrics.meta.stationSlug = slugifyLabel(stationName);
-    const dateRaw = closure.closed_at || closure.created_at || closure.data_chiusura;
-    metrics.meta.dateSlug = dateRaw ? dateRaw.split('T')[0] : 'date';
+    const dateRaw = (closure.closed_at || closure.created_at || closure.data_chiusura) as string | undefined;
+    metrics.meta.dateSlug = dateRaw ? (dateRaw.split('T')[0] ?? 'date') : 'date';
     metrics.meta.dateDisplay = formatDate(dateRaw);
 
     // Prices might be in 'prezzi' (legacy) or 'closing_data.prezzi' or 'closing_data.prices'
-    metrics.meta.prices = closure.prezzi || closingData.prezzi || closingData.prices || {};
+    metrics.meta.prices = (closure.prezzi || closingData.prezzi || closingData.prices || {}) as Record<string, number>;
 
     // 2. Fetch Pistole e Tank Pumps
-    let shiftPistols = closure.shift_pistols;
-    if (!shiftPistols) {
+    let shiftPistols: Record<string, unknown>[] = Array.isArray(closure.shift_pistols)
+      ? closure.shift_pistols.map(asRecord)
+      : [];
+    if (!Array.isArray(closure.shift_pistols)) {
       const targetId = closure.id || closure.shift_id;
       if (targetId) {
         const { data: sp } = await adminClient
@@ -180,7 +189,7 @@ export async function computeExportSummaryMetrics(adminClient: any, closure: any
         const rawPistols = sp || [];
 
         if (rawPistols.length > 0) {
-          const pistolIds = [...new Set(rawPistols.map((p: any) => p.pistol_id))];
+          const pistolIds = [...new Set(rawPistols.map((p: Record<string, unknown>) => p.pistol_id))];
 
           // 2a. Fetch Pistols (Flat)
           const { data: pistolsFlat } = await adminClient
@@ -188,45 +197,45 @@ export async function computeExportSummaryMetrics(adminClient: any, closure: any
             .select('pistol_id, pistol_name, pump_id')
             .in('pistol_id', pistolIds);
 
-          const pistolsMap = new Map();
-          const pumpIds = new Set();
-          (pistolsFlat || []).forEach((p: any) => {
+          const pistolsMap = new Map<string, Record<string, unknown>>();
+          const pumpIds = new Set<unknown>();
+          (pistolsFlat || []).forEach((p: Record<string, unknown>) => {
             pistolsMap.set(String(p.pistol_id), { ...p });
             if (p.pump_id) { pumpIds.add(p.pump_id); }
           });
 
           // 2b. Fetch Pumps (Flat)
-          const pumpsMap = new Map();
-          const islandIds = new Set();
+          const pumpsMap = new Map<string, Record<string, unknown>>();
+          const islandIds = new Set<unknown>();
           if (pumpIds.size > 0) {
             const { data: pumpsFlat } = await adminClient
               .from('fuel_pumps')
               .select('pump_id, pump_name, island_id')
               .in('pump_id', [...pumpIds]);
 
-            (pumpsFlat || []).forEach((p: any) => {
+            (pumpsFlat || []).forEach((p: Record<string, unknown>) => {
               pumpsMap.set(String(p.pump_id), p);
               if (p.island_id) { islandIds.add(p.island_id); }
             });
           }
 
           // 2c. Fetch Islands (Flat)
-          const islandsMapRef = new Map();
+          const islandsMapRef = new Map<string, Record<string, unknown>>();
           if (islandIds.size > 0) {
             const { data: islandsFlat } = await adminClient
               .from('islands')
               .select('island_id, island_name')
               .in('island_id', [...islandIds]);
 
-            (islandsFlat || []).forEach((i: any) => islandsMapRef.set(String(i.island_id), i));
+            (islandsFlat || []).forEach((i: Record<string, unknown>) => islandsMapRef.set(String(i.island_id), i));
           }
 
           // Step 3: Deep Merge in JS
-          shiftPistols = rawPistols.map((rp: any) => {
-            const pId = parseInt(rp.pistol_id, 10);
+          shiftPistols = rawPistols.map((rp: Record<string, unknown>) => {
+            const pId = parseInt(String(rp.pistol_id), 10);
             const pistolBase = pistolsMap.get(String(pId));
 
-            let constructedPistol: any = {};
+            let constructedPistol: Record<string, unknown> = {};
             if (pistolBase) {
               const pump = pumpsMap.get(String(pistolBase.pump_id));
               const island = pump ? islandsMapRef.get(String(pump.island_id)) : null;
@@ -262,11 +271,14 @@ export async function computeExportSummaryMetrics(adminClient: any, closure: any
 
     const islandsMap = new Map<number | string, ExportSection>();
 
-    shiftPistols.forEach((sp: any) => {
-      const pistolName = sp.pistols?.pistol_name || `Pistola ${sp.pistol_id}`;
-      const islandName = sp.pistols?.fuel_pumps?.islands?.island_name || 'Isola ?';
-      const islandId = sp.pistols?.fuel_pumps?.island_id || 999;
-      const pumpName = sp.pistols?.fuel_pumps?.pump_name || '';
+    shiftPistols.forEach((sp: Record<string, unknown>) => {
+      const pistolsInfo = asRecord(sp.pistols);
+      const fuelPumps = asRecord(pistolsInfo.fuel_pumps);
+      const islandsInfo = asRecord(fuelPumps.islands);
+      const pistolName = (pistolsInfo.pistol_name as string) || `Pistola ${String(sp.pistol_id)}`;
+      const islandName = (islandsInfo.island_name as string) || 'Isola ?';
+      const islandId = (fuelPumps.island_id as number | string) || 999;
+      const pumpName = (fuelPumps.pump_name as string) || '';
 
       if (!islandsMap.has(islandId)) {
         islandsMap.set(islandId, { id: islandId, label: islandName, pistole: [] });
@@ -301,17 +313,17 @@ export async function computeExportSummaryMetrics(adminClient: any, closure: any
     });
 
     // Ordina isole e pistole
-    const sortedIslands = Array.from(islandsMap.values()).sort((a: any, b: any) => a.id - b.id);
+    const sortedIslands = Array.from(islandsMap.values()).sort((a, b) => Number(a.id) - Number(b.id));
     metrics.sections = sortedIslands;
 
     // 3. Summary Totals (Incassi)
-    const incassi = closure.incassi || {};
-    metrics.summary.contanti = safeNumber(incassi.contanti || 0);
-    metrics.summary.cartePos = safeNumber(incassi.pos || 0);
-    metrics.summary.crediti = safeNumber(incassi.credito || 0);
-    metrics.summary.self = safeNumber(incassi.self_service || 0);
-    metrics.summary.nonErogato = safeNumber(incassi.non_erogato || 0);
-    metrics.summary.lubrAdblue = safeNumber(incassi.accessori || 0);
+    const incassi = asRecord(closure.incassi);
+    metrics.summary.contanti = safeNumber(incassi.contanti);
+    metrics.summary.cartePos = safeNumber(incassi.pos);
+    metrics.summary.crediti = safeNumber(incassi.credito);
+    metrics.summary.self = safeNumber(incassi.self_service);
+    metrics.summary.nonErogato = safeNumber(incassi.non_erogato);
+    metrics.summary.lubrAdblue = safeNumber(incassi.accessori);
 
     return metrics;
 
@@ -321,7 +333,7 @@ export async function computeExportSummaryMetrics(adminClient: any, closure: any
   }
 }
 
-export async function fetchClosureExportData(closureId: string | number): Promise<any> {
+export async function fetchClosureExportData(closureId: string | number): Promise<Record<string, unknown>> {
   const { data: closure, error } = await supabase
     .from('shifts')
     .select('*')
@@ -337,10 +349,10 @@ export async function fetchClosureExportData(closureId: string | number): Promis
     .eq('shift_id', Number(closureId));
 
   const rawPistols = sp || [];
-  let enrichedPistols = [];
+  let enrichedPistols: Record<string, unknown>[] = [];
 
   if (rawPistols.length > 0) {
-    const pistolIds = [...new Set(rawPistols.map((p: any) => p.pistol_id))];
+    const pistolIds = [...new Set(rawPistols.map((p: Record<string, unknown>) => p.pistol_id))];
     const { data: pistolDetails } = await supabase
       .from('pistole')
       .select(`
@@ -355,12 +367,14 @@ export async function fetchClosureExportData(closureId: string | number): Promis
             `)
       .in('pistol_id', pistolIds);
 
-    const pxMap = new Map();
-    if (pistolDetails) {
-      pistolDetails.forEach((p: any) => pxMap.set(p.pistol_id, p));
-    }
+    const pxMap = new Map<unknown, Record<string, unknown>>();
+    // The generated DB types don't model the legacy 'pistole' relation/columns
+    // queried here (see CLAUDE.md: repo types can lag the live DB), so the row
+    // shape is treated as a generic record. Runtime query is unchanged.
+    const pistolRows = (pistolDetails ?? []) as unknown as Record<string, unknown>[];
+    pistolRows.forEach((p) => pxMap.set(p.pistol_id, p));
 
-    enrichedPistols = rawPistols.map((rp: any) => ({
+    enrichedPistols = rawPistols.map((rp: Record<string, unknown>) => ({
       ...rp,
       pistols: pxMap.get(rp.pistol_id) || {}
     }));
@@ -370,8 +384,8 @@ export async function fetchClosureExportData(closureId: string | number): Promis
   return closure;
 }
 
-function populateClosureSheet(sheet: any, templateData: ExportMetrics): void {
-  const setCell = (addr: string, value: any) => {
+function populateClosureSheet(sheet: XlsxSheet, templateData: ExportMetrics): void {
+  const setCell = (addr: string, value: unknown) => {
     const cell = sheet.cell(addr);
     if (cell) { cell.value(value ?? ''); }
   };
