@@ -1,3 +1,4 @@
+import type { Json } from '../../supabase/database.types.js';
 import { supabase, safeSupabaseQuery } from '../core/api.js';
 
 import { calculationEngine, CALCULATION_SCOPES } from './calculation-engine.js';
@@ -12,11 +13,16 @@ const presetState: PresetState = {
   syncPromise: null
 };
 
+/** Narrow an unknown value to a property bag, defaulting to an empty record. */
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
 interface CalculationPreset {
     scope: string;
     name: string;
     description: string;
-    dsl: any;
+    dsl: Json;
 }
 
 const CALCULATION_PRESETS: CalculationPreset[] = [
@@ -76,8 +82,8 @@ function registerPresetFunctions(): void {
   if (presetState.functionsRegistered) { return; }
   presetState.functionsRegistered = true;
 
-  calculationEngine.registerFunction('dashboard_kpi_venduto', (args: any = {}, ctx: any = {}) => {
-    const source = { ...ctx, ...args };
+  calculationEngine.registerFunction('dashboard_kpi_venduto', (args = {}, ctx = {}) => {
+    const source = { ...asRecord(ctx), ...args };
     const manual = Number(source.salesEuro ?? source.manualValue ?? source.value ?? 0);
     if (Number.isFinite(manual) && manual !== 0) { return manual; }
 
@@ -92,12 +98,14 @@ function registerPresetFunctions(): void {
     return round(fallback);
   });
 
-  calculationEngine.registerFunction('closure_movimenti_summary', (args: any = {}, ctx: any = {}) => {
-    const movimenti = Array.isArray(ctx.movimenti || args.movimenti) ? (ctx.movimenti || args.movimenti) : [];
-    const normalize = (value: any) => Number(value) || 0;
-    const toLower = (value: any) => (value || '').toString().toLowerCase();
+  calculationEngine.registerFunction('closure_movimenti_summary', (args = {}, ctx = {}) => {
+    const rawMovimenti = asRecord(ctx).movimenti ?? args.movimenti;
+    const movimenti: Record<string, unknown>[] = Array.isArray(rawMovimenti) ? rawMovimenti.map(asRecord) : [];
+    const normalize = (value: unknown): number => Number(value) || 0;
+    const toLower = (value: unknown): string => String(value || '').toLowerCase();
 
-    const sumBy = (filterFn: (m: any) => boolean) => movimenti.reduce((sum: number, m: any) => sum + (filterFn(m) ? normalize(m.importo) : 0), 0);
+    const sumBy = (filterFn: (m: Record<string, unknown>) => boolean): number =>
+      movimenti.reduce((sum, m) => sum + (filterFn(m) ? normalize(m.importo) : 0), 0);
 
     const credits = sumBy(m => {
       const descr = toLower(m.descrizione);
@@ -124,8 +132,8 @@ function registerPresetFunctions(): void {
     };
   });
 
-  calculationEngine.registerFunction('closure_totale_atteso', (args: any = {}, ctx: any = {}) => {
-    const source = { ...ctx, ...args };
+  calculationEngine.registerFunction('closure_totale_atteso', (args = {}, ctx = {}) => {
+    const source = { ...asRecord(ctx), ...args };
     const includeCounters = Boolean(source.includeCounters ?? source.include_counters ?? true);
     const litersB = Number(source.totalLitriBenzina ?? source.litri_benzina ?? 0);
     const litersG = Number(source.totalLitriGasolio ?? source.litri_gasolio ?? 0);
@@ -142,8 +150,8 @@ function registerPresetFunctions(): void {
     };
   });
 
-  calculationEngine.registerFunction('closure_expected_cash', (args: any = {}, ctx: any = {}) => {
-    const source = { tolerance: 5, ...ctx, ...args };
+  calculationEngine.registerFunction('closure_expected_cash', (args = {}, ctx = {}) => {
+    const source: Record<string, unknown> = { tolerance: 5, ...asRecord(ctx), ...args };
     const carburante = Number(source.carburanteAtteso ?? source.carburante_atteso ?? 0);
     const totalPosOperatore = Number(source.totalPosOperatore ?? source.pos_operatore ?? 0);
     const totalUtaOperatore = Number(source.totalUtaOperatore ?? source.uta_operatore ?? 0);
