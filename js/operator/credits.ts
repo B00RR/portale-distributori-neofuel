@@ -6,7 +6,7 @@ import { supabase } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro } from '../utils/utils.js';
+import { escapeHtml, formatEuro, getErrorMessage } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 
@@ -559,7 +559,7 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
         closeModal();
         showInfoModal('Pagamento registrato con successo!');
       } catch (err: unknown) {
-        Toast.show('Errore: ' + (err instanceof Error ? err.message : String(err)), 'error');
+        Toast.show('Errore: ' + getErrorMessage(err), 'error');
       }
     });
   }

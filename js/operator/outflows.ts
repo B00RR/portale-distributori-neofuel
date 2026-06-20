@@ -2,6 +2,7 @@ import { supabase } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
+import { getErrorMessage } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
@@ -119,7 +120,7 @@ function renderOutflowForm(container: HTMLElement, stationId: number | string, u
         showInfoModal(`Uscita di € ${amount.toFixed(2)} registrata correttamente.`);
 
       } catch (err: unknown) {
-        Toast.show('Errore salvataggio: ' + (err instanceof Error ? err.message : String(err)), 'error');
+        Toast.show('Errore salvataggio: ' + getErrorMessage(err), 'error');
       }
     });
   }

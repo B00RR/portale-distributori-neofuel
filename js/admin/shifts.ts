@@ -11,7 +11,7 @@ import {
   computeExportSummaryMetrics
 } from '../utils/export_utils.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro } from '../utils/utils.js';
+import { escapeHtml, formatEuro, getErrorMessage } from '../utils/utils.js';
 
 import { FilterBar } from './components/FilterBar.js';
 import { Pagination } from './components/Pagination.js';
@@ -408,7 +408,7 @@ export async function openExportModal(closureId: string | number): Promise<void>
     const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id);
     await generateClosureExcel(metrics);
   } catch (err: unknown) {
-    Toast.show('Errore export: ' + (err instanceof Error ? err.message : String(err)), 'error');
+    Toast.show('Errore export: ' + getErrorMessage(err), 'error');
     console.error('Errore export:', err);
   }
 }
@@ -551,7 +551,7 @@ export async function openBulkExportModal(): Promise<void> {
         closeModal();
       } catch (err: unknown) {
         console.error(err);
-        Toast.show('Errore durante export multiplo: ' + (err instanceof Error ? err.message : String(err)), 'error');
+        Toast.show('Errore durante export multiplo: ' + getErrorMessage(err), 'error');
       } finally {
         if (loadingDiv) {loadingDiv.classList.add('hidden');}
         btnElement.disabled = false;
