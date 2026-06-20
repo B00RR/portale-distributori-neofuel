@@ -596,7 +596,7 @@ function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTM
  * Initialize SortableJS for drag-and-drop reordering
  */
 function initializeSortable(config: DashboardConfig, container: HTMLElement): void {
-  const list = container ? container.querySelector('#kpi-config-list') : document.getElementById('kpi-config-list');
+  const list = container ? container.querySelector<HTMLElement>('#kpi-config-list') : document.getElementById('kpi-config-list');
   if (!list) { return; }
 
   // Check if Sortable library is available
@@ -622,7 +622,7 @@ function initializeSortable(config: DashboardConfig, container: HTMLElement): vo
  * Update configuration order based on DOM elements
  */
 function updateKpiOrder(config: DashboardConfig, container: HTMLElement): void {
-  const list = container ? container.querySelector('#kpi-config-list') : document.getElementById('kpi-config-list');
+  const list = container ? container.querySelector<HTMLElement>('#kpi-config-list') : document.getElementById('kpi-config-list');
   if (!list) { return; }
 
   const items = Array.from(list.children) as HTMLElement[];
