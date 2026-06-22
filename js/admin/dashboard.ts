@@ -528,7 +528,7 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
 // ------------------------------------------------------------------
 // DRAG & DROP FOR PANELS (Replaces Split.js)
 // ------------------------------------------------------------------
-function initDashboardPanelsDrag() {
+function initDashboardPanelsDrag(): void {
   const container = document.getElementById('dashboard-container');
   if (!container || !window.Sortable) { return; }
 
@@ -559,7 +559,7 @@ function initDashboardPanelsDrag() {
   restoreDashboardState();
 }
 
-function saveDashboardState() {
+function saveDashboardState(): void {
   const container = document.getElementById('dashboard-container');
   if (!container) { return; }
 
@@ -573,7 +573,7 @@ function saveDashboardState() {
   localStorage.setItem('dashboard_panels_state', JSON.stringify(state));
 }
 
-function restoreDashboardState() {
+function restoreDashboardState(): void {
   const container = document.getElementById('dashboard-container');
   const savedStateStr = localStorage.getItem('dashboard_panels_state');
   const savedState = savedStateStr ? JSON.parse(savedStateStr) : null;

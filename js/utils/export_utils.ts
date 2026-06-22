@@ -385,7 +385,7 @@ export async function fetchClosureExportData(closureId: string | number): Promis
 }
 
 function populateClosureSheet(sheet: XlsxSheet, templateData: ExportMetrics): void {
-  const setCell = (addr: string, value: unknown) => {
+  const setCell = (addr: string, value: unknown): void => {
     const cell = sheet.cell(addr);
     if (cell) { cell.value(value ?? ''); }
   };
@@ -411,8 +411,8 @@ function populateClosureSheet(sheet: XlsxSheet, templateData: ExportMetrics): vo
   setCell('U6', 'LT TOTALI');
   setCell('V6', (totals.ltGasolio + totals.ltBenzina + totals.ltOther).toFixed(2));
 
-  const fillPistolaRow = (rowIndex: number, pistola: ExportPistola | null) => {
-    const rowLetter = (col: string) => `${col}${rowIndex}`;
+  const fillPistolaRow = (rowIndex: number, pistola: ExportPistola | null): void => {
+    const rowLetter = (col: string): string => `${col}${rowIndex}`;
     if (pistola) {
       setCell(rowLetter('A'), pistola.label || '');
       setCell(rowLetter('B'), pistola.chiusura || 0);

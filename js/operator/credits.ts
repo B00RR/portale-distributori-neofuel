@@ -308,7 +308,7 @@ export async function processNewCredit(stationId: number | string, userId: strin
   const numericOperatorId = toNumericId(userId);
 
   // 1. Trova o crea cliente
-  let { data: customer, error: fetchError } = await supabase
+  const { data: initialCustomer, error: fetchError } = await supabase
     .from('crediti_clienti')
     .select('*')
     .eq('station_id', numericStationId)
@@ -316,6 +316,8 @@ export async function processNewCredit(stationId: number | string, userId: strin
     .maybeSingle();
 
   if (fetchError) { throw fetchError; }
+
+  let customer = initialCustomer;
 
   if (!customer) {
     const { data: newCustomer, error: createError } = await supabase

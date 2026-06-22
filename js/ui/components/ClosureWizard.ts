@@ -244,11 +244,11 @@ export class ClosureWizard extends BaseComponent {
         `
     ];
 
-    protected override firstUpdated() {
+    protected override firstUpdated(): void {
       this.loadInitialData();
     }
 
-    private async loadInitialData() {
+    private async loadInitialData(): Promise<void> {
       this.wizardState = { ...this.wizardState, mode: 'loading' };
       try {
         const { data: shiftResult, error: sError } = await supabase
@@ -417,7 +417,7 @@ export class ClosureWizard extends BaseComponent {
         `;
     }
 
-    private handleStep1Submit() {
+    private handleStep1Submit(): void {
       if (this.closureType === 'final' || this.includeCounters) {
         const inputs = this.renderRoot.querySelectorAll('input[name^="counter_"]');
         const counters: Record<number, number> = {};
@@ -469,7 +469,7 @@ export class ClosureWizard extends BaseComponent {
         `;
     }
 
-    private handleStep2Submit() {
+    private handleStep2Submit(): void {
       if (!this.operatorCash || !this.operatorPos) { Toast.show('Inserisci i dati reali', 'warning'); return; }
       this.wizardState = { ...this.wizardState, step: 3 };
     }
@@ -507,7 +507,7 @@ export class ClosureWizard extends BaseComponent {
         `;
     }
 
-    private async handleConfirmClosure() {
+    private async handleConfirmClosure(): Promise<void> {
       this.wizardState = { ...this.wizardState, mode: 'submitting' };
 
       const isFinal = this.closureType === 'final';

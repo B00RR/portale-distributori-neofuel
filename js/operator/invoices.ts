@@ -304,7 +304,7 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
   });
 
   // Chiudi suggerimenti quando si clicca fuori
-  const clickHandler = (e: MouseEvent) => {
+  const clickHandler = (e: MouseEvent): void => {
     if (!searchInput.contains(e.target as Node) && !suggestionsDiv.contains(e.target as Node)) {
       suggestionsDiv.style.display = 'none';
     }

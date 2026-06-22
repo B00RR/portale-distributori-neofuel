@@ -107,7 +107,7 @@ export async function showChiusureTab(
   // Track params to prevent loop
   let lastParams = { page: -1, filtersJson: '' };
 
-  const renderTable = async () => {
+  const renderTable = async (): Promise<void> => {
     const dataContainer = document.getElementById('data-container');
     if (!dataContainer) { return; }
 
@@ -497,7 +497,7 @@ export async function openBulkExportModal(): Promise<void> {
   const rangeOptions = document.getElementById('range-options');
   const lastNOptions = document.getElementById('last-n-options');
 
-  const toggleBulkOptions = (isRange: boolean) => {
+  const toggleBulkOptions = (isRange: boolean): void => {
     if (isRange) {
       rangeOptions?.classList.remove('hidden');
       lastNOptions?.classList.add('hidden');

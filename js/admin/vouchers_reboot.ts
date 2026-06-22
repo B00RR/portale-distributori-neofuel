@@ -161,7 +161,7 @@ function updateTabButtons(): void {
 }
 
 // Global reference for the sync handler to allow removal
-const syncHandler = () => {
+const syncHandler = (): void => {
   if (voucherState.activeTab === 'dashboard') {
     Toast.show('Dati aggiornati dopo sincronizzazione', 'info');
     renderActiveTab();

@@ -481,7 +481,7 @@ function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
 function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTMLElement): void {
   const currentConfig: DashboardConfig = JSON.parse(JSON.stringify(initialConfig)); // Deep clone
 
-  const $$ = (selector: string) => container ? container.querySelectorAll(selector) : document.querySelectorAll(selector);
+  const $$ = (selector: string): NodeListOf<Element> => container ? container.querySelectorAll(selector) : document.querySelectorAll(selector);
 
   // Grid columns selector
   $$('.grid-col-btn').forEach(btn => {

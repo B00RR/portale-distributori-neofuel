@@ -229,16 +229,16 @@ export class VoucherManager extends BaseComponent {
       // Html5Qrcode will be loaded on-demand in startScanner()
     }
 
-    override createRenderRoot() {
+    override createRenderRoot(): HTMLElement | DocumentFragment {
       return this; // Disable Shadow DOM so Html5Qrcode can find #reader
     }
 
-    override disconnectedCallback() {
+    override disconnectedCallback(): void {
       super.disconnectedCallback();
       this.stopScanner();
     }
 
-    private async startScanner() {
+    private async startScanner(): Promise<void> {
       this.mode = 'scan';
       // Small delay to allow render
       await this.updateComplete;
@@ -286,7 +286,7 @@ export class VoucherManager extends BaseComponent {
       }
     }
 
-    private async stopScanner() {
+    private async stopScanner(): Promise<void> {
       if (this.html5QrCode) {
         try {
           await this.html5QrCode.stop();
@@ -298,13 +298,13 @@ export class VoucherManager extends BaseComponent {
       }
     }
 
-    private handleCodeFound(code: string) {
+    private handleCodeFound(code: string): void {
       this.stopScanner();
       if (navigator.vibrate) {navigator.vibrate(200);}
       this.processCode(code);
     }
 
-    private async processCode(code: string) {
+    private async processCode(code: string): Promise<void> {
       if (!this.rateLimiter.check()) {
         Toast.show('Troppi tentativi. Riprova tra un minuto.', 'error');
         return;
@@ -360,7 +360,7 @@ export class VoucherManager extends BaseComponent {
       }
     }
 
-    private async confirmRedeem() {
+    private async confirmRedeem(): Promise<void> {
       if (!this.activeVoucher || !this.stationId || !this.userId) {return;}
 
       this.mode = 'loading';
@@ -410,7 +410,7 @@ export class VoucherManager extends BaseComponent {
     `;
     }
 
-    private renderContent() {
+    private renderContent(): TemplateResult {
       switch (this.mode) {
         case 'menu':
           return html`
