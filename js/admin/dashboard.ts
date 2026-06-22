@@ -339,9 +339,9 @@ export async function showDashboard(
 
           // Update order for visible items found in DOM
           newOrderIds.forEach((id, index) => {
-            const itemIndex = allItems.findIndex(k => k.id === id);
-            if (itemIndex !== -1 && allItems[itemIndex]) {
-                            allItems[itemIndex]!.order = index;
+            const layoutItem = allItems.find(k => k.id === id);
+            if (layoutItem) {
+              layoutItem.order = index;
             }
           });
 

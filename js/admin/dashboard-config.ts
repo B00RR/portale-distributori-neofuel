@@ -498,17 +498,17 @@ function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTM
       const target = e.target as HTMLElement;
       const item = target.closest('.kpi-config-item') as HTMLElement;
       const kpiId = item.dataset.kpiId;
-      const kpiIndex = currentConfig.kpiLayout.findIndex(k => k.id === kpiId);
+      const layoutItem = currentConfig.kpiLayout.find(k => k.id === kpiId);
 
-      if (kpiIndex !== -1 && currentConfig.kpiLayout[kpiIndex]) {
-                currentConfig.kpiLayout[kpiIndex]!.visible = !currentConfig.kpiLayout[kpiIndex]!.visible;
-                item.classList.toggle('hidden');
-                btn.classList.toggle('active');
-                const i = btn.querySelector('i');
-                if (i) {
-                  i.className = currentConfig.kpiLayout[kpiIndex]!.visible ? 'fas fa-eye' : 'fas fa-eye-slash';
-                }
-                (btn as HTMLElement).title = currentConfig.kpiLayout[kpiIndex]!.visible ? 'Nascondi' : 'Mostra';
+      if (layoutItem) {
+        layoutItem.visible = !layoutItem.visible;
+        item.classList.toggle('hidden');
+        btn.classList.toggle('active');
+        const i = btn.querySelector('i');
+        if (i) {
+          i.className = layoutItem.visible ? 'fas fa-eye' : 'fas fa-eye-slash';
+        }
+        (btn as HTMLElement).title = layoutItem.visible ? 'Nascondi' : 'Mostra';
       }
     });
   });
@@ -532,18 +532,18 @@ function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTM
       const item = target.closest('.kpi-config-item') as HTMLElement;
       const kpiId = item.dataset.kpiId;
       const newSize = (btn as HTMLElement).dataset.size as CardSize;
-      const kpiIndex = currentConfig.kpiLayout.findIndex(k => k.id === kpiId);
+      const layoutItem = currentConfig.kpiLayout.find(k => k.id === kpiId);
 
-      if (kpiIndex !== -1 && currentConfig.kpiLayout[kpiIndex]) {
-                currentConfig.kpiLayout[kpiIndex]!.size = newSize;
+      if (layoutItem) {
+        layoutItem.size = newSize;
 
-                // Update UI
-                const sizeLabel = item.querySelector('.size-label');
-                if (sizeLabel) {sizeLabel.textContent = newSize;}
+        // Update UI
+        const sizeLabel = item.querySelector('.size-label');
+        if (sizeLabel) {sizeLabel.textContent = newSize;}
 
-                // Update active state
-                item.querySelectorAll('.size-option').forEach(o => o.classList.remove('active'));
-                btn.classList.add('active');
+        // Update active state
+        item.querySelectorAll('.size-option').forEach(o => o.classList.remove('active'));
+        btn.classList.add('active');
       }
 
       // Close dropdown

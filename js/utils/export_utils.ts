@@ -280,8 +280,10 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
       const islandId = (fuelPumps.island_id as number | string) || 999;
       const pumpName = (fuelPumps.pump_name as string) || '';
 
-      if (!islandsMap.has(islandId)) {
-        islandsMap.set(islandId, { id: islandId, label: islandName, pistole: [] });
+      let section = islandsMap.get(islandId);
+      if (!section) {
+        section = { id: islandId, label: islandName, pistole: [] };
+        islandsMap.set(islandId, section);
       }
 
       const tipo = inferFuelTypeFromNameExport(pistolName);
@@ -289,27 +291,27 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
       const prezzoUnitario = safeNumber(sp.end_price);
       const totaleEuro = venduto * prezzoUnitario;
 
-            islandsMap.get(islandId)!.pistole.push({
-              label: `${pumpName} ${pistolName}`.trim(),
-              chiusura: safeNumber(sp.end_counter),
-              apertura: safeNumber(sp.start_counter),
-              venduti: venduto,
-              totaleEuro: totaleEuro,
-              tipo: tipo,
-              tipoSigla: fuelTypeSigla(tipo)
-            });
+      section.pistole.push({
+        label: `${pumpName} ${pistolName}`.trim(),
+        chiusura: safeNumber(sp.end_counter),
+        apertura: safeNumber(sp.start_counter),
+        venduti: venduto,
+        totaleEuro: totaleEuro,
+        tipo: tipo,
+        tipoSigla: fuelTypeSigla(tipo)
+      });
 
-            // Meta totals accumulation
-            if (tipo === 'gasolio') {
-              metrics.meta.totals.ltGasolio += venduto;
-              metrics.meta.totals.euroGasolio += totaleEuro;
-            } else if (tipo === 'benzina') {
-              metrics.meta.totals.ltBenzina += venduto;
-              metrics.meta.totals.euroBenzina += totaleEuro;
-            } else {
-              metrics.meta.totals.ltOther += venduto;
-            }
-            metrics.meta.totals.totalEuro += totaleEuro;
+      // Meta totals accumulation
+      if (tipo === 'gasolio') {
+        metrics.meta.totals.ltGasolio += venduto;
+        metrics.meta.totals.euroGasolio += totaleEuro;
+      } else if (tipo === 'benzina') {
+        metrics.meta.totals.ltBenzina += venduto;
+        metrics.meta.totals.euroBenzina += totaleEuro;
+      } else {
+        metrics.meta.totals.ltOther += venduto;
+      }
+      metrics.meta.totals.totalEuro += totaleEuro;
     });
 
     // Ordina isole e pistole

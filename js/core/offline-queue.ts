@@ -70,6 +70,10 @@ export async function queueAction(
   if (!db) {
     await initOfflineQueue();
   }
+  if (!db) {
+    throw new Error('Coda offline non disponibile');
+  }
+  const database = db;
 
   const action: QueuedAction = {
     id: `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -80,7 +84,7 @@ export async function queueAction(
   };
 
   return new Promise((resolve, reject) => {
-    const transaction = db!.transaction([STORE_NAME], 'readwrite');
+    const transaction = database.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.add(action);
 
@@ -103,9 +107,13 @@ export async function getPendingActions(): Promise<QueuedAction[]> {
   if (!db) {
     await initOfflineQueue();
   }
+  if (!db) {
+    return [];
+  }
+  const database = db;
 
   return new Promise((resolve, reject) => {
-    const transaction = db!.transaction([STORE_NAME], 'readonly');
+    const transaction = database.transaction([STORE_NAME], 'readonly');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.getAll();
 
@@ -124,9 +132,10 @@ export async function getPendingActions(): Promise<QueuedAction[]> {
  */
 export async function removeAction(id: string): Promise<void> {
   if (!db) {return;}
+  const database = db;
 
   return new Promise((resolve, reject) => {
-    const transaction = db!.transaction([STORE_NAME], 'readwrite');
+    const transaction = database.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.delete(id);
 
@@ -145,11 +154,12 @@ export async function removeAction(id: string): Promise<void> {
  */
 async function incrementRetry(action: QueuedAction): Promise<void> {
   if (!db) {return;}
+  const database = db;
 
   action.retryCount++;
 
   return new Promise((resolve, reject) => {
-    const transaction = db!.transaction([STORE_NAME], 'readwrite');
+    const transaction = database.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put(action);
 

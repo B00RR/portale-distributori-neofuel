@@ -228,13 +228,22 @@ export async function showChiusureTab(
       setSafeHTML(dataContainer, html);
 
       dataContainer.querySelectorAll('.view-closure').forEach(btn => {
-        btn.addEventListener('click', () => showClosureDetails((btn as HTMLElement).dataset.id!));
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) { showClosureDetails(id); }
+        });
       });
       dataContainer.querySelectorAll('.export-closure').forEach(btn => {
-        btn.addEventListener('click', () => openExportModal((btn as HTMLElement).dataset.id!));
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) { openExportModal(id); }
+        });
       });
       dataContainer.querySelectorAll('.delete-closure').forEach(btn => {
-        btn.addEventListener('click', () => deleteClosure((btn as HTMLElement).dataset.id!, renderTable));
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) { deleteClosure(id, renderTable); }
+        });
       });
 
     } catch (err) {
