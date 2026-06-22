@@ -4,12 +4,14 @@ import { property, state } from 'lit/decorators.js';
 import { supabase } from '../../core/api.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { validateVoucher } from '../../core/rules.js';
+import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
 import { createRateLimiter } from '../../utils/utils.js';
 import { formatEuro, formatDate } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
 
+
 import { BaseComponent } from './BaseComponent.js';
-declare const window: Window & { Html5Qrcode?: any };
+declare const window: Window & { Html5Qrcode?: Html5QrcodeConstructor };
 
 interface RpcResult {
   success: boolean;
@@ -43,11 +45,11 @@ export class VoucherManager extends BaseComponent {
     @state() private mode: 'menu' | 'scan' | 'manual' | 'loading' | 'verify' | 'result' | 'success' | 'error' = 'menu';
     @state() private errorMessage: string = '';
     @state() private activeVoucher: Voucher | null = null;
-    @state() private validationResult: { valid: boolean; error?: string; reason?: string; details?: any } | null = null;
+    @state() private validationResult: { valid: boolean; error?: string; reason?: string; details?: { date?: string | null } } | null = null;
     @state() private manualCode: string = '';
 
     // Scanner state
-    private html5QrCode: any = null;
+    private html5QrCode: Html5QrcodeInstance | null = null;
     private rateLimiter = createRateLimiter(5, 60000);
 
     // Styles
@@ -227,16 +229,16 @@ export class VoucherManager extends BaseComponent {
       // Html5Qrcode will be loaded on-demand in startScanner()
     }
 
-    override createRenderRoot() {
+    override createRenderRoot(): HTMLElement | DocumentFragment {
       return this; // Disable Shadow DOM so Html5Qrcode can find #reader
     }
 
-    override disconnectedCallback() {
+    override disconnectedCallback(): void {
       super.disconnectedCallback();
       this.stopScanner();
     }
 
-    private async startScanner() {
+    private async startScanner(): Promise<void> {
       this.mode = 'scan';
       // Small delay to allow render
       await this.updateComplete;
@@ -276,15 +278,15 @@ export class VoucherManager extends BaseComponent {
           (decodedText: string) => this.handleCodeFound(decodedText),
           () => { } // Ignore failures
         );
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error('Scanner error', e);
-        const errDetails = e.name ? `${e.name}: ${e.message}` : String(e);
+        const errDetails = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
         this.errorMessage = `Impossibile avviare la fotocamera. Dettaglio: ${errDetails}`;
         this.mode = 'error';
       }
     }
 
-    private async stopScanner() {
+    private async stopScanner(): Promise<void> {
       if (this.html5QrCode) {
         try {
           await this.html5QrCode.stop();
@@ -296,13 +298,13 @@ export class VoucherManager extends BaseComponent {
       }
     }
 
-    private handleCodeFound(code: string) {
+    private handleCodeFound(code: string): void {
       this.stopScanner();
       if (navigator.vibrate) {navigator.vibrate(200);}
       this.processCode(code);
     }
 
-    private async processCode(code: string) {
+    private async processCode(code: string): Promise<void> {
       if (!this.rateLimiter.check()) {
         Toast.show('Troppi tentativi. Riprova tra un minuto.', 'error');
         return;
@@ -317,7 +319,7 @@ export class VoucherManager extends BaseComponent {
         this.activeVoucher = {
           code: code,
           amount: 0, // Will be determined when synced
-          voucher_batches: { customer_name: 'Verifica al ritorno online' },
+          voucher_batches: { customer_name: 'Verifica al ritorno online' }
         };
         this.mode = 'verify';
         Toast.show('Modalità offline: il voucher verrà validato al ritorno online.', 'warning');
@@ -352,13 +354,13 @@ export class VoucherManager extends BaseComponent {
           this.mode = 'verify';
         }
 
-      } catch (e: any) {
-        this.errorMessage = e.message || 'Errore di controllo';
+      } catch (e: unknown) {
+        this.errorMessage = (e as { message?: string })?.message || 'Errore di controllo';
         this.mode = 'error';
       }
     }
 
-    private async confirmRedeem() {
+    private async confirmRedeem(): Promise<void> {
       if (!this.activeVoucher || !this.stationId || !this.userId) {return;}
 
       this.mode = 'loading';
@@ -394,8 +396,8 @@ export class VoucherManager extends BaseComponent {
         Toast.show('Voucher Riscattato!', 'success');
         this.mode = 'success';
         this.emit('voucher-redeemed', { voucher: this.activeVoucher });
-      } catch (e: any) {
-        this.errorMessage = e.message || 'Riscatto fallito';
+      } catch (e: unknown) {
+        this.errorMessage = (e as { message?: string })?.message || 'Riscatto fallito';
         this.mode = 'error';
       }
     }
@@ -408,7 +410,7 @@ export class VoucherManager extends BaseComponent {
     `;
     }
 
-    private renderContent() {
+    private renderContent(): TemplateResult {
       switch (this.mode) {
         case 'menu':
           return html`
@@ -441,7 +443,7 @@ export class VoucherManager extends BaseComponent {
                     <div class="manual-input-container">
                         <input type="text" 
                             .value=${this.manualCode} 
-                            @input=${(e: any) => this.manualCode = e.target.value}
+                            @input=${(e: Event) => this.manualCode = (e.target as HTMLInputElement).value}
                             @keypress=${(e: KeyboardEvent) => e.key === 'Enter' && this.processCode(this.manualCode)}
                             placeholder="Codice" 
                             autofocus

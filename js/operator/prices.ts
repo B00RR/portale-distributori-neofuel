@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
 import { showErrorMessage, showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml } from '../utils/utils.js';
+import { escapeHtml, getErrorMessage } from '../utils/utils.js';
 
 interface PriceRecord {
     id: number;
@@ -127,16 +126,16 @@ export async function showPrezziEditForm(stationId: number): Promise<void> {
           : 'I prezzi sono validi da subito.';
         closeModal();
         showInfoModal(`Prezzi aggiornati con successo! ${validitaMsg}`);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Errore update-prices:', err);
-        showInfoModal('Errore: ' + err.message);
+        showInfoModal('Errore: ' + getErrorMessage(err));
       }
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     const modalBody = document.getElementById('modal-body');
     showErrorMessage(modalBody, err, 'Errore caricamento prezzi');
     if (modalBody) {
-      setSafeHTML(modalBody, `<p style="color: red; padding: 20px;">${escapeHtml(err.message)}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`);
+      setSafeHTML(modalBody, `<p style="color: red; padding: 20px;">${escapeHtml(getErrorMessage(err))}</p><div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>`);
       document.getElementById('btn-close-err')?.addEventListener('click', () => closeModal());
     }
   }

@@ -2,6 +2,7 @@ import { supabase } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
+import { getErrorMessage } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
@@ -143,8 +144,8 @@ function renderExtraIncomeForm(container: HTMLElement, stationId: number | strin
         closeModal();
         showInfoModal(`Incasso di € ${amount.toFixed(2)} registrato correttamente.`);
 
-      } catch (err: any) {
-        Toast.show('Errore salvataggio: ' + err.message, 'error');
+      } catch (err: unknown) {
+        Toast.show('Errore salvataggio: ' + getErrorMessage(err), 'error');
       }
     });
   }

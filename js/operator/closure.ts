@@ -1,6 +1,6 @@
 import { openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml } from '../utils/utils.js';
+import { escapeHtml, getErrorMessage } from '../utils/utils.js';
 // Import the component to register it
 import '../ui/components/ClosureWizard.js';
 
@@ -27,11 +27,11 @@ export async function startClosureWizard(stationId: number | string, userId: str
 
     modalBody.appendChild(wizard);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Closure Wrapper] Error starting wizard:', err);
     const modalBody = document.getElementById('modal-body');
     if (modalBody) {
-      setSafeHTML(modalBody, `<p style="color: red; padding: 20px;">Errore: ${escapeHtml(err.message)}</p>`);
+      setSafeHTML(modalBody, `<p style="color: red; padding: 20px;">Errore: ${escapeHtml(getErrorMessage(err))}</p>`);
     }
   }
 }

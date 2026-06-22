@@ -3,8 +3,8 @@
  * Refactored to use modular architecture (Router + Layout)
  */
 
-import { checkOpeningStatus } from './operator/opening.js';
 import { renderOperatorShell, OperatorHandlers } from './operator/layout.js';
+import { checkOpeningStatus } from './operator/opening.js';
 import { router, OperatorView } from './operator/router.js';
 import { store } from './shared/state.js';
 

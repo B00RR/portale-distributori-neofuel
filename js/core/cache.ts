@@ -103,7 +103,7 @@ export function startCacheCleanup(): void {
             if (!isValid(entry.timestamp, CACHE_DEFAULT_TTL_MS)) {
               localStorage.removeItem(key);
             }
-          } catch (e) {
+          } catch {
             localStorage.removeItem(key);
           }
         }

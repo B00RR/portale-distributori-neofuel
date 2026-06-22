@@ -1,9 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, showInfoModal, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro, formatDate } from '../utils/utils.js';
+import { escapeHtml, formatEuro, formatDate, getErrorMessage } from '../utils/utils.js';
 
 // --- INTERFACES ---
 
@@ -161,7 +160,7 @@ function updateTabButtons(): void {
 }
 
 // Global reference for the sync handler to allow removal
-const syncHandler = () => {
+const syncHandler = (): void => {
   if (voucherState.activeTab === 'dashboard') {
     Toast.show('Dati aggiornati dopo sincronizzazione', 'info');
     renderActiveTab();
@@ -319,11 +318,11 @@ async function handleGeneration(e: Event): Promise<void> {
     updateTabButtons();
     renderActiveTab();
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
     const content = document.getElementById('voucher-content');
     if (content) {renderGenerator(content);} // Reset UI
-    Toast.show('Errore Generazione: ' + (err.message || ''), 'error');
+    Toast.show('Errore Generazione: ' + getErrorMessage(err), 'error');
   }
 }
 
@@ -760,8 +759,8 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
       });
     }
 
-  } catch (err: any) {
-    setSafeHTML(container, `<p class="error-text">Errore: ${escapeHtml(err.message)}</p>`);
+  } catch (err: unknown) {
+    setSafeHTML(container, `<p class="error-text">Errore: ${escapeHtml(getErrorMessage(err))}</p>`);
     console.error(err);
   }
 }
@@ -774,9 +773,9 @@ function setupColumnResizing(table: HTMLElement | null): void {
   try {
     const saved = localStorage.getItem('voucher_table_widths');
     if (saved) {
-      const widths = JSON.parse(saved);
-      Object.keys(widths).forEach(key => {
-        table.style.setProperty(`--col-${key}`, widths[key]);
+      const widths = JSON.parse(saved) as Record<string, string>;
+      Object.entries(widths).forEach(([key, val]) => {
+        table.style.setProperty(`--col-${key}`, String(val));
       });
     }
   } catch (e) {
@@ -817,6 +816,7 @@ function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex:
       const widths: Record<string, string> = {};
       for (let i = 1; i <= 6; i++) {
         const val = table.style.getPropertyValue(`--col-${i}`);
+        // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index written to a fresh local record
         if (val) { widths[i] = val; }
       }
       localStorage.setItem('voucher_table_widths', JSON.stringify(widths));
@@ -901,9 +901,9 @@ async function showBatchDetails(batchId: string): Promise<void> {
 
     document.getElementById('btn-close-details')?.addEventListener('click', () => closeModal());
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    setSafeHTML(modalBody, `<div class="alert alert-danger">Errore caricamento: ${escapeHtml(err.message)}</div>`);
+    setSafeHTML(modalBody, `<div class="alert alert-danger">Errore caricamento: ${escapeHtml(getErrorMessage(err))}</div>`);
   }
 }
 
@@ -920,9 +920,9 @@ async function handleDeleteBatch(batchId: string): Promise<void> {
     if (error) { throw error; }
     Toast.show('Lotto eliminato correttamente.', 'success');
     renderActiveTab();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    Toast.show('Errore eliminazione: ' + err.message, 'error');
+    Toast.show('Errore eliminazione: ' + getErrorMessage(err), 'error');
   }
 }
 
@@ -959,13 +959,13 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
     // 4. Update Window Content
     await generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    Toast.show('Errore recupero voucher: ' + err.message, 'error');
+    Toast.show('Errore recupero voucher: ' + getErrorMessage(err), 'error');
     if (container) {renderDashboard(container);} // Reset UI
 
     // Show error in popup
-    setSafeHTML(printWindow.document.body, `<h3 style="color:red">Errore: ${escapeHtml(err.message)}</h3>`);
+    setSafeHTML(printWindow.document.body, `<h3 style="color:red">Errore: ${escapeHtml(getErrorMessage(err))}</h3>`);
   }
 }
 
@@ -974,7 +974,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
   const backBg = 'assets/templates/template_voucher_pagina 2.jpg';
 
   // Dynamic import to avoid startup crashes if bundling fails
-  let QRCode: any;
+  let QRCode: { toDataURL(text: string, options?: unknown): Promise<string> } | undefined;
   try {
     const module = await import('qrcode');
     QRCode = module.default || module;

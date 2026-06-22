@@ -3,11 +3,9 @@
  * Intelligent caching with TTL for static/semi-static data
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes default
 
-export interface CacheEntry<T = any> {
+export interface CacheEntry<T = unknown> {
     data: T;
     expiresAt: number;
     createdAt: number;
@@ -31,7 +29,7 @@ export const Cache = {
      * @param key - Cache key
      * @returns The value if present and not expired, otherwise null
      */
-  get<T = any>(key: string): T | null {
+  get<T = unknown>(key: string): T | null {
     const entry = cacheStore.get(key);
     if (!entry) { return null; }
 
@@ -50,7 +48,7 @@ export const Cache = {
      * @param data - Data to store
      * @param ttl - Time to live in milliseconds (default: 5 minutes)
      */
-  set<T = any>(key: string, data: T, ttl: number = DEFAULT_TTL): void {
+  set<T = unknown>(key: string, data: T, ttl: number = DEFAULT_TTL): void {
     cacheStore.set(key, {
       data,
       expiresAt: Date.now() + ttl,
@@ -93,7 +91,7 @@ export const Cache = {
      * @param ttl - TTL in milliseconds
      * @returns Cached data or fetched data
      */
-  async getOrFetch<T = any>(key: string, fetchFn: () => Promise<T>, ttl: number = DEFAULT_TTL): Promise<T> {
+  async getOrFetch<T = unknown>(key: string, fetchFn: () => Promise<T>, ttl: number = DEFAULT_TTL): Promise<T> {
     const cached = this.get<T>(key);
     if (cached !== null) {
       return cached;

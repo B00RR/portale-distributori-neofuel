@@ -2,7 +2,7 @@ export interface BusinessLogicField {
     key: string;
     label: string;
     type: 'number' | 'boolean' | 'select';
-    defaultValue: any;
+    defaultValue: number | boolean | string;
     description: string;
     unit?: string;
     icon?: string;

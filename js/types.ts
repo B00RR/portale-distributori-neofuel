@@ -176,7 +176,7 @@ export interface Html5QrcodeConfig {
     aspectRatio?: number;
 }
 
-export type QrSuccessCallback = (decodedText: string, decodedResult: any) => void;
+export type QrSuccessCallback = (decodedText: string, decodedResult: unknown) => void;
 export type QrErrorCallback = (errorMessage: string) => void;
 
 export interface SortableEvent {
@@ -185,18 +185,75 @@ export interface SortableEvent {
     newIndex: number;
 }
 
+// --- Minimal typings for CDN-loaded libraries (only the surface we use) ---
+
+export type SortableOptions = Record<string, unknown>;
+export interface SortableConstructor {
+    new (element: HTMLElement, options?: SortableOptions): unknown;
+}
+
+export interface XlsxCell {
+    value(value?: unknown): unknown;
+}
+export interface XlsxSheet {
+    cell(address: string): XlsxCell | undefined;
+    name(name?: string): unknown;
+    clone(): XlsxSheet;
+    delete(): void;
+    active(active?: boolean): unknown;
+}
+export interface XlsxWorkbook {
+    sheet(index: number): XlsxSheet;
+    sheets(): XlsxSheet[];
+    outputAsync(): Promise<Blob>;
+}
+export interface XlsxPopulateStatic {
+    fromDataAsync(data: ArrayBuffer | null): Promise<XlsxWorkbook>;
+}
+
+export interface JSZipInstance {
+    file(name: string, data: Blob): void;
+    generateAsync(options: { type: string }): Promise<Blob>;
+}
+export interface JSZipConstructor {
+    new (): JSZipInstance;
+}
+
+export interface Html5QrcodeInstance {
+    start(
+        cameraIdOrConfig: unknown,
+        configuration: unknown,
+        qrCodeSuccessCallback: QrSuccessCallback,
+        qrCodeErrorCallback?: (errorMessage: string) => void
+    ): Promise<void>;
+    stop(): Promise<void>;
+    clear(): void;
+}
+export interface Html5QrcodeConstructor {
+    new (elementId: string): Html5QrcodeInstance;
+}
+
+export type PlausibleFn = (eventName: string, options?: Record<string, unknown>) => void;
+
+export interface ChartInstance {
+    destroy(): void;
+}
+export interface ChartConstructor {
+    new (ctx: unknown, config: unknown): ChartInstance;
+}
+
 export interface CustomWindow extends Window {
-    supabase: any;
-    Sortable: any;
-    voucherActions: any;
-    requestPasswordReset: any;
-    openPaymentModal: any;
-    showNotificheAdmin: any;
-    Html5Qrcode: any;
-    plausible: any;
-    XlsxPopulate: any;
-    JSZip: any;
-    calculationEngine: any;
+    supabase: unknown;
+    Sortable: SortableConstructor;
+    voucherActions: Record<string, unknown>;
+    requestPasswordReset: (email: string) => Promise<unknown>;
+    openPaymentModal: unknown;
+    showNotificheAdmin: unknown;
+    Html5Qrcode: Html5QrcodeConstructor;
+    plausible: PlausibleFn;
+    XlsxPopulate: XlsxPopulateStatic;
+    JSZip: JSZipConstructor;
+    calculationEngine: unknown;
     refreshUiIcons?: () => void;
 }
 

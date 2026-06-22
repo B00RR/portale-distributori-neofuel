@@ -7,7 +7,7 @@ import { BusinessLogicManager } from '../../core/business-logic-manager.js';
 import { type BusinessRules, DEFAULT_BUSINESS_RULES } from '../../core/business-rules-schema.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { Pistola, Island, Shift } from '../../types.js';
-import { formatEuro } from '../../utils/utils.js';
+import { formatEuro, getErrorMessage } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
 
 import { BaseComponent } from './BaseComponent.js';
@@ -65,8 +65,8 @@ export class ClosureWizard extends BaseComponent {
     @state() private islands: Island[] = [];
     @state() private openingCounters: Record<number, number> = {};
     @state() private finalCounters: Record<number, number> = {};
-    @state() private prezzi: any = null;
-    @state() private stationConfig: any = null;
+    @state() private prezzi: { prezzo_benzina?: number; prezzo_gasolio?: number } | null = null;
+    @state() private stationConfig: { allow_partial_closure?: boolean } | null = null;
 
     // Data from Step 2
     @state() private selfCashIn: string = '';
@@ -244,11 +244,11 @@ export class ClosureWizard extends BaseComponent {
         `
     ];
 
-    protected override firstUpdated() {
+    protected override firstUpdated(): void {
       this.loadInitialData();
     }
 
-    private async loadInitialData() {
+    private async loadInitialData(): Promise<void> {
       this.wizardState = { ...this.wizardState, mode: 'loading' };
       try {
         const { data: shiftResult, error: sError } = await supabase
@@ -304,14 +304,17 @@ export class ClosureWizard extends BaseComponent {
         this.pistole = pData ?? [];
 
         const countersMap: Record<number, number> = {};
-        (countersRes.data || []).forEach((c: any) => {
-          countersMap[c.pistola_id] = Number(c.opened_at_counter) || 0;
+        // The generated DB types don't model this legacy column selection (see
+        // CLAUDE.md: repo types can lag the live DB), so the row shape is asserted.
+        const counters = (countersRes.data || []) as Array<{ pistola_id: number | string; opened_at_counter: number | string }>;
+        counters.forEach((c) => {
+          countersMap[Number(c.pistola_id)] = Number(c.opened_at_counter) || 0;
         });
         this.openingCounters = countersMap;
         this.wizardState = { ...this.wizardState, mode: 'form', step: 1 };
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error loading ClosureWizard data:', error);
-        this.wizardState = { mode: 'error', errorMessage: error.message || 'Errore imprevisto', step: 1 };
+        this.wizardState = { mode: 'error', errorMessage: getErrorMessage(error) || 'Errore imprevisto', step: 1 };
       }
     }
 
@@ -381,7 +384,7 @@ export class ClosureWizard extends BaseComponent {
             ${this.closureType === 'partial' ? html`
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="checkbox" style="width: auto;" .checked=${this.includeCounters} @change=${(e: any) => this.includeCounters = e.target.checked}>
+                        <input type="checkbox" style="width: auto;" .checked=${this.includeCounters} @change=${(e: Event) => this.includeCounters = (e.target as HTMLInputElement).checked}>
                         Inserisci Numeratori Pistole (Opzionale)
                     </label>
                 </div>
@@ -414,13 +417,14 @@ export class ClosureWizard extends BaseComponent {
         `;
     }
 
-    private handleStep1Submit() {
+    private handleStep1Submit(): void {
       if (this.closureType === 'final' || this.includeCounters) {
         const inputs = this.renderRoot.querySelectorAll('input[name^="counter_"]');
         const counters: Record<number, number> = {};
         for (const input of Array.from(inputs) as HTMLInputElement[]) {
           if (!input.value) { Toast.show('Inserisci tutti i contatori', 'warning'); input.focus(); return; }
           const pId = Number(input.name.replace('counter_', ''));
+          // eslint-disable-next-line security/detect-object-injection -- pId is a numeric id parsed from a controlled input name, written to a fresh local record
           counters[pId] = parseFloat(input.value);
         }
         this.finalCounters = counters;
@@ -444,19 +448,19 @@ export class ClosureWizard extends BaseComponent {
             <div style="background: #f0f9ff; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem;">
                 <h3 style="margin-top:0; color: #0369a1;">Scontrino Self</h3>
                 <div class="form-grid">
-                    <div class="input-card"><label>Incassate (€)</label><input type="number" .value=${this.selfCashIn} @input=${(e: any) => this.selfCashIn = e.target.value}></div>
-                    <div class="input-card"><label>Erogate (€)</label><input type="number" .value=${this.selfCashOut} @input=${(e: any) => this.selfCashOut = e.target.value}></div>
-                    <div class="input-card"><label>Bancomat (€)</label><input type="number" .value=${this.selfPos} @input=${(e: any) => this.selfPos = e.target.value}></div>
-                    <div class="input-card"><label>UTA/DKV (€)</label><input type="number" .value=${this.selfFleet} @input=${(e: any) => this.selfFleet = e.target.value}></div>
-                    <div class="input-card" style="grid-column: 1 / -1;"><label>ID Gestore (€)</label><input type="number" .value=${this.selfManager} @input=${(e: any) => this.selfManager = e.target.value}></div>
+                    <div class="input-card"><label>Incassate (€)</label><input type="number" .value=${this.selfCashIn} @input=${(e: Event) => this.selfCashIn = (e.target as HTMLInputElement).value}></div>
+                    <div class="input-card"><label>Erogate (€)</label><input type="number" .value=${this.selfCashOut} @input=${(e: Event) => this.selfCashOut = (e.target as HTMLInputElement).value}></div>
+                    <div class="input-card"><label>Bancomat (€)</label><input type="number" .value=${this.selfPos} @input=${(e: Event) => this.selfPos = (e.target as HTMLInputElement).value}></div>
+                    <div class="input-card"><label>UTA/DKV (€)</label><input type="number" .value=${this.selfFleet} @input=${(e: Event) => this.selfFleet = (e.target as HTMLInputElement).value}></div>
+                    <div class="input-card" style="grid-column: 1 / -1;"><label>ID Gestore (€)</label><input type="number" .value=${this.selfManager} @input=${(e: Event) => this.selfManager = (e.target as HTMLInputElement).value}></div>
                 </div>
             </div>
             <div style="background: #fdf2f8; padding: 1.5rem; border-radius: 16px;">
                 <h3 style="margin-top:0; color: #9d174d;">Operatore</h3>
                 <div class="form-grid">
-                    <div class="input-card"><label>Contanti Reali (€)</label><input type="number" .value=${this.operatorCash} @input=${(e: any) => this.operatorCash = e.target.value}></div>
-                    <div class="input-card"><label>POS (€)</label><input type="number" .value=${this.operatorPos} @input=${(e: any) => this.operatorPos = e.target.value}></div>
-                    <div class="input-card" style="grid-column: 1 / -1;"><label>UTA/DKV Manuale (€)</label><input type="number" .value=${this.operatorUta} @input=${(e: any) => this.operatorUta = e.target.value}></div>
+                    <div class="input-card"><label>Contanti Reali (€)</label><input type="number" .value=${this.operatorCash} @input=${(e: Event) => this.operatorCash = (e.target as HTMLInputElement).value}></div>
+                    <div class="input-card"><label>POS (€)</label><input type="number" .value=${this.operatorPos} @input=${(e: Event) => this.operatorPos = (e.target as HTMLInputElement).value}></div>
+                    <div class="input-card" style="grid-column: 1 / -1;"><label>UTA/DKV Manuale (€)</label><input type="number" .value=${this.operatorUta} @input=${(e: Event) => this.operatorUta = (e.target as HTMLInputElement).value}></div>
                 </div>
             </div>
             <div class="btn-group">
@@ -466,7 +470,7 @@ export class ClosureWizard extends BaseComponent {
         `;
     }
 
-    private handleStep2Submit() {
+    private handleStep2Submit(): void {
       if (!this.operatorCash || !this.operatorPos) { Toast.show('Inserisci i dati reali', 'warning'); return; }
       this.wizardState = { ...this.wizardState, step: 3 };
     }
@@ -504,7 +508,7 @@ export class ClosureWizard extends BaseComponent {
         `;
     }
 
-    private async handleConfirmClosure() {
+    private async handleConfirmClosure(): Promise<void> {
       this.wizardState = { ...this.wizardState, mode: 'submitting' };
 
       const isFinal = this.closureType === 'final';
@@ -557,8 +561,8 @@ export class ClosureWizard extends BaseComponent {
         if (error || (res && isRpcResult(res) && !res.success)) {throw new Error(error?.message || getRpcError(res));}
         Toast.show('Chiusura completata!', 'success');
         setTimeout(() => window.location.reload(), 2000);
-      } catch (error: any) {
-        Toast.show(error.message, 'error');
+      } catch (error: unknown) {
+        Toast.show(getErrorMessage(error), 'error');
         this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
       }
     }

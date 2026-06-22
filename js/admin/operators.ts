@@ -2,8 +2,8 @@ import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from '../ui/ui.js';
-import { escapeHtml } from '../utils/utils.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
+import { escapeHtml } from '../utils/utils.js';
 
 // --- INTERFACES ---
 

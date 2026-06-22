@@ -11,7 +11,7 @@ import {
   computeExportSummaryMetrics
 } from '../utils/export_utils.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro } from '../utils/utils.js';
+import { escapeHtml, formatEuro, getErrorMessage } from '../utils/utils.js';
 
 import { FilterBar } from './components/FilterBar.js';
 import { Pagination } from './components/Pagination.js';
@@ -107,7 +107,7 @@ export async function showChiusureTab(
   // Track params to prevent loop
   let lastParams = { page: -1, filtersJson: '' };
 
-  const renderTable = async () => {
+  const renderTable = async (): Promise<void> => {
     const dataContainer = document.getElementById('data-container');
     if (!dataContainer) { return; }
 
@@ -228,13 +228,22 @@ export async function showChiusureTab(
       setSafeHTML(dataContainer, html);
 
       dataContainer.querySelectorAll('.view-closure').forEach(btn => {
-        btn.addEventListener('click', () => showClosureDetails((btn as HTMLElement).dataset.id!));
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) { showClosureDetails(id); }
+        });
       });
       dataContainer.querySelectorAll('.export-closure').forEach(btn => {
-        btn.addEventListener('click', () => openExportModal((btn as HTMLElement).dataset.id!));
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) { openExportModal(id); }
+        });
       });
       dataContainer.querySelectorAll('.delete-closure').forEach(btn => {
-        btn.addEventListener('click', () => deleteClosure((btn as HTMLElement).dataset.id!, renderTable));
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.id;
+          if (id) { deleteClosure(id, renderTable); }
+        });
       });
 
     } catch (err) {
@@ -407,8 +416,8 @@ export async function openExportModal(closureId: string | number): Promise<void>
     const ctx = await fetchClosureExportData(closureId);
     const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id);
     await generateClosureExcel(metrics);
-  } catch (err: any) {
-    Toast.show('Errore export: ' + (err?.message || err), 'error');
+  } catch (err: unknown) {
+    Toast.show('Errore export: ' + getErrorMessage(err), 'error');
     console.error('Errore export:', err);
   }
 }
@@ -427,8 +436,8 @@ export async function openBulkExportModal(): Promise<void> {
       return data;
     }, 10 * 60 * 1000);
     if (stations) {
-      stations.forEach((s: any) => {
-        stationsHtml += `<option value="${s.station_id}">${escapeHtml(s.station_name)}</option>`;
+      stations.forEach((s: Record<string, unknown>) => {
+        stationsHtml += `<option value="${escapeHtml(String(s.station_id))}">${escapeHtml(String(s.station_name))}</option>`;
       });
     }
   } catch (e) { console.error(e); }
@@ -497,7 +506,7 @@ export async function openBulkExportModal(): Promise<void> {
   const rangeOptions = document.getElementById('range-options');
   const lastNOptions = document.getElementById('last-n-options');
 
-  const toggleBulkOptions = (isRange: boolean) => {
+  const toggleBulkOptions = (isRange: boolean): void => {
     if (isRange) {
       rangeOptions?.classList.remove('hidden');
       lastNOptions?.classList.add('hidden');
@@ -549,9 +558,9 @@ export async function openBulkExportModal(): Promise<void> {
           dateTo
         });
         closeModal();
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        Toast.show('Errore durante export multiplo: ' + err.message, 'error');
+        Toast.show('Errore durante export multiplo: ' + getErrorMessage(err), 'error');
       } finally {
         if (loadingDiv) {loadingDiv.classList.add('hidden');}
         btnElement.disabled = false;

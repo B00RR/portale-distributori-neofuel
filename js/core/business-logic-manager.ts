@@ -25,15 +25,16 @@ export const BusinessLogicManager = {
         .from(BUCKET_NAME)
         .download(FILE_PATH);
 
-      const timeoutPromise = new Promise<{ data: Blob | null; error: any }>((_, reject) =>
+      const timeoutPromise = new Promise<{ data: Blob | null; error: unknown }>((_, reject) =>
         setTimeout(() => reject(new Error('Storage download timeout')), 5000)
       );
 
-      const { data, error } = await Promise.race([downloadPromise, timeoutPromise]) as unknown as { data: Blob | null; error: any };
+      const { data, error } = await Promise.race([downloadPromise, timeoutPromise]) as unknown as { data: Blob | null; error: unknown };
 
       if (error) {
         // If not found, return defaults and try to seed
-        if (error.message?.includes('Object not found') || error.status === 404 || error.message === 'Storage download timeout') {
+        const e = error as { message?: string; status?: number };
+        if (e.message?.includes('Object not found') || e.status === 404 || e.message === 'Storage download timeout') {
           return DEFAULT_BUSINESS_RULES;
         }
         throw error;

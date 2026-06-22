@@ -26,6 +26,21 @@ export function escapeHtml(text: string | number | null | undefined): string {
 }
 
 /**
+ * Extracts a human-readable message from an unknown thrown/returned error.
+ * Handles native Error instances, Supabase-style plain objects with a `message`
+ * field, and any other value (coerced to string).
+ * @param error - The caught error of unknown type
+ * @returns A best-effort message string
+ */
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) { return error.message; }
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error);
+}
+
+/**
  * Escapes a number for safe HTML attr rendering
  * @param num - Number value to escape
  * @returns Safe string representation of the number

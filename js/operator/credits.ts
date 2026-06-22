@@ -6,7 +6,7 @@ import { supabase } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro } from '../utils/utils.js';
+import { escapeHtml, formatEuro, getErrorMessage } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 
@@ -261,13 +261,13 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
         await processNewCredit(stationId, userId, customerName, amount, product, notes);
         closeModal();
         showInfoModal('Credito registrato con successo!');
-        } catch (err) {
+      } catch (err) {
         if (err instanceof Error) {
           Toast.show('Errore: ' + err.message, 'error');
         } else {
           Toast.show('Errore imprevisto', 'error');
         }
-        }
+      }
     });
   }
 }
@@ -308,7 +308,7 @@ export async function processNewCredit(stationId: number | string, userId: strin
   const numericOperatorId = toNumericId(userId);
 
   // 1. Trova o crea cliente
-  let { data: customer, error: fetchError } = await supabase
+  const { data: initialCustomer, error: fetchError } = await supabase
     .from('crediti_clienti')
     .select('*')
     .eq('station_id', numericStationId)
@@ -316,6 +316,8 @@ export async function processNewCredit(stationId: number | string, userId: strin
     .maybeSingle();
 
   if (fetchError) { throw fetchError; }
+
+  let customer = initialCustomer;
 
   if (!customer) {
     const { data: newCustomer, error: createError } = await supabase
@@ -558,8 +560,8 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
         await processPayment(stationId, userId, customer, amount, method);
         closeModal();
         showInfoModal('Pagamento registrato con successo!');
-      } catch (err: any) {
-        Toast.show('Errore: ' + err.message, 'error');
+      } catch (err: unknown) {
+        Toast.show('Errore: ' + getErrorMessage(err), 'error');
       }
     });
   }

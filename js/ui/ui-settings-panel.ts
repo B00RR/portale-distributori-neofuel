@@ -141,7 +141,7 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
         setSafeHTML(btn, '<i class="fas fa-spinner fa-spin"></i> Salvataggio...');
 
         // A. Collect Business Rules
-        const rulesPayload: any = {};
+        const rulesPayload: Record<string, number | boolean> = {};
         BUSINESS_LOGIC_FIELDS.forEach(field => {
           const el = container.querySelector(`[name="br_${field.key}"]`) as HTMLInputElement;
           if (el) {

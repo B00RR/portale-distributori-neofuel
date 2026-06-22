@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
+import type { SortableConstructor, ChartConstructor } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
@@ -13,10 +13,26 @@ import { renderKpiCards, KPIData } from './dashboard-helpers.js';
 // Global libraries types (assumed loaded via CDN or scripts)
 declare global {
     interface Window {
-        Sortable: any;
-        Chart: any;
-        dashboardResizeTimeout: any;
+        Sortable: SortableConstructor;
+        Chart: ChartConstructor;
+        dashboardResizeTimeout: ReturnType<typeof setTimeout>;
     }
+}
+
+// Row shapes used locally. The generated DB types don't reliably model these
+// joined queries (see CLAUDE.md: repo types can lag the live DB), so the query
+// results are asserted to these minimal shapes.
+interface DashboardTank {
+    id: number;
+    capacity?: number | null;
+    fuel_type?: string | null;
+    station_id?: number | null;
+    fuel_stations?: { station_name?: string | null } | null;
+}
+interface TankReading {
+    tank_id: number | null;
+    liters?: number | null;
+    created_at: string;
 }
 
 // ------------------------------------------------------------------
@@ -95,7 +111,7 @@ export async function showDashboard(
     const stationsCount = stationsRes.count || 0;
     const operatorsCount = operatorsRes.count || 0;
     const closuresCount = closuresRes.count || 0;
-    const tanks = tanksRes.data || [];
+    const tanks = (tanksRes.data || []) as DashboardTank[];
     const todayClosures = todayClosuresRes.data || [];
 
     // RACE CONDITION CHECK (Early)
@@ -106,7 +122,7 @@ export async function showDashboard(
     // ------------------------------------------------------------------
     let tanksHtmlRows = '';
     if (tanks.length > 0) {
-      const tankIds = tanks.map((t: any) => t.id);
+      const tankIds = tanks.map((t) => t.id);
 
       // Fetch last 7 days of readings for these tanks to limit data size.
       const sevenDaysAgo = new Date();
@@ -119,17 +135,15 @@ export async function showDashboard(
         .gte('created_at', sevenDaysAgo.toISOString()) // LIMIT HISTORY
         .order('created_at', { ascending: false });
 
-      const latestByTank: Record<number, any> = {};
-      if (tankReadings) {
-        for (const r of tankReadings) {
-          if (r.tank_id === null) { continue; }
-          if (!latestByTank[r.tank_id]) {
-            latestByTank[r.tank_id] = r;
-          }
+      const latestByTank: Record<number, TankReading> = {};
+      for (const r of (tankReadings || []) as TankReading[]) {
+        if (r.tank_id === null) { continue; }
+        if (!latestByTank[r.tank_id]) {
+          latestByTank[r.tank_id] = r;
         }
       }
 
-      tanks.forEach((t: any) => {
+      tanks.forEach((t) => {
         const latest = latestByTank[t.id];
         const liters = latest?.liters ?? 0;
         const capacity = t.capacity || 0;
@@ -177,7 +191,7 @@ export async function showDashboard(
     let totalLitriGasolio = 0;
 
     if (Array.isArray(todayClosures)) {
-      todayClosures.forEach((item: any) => {
+      todayClosures.forEach((item) => {
         const closingData = item?.closing_data || {};
         // Sales
         vendutoDataValue += Number(closingData.ricavo_teorico || 0);
@@ -220,16 +234,22 @@ export async function showDashboard(
       // Assign Venduto
       if (typeof kpiVendutoRes === 'number') {
         vendutoKpiValue = kpiVendutoRes;
-      } else if (kpiVendutoRes && typeof kpiVendutoRes === 'object' && typeof kpiVendutoRes.value === 'number') {
-        vendutoKpiValue = kpiVendutoRes.value;
+      } else if (kpiVendutoRes && typeof kpiVendutoRes === 'object') {
+        const value = (kpiVendutoRes as Record<string, unknown>).value;
+        if (typeof value === 'number') {
+          vendutoKpiValue = value;
+        }
       }
 
       // Assign Erogato
       if (kpiErogatoRes && typeof kpiErogatoRes === 'object') {
+        const erogato = kpiErogatoRes as Record<string, number | undefined>;
+        const litriBenzina = erogato.litriBenzina ?? totalLitriBenzina;
+        const litriGasolio = erogato.litriGasolio ?? totalLitriGasolio;
         erogatoKpiData = {
-          litriBenzina: kpiErogatoRes.litriBenzina ?? totalLitriBenzina,
-          litriGasolio: kpiErogatoRes.litriGasolio ?? totalLitriGasolio,
-          totale: (kpiErogatoRes.litriBenzina ?? totalLitriBenzina) + (kpiErogatoRes.litriGasolio ?? totalLitriGasolio)
+          litriBenzina,
+          litriGasolio,
+          totale: litriBenzina + litriGasolio
         };
       }
 
@@ -333,9 +353,9 @@ export async function showDashboard(
 
           // Update order for visible items found in DOM
           newOrderIds.forEach((id, index) => {
-            const itemIndex = allItems.findIndex(k => k.id === id);
-            if (itemIndex !== -1 && allItems[itemIndex]) {
-                            allItems[itemIndex]!.order = index;
+            const layoutItem = allItems.find(k => k.id === id);
+            if (layoutItem) {
+              layoutItem.order = index;
             }
           });
 
@@ -407,28 +427,25 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
     }, 10 * 60 * 1000);
 
   // Raggruppa vendite per data e distributore
-  const salesByDateAndStation: Record<string, Record<number, number>> = {};
+  const salesByDateAndStation = new Map<string, Map<number, number>>();
   const allDates = new Set<string>();
 
   if (closuresData) {
-    closuresData.forEach((closure: any) => {
+    closuresData.forEach((closure) => {
       if (!closure.closed_at || !closure.closing_data) { return; }
 
       const day = new Date(closure.closed_at).toISOString().substring(0, 10);
       allDates.add(day);
 
-      const sId = closure.station_id;
-      const ricavo = Number(closure.closing_data?.ricavo_teorico || 0);
+      const sId = Number(closure.station_id);
+      const ricavo = Number((closure.closing_data as Record<string, unknown> | null)?.ricavo_teorico || 0);
 
-      if (!salesByDateAndStation[day]) {
-        salesByDateAndStation[day] = {};
+      let dayMap = salesByDateAndStation.get(day);
+      if (!dayMap) {
+        dayMap = new Map<number, number>();
+        salesByDateAndStation.set(day, dayMap);
       }
-
-      if (!salesByDateAndStation[day][sId]) {
-        salesByDateAndStation[day][sId] = 0;
-      }
-
-      salesByDateAndStation[day][sId] += ricavo;
+      dayMap.set(sId, (dayMap.get(sId) || 0) + ricavo);
     });
   }
 
@@ -442,15 +459,15 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
   ];
 
   // Crea un dataset per ogni distributore
-  const datasets: any[] = [];
+  const datasets: Record<string, unknown>[] = [];
   if (allStations) {
-    allStations.forEach((station: any, index: number) => {
+    allStations.forEach((station, index) => {
       const sId = station.station_id;
       const stationName = station.station_name || `Distributore ${sId}`;
 
       // Crea array di vendite per questo distributore per ogni data
       const salesData = sortedDates.map(date => {
-        return salesByDateAndStation[date]?.[sId] || 0;
+        return salesByDateAndStation.get(date)?.get(Number(sId)) || 0;
       });
 
       // Aggiungi solo se ci sono vendite (almeno un valore > 0)
@@ -492,7 +509,7 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
           },
           tooltip: {
             callbacks: {
-              label: function (context: any) {
+              label: function (context: { dataset: { label?: string }; parsed: { y: number } }) {
                 return context.dataset.label + ': € ' + context.parsed.y.toFixed(2);
               }
             }
@@ -522,7 +539,7 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
 // ------------------------------------------------------------------
 // DRAG & DROP FOR PANELS (Replaces Split.js)
 // ------------------------------------------------------------------
-function initDashboardPanelsDrag() {
+function initDashboardPanelsDrag(): void {
   const container = document.getElementById('dashboard-container');
   if (!container || !window.Sortable) { return; }
 
@@ -553,7 +570,7 @@ function initDashboardPanelsDrag() {
   restoreDashboardState();
 }
 
-function saveDashboardState() {
+function saveDashboardState(): void {
   const container = document.getElementById('dashboard-container');
   if (!container) { return; }
 
@@ -567,15 +584,15 @@ function saveDashboardState() {
   localStorage.setItem('dashboard_panels_state', JSON.stringify(state));
 }
 
-function restoreDashboardState() {
+function restoreDashboardState(): void {
   const container = document.getElementById('dashboard-container');
   const savedStateStr = localStorage.getItem('dashboard_panels_state');
   const savedState = savedStateStr ? JSON.parse(savedStateStr) : null;
 
   if (container && savedState && Array.isArray(savedState)) {
     // Restore Order
-    savedState.forEach((item: any) => {
-      const el = document.getElementById(item.id);
+    savedState.forEach((item: { id?: string; width?: string; height?: string }) => {
+      const el = item.id ? document.getElementById(item.id) : null;
       if (el) {
         container.appendChild(el); // Appending moves to end -> restore order
 

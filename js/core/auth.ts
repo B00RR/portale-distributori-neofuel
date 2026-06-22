@@ -408,7 +408,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
       return null;
     }
 
-    let { data: dbUserData } = await supabase
+    const { data: dbUserData } = await supabase
       .from('users')
       .select(`
                 *,
