@@ -56,11 +56,9 @@ function toJsonValue(value: unknown): Json {
     return value.map(toJsonValue) as Json;
   }
   if (typeof value === 'object' && value !== null) {
-    const result: { [key: string]: Json | undefined } = {};
-    for (const key of Object.keys(value)) {
-      result[key] = toJsonValue((value as Record<string, unknown>)[key]);
-    }
-    return result;
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, val]) => [key, toJsonValue(val)])
+    ) as Json;
   }
   return null;
 }

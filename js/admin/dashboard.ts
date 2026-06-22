@@ -427,7 +427,7 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
     }, 10 * 60 * 1000);
 
   // Raggruppa vendite per data e distributore
-  const salesByDateAndStation: Record<string, Record<number, number>> = {};
+  const salesByDateAndStation = new Map<string, Map<number, number>>();
   const allDates = new Set<string>();
 
   if (closuresData) {
@@ -437,18 +437,15 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
       const day = new Date(closure.closed_at).toISOString().substring(0, 10);
       allDates.add(day);
 
-      const sId = closure.station_id;
+      const sId = Number(closure.station_id);
       const ricavo = Number((closure.closing_data as Record<string, unknown> | null)?.ricavo_teorico || 0);
 
-      if (!salesByDateAndStation[day]) {
-        salesByDateAndStation[day] = {};
+      let dayMap = salesByDateAndStation.get(day);
+      if (!dayMap) {
+        dayMap = new Map<number, number>();
+        salesByDateAndStation.set(day, dayMap);
       }
-
-      if (!salesByDateAndStation[day][sId]) {
-        salesByDateAndStation[day][sId] = 0;
-      }
-
-      salesByDateAndStation[day][sId] += ricavo;
+      dayMap.set(sId, (dayMap.get(sId) || 0) + ricavo);
     });
   }
 
@@ -470,7 +467,7 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
 
       // Crea array di vendite per questo distributore per ogni data
       const salesData = sortedDates.map(date => {
-        return salesByDateAndStation[date]?.[sId] || 0;
+        return salesByDateAndStation.get(date)?.get(Number(sId)) || 0;
       });
 
       // Aggiungi solo se ci sono vendite (almeno un valore > 0)

@@ -424,6 +424,7 @@ export class ClosureWizard extends BaseComponent {
         for (const input of Array.from(inputs) as HTMLInputElement[]) {
           if (!input.value) { Toast.show('Inserisci tutti i contatori', 'warning'); input.focus(); return; }
           const pId = Number(input.name.replace('counter_', ''));
+          // eslint-disable-next-line security/detect-object-injection -- pId is a numeric id parsed from a controlled input name, written to a fresh local record
           counters[pId] = parseFloat(input.value);
         }
         this.finalCounters = counters;

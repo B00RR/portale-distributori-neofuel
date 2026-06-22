@@ -88,6 +88,7 @@ class AdminRouter {
     });
 
     if (pageSubtitle) {
+      // eslint-disable-next-line security/detect-object-injection -- tab is a typed AdminTab key into a static, developer-defined title map
       pageSubtitle.textContent = TAB_TITLES[tab] || 'Control Center';
     }
 

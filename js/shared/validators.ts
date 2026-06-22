@@ -73,10 +73,12 @@ export function validateForm(data: Record<string, unknown>, schema: Record<strin
   let isValid = true;
 
   for (const [field, rules] of Object.entries(schema)) {
+    // eslint-disable-next-line security/detect-object-injection -- field is an own key from the developer-defined schema, used to read the matching input value
     const value = data[field];
     for (const rule of rules) {
       const result = rule(value);
       if (result !== true) {
+        // eslint-disable-next-line security/detect-object-injection -- field is an own key from the developer-defined schema, written to a fresh local errors record
         errors[field] = result;
         isValid = false;
         break; // Stop at first failed rule for this field

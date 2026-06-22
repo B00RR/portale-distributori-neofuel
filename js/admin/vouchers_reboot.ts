@@ -773,9 +773,9 @@ function setupColumnResizing(table: HTMLElement | null): void {
   try {
     const saved = localStorage.getItem('voucher_table_widths');
     if (saved) {
-      const widths = JSON.parse(saved);
-      Object.keys(widths).forEach(key => {
-        table.style.setProperty(`--col-${key}`, widths[key]);
+      const widths = JSON.parse(saved) as Record<string, string>;
+      Object.entries(widths).forEach(([key, val]) => {
+        table.style.setProperty(`--col-${key}`, String(val));
       });
     }
   } catch (e) {
@@ -816,6 +816,7 @@ function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex:
       const widths: Record<string, string> = {};
       for (let i = 1; i <= 6; i++) {
         const val = table.style.getPropertyValue(`--col-${i}`);
+        // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index written to a fresh local record
         if (val) { widths[i] = val; }
       }
       localStorage.setItem('voucher_table_widths', JSON.stringify(widths));
