@@ -1,12 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase, type Json } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import type { ChartConstructor, ChartInstance } from '../types.js';
 import { formatEuro, getISODate } from '../utils/utils.js';
 
 // --- TYPES (Simplified for Dashboard) ---
 declare global {
     interface Window {
-        Chart: any;
+        Chart: ChartConstructor;
     }
 }
 
@@ -51,7 +51,7 @@ interface AnalyticsTotals {
 }
 
 // Global chart instances store to destroy old charts on redraw
-const dashboardCharts: Record<string, any> = {};
+const dashboardCharts: Record<string, ChartInstance> = {};
 
 /**
  * FETCH & PROCESS DATA (Unified for all 4 charts to save requests)

@@ -1,6 +1,6 @@
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
-import type { CustomWindow } from '../types.js';
+import type { CustomWindow, ChartInstance } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { formatEuro, formatLitri, getISODate } from '../utils/utils.js';
 
@@ -50,7 +50,7 @@ type DateRange = '7d' | '30d' | 'month' | 'year';
 
 // --- STATE ---
 // Chart.js instances stored as opaque objects
-const charts: Record<string, CustomWindow['Chart']> = {}; // Store chart instances
+const charts: Record<string, ChartInstance> = {}; // Store chart instances
 
 // --- MAIN FUNCTION ---
 /**

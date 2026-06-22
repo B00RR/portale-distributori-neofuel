@@ -235,6 +235,13 @@ export interface Html5QrcodeConstructor {
 
 export type PlausibleFn = (eventName: string, options?: Record<string, unknown>) => void;
 
+export interface ChartInstance {
+    destroy(): void;
+}
+export interface ChartConstructor {
+    new (ctx: unknown, config: unknown): ChartInstance;
+}
+
 export interface CustomWindow extends Window {
     supabase: unknown;
     Sortable: SortableConstructor;
