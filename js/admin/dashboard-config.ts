@@ -10,6 +10,7 @@
 
 import { supabase, type Json } from '../core/api.js';
 import { loggedUser } from '../core/auth.js';
+import { logger } from '../core/logger.js';
 import type { CustomWindow } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, openConfirmModal } from '../ui/ui.js';
@@ -160,7 +161,7 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
   const userId = await getCurrentUserId();
 
   if (!userId) {
-    console.warn('[Dashboard Config] No logged user');
+    logger.warn('dashboardConfig', 'No logged user');
     return getDefaultConfig();
   }
 
@@ -170,7 +171,7 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(userId));
 
   if (!isUUID) {
-    console.warn('[Dashboard Config] User ID is not a UUID (User:', userId, '). Using default config.');
+    logger.warn('dashboardConfig', 'User ID is not a UUID (User:', userId, '). Using default config.');
     return getDefaultConfig();
   }
 
@@ -217,7 +218,7 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
       gridColumns: data.grid_columns || 4
     };
   } catch (err: unknown) {
-    console.error('[Dashboard Config] Error loading:', err);
+    logger.error('dashboardConfig', 'Error loading:', err);
     Toast.show('Errore caricamento configurazione dashboard', 'error');
     return getDefaultConfig();
   }
@@ -252,7 +253,7 @@ export async function saveDashboardConfig(config: DashboardConfig): Promise<bool
     Toast.show('Configurazione dashboard salvata!', 'success');
     return true;
   } catch (err: unknown) {
-    console.error('[Dashboard Config] Error saving:', err);
+    logger.error('dashboardConfig', 'Error saving:', err);
     Toast.show('Errore salvataggio configurazione: ' + getErrorMessage(err), 'error');
     return false;
   }
@@ -288,7 +289,7 @@ export async function resetDashboardConfig(): Promise<boolean> {
     Toast.show('Configurazione ripristinata ai valori predefiniti', 'success');
     return true;
   } catch (err: unknown) {
-    console.error('[Dashboard Config] Error resetting:', err);
+    logger.error('dashboardConfig', 'Error resetting:', err);
     Toast.show('Errore ripristino configurazione: ' + getErrorMessage(err), 'error');
     return false;
   }
@@ -315,7 +316,7 @@ async function ensureDefaultConfig(): Promise<void> {
     // Ignore duplicate key errors
     const e = err as { message?: string; code?: string };
     if (!e.message?.includes('duplicate') && !e.code?.includes('23505')) {
-      console.error('[Dashboard Config] Error creating default:', err);
+      logger.error('dashboardConfig', 'Error creating default:', err);
     }
   }
 }
@@ -358,7 +359,7 @@ export function showDashboardConfigPanel(): void {
  */
 export async function renderConfigPanel(container: HTMLElement): Promise<void> {
   if (!container) {
-    console.error('No container provided for renderConfigPanel');
+    logger.error('dashboardConfig', 'No container provided for renderConfigPanel');
     return;
   }
 
@@ -603,7 +604,7 @@ function initializeSortable(config: DashboardConfig, container: HTMLElement): vo
   // Check if Sortable library is available
   const customWindow = window as unknown as CustomWindow;
   if (typeof customWindow.Sortable === 'undefined') {
-    console.warn('[Dashboard Config] SortableJS library not loaded. Drag-and-drop disabled.');
+    logger.warn('dashboardConfig', 'SortableJS library not loaded. Drag-and-drop disabled.');
     return;
   }
 
