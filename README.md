@@ -1,8 +1,8 @@
 # Portale Distributori Neofuel
 
-[![Tests](https://github.com/YOUR_USERNAME/portale-distributori-neofuel/workflows/Test%20Suite/badge.svg)](https://github.com/YOUR_USERNAME/portale-distributori-neofuel/actions)
-[![Build](https://github.com/YOUR_USERNAME/portale-distributori-neofuel/workflows/Build/badge.svg)](https://github.com/YOUR_USERNAME/portale-distributori-neofuel/actions)
-[![codecov](https://codecov.io/gh/YOUR_USERNAME/portale-distributori-neofuel/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_USERNAME/portale-distributori-neofuel)
+[![Tests](https://github.com/B00RR/portale-distributori-neofuel/workflows/Test%20Suite/badge.svg)](https://github.com/B00RR/portale-distributori-neofuel/actions)
+[![Build](https://github.com/B00RR/portale-distributori-neofuel/workflows/Build/badge.svg)](https://github.com/B00RR/portale-distributori-neofuel/actions)
+[![codecov](https://codecov.io/gh/B00RR/portale-distributori-neofuel/branch/main/graph/badge.svg)](https://codecov.io/gh/B00RR/portale-distributori-neofuel)
 
 Sistema di gestione per distributori di carburante Neofuel con focus su sicurezza, affidabilità e manutenibilità.
 
@@ -257,7 +257,7 @@ npm audit fix         # Fix automatico dipendenze
 |---------|-------|
 | **Overall Quality** | **9/10** ⭐ |
 | Test Coverage | 70%+ |
-| E2E Tests | 10+ scenarios |
+| E2E Tests | 6 scenarios |
 | Lighthouse Score | 90+ |
 | Security Audit | 0 high/critical |
 

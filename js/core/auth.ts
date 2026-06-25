@@ -629,7 +629,9 @@ export function showOTPResetForm(): void {
         showResetPasswordForm();
       }
     } catch (err: unknown) {
-      errorElement.textContent = 'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
+      const msg = 'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
+      if (errorElement) { errorElement.textContent = msg; }
+      else { logger.error('auth', 'OTP reset failure (no error element):', msg); }
     }
   });
 
@@ -706,7 +708,9 @@ export function showResetPasswordForm(): void {
       Toast.show('Password aggiornata con successo! Ora puoi effettuare il login.', 'success');
       window.location.href = window.location.pathname;
     } catch (err: unknown) {
-      errorElement.textContent = 'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
+      const msg = 'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
+      if (errorElement) { errorElement.textContent = msg; }
+      else { logger.error('auth', 'Password reset failure (no error element):', msg); }
     }
   });
 }
