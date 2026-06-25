@@ -49,11 +49,13 @@ export default defineConfig({
                 '**/*.d.ts',
                 'tests/**'
             ],
+            // Ratchet floor (#44): set just below current real coverage so the gate
+            // is meaningful but not flaky. Raise over time as coverage grows.
             thresholds: {
-                statements: 6,
-                branches: 6,
-                functions: 6,
-                lines: 6
+                statements: 45,
+                branches: 34,
+                functions: 43,
+                lines: 47
             }
         },
 
