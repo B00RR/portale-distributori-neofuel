@@ -9,6 +9,8 @@
 
 import { CACHE_DEFAULT_TTL_MS, CACHE_CLEANUP_INTERVAL_MS } from '../shared/app-constants.js';
 
+import { logger } from './logger.js';
+
 interface CacheEntry<T> {
     data: T;
     timestamp: number;
@@ -103,7 +105,8 @@ export function startCacheCleanup(): void {
             if (!isValid(entry.timestamp, CACHE_DEFAULT_TTL_MS)) {
               localStorage.removeItem(key);
             }
-          } catch {
+          } catch (err) {
+            logger.warn('cache', 'Rimozione elemento malformato', key, err);
             localStorage.removeItem(key);
           }
         }

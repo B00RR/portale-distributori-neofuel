@@ -6,6 +6,8 @@
  * @security CRITICAL - All functions in this module handle untrusted input
  */
 
+import { logger } from '../core/logger.js';
+
 /**
  * Sanitizes HTML by escaping all special characters
  * Use this for any user-generated content before injecting into innerHTML
@@ -98,13 +100,15 @@ export function getSafeLocalStorage<T = unknown>(
 
     // Basic validation: ensure it's not null/undefined
     if (parsed == null) {
-      console.warn(`[Security] Null/undefined value in localStorage key: ${key}`);
+      logger.warn('sanitizer', 'Valore null/undefined in localStorage', key);
       return defaultValue;
     }
 
     return parsed;
   } catch (error) {
-    console.error(`[Security] Failed to parse localStorage key: ${key}`, error);
+    // Recoverable: corrupt/non-JSON value -> fall back. Log a single masked line
+    // via the logger (no raw stack trace) instead of console.error.
+    logger.warn('sanitizer', 'Parsing localStorage fallito per chiave', key, error);
     return defaultValue;
   }
 }
@@ -122,7 +126,7 @@ export function setSafeLocalStorage<T>(key: string, value: T): boolean {
     localStorage.setItem(key, serialized);
     return true;
   } catch (error) {
-    console.error(`[Security] Failed to save localStorage key: ${key}`, error);
+    logger.error('sanitizer', 'Salvataggio localStorage fallito per chiave', key, error);
     return false;
   }
 }
@@ -148,7 +152,7 @@ export function isSafeUrl(url: string): boolean {
         trimmedUrl.startsWith('vbscript:') ||
         trimmedUrl.startsWith('file:')
   ) {
-    console.warn(`[Security] Blocked dangerous URL protocol: ${trimmedUrl.substring(0, 20)}...`);
+    logger.warn('sanitizer', `Bloccato protocollo URL pericoloso: ${trimmedUrl.substring(0, 20)}...`);
     return false;
   }
 
