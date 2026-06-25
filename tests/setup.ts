@@ -7,6 +7,18 @@ import { mockSupabase } from './mocks/supabase';
 process.env.VITE_SUPABASE_URL = 'https://mock.supabase.co';
 process.env.VITE_SUPABASE_ANON_KEY = 'mock-key';
 
+// #85: Lit non offre un interruttore per il banner "dev mode" fuori da una build
+// di produzione, quindi filtriamo SOLO quel messaggio specifico da console.warn
+// (tutto il resto passa invariato). Installato a livello di setup, prima che i
+// test importino i Web Component Lit.
+const __originalConsoleWarn = console.warn.bind(console);
+console.warn = (...args: unknown[]): void => {
+  if (typeof args[0] === 'string' && args[0].includes('Lit is in dev mode')) {
+    return;
+  }
+  (__originalConsoleWarn as (...a: unknown[]) => void)(...args);
+};
+
 // Definizione interfaccia estesa per Window se necessario
 declare global {
     interface Window {
