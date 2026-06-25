@@ -1,4 +1,5 @@
 import { supabase } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, showInfoModal, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
@@ -178,7 +179,7 @@ async function loadCustomers(): Promise<void> {
     if (error) { throw error; }
     voucherState.customers = (data as Customer[]) || [];
   } catch (err) {
-    console.error('Error loading customers:', err);
+    logger.error('vouchers', 'Error loading customers:', err);
     Toast.show('Errore caricamento clienti', 'error');
   }
 }
@@ -319,7 +320,7 @@ async function handleGeneration(e: Event): Promise<void> {
     renderActiveTab();
 
   } catch (err: unknown) {
-    console.error(err);
+    logger.error('vouchers', err);
     const content = document.getElementById('voucher-content');
     if (content) {renderGenerator(content);} // Reset UI
     Toast.show('Errore Generazione: ' + getErrorMessage(err), 'error');
@@ -751,7 +752,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
           Toast.show('Dashboard aggiornata', 'success');
         } catch (error) {
           Toast.show('Errore durante l\'aggiornamento', 'error');
-          console.error(error);
+          logger.error('vouchers', error);
         } finally {
           if (icon) {icon.classList.remove('fa-spin');}
           refreshBtn.disabled = false;
@@ -761,7 +762,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
 
   } catch (err: unknown) {
     setSafeHTML(container, `<p class="error-text">Errore: ${escapeHtml(getErrorMessage(err))}</p>`);
-    console.error(err);
+    logger.error('vouchers', err);
   }
 }
 
@@ -779,7 +780,7 @@ function setupColumnResizing(table: HTMLElement | null): void {
       });
     }
   } catch (e) {
-    console.error('Failed to load column widths', e);
+    logger.error('vouchers', 'Failed to load column widths', e);
   }
 
   const headers = table.querySelectorAll('.voucher-grid-header .voucher-header-cell');
@@ -821,7 +822,7 @@ function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex:
       }
       localStorage.setItem('voucher_table_widths', JSON.stringify(widths));
     } catch (e) {
-      console.error('Failed to save column widths', e);
+      logger.error('vouchers', 'Failed to save column widths', e);
     }
   };
 
@@ -902,7 +903,7 @@ async function showBatchDetails(batchId: string): Promise<void> {
     document.getElementById('btn-close-details')?.addEventListener('click', () => closeModal());
 
   } catch (err: unknown) {
-    console.error(err);
+    logger.error('vouchers', err);
     setSafeHTML(modalBody, `<div class="alert alert-danger">Errore caricamento: ${escapeHtml(getErrorMessage(err))}</div>`);
   }
 }
@@ -921,7 +922,7 @@ async function handleDeleteBatch(batchId: string): Promise<void> {
     Toast.show('Lotto eliminato correttamente.', 'success');
     renderActiveTab();
   } catch (err: unknown) {
-    console.error(err);
+    logger.error('vouchers', err);
     Toast.show('Errore eliminazione: ' + getErrorMessage(err), 'error');
   }
 }
@@ -960,7 +961,7 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
     await generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
 
   } catch (err: unknown) {
-    console.error(err);
+    logger.error('vouchers', err);
     Toast.show('Errore recupero voucher: ' + getErrorMessage(err), 'error');
     if (container) {renderDashboard(container);} // Reset UI
 
@@ -979,7 +980,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
     const module = await import('qrcode');
     QRCode = module.default || module;
   } catch (e) {
-    console.error('Failed to load QRCode library', e);
+    logger.error('vouchers', 'Failed to load QRCode library', e);
   }
 
   // 1. Pre-build HTML content in the main thread (Safest)
@@ -1006,7 +1007,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
             }
           });
         } catch (err) {
-          console.error('QR Generation failed for', v.code, err);
+          logger.error('vouchers', 'QR Generation failed for', v.code, err);
           qrCodeMap[v.code] = ''; // Handle gracefully
         }
       }));

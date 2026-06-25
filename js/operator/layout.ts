@@ -5,6 +5,7 @@
 
 import { getStationName } from '../core/api.js';
 import { clearSession } from '../core/auth.js';
+import { logger } from '../core/logger.js';
 import { getPendingCount } from '../core/offline-queue.js';
 import { store, User } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
@@ -126,7 +127,7 @@ async function updateStationBadge(stationId: string | number): Promise<void> {
     const badge = document.getElementById('station-badge');
     if (badge) {badge.textContent = name;}
   } catch (err) {
-    console.error('Error updating station badge:', err);
+    logger.error('operatorLayout', 'Error updating station badge:', err);
   }
 }
 
@@ -142,7 +143,7 @@ export async function updateTurnoButton(
   const badge = document.getElementById('opening-status');
 
   if (!btnTurno) {
-    console.error('Btn Turno not found');
+    logger.error('operatorLayout', 'Btn Turno not found');
     return;
   }
 
@@ -153,7 +154,7 @@ export async function updateTurnoButton(
 
   // Debug badge
   if (!badge) {
-    console.error('[Layout] Badge opening-status NOT FOUND in DOM.');
+    logger.error('operatorLayout', 'Badge opening-status NOT FOUND in DOM.');
   }
 
   if (opening) {
@@ -200,7 +201,7 @@ async function updateSyncBadge(): Promise<void> {
       badge.classList.toggle('active', count > 0);
     }
   } catch (err) {
-    console.warn('Sync indicator failed:', err);
+    logger.warn('operatorLayout', 'Sync indicator failed:', err);
   }
 }
 

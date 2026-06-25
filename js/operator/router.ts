@@ -3,6 +3,7 @@
  * Handles navigation between different operator views
  */
 
+import { logger } from '../core/logger.js';
 import { store, User } from '../shared/state.js';
 
 import { startClosureWizard } from './closure.js';
@@ -49,7 +50,7 @@ class OperatorRouter {
     const userId = user?.id || user?.user_id;
 
     if (!stationId || !userId) {
-      console.error('[Router] Missing user or station context');
+      logger.error('operatorRouter', 'Missing user or station context');
       return;
     }
 
@@ -81,7 +82,7 @@ class OperatorRouter {
         showInvoiceMenu(stationId, userId);
         break;
       default:
-        console.warn('[Router] Unknown view:', view);
+        logger.warn('operatorRouter', 'Unknown view:', view);
     }
   }
 

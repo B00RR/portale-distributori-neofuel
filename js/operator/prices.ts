@@ -1,4 +1,5 @@
 import { supabase } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { showErrorMessage, showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, getErrorMessage } from '../utils/utils.js';
@@ -127,7 +128,7 @@ export async function showPrezziEditForm(stationId: number): Promise<void> {
         closeModal();
         showInfoModal(`Prezzi aggiornati con successo! ${validitaMsg}`);
       } catch (err: unknown) {
-        console.error('Errore update-prices:', err);
+        logger.error('prices', 'Errore update-prices:', err);
         showInfoModal('Errore: ' + getErrorMessage(err));
       }
     });

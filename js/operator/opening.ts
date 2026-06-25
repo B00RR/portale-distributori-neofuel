@@ -3,6 +3,7 @@
 // Gestione apertura turno con caricamento contatori
 // ==========================================
 import { supabase, type Json } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { Shift, type CustomWindow } from '../types.js';
 import { closeModal, openModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
@@ -69,7 +70,7 @@ export async function checkOpeningStatus(stationId: number | string): Promise<Sh
 
     return data as unknown as Shift;
   } catch (err) {
-    console.error('Errore controllo apertura:', err);
+    logger.error('opening', 'Errore controllo apertura:', err);
     return null;
   }
 }
@@ -130,7 +131,7 @@ export async function showAperturaForm(stationId: number | string, userId: strin
     modalBody.appendChild(opener);
 
   } catch (err) {
-    console.error('Errore apertura form:', err);
+    logger.error('opening', 'Errore apertura form:', err);
     openModal('Errore');
     const errorModalBody = document.getElementById('modal-body');
     if (errorModalBody) {
