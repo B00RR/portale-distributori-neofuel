@@ -3,6 +3,7 @@
 // Gestione richieste fattura (Non fiscale / Non incide su cassa)
 // ==========================================
 import { supabase } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { Customer } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
@@ -298,7 +299,7 @@ function renderExistingCustomerForm(container: HTMLElement, stationId: number | 
           suggestionsDiv.style.display = 'block';
         }
       } catch (err) {
-        console.error('Errore ricerca clienti:', err);
+        logger.error('invoices', 'Errore ricerca clienti:', err);
       }
     }, 300);
   });

@@ -3,6 +3,7 @@
  * Refactored to use modular architecture (Router + Layout)
  */
 
+import { logger } from './core/logger.js';
 import { renderOperatorShell, OperatorHandlers } from './operator/layout.js';
 import { checkOpeningStatus } from './operator/opening.js';
 import { router, OperatorView } from './operator/router.js';
@@ -63,6 +64,6 @@ export async function showOperatorMenu(_userId: string, stationId: string | numb
       router.navigateTo('apertura');
     }
   } catch (err) {
-    console.error('[Operator] Auto-navigation failed:', err);
+    logger.error('operator', 'Auto-navigation failed:', err);
   }
 }

@@ -3,6 +3,7 @@
 // Gestione crediti clienti (Nuovo Credito vs Pagamento)
 // ==========================================
 import { supabase } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
@@ -299,7 +300,7 @@ async function searchCustomersForInput(query: string, stationId: number | string
       suggestionsDiv.style.display = 'none';
     }
   } catch (err) {
-    console.error(err);
+    logger.error('credits', err);
   }
 }
 

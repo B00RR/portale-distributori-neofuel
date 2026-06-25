@@ -13,6 +13,7 @@ import {
 import { isRateLimited, resetRateLimit, getRemainingAttempts } from '../utils/rate-limiter.js';
 
 import { supabase } from './api.js';
+import { logger } from './logger.js';
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -166,7 +167,7 @@ export function setupLoginForm(): void {
     const passwordInput = loginForm?.querySelector('#password') as HTMLInputElement | null;
 
     if (!emailInput || !passwordInput) {
-      console.error('[AUTH] Form inputs not found');
+      logger.error('auth', 'Form inputs not found');
       return;
     }
 
@@ -213,7 +214,7 @@ export function setupLoginForm(): void {
       let userData: LoggedUserData | null = null;
 
       if (authError) {
-        console.error('Auth error:', authError);
+        logger.error('auth', 'Auth error:', authError);
 
         // Email not confirmed error
         if (authError.message && (
@@ -238,7 +239,7 @@ export function setupLoginForm(): void {
       }
 
       if (!authData?.user) {
-        console.error('No user data returned');
+        logger.error('auth', 'No user data returned');
         if (errorElement) {errorElement.textContent = 'Errore durante il login. Riprova.';}
         return;
       }
@@ -278,7 +279,7 @@ export function setupLoginForm(): void {
             assignedStations: mapAssignedStations(dbUserData.user_stations)
           };
         } else {
-          console.warn('User not found via standard SELECT. Attempting Secure RPC lookup...');
+          logger.warn('auth', 'User not found via standard SELECT. Attempting Secure RPC lookup...');
 
           // Only try RPC if we have authData.user
           if (authData?.user) {
@@ -297,7 +298,7 @@ export function setupLoginForm(): void {
                 assignedStations: []
               };
             } else {
-              console.error('RPC lookup failed:', rpcError);
+              logger.error('auth', 'RPC lookup failed:', rpcError);
               if (!authData.user.email) {
                 if (errorElement) {errorElement.textContent = 'Errore: email utente non disponibile.';}
                 return;
@@ -325,7 +326,7 @@ export function setupLoginForm(): void {
 
       // Final userData validation
       if (!userData) {
-        console.error('Failed to get userData from any source');
+        logger.error('auth', 'Failed to get userData from any source');
         if (errorElement) {errorElement.textContent = 'Errore durante il login. Utente non trovato.';}
         return;
       }
@@ -377,7 +378,7 @@ export function setupLoginForm(): void {
       }
 
     } catch (err: unknown) {
-      console.error('Errore durante il login (catch):', err);
+      logger.error('auth', 'Errore durante il login (catch):', err);
       if (errorElement) {
         const message = err instanceof Error ? err.message : 'Errore sconosciuto';
         errorElement.textContent = `Errore durante il login: ${message}`;
@@ -423,7 +424,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
     let userData: LoggedUserData | null = null;
 
     if (!dbUserData) {
-      console.warn('Session User not found via SELECT. Attempting Secure RPC...');
+      logger.warn('auth', 'Session User not found via SELECT. Attempting Secure RPC...');
       const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
 
       if (rpcId && !rpcError) {
@@ -439,7 +440,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
           assignedStations: []
         };
       } else {
-        console.error('RPC lookup failed:', rpcError);
+        logger.error('auth', 'RPC lookup failed:', rpcError);
         const fallbackName = session.user.user_metadata?.full_name ||
           email.split('@')[0] ||
           'Operatore';
@@ -485,7 +486,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
 
     return userData;
   } catch (err) {
-    console.error('Errore nel caricamento sessione:', err);
+    logger.error('auth', 'Errore nel caricamento sessione:', err);
     return null;
   }
 }
@@ -497,7 +498,7 @@ export async function clearSession(): Promise<void> {
   try {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('Errore nel logout:', error);
+      logger.error('auth', 'Errore nel logout:', error);
     }
 
     // Clear Supabase localStorage keys
@@ -515,7 +516,7 @@ export async function clearSession(): Promise<void> {
     // Reset loggedUser
     loggedUser = null;
   } catch (err) {
-    console.error('Errore nel logout:', err);
+    logger.error('auth', 'Errore nel logout:', err);
   }
 }
 
@@ -540,7 +541,7 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
 
     return { success: true };
   } catch (error: unknown) {
-    console.error('Errore durante la richiesta di reset password:', error);
+    logger.error('auth', 'Errore durante la richiesta di reset password:', error);
     const message = error instanceof Error ? error.message : 'Errore sconosciuto';
     Toast.show('Errore durante l\'invio dell\'email di reset password: ' + message, 'error');
     return { success: false, error: message };

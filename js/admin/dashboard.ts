@@ -1,5 +1,6 @@
 import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
+import { logger } from '../core/logger.js';
 import type { SortableConstructor, ChartConstructor } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
@@ -102,7 +103,7 @@ export async function showDashboard(
 
       // 6. Business Rules
       BusinessLogicManager.loadRules().catch(err => {
-        console.warn('[Dashboard] Failed to load rules, using defaults', err);
+        logger.warn('dashboard', 'Failed to load rules, using defaults', err);
         return {};
       })
     ]);
@@ -254,7 +255,7 @@ export async function showDashboard(
       }
 
     } catch (calcErr) {
-      console.warn('Errore calcoli KPI (usando fallback):', calcErr);
+      logger.warn('dashboard', 'Errore calcoli KPI (usando fallback):', calcErr);
     }
 
     // ------------------------------------------------------------------
@@ -336,7 +337,7 @@ export async function showDashboard(
         if (visibleKpis.includes('metodi_pagamento')) {renderPaymentChart(analyticsData, 'chart-metodi_pagamento');}
         if (visibleKpis.includes('mix_carburanti')) {renderFuelMixChart(analyticsData, 'chart-mix_carburanti');}
         return analyticsData;
-      }).catch(err => console.error('Errore nel rendering dei grafici analytics:', err));
+      }).catch(err => logger.error('dashboard', 'Errore nel rendering dei grafici analytics:', err));
     }
 
     // Initialize Sortable for dashboard grid

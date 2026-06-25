@@ -16,6 +16,18 @@ import {
 } from '../../js/utils/utils.js';
 
 describe('Utils Module', () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+    });
 
     describe('escapeHtml', () => {
         it('should escape special characters', () => {
@@ -111,6 +123,7 @@ describe('Utils Module', () => {
             // Actually new Date(Symbol()) throws TypeError.
             const badInput = Symbol('bad date') as unknown as string | number | Date;
             expect(formatDate(badInput)).toBe('Symbol(bad date)');
+            expect(consoleWarnSpy).toHaveBeenCalled();
         });
 
         it('getISODate should return YYYY-MM-DD', () => {

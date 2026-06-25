@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const { mockToast, smartIDB } = vi.hoisted(() => {
     const store = new Map();
@@ -71,15 +71,24 @@ vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
 
 describe('Offline Queue Module', () => {
     let offlineQueue: any;
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(async () => {
         vi.clearAllMocks();
         vi.resetModules();
         smartIDB._reset();
         vi.stubGlobal('indexedDB', smartIDB);
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         offlineQueue = await import('../../js/core/offline-queue.js');
         await offlineQueue.initOfflineQueue();
+    });
+
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
     });
 
     it('should queue and sync actions', async () => {
@@ -120,5 +129,6 @@ describe('Offline Queue Module', () => {
 
         expect(result).toEqual({ success: 0, failed: 1 });
         expect(pending).toHaveLength(1);
+        expect(consoleErrorSpy.mock.calls.length + consoleWarnSpy.mock.calls.length).toBeGreaterThan(0);
     });
 });

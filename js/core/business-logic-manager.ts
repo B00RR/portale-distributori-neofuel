@@ -2,6 +2,7 @@ import { Toast } from '../ui/toast.js';
 
 import { supabase } from './api.js';
 import { BusinessRulesSchema, DEFAULT_BUSINESS_RULES, type BusinessRules } from './business-rules-schema.js';
+import { logger } from './logger.js';
 
 const BUCKET_NAME = 'system';
 const FILE_PATH = 'configs/business_rules.json'; // Ensure no spaces
@@ -52,7 +53,7 @@ export const BusinessLogicManager = {
       cachedRules = validated;
       return validated;
     } catch (err) {
-      console.error('[BusinessLogic] Load failed:', err);
+      logger.error('businessLogic', 'Load failed:', err);
       return DEFAULT_BUSINESS_RULES;
     }
   },
@@ -87,7 +88,7 @@ export const BusinessLogicManager = {
       cachedRules = validated;
       Toast.show('Regole di business aggiornate con successo', 'success');
     } catch (err) {
-      console.error('[BusinessLogic] Save failed:', err);
+      logger.error('businessLogic', 'Save failed:', err);
       const message = err instanceof Error ? err.message : 'Errore sconosciuto';
       Toast.show('Errore nel salvataggio: ' + message, 'error');
       throw err;

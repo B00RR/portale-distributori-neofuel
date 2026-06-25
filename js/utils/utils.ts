@@ -2,6 +2,8 @@
 // UTILITY FUNCTIONS - TypeScript Version
 // ==========================================
 
+import { logger } from '../core/logger.js';
+
 type EscapeMapKey = '&' | '<' | '>' | '"' | "'";
 
 const escapeMap: Record<EscapeMapKey, string> = {
@@ -189,7 +191,8 @@ export function formatDate(value: string | Date | null | undefined): string {
     const date = new Date(value);
     if (isNaN(date.getTime())) {return String(value);}
     return new Intl.DateTimeFormat('it-IT').format(date);
-  } catch {
+  } catch (err) {
+    logger.warn('formatDate', 'Impossibile formattare la data', err);
     return String(value);
   }
 }

@@ -1,9 +1,11 @@
 /**
  * Rate Limiting Utility
- * 
+ *
  * SECURITY: Client-side rate limiting to prevent API abuse
  * This is a first line of defense - server-side limits should also be enforced
  */
+
+import { logger } from '../core/logger.js';
 
 interface RateLimitEntry {
     count: number;
@@ -40,7 +42,7 @@ export function isRateLimited(
 
   if (entry.count >= maxAttempts) {
     // Rate limit exceeded
-    console.warn(`[Rate Limit] Blocked: ${key}. Too many attempts.`);
+    logger.warn('rateLimiter', `Blocked: ${key}. Too many attempts.`);
     return true;
   }
 

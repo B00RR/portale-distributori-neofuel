@@ -4,6 +4,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { CustomWindow, type XlsxSheet } from '../types.js';
 import { Toast } from '../ui/toast.js';
 
@@ -330,7 +331,7 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
     return metrics;
 
   } catch (e) {
-    console.error('Error computing metrics', e);
+    logger.error('exportUtils', 'Error computing metrics', e);
     return metrics;
   }
 }
@@ -494,7 +495,7 @@ export async function generateClosureExcel(templateData: ExportMetrics): Promise
     a.click();
     document.body.removeChild(a);
   } catch (e) {
-    console.error('Excel generation error:', e);
+    logger.error('exportUtils', 'Excel generation error:', e);
     Toast.show('Errore generazione Excel', 'error');
   }
 }
@@ -552,7 +553,7 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
     return;
 
   } catch (e) {
-    console.warn('Clone failed, falling back to ZIP strategy:', e);
+    logger.warn('exportUtils', 'Clone failed, falling back to ZIP strategy:', e);
     Toast.show('Export unico non supportato dal browser. Generazione ZIP...', 'warning');
   }
 
@@ -593,7 +594,7 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
     Toast.show('Download ZIP completato!', 'success');
 
   } catch (e) {
-    console.error('ZIP Fallback error:', e);
+    logger.error('exportUtils', 'ZIP Fallback error:', e);
     const message = e instanceof Error ? e.message : 'Errore sconosciuto';
     Toast.show('Errore fatale export: ' + message, 'error');
   }

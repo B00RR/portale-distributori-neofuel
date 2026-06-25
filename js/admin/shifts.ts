@@ -1,5 +1,6 @@
 import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
+import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { store, type Pagination as PaginationType } from '../shared/state.js';
 import { Toast } from '../ui/toast.js';
@@ -418,7 +419,7 @@ export async function openExportModal(closureId: string | number): Promise<void>
     await generateClosureExcel(metrics);
   } catch (err: unknown) {
     Toast.show('Errore export: ' + getErrorMessage(err), 'error');
-    console.error('Errore export:', err);
+    logger.error('shifts', 'Errore export:', err);
   }
 }
 
@@ -440,7 +441,7 @@ export async function openBulkExportModal(): Promise<void> {
         stationsHtml += `<option value="${escapeHtml(String(s.station_id))}">${escapeHtml(String(s.station_name))}</option>`;
       });
     }
-  } catch (e) { console.error(e); }
+  } catch (e) { logger.error('shifts', e); }
 
   setSafeHTML(target, `
         <div class="p-2">
@@ -559,7 +560,7 @@ export async function openBulkExportModal(): Promise<void> {
         });
         closeModal();
       } catch (err: unknown) {
-        console.error(err);
+        logger.error('shifts', err);
         Toast.show('Errore durante export multiplo: ' + getErrorMessage(err), 'error');
       } finally {
         if (loadingDiv) {loadingDiv.classList.add('hidden');}

@@ -6,6 +6,8 @@
 
 import { Toast } from '../ui/toast.js';
 
+import { logger } from './logger.js';
+
 // ========== TYPES ==========
 
 export interface QueuedAction {
@@ -40,7 +42,7 @@ export async function initOfflineQueue(): Promise<void> {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => {
-      console.error('[OfflineQueue] Failed to open IndexedDB:', request.error);
+      logger.error('offlineQueue', 'Failed to open IndexedDB:', request.error);
       reject(request.error);
     };
 
@@ -94,7 +96,7 @@ export async function queueAction(
     };
 
     request.onerror = () => {
-      console.error('[OfflineQueue] Failed to queue action:', request.error);
+      logger.error('offlineQueue', 'Failed to queue action:', request.error);
       reject(request.error);
     };
   });
@@ -198,7 +200,7 @@ export async function syncPendingActions(): Promise<{ success: number; failed: n
     const executor = executors.get(action.type);
 
     if (!executor) {
-      console.warn('[OfflineQueue] No executor for action type:', action.type);
+      logger.warn('offlineQueue', 'No executor for action type:', action.type);
       failed++;
       continue;
     }
@@ -213,13 +215,13 @@ export async function syncPendingActions(): Promise<{ success: number; failed: n
         await incrementRetry(action);
 
         if (action.retryCount >= MAX_RETRIES) {
-          console.error('[OfflineQueue] Max retries reached for:', action.id);
+          logger.error('offlineQueue', 'Max retries reached for:', action.id);
           await removeAction(action.id);
         }
         failed++;
       }
     } catch (err) {
-      console.error('[OfflineQueue] Error executing action:', action.id, err);
+      logger.error('offlineQueue', 'Error executing action:', action.id, err);
       await incrementRetry(action);
       failed++;
     }

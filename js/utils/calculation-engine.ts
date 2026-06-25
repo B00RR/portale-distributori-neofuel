@@ -2,6 +2,7 @@
 // MOTORE DINAMICO DI CALCOLO (SCAFFOLDING)
 // ==========================================
 import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { CustomWindow } from '../types.js';
 
 const MODULE_TABLE = 'calculation_modules';
@@ -96,7 +97,7 @@ const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
     const fnName = String(name);
     const fn = engine.customFunctions.get(fnName);
     if (!fn) {
-      console.warn(`Funzione custom "${fnName}" non registrata`);
+      logger.warn('calcEngine', `Funzione custom "${fnName}" non registrata`);
       return null;
     }
     const resolvedArgs: Record<string, unknown> = {};
@@ -164,7 +165,7 @@ class CalculationEngine {
     if (!compiled) {
       const fallback = this.fallbacks.get(scope) || this.fallbacks.get(CALCULATION_SCOPES.DEFAULT);
       if (fallback) { return fallback(context); }
-      console.warn(`Nessun motore disponibile per lo scope "${scope}"`);
+      logger.warn('calcEngine', `Nessun motore disponibile per lo scope "${scope}"`);
       return null;
     }
     return compiled(context);
@@ -230,7 +231,7 @@ class CalculationEngine {
         : null;
 
       if (!activeVersion || !activeVersion.dsl) {
-        console.warn(`Versione attiva non valida per scope "${scope}"`);
+        logger.warn('calcEngine', `Versione attiva non valida per scope "${scope}"`);
         return null;
       }
 
@@ -241,7 +242,7 @@ class CalculationEngine {
       validateDsl(parsedDsl);
       return this.compile(parsedDsl);
     } catch (err) {
-      console.error(`Errore caricando lo scope "${scope}":`, err);
+      logger.error('calcEngine', `Errore caricando lo scope "${scope}":`, err);
       return null;
     }
   }
@@ -253,13 +254,13 @@ class CalculationEngine {
 
       const { op } = node as DslOpNode;
       if (!op) {
-        console.warn("Nodo DSL senza 'op', restituisco il blob originale");
+        logger.warn('calcEngine', "Nodo DSL senza 'op', restituisco il blob originale");
         return node;
       }
 
       const handler = this.operations.get(op);
       if (!handler) {
-        console.warn(`Operazione non supportata: ${op}`);
+        logger.warn('calcEngine', `Operazione non supportata: ${op}`);
         return null;
       }
       return handler(node as DslOpNode, ctx, evaluator, this);
@@ -298,7 +299,7 @@ function validateDsl(dsl: unknown): void {
   const op = (dsl as DslOpNode).op;
   if (!op) { throw new Error("Ogni DSL deve avere la proprietà 'op'"); }
   if (!(op in DEFAULT_OPERATIONS) && op !== 'function') {
-    console.warn(`Opzione "${op}" non predefinita: assicurarsi di registrare l'operazione custom prima dell'uso.`);
+    logger.warn('calcEngine', `Opzione "${op}" non predefinita: assicurarsi di registrare l'operazione custom prima dell'uso.`);
   }
 }
 

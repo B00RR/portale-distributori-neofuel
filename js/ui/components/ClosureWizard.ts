@@ -5,6 +5,7 @@ import { supabase } from '../../core/api.js';
 import type { Json } from '../../core/api.js';
 import { BusinessLogicManager } from '../../core/business-logic-manager.js';
 import { type BusinessRules, DEFAULT_BUSINESS_RULES } from '../../core/business-rules-schema.js';
+import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { Pistola, Island, Shift } from '../../types.js';
 import { formatEuro, getErrorMessage } from '../../utils/utils.js';
@@ -313,7 +314,7 @@ export class ClosureWizard extends BaseComponent {
         this.openingCounters = countersMap;
         this.wizardState = { ...this.wizardState, mode: 'form', step: 1 };
       } catch (error: unknown) {
-        console.error('Error loading ClosureWizard data:', error);
+        logger.error('closureWizard', 'Error loading ClosureWizard data:', error);
         this.wizardState = { mode: 'error', errorMessage: getErrorMessage(error) || 'Errore imprevisto', step: 1 };
       }
     }
