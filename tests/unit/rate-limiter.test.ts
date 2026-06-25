@@ -3,14 +3,20 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { isRateLimited, resetRateLimit, getRemainingAttempts, cleanupRateLimits } from '../../js/utils/rate-limiter.js';
 
 describe('Rate Limiter Module', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     // Clear all rate limits before each test
     vi.useFakeTimers();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
   });
 
   describe('isRateLimited', () => {
@@ -35,6 +41,7 @@ describe('Rate Limiter Module', () => {
       const result = isRateLimited('key2', 3, 60000); // 4th - should block
 
       expect(result).toBe(true);
+      expect(consoleWarnSpy).toHaveBeenCalled();
     });
 
     it('should reset after time window expires', () => {

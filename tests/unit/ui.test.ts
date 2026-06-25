@@ -17,14 +17,21 @@ import {
 } from '../../js/ui/ui.js';
 
 describe('UI Module', () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
     beforeEach(() => {
         document.body.innerHTML = '';
         vi.useFakeTimers();
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     });
 
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
     });
 
     describe('Loaders', () => {
@@ -157,18 +164,21 @@ describe('UI Module', () => {
             showErrorMessage(container, 'Fatal Error');
             expect(container.innerHTML).toContain('Fatal Error');
             expect(container.innerHTML).toContain('text-danger');
+            expect(consoleErrorSpy).toHaveBeenCalled();
         });
 
         it('showErrorMessage should handle Error object', () => {
             const container = document.createElement('div');
             showErrorMessage(container, new Error('Object Error'));
             expect(container.innerHTML).toContain('Object Error');
+            expect(consoleErrorSpy).toHaveBeenCalled();
         });
 
         it('showErrorMessage should use default message', () => {
             const container = document.createElement('div');
             showErrorMessage(container, null, 'Default Msg');
             expect(container.innerHTML).toContain('Default Msg');
+            expect(consoleErrorSpy).toHaveBeenCalled();
         });
     });
 

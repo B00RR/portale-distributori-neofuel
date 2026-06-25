@@ -82,6 +82,8 @@ vi.mock('../../js/admin/tanks.js', () => ({
 describe('Stations Module', () => {
     let container: HTMLElement;
     let actions: HTMLElement;
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
         container = document.createElement('div');
@@ -97,10 +99,14 @@ describe('Stations Module', () => {
         document.body.appendChild(modalBody);
 
         vi.clearAllMocks();
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     });
 
     afterEach(() => {
         document.body.innerHTML = '';
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
     });
 
     describe('showStationsTab', () => {
@@ -135,6 +141,7 @@ describe('Stations Module', () => {
             await showStationsTab(container, actions);
 
             expect(handleError).toHaveBeenCalled();
+            expect(consoleErrorSpy).toHaveBeenCalled();
         });
 
         it('should bind sub-module buttons', async () => {

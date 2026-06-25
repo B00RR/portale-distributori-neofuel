@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Toast from '../../js/ui/toast.js';
 
 describe('Toast Module', () => {
+    let consoleDebugSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
         vi.useFakeTimers();
         document.body.innerHTML = '';
+        consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
     });
 
     afterEach(() => {
@@ -64,6 +66,8 @@ describe('Toast Module', () => {
 
         btn.click();
         expect(onClickSpy).toHaveBeenCalled();
+        // The action handler logs a debug line; verify it (and keep test output clean).
+        expect(consoleDebugSpy).toHaveBeenCalled();
     });
 
     it('should clean up container when empty', () => {

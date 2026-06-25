@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
     sanitizeHtml,
     setInnerHTML,
@@ -10,6 +10,18 @@ import {
 } from '../../js/utils/sanitizer.js';
 
 describe('Sanitizer Module (Security)', () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+    });
 
     describe('sanitizeHtml', () => {
         it('should escape script tags', () => {
@@ -94,16 +106,19 @@ describe('Sanitizer Module (Security)', () => {
             expect(isSafeUrl('javascript:alert(1)')).toBe(false);
             expect(isSafeUrl('JAVASCRIPT:alert(1)')).toBe(false);
             expect(isSafeUrl(' javascript:alert(1)')).toBe(false);
+            expect(consoleWarnSpy).toHaveBeenCalled();
         });
 
         it('should block data: protocol', () => {
             expect(isSafeUrl('data:text/html,<script>alert(1)</script>')).toBe(false);
             expect(isSafeUrl('DATA:image/png;base64,...')).toBe(false);
+            expect(consoleWarnSpy).toHaveBeenCalled();
         });
 
         it('should block vbscript and file protocols', () => {
             expect(isSafeUrl('vbscript:alert(1)')).toBe(false);
             expect(isSafeUrl('file:///etc/passwd')).toBe(false);
+            expect(consoleWarnSpy).toHaveBeenCalled();
         });
 
         it('should return false for null/undefined/empty', () => {
@@ -131,6 +146,7 @@ describe('Sanitizer Module (Security)', () => {
         it('should return null for unsafe URLs', () => {
             expect(createSafeLink('javascript:alert(1)', 'Unsafe')).toBeNull();
             expect(createSafeLink('data:text/html,<script>', 'Unsafe')).toBeNull();
+            expect(consoleWarnSpy).toHaveBeenCalled();
         });
 
         it('should add target and rel attributes when newTab is true', () => {
@@ -260,6 +276,7 @@ describe('Sanitizer Module (Security)', () => {
 
                 const result = getSafeLocalStorage('corrupt', { fallback: true });
                 expect(result).toEqual({ fallback: true });
+                expect(consoleWarnSpy).toHaveBeenCalled();
             });
 
             it('should return defaultValue for null values', () => {
@@ -267,6 +284,7 @@ describe('Sanitizer Module (Security)', () => {
 
                 const result = getSafeLocalStorage('null-value', { default: 'used' });
                 expect(result).toEqual({ default: 'used' });
+                expect(consoleWarnSpy).toHaveBeenCalled();
             });
 
             it('should return null as default when not specified', () => {

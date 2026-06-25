@@ -1,7 +1,7 @@
 /**
  * @vitest-environment happy-dom
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // 1. Hoist mock interactions
 const { mockSupabase, mockUI, mockToast, mockUtils, mockSchemas, mockRateLimiter } = vi.hoisted(() => {
@@ -60,10 +60,14 @@ vi.mock('../../js/core/schemas.js', () => mockSchemas);
 
 describe('Auth Module', () => {
     let authModule: any;
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(async () => {
         vi.clearAllMocks();
         vi.resetModules(); // Restored for test isolation
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         // Setup DOM
         document.body.innerHTML = `
@@ -108,6 +112,11 @@ describe('Auth Module', () => {
         });
     });
 
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
+    });
+
     it('should successfully login with valid credentials', async () => {
         const form = document.getElementById('login-form') as HTMLFormElement;
         form.dispatchEvent(new Event('submit'));
@@ -149,6 +158,7 @@ describe('Auth Module', () => {
 
         const errorDiv = document.getElementById('login-error');
         expect(errorDiv?.textContent).toContain('Email o password errati');
+        expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
     it('does not derive a numeric user_id from the auth UUID in the last-resort fallback', async () => {
@@ -175,6 +185,8 @@ describe('Auth Module', () => {
         expect(authModule.loggedUser).not.toBeNull();
         expect(authModule.loggedUser.user_id).not.toBe(12345678);
         expect(Number.isNaN(authModule.loggedUser.user_id)).toBe(true);
+        expect(consoleWarnSpy).toHaveBeenCalled();
+        expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
     it('should handle rate limiting', async () => {
