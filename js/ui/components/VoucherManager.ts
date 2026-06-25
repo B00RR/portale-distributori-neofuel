@@ -2,6 +2,7 @@ import { html, css, CSSResultGroup, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 
 import { supabase } from '../../core/api.js';
+import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { validateVoucher } from '../../core/rules.js';
 import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
@@ -279,7 +280,7 @@ export class VoucherManager extends BaseComponent {
           () => { } // Ignore failures
         );
       } catch (e: unknown) {
-        console.error('Scanner error', e);
+        logger.error('voucherManager', 'Scanner error', e);
         const errDetails = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
         this.errorMessage = `Impossibile avviare la fotocamera. Dettaglio: ${errDetails}`;
         this.mode = 'error';
@@ -292,7 +293,7 @@ export class VoucherManager extends BaseComponent {
           await this.html5QrCode.stop();
           this.html5QrCode.clear();
         } catch (e) {
-          console.warn('Error stopping scanner', e);
+          logger.warn('voucherManager', 'Error stopping scanner', e);
         }
         this.html5QrCode = null;
       }

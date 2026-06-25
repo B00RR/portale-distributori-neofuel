@@ -5,6 +5,7 @@
 
 import { loadDashboardConfig, saveDashboardConfig, KPI_CATALOG, DashboardConfig, KPIConfigItem } from '../admin/dashboard-config.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
+import { logger } from '../core/logger.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
 
@@ -181,7 +182,7 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
           setSafeHTML(btn, originalText);
           btn.disabled = false;
         }, 3000);
-        console.error(err);
+        logger.error('settingsPanel', err);
       }
     });
 

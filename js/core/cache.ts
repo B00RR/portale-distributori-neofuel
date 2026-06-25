@@ -56,7 +56,7 @@ export function getFromCache<T>(key: string, ttlMs: number = CACHE_DEFAULT_TTL_M
 
     return entry.data;
   } catch (error) {
-    console.warn(`[Cache] Error retrieving ${key}:`, error);
+    logger.warn('cache', `Error retrieving ${key}:`, error);
     return null;
   }
 }
@@ -75,7 +75,7 @@ export function setInCache<T>(key: string, data: T): void {
     };
     localStorage.setItem(`cache_${key}`, JSON.stringify(entry));
   } catch (error) {
-    console.warn(`[Cache] Error setting ${key}:`, error);
+    logger.warn('cache', `Error setting ${key}:`, error);
   }
 }
 

@@ -85,7 +85,7 @@ export function handleError(
     Toast.show(userMessage, type);
   } else {
     // Fallback if Toast is not available
-    console.warn('Toast not available, error message:', userMessage);
+    logger.warn('errorHandler', 'Toast not available, error message:', userMessage);
   }
 
   // Render in page if requested

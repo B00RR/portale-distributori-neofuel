@@ -1,5 +1,6 @@
 import type { Json } from '../../supabase/database.types.js';
 import { supabase, safeSupabaseQuery } from '../core/api.js';
+import { logger } from '../core/logger.js';
 
 import { calculationEngine, CALCULATION_SCOPES } from './calculation-engine.js';
 
@@ -266,7 +267,7 @@ async function syncAllPresets(): Promise<void> {
     try {
       await syncCalculationPreset(preset);
     } catch (err) {
-      console.warn(`Preset calcoli "${preset.scope}" non sincronizzato:`, err);
+      logger.warn('calcPresets', `Preset calcoli "${preset.scope}" non sincronizzato:`, err);
     }
   }
 }
@@ -279,7 +280,7 @@ export async function ensureCalculationPresetsSynced(): Promise<void> {
   registerPresetFunctions();
   if (!presetState.syncPromise) {
     presetState.syncPromise = syncAllPresets().catch((err) => {
-      console.warn('Impossibile sincronizzare i preset del motore di calcolo:', err);
+      logger.warn('calcPresets', 'Impossibile sincronizzare i preset del motore di calcolo:', err);
     });
   }
   return presetState.syncPromise;
