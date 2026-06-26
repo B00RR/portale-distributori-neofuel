@@ -62,7 +62,7 @@ async function setupUsers() {
         // Let's print the needed SQL command for me to run via MCP.
 
         console.log(`\n\nREQUIRED SQL ACTION:`);
-        console.log(`INSERT INTO public.users (user_id, email, role, full_name, created_by_auth, is_active, username, password_hash)
+        console.log(`INSERT INTO public.users (user_id, email, role, full_name, created_by_auth, is_active, username)
         VALUES (
             (SELECT COALESCE(MAX(user_id), 0) + 1 FROM public.users),
             '${operatorEmail}',
@@ -70,8 +70,7 @@ async function setupUsers() {
             'Test Operator',
             '${userId}',
             true,
-            'test_operator',
-            'managed_by_auth'
+            'test_operator'
         ) ON CONFLICT (email) DO UPDATE SET created_by_auth = '${userId}';`);
     }
 
