@@ -16,13 +16,6 @@ interface Gun {
   island_id: number;
 }
 
-interface CounterRecord {
-  id: number;
-  pistola_id: number;
-  numeratore_chiusura: number;
-  turno_id: number;
-}
-
 // --- DOM HELPERS ---
 
 function createIcon(className: string): HTMLElement {
@@ -102,21 +95,23 @@ async function renderGuns(target: HTMLElement, islandId: number, islandName: str
     // Load latest counters
     const latestCounters: Record<number, number> = {};
     const { data: rawCounters, error: countersError } = await safeSupabaseQuery(async () => await supabase
-      .from('chiusura_turno_pistole')
-      .select('pistola_id, numeratore_chiusura, turno_id')
-      .order('turno_id', { ascending: false })
+      .from('shift_pistols')
+      .select('pistola_id, closed_at_counter, shift_id')
+      .order('created_at', { ascending: false })
       .limit(200)
     );
 
     if (countersError) {throw countersError;}
 
-    const allCounters = rawCounters as CounterRecord[];
+    const allCounters = rawCounters as { pistola_id: number; closed_at_counter: number | null; shift_id: number }[];
 
     if (allCounters && allCounters.length > 0) {
-      const maxTurnoId = Math.max(...allCounters.map(c => c.turno_id));
-      const latest = allCounters.filter(c => c.turno_id === maxTurnoId);
+      const maxShiftId = Math.max(...allCounters.map(c => Number(c.shift_id)));
+      const latest = allCounters.filter(c => Number(c.shift_id) === maxShiftId);
       latest.forEach(c => {
-        latestCounters[c.pistola_id] = c.numeratore_chiusura;
+        if (c.closed_at_counter !== null && c.closed_at_counter !== undefined) {
+          latestCounters[c.pistola_id] = Number(c.closed_at_counter);
+        }
       });
     }
 
@@ -555,62 +550,64 @@ async function showCounterEditModal(gunId: number, gunName: string, currentCount
         const { error: basicError } = await safeSupabaseQuery(async () => await supabase.from('pistole').update({ numero_litri: numeroLitri }).eq('id', gunId));
         if (basicError) { throw basicError; }
 
-        // 2. Find latest turno_id
-        let currentTurnoId: number | null = null;
+        // 2. Find latest shift_id
+        let currentShiftId: number | null = null;
         try {
           const { data: lastCounters, error: lastCountersError } = await safeSupabaseQuery(async () => await supabase
-            .from('chiusura_turno_pistole')
-            .select('turno_id')
-            .order('turno_id', { ascending: false })
+            .from('shift_pistols')
+            .select('shift_id')
+            .order('created_at', { ascending: false })
             .limit(1)
           );
 
           if (lastCountersError) {throw lastCountersError;}
 
-          const lastData = lastCounters as { turno_id: number }[];
+          const lastData = lastCounters as { shift_id: number }[];
           if (lastData && lastData.length > 0) {
             const first = lastData[0];
             if (first) {
-              currentTurnoId = first.turno_id;
+              currentShiftId = Number(first.shift_id);
             }
           }
         } catch (err) {
-          logger.warn('showCounterEditModal', 'Errore recupero ultimo turno_id: ' + (err as Error).message);
+          logger.warn('showCounterEditModal', 'Errore recupero ultimo shift_id: ' + (err as Error).message);
         }
 
         // 3. Update or Insert
-        if (currentTurnoId !== null) {
+        if (currentShiftId !== null) {
           const { data: existing, error: existingError } = await safeSupabaseQuery(async () => await supabase
-            .from('chiusura_turno_pistole')
+            .from('shift_pistols')
             .select('id')
             .eq('pistola_id', gunId)
-            .eq('turno_id', currentTurnoId)
+            .eq('shift_id', currentShiftId)
             .single()
           );
 
           if (existingError && existingError.code !== 'PGRST116') {throw existingError;}
 
           if (existing) {
-            const { error: updateCounterError } = await safeSupabaseQuery(async () => await supabase.from('chiusura_turno_pistole')
-              .update({ numeratore_chiusura: numeroLitri })
+            const { error: updateCounterError } = await safeSupabaseQuery(async () => await supabase.from('shift_pistols')
+              .update({ closed_at_counter: numeroLitri })
               .eq('pistola_id', gunId)
-              .eq('turno_id', currentTurnoId)
+              .eq('shift_id', currentShiftId)
             );
             if (updateCounterError) { throw updateCounterError; }
           } else {
-            const { error: insertCounterError } = await safeSupabaseQuery(async () => await supabase.from('chiusura_turno_pistole').insert([{
+            const { error: insertCounterError } = await safeSupabaseQuery(async () => await supabase.from('shift_pistols').insert([{
               pistola_id: gunId,
-              numeratore_chiusura: numeroLitri,
-              turno_id: currentTurnoId
+              closed_at_counter: numeroLitri,
+              shift_id: currentShiftId,
+              opened_at_counter: numeroLitri
             }])
             );
             if (insertCounterError) { throw insertCounterError; }
           }
         } else {
-          const { error: initCounterError } = await safeSupabaseQuery(async () => await supabase.from('chiusura_turno_pistole').insert([{
+          const { error: initCounterError } = await safeSupabaseQuery(async () => await supabase.from('shift_pistols').insert([{
             pistola_id: gunId,
-            numeratore_chiusura: numeroLitri,
-            turno_id: 1 // Init with 1 if nothing exists
+            closed_at_counter: numeroLitri,
+            shift_id: 1, // Init with 1 if nothing exists
+            opened_at_counter: numeroLitri
           }])
           );
           if (initCounterError) { throw initCounterError; }
