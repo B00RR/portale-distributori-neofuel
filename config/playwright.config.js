@@ -12,7 +12,7 @@ export default defineConfig({
     // Run tests in parallel
     fullyParallel: true,
 
-    workers: process.env.CI ? 1 : 1,
+    workers: process.env.CI ? 1 : undefined,
 
     // Fail fast on CI
     forbidOnly: !!process.env.CI,
