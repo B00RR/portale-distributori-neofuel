@@ -188,19 +188,21 @@ export class ShiftOpener extends BaseComponent {
 
         // 3. Fetch smart counters (last closure values)
         const pIds = this.pistole.map(p => p.id);
-        const [newCounters, oldCounters] = await Promise.all([
-          supabase.from('shift_pistols').select('pistola_id, closed_at_counter').in('pistola_id', pIds).not('closed_at_counter', 'is', null).order('created_at', { ascending: false }),
-          supabase.from('chiusura_turno_pistole').select('pistola_id, numeratore_chiusura').in('pistola_id', pIds).order('created_at', { ascending: false })
-        ]);
+        const { data: newCounters, error: countersErr } = await supabase
+          .from('shift_pistols')
+          .select('pistola_id, closed_at_counter')
+          .in('pistola_id', pIds)
+          .not('closed_at_counter', 'is', null)
+          .order('created_at', { ascending: false });
+
+        if (countersErr) { throw countersErr; }
 
         const counters: Record<number, number> = {};
         this.pistole.forEach(p => {
-          // Priority: shift_pistols -> chiusura_turno_pistole -> current numero_litri
-          const lastShift = newCounters.data?.find(c => c.pistola_id === p.id);
-          const lastOld = oldCounters.data?.find(c => c.pistola_id === p.id);
+          // Priority: shift_pistols -> current numero_litri
+          const lastShift = newCounters?.find(c => c.pistola_id === p.id);
 
           counters[p.id] = lastShift?.closed_at_counter ??
-                    lastOld?.numeratore_chiusura ??
                     p.numero_litri ?? 0;
         });
         this.lastCounters = counters;

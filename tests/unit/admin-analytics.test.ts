@@ -13,7 +13,7 @@ const { mockSupabase, mockUI, mockUtils } = vi.hoisted(() => {
         mockSupabase: { from: vi.fn(() => queryBuilder) },
         mockUI: {
             showLoadingMessage: vi.fn(),
-            showErrorMessage: vi.fn((c, e) => console.log('[MockUI] Error:', e))
+            showErrorMessage: vi.fn()
         },
         mockUtils: {
             formatEuro: vi.fn(v => `€${v}`),

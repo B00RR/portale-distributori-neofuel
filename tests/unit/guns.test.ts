@@ -44,7 +44,7 @@ describe('Guns Module', () => {
             supabase: {
                 from: vi.fn((table) => {
                     if (table === 'pistole') return pistoleBuilder;
-                    if (table === 'chiusura_turno_pistole') return countersBuilder;
+                    if (table === 'shift_pistols') return countersBuilder;
                     return pistoleBuilder;
                 })
             },

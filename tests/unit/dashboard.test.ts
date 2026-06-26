@@ -19,7 +19,6 @@ const { mockSupabase, mockCharts, mockUI, mockConfig, mockBusinessLogic, mockEng
         mockUI: {
             showLoadingMessage: vi.fn(),
             showErrorMessage: vi.fn((c, e) => {
-                console.error('ERROR CAUGHT IN MOCK:', JSON.stringify(e, null, 2));
                 throw e;
             })
         },

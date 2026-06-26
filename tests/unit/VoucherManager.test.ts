@@ -78,8 +78,7 @@ describe('VoucherManager (523 lines)', () => {
         if (element.activeVoucher) {
             expect(element.activeVoucher.code).toBe('V123');
         } else {
-            console.log('ErrorMessage:', element.errorMessage);
-            throw new Error('activeVoucher is null');
+            throw new Error(`activeVoucher is null. Error: ${element.errorMessage}`);
         }
     });
 
