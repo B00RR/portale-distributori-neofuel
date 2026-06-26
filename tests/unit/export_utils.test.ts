@@ -28,9 +28,8 @@ describe('Export Utils Module', () => {
             await generateMultiClosureExcel(closures as unknown as Parameters<typeof generateMultiClosureExcel>[0]);
             expect(true).toBe(true); // Passed without throwing
         } catch (e) {
-            // Check if error is acceptable
-            console.error(e);
-            // If it throws, fail.
+            // If it throws, fail the test explicitly
+            expect(e).toBeUndefined();
         }
     });
 
