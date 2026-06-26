@@ -12,6 +12,8 @@ export default defineConfig({
     // Run tests in parallel
     fullyParallel: true,
 
+    workers: process.env.CI ? 1 : 1,
+
     // Fail fast on CI
     forbidOnly: !!process.env.CI,
 
@@ -26,7 +28,7 @@ export default defineConfig({
 
     use: {
         // Base URL
-        baseURL: 'http://localhost:5173',
+        baseURL: 'http://localhost:4173',
 
         // Collect trace on failure
         trace: 'on-first-retry',
@@ -55,6 +57,7 @@ export default defineConfig({
         {
             name: 'mobile',
             use: { ...devices['iPhone 13'] },
+            timeout: 60 * 1000,
         },
     ],
 
@@ -62,8 +65,8 @@ export default defineConfig({
     // Le credenziali Supabase sono fittizie: la suite E2E mocka la rete, quindi
     // l'app deve solo avviarsi (non servono secret reali in CI).
     webServer: {
-        command: 'npm run dev',
-        url: 'http://localhost:5173',
+        command: 'npm run build && npm run preview',
+        url: 'http://localhost:4173',
         reuseExistingServer: !process.env.CI,
         timeout: 120 * 1000,
         env: {
