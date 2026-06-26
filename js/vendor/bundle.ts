@@ -2,30 +2,35 @@
 // Issue #4: Bundle and vend CDN dependencies for production
 // These are assigned to window.* because the app code uses them as globals.
 
-import Chart from 'chart.js/auto';
-(window as any).Chart = Chart;
-
-import { jsPDF } from 'jspdf';
-(window as any).jsPDF = jsPDF;
-
-import 'jspdf-autotable'; // patches jsPDF prototype
-
-import * as XLSX from 'xlsx';
-(window as any).XLSX = XLSX;
-
-import * as XlsxPopulate from 'xlsx-populate';
-(window as any).XlsxPopulate = XlsxPopulate;
-
-import * as JSZip from 'jszip';
-(window as any).JSZip = JSZip;
-
-import * as Split from 'split.js';
-(window as any).Split = Split;
-
-import Sortable from 'sortablejs';
-(window as any).Sortable = Sortable;
-
-import { Html5Qrcode } from 'html5-qrcode';
-(window as any).Html5Qrcode = Html5Qrcode;
-
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import Chart from 'chart.js/auto';
+import { Html5Qrcode } from 'html5-qrcode';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable'; // patches jsPDF prototype
+import * as JSZip from 'jszip';
+import Sortable from 'sortablejs';
+import * as Split from 'split.js';
+import * as XLSX from 'xlsx';
+import * as XlsxPopulate from 'xlsx-populate';
+
+declare global {
+  interface Window {
+    Chart: typeof Chart;
+    Html5Qrcode: typeof Html5Qrcode;
+    jsPDF: typeof jsPDF;
+    JSZip: typeof JSZip;
+    Sortable: typeof Sortable;
+    Split: typeof Split;
+    XLSX: typeof XLSX;
+    XlsxPopulate: typeof XlsxPopulate;
+  }
+}
+
+window.Chart = Chart;
+window.jsPDF = jsPDF;
+window.JSZip = JSZip;
+window.Sortable = Sortable;
+window.Split = Split;
+window.XLSX = XLSX;
+window.XlsxPopulate = XlsxPopulate;
+window.Html5Qrcode = Html5Qrcode;
