@@ -283,7 +283,7 @@ export function setupLoginForm(): void {
 
           // Only try RPC if we have authData.user
           if (authData?.user) {
-            const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
+            const { data: rpcId, error: rpcError } = await supabase.rpc('current_user_id');
 
             if (rpcId && !rpcError) {
               const fallbackName = authData.user.user_metadata?.full_name ||
@@ -309,7 +309,7 @@ export function setupLoginForm(): void {
               userData = {
                 id: authData.user.id,
                 // No numeric DB user_id is resolvable here: the DB row is missing
-                // and get_current_user_id RPC failed. The auth UUID is NOT a
+                // and current_user_id RPC failed. The auth UUID is NOT a
                 // numeric id, so we must not parseInt() it. Leave it unresolved;
                 // parseUserId() downstream maps NaN to "Errore identificativo
                 // utente" for operator flows, while admin flows never read it.
@@ -425,7 +425,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
 
     if (!dbUserData) {
       logger.warn('auth', 'Session User not found via SELECT. Attempting Secure RPC...');
-      const { data: rpcId, error: rpcError } = await supabase.rpc('get_current_user_id');
+      const { data: rpcId, error: rpcError } = await supabase.rpc('current_user_id');
 
       if (rpcId && !rpcError) {
         const fallbackName = session.user.user_metadata?.full_name ||
@@ -447,7 +447,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
         userData = {
           id: session.user.id,
           // No numeric DB user_id is resolvable here: the DB row is missing
-          // and get_current_user_id RPC failed. The auth UUID is NOT a numeric
+          // and current_user_id RPC failed. The auth UUID is NOT a numeric
           // id, so we must not parseInt() it. Leave it unresolved; parseUserId()
           // downstream maps NaN to "Errore identificativo utente" for operator
           // flows, while admin flows never read it.
