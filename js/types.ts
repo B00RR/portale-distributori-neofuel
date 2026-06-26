@@ -22,7 +22,6 @@ export interface User {
     is_active: boolean | null;
     created_at: string | null;
     username?: string;
-    password_hash?: string;
     created_by_auth?: string | null;
     updated_at?: string | null;
     assignedStations?: { id: number; name: string }[];

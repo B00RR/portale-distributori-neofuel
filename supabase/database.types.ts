@@ -1431,7 +1431,6 @@ export type Database = {
           email: string
           full_name: string | null
           is_active: boolean | null
-          password_hash: string
           role: string
           updated_at: string | null
           user_id: number
@@ -1443,7 +1442,6 @@ export type Database = {
           email: string
           full_name?: string | null
           is_active?: boolean | null
-          password_hash: string
           role: string
           updated_at?: string | null
           user_id?: number
@@ -1455,7 +1453,6 @@ export type Database = {
           email?: string
           full_name?: string | null
           is_active?: boolean | null
-          password_hash?: string
           role?: string
           updated_at?: string | null
           user_id?: number
