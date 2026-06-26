@@ -53,7 +53,7 @@ vi.mock('../../js/shared/error-handler.js', () => ({
 }));
 
 vi.mock('../../js/ui/toast.js', () => ({
-    Toast: { show: vi.fn((msg, type) => console.log(`[TOAST] ${type}: ${msg}`)) }
+    Toast: { show: vi.fn() }
 }));
 
 vi.mock('../../js/ui/ui.js', () => ({
@@ -211,7 +211,7 @@ describe('Stations Module', () => {
 
             const { Toast } = await import('../../js/ui/toast.js');
             if (navUpdate.mock.calls.length === 0) {
-                console.log('Toast calls:', (Toast.show as unknown as { mock: { calls: unknown[] } }).mock.calls);
+                expect(Toast.show).toHaveBeenCalled();
             }
 
             expect(navUpdate).toHaveBeenCalled();

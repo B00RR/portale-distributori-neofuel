@@ -43,10 +43,10 @@ const { mockSupabase, mockUI, mockUtils, mockToast, mockErrorHandler } = vi.hois
             escapeHtml: vi.fn(v => v)
         },
         mockToast: {
-            show: vi.fn((msg, type) => console.log(`[MockToast] ${type}: ${msg}`))
+            show: vi.fn()
         },
         mockErrorHandler: {
-            handleError: vi.fn((err) => console.error('[ErrorHandler]', err))
+            handleError: vi.fn()
         }
     };
 });
