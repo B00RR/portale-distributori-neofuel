@@ -1,6 +1,0 @@
-streamlit
-python-docx
-PyPDF2
-pymupdf
-cairosvg
-Pillow
