@@ -99,6 +99,9 @@ export function showErrorMessage(
 
     const span = document.createElement('span');
     span.className = 'text-danger';
+    // Assertive live region so screen readers announce load errors.
+    span.setAttribute('role', 'alert');
+    span.setAttribute('aria-live', 'assertive');
     span.textContent = errorMsg;
 
     content.innerHTML = '';

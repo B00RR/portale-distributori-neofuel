@@ -35,12 +35,20 @@ export class Toast {
     if (!container) {
       container = document.createElement('div');
       container.id = 'toast-container';
+      // Polite live region so screen readers announce toast text changes.
+      container.setAttribute('role', 'status');
+      container.setAttribute('aria-live', 'polite');
       document.body.appendChild(container);
     }
 
     // Create toast element
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
+    // Errors/warnings interrupt; success/info announce politely via the container.
+    if (type === 'error' || type === 'warning') {
+      toast.setAttribute('role', 'alert');
+      toast.setAttribute('aria-live', 'assertive');
+    }
 
     const row = document.createElement('div');
     row.style.display = 'flex';
