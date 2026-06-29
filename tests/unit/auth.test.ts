@@ -145,6 +145,34 @@ describe('Auth Module', () => {
         expect(mockSupabase.auth.signInWithPassword).not.toHaveBeenCalled();
     });
 
+    it('keeps the login password toggle aria-label synchronized with the visible state (#108)', () => {
+        const toggleButton = document.getElementById('toggle-password') as HTMLButtonElement;
+        const passwordInput = document.getElementById('password') as HTMLInputElement;
+
+        passwordInput.type = 'password';
+        toggleButton.setAttribute('aria-label', 'Mostra password');
+
+        toggleButton.click();
+        expect(passwordInput.type).toBe('text');
+        expect(toggleButton.title).toBe('Nascondi password');
+        expect(toggleButton.getAttribute('aria-label')).toBe('Nascondi password');
+
+        toggleButton.click();
+        expect(passwordInput.type).toBe('password');
+        expect(toggleButton.title).toBe('Mostra password');
+        expect(toggleButton.getAttribute('aria-label')).toBe('Mostra password');
+    });
+
+    it('renders reset-password toggle buttons with accessible labels (#108)', () => {
+        authModule.showResetPasswordForm();
+
+        const newPasswordToggle = document.getElementById('toggle-new-password') as HTMLButtonElement;
+        const confirmPasswordToggle = document.getElementById('toggle-confirm-password') as HTMLButtonElement;
+
+        expect(newPasswordToggle.getAttribute('aria-label')).toBe('Mostra password');
+        expect(confirmPasswordToggle.getAttribute('aria-label')).toBe('Mostra password');
+    });
+
     it('should handle invalid credentials', async () => {
         mockSupabase.auth.signInWithPassword.mockResolvedValue({
             data: { user: null },

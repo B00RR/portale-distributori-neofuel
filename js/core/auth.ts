@@ -116,6 +116,38 @@ function mapAssignedStations(stations: UserStationData[] | undefined | null): As
   }));
 }
 
+function setPasswordToggleState(
+  toggleBtn: HTMLElement,
+  passwordInput: HTMLInputElement,
+  passwordIcon: HTMLElement
+): void {
+  const isHidden = passwordInput.type === 'password';
+  const label = isHidden ? 'Mostra password' : 'Nascondi password';
+
+  passwordIcon.classList.toggle('fa-eye', isHidden);
+  passwordIcon.classList.toggle('fa-eye-slash', !isHidden);
+  toggleBtn.title = label;
+  toggleBtn.setAttribute('aria-label', label);
+}
+
+function setupPasswordToggle(toggleId: string, inputId: string, iconId: string): void {
+  const toggleBtn = document.getElementById(toggleId);
+  const passwordInput = document.getElementById(inputId) as HTMLInputElement | null;
+  const passwordIcon = document.getElementById(iconId);
+
+  if (!toggleBtn || !passwordInput || !passwordIcon) {return;}
+
+  setPasswordToggleState(toggleBtn, passwordInput, passwordIcon);
+
+  toggleBtn.addEventListener('click', (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
+    setPasswordToggleState(toggleBtn, passwordInput, passwordIcon);
+  });
+}
+
 /**
  * Setup login form event listeners
  */
@@ -124,30 +156,7 @@ export function setupLoginForm(): void {
   if (loginFormInitialized) {return;}
 
   // Direct event listener for password toggle (more reliable than delegation)
-  const toggleBtn = document.getElementById('toggle-password');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const passwordInput = document.getElementById('password') as HTMLInputElement | null;
-      const passwordIcon = document.getElementById('password-icon');
-
-      if (passwordInput && passwordIcon) {
-        if (passwordInput.type === 'password') {
-          passwordInput.type = 'text';
-          passwordIcon.classList.remove('fa-eye');
-          passwordIcon.classList.add('fa-eye-slash');
-          toggleBtn.title = 'Nascondi password';
-        } else {
-          passwordInput.type = 'password';
-          passwordIcon.classList.remove('fa-eye-slash');
-          passwordIcon.classList.add('fa-eye');
-          toggleBtn.title = 'Mostra password';
-        }
-      }
-    });
-  }
+  setupPasswordToggle('toggle-password', 'password', 'password-icon');
 
   loginForm.addEventListener('submit', async (e: Event) => {
     e.preventDefault();
@@ -660,14 +669,14 @@ export function showResetPasswordForm(): void {
                     <label for="new-password">Nuova Password</label>
                     <div class="password-wrapper">
                         <input type="password" id="new-password" name="new-password" required minlength="6" placeholder="Inserisci la nuova password" />
-                        <button type="button" id="toggle-new-password" title="Mostra password"><i class="fas fa-eye" id="new-password-icon"></i></button>
+                        <button type="button" id="toggle-new-password" title="Mostra password" aria-label="Mostra password"><i class="fas fa-eye" id="new-password-icon"></i></button>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label for="confirm-password">Conferma Password</label>
                     <div class="password-wrapper">
                         <input type="password" id="confirm-password" name="confirm-password" required minlength="6" placeholder="Conferma la nuova password" />
-                        <button type="button" id="toggle-confirm-password" title="Mostra password"><i class="fas fa-eye" id="confirm-password-icon"></i></button>
+                        <button type="button" id="toggle-confirm-password" title="Mostra password" aria-label="Mostra password"><i class="fas fa-eye" id="confirm-password-icon"></i></button>
                     </div>
                 </div>
                 <div id="reset-password-error" style="color: red; margin-bottom: 15px; text-align: center; min-height: 20px;"></div>
@@ -680,6 +689,9 @@ export function showResetPasswordForm(): void {
   const newPasswordInput = document.getElementById('new-password') as HTMLInputElement;
   const confirmPasswordInput = document.getElementById('confirm-password') as HTMLInputElement;
   const errorElement = document.getElementById('reset-password-error') as HTMLElement;
+
+  setupPasswordToggle('toggle-new-password', 'new-password', 'new-password-icon');
+  setupPasswordToggle('toggle-confirm-password', 'confirm-password', 'confirm-password-icon');
 
   resetForm.addEventListener('submit', async (e: Event) => {
     e.preventDefault();
