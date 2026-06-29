@@ -1,7 +1,11 @@
 import { Toast } from '../ui/toast.js';
 
 import { supabase } from './api.js';
-import { BusinessRulesSchema, DEFAULT_BUSINESS_RULES, type BusinessRules } from './business-rules-schema.js';
+import {
+  BusinessRulesSchema,
+  DEFAULT_BUSINESS_RULES,
+  type BusinessRules
+} from './business-rules-schema.js';
 import { logger } from './logger.js';
 
 const BUCKET_NAME = 'system';
@@ -15,27 +19,34 @@ let cachedRules: BusinessRules | null = null;
  */
 export const BusinessLogicManager = {
   /**
-     * Load settings from Storage or return defaults
-     */
+   * Load settings from Storage or return defaults
+   */
   async loadRules(): Promise<BusinessRules> {
-    if (cachedRules) {return cachedRules;}
+    if (cachedRules) {
+      return cachedRules;
+    }
 
     try {
       // Rate limit / Timeout wrapper
-      const downloadPromise = supabase.storage
-        .from(BUCKET_NAME)
-        .download(FILE_PATH);
+      const downloadPromise = supabase.storage.from(BUCKET_NAME).download(FILE_PATH);
 
       const timeoutPromise = new Promise<{ data: Blob | null; error: unknown }>((_, reject) =>
         setTimeout(() => reject(new Error('Storage download timeout')), 5000)
       );
 
-      const { data, error } = await Promise.race([downloadPromise, timeoutPromise]) as unknown as { data: Blob | null; error: unknown };
+      const { data, error } = (await Promise.race([
+        downloadPromise,
+        timeoutPromise
+      ])) as unknown as { data: Blob | null; error: unknown };
 
       if (error) {
         // If not found, return defaults and try to seed
         const e = error as { message?: string; status?: number };
-        if (e.message?.includes('Object not found') || e.status === 404 || e.message === 'Storage download timeout') {
+        if (
+          e.message?.includes('Object not found') ||
+          e.status === 404 ||
+          e.message === 'Storage download timeout'
+        ) {
           return DEFAULT_BUSINESS_RULES;
         }
         throw error;
@@ -59,8 +70,8 @@ export const BusinessLogicManager = {
   },
 
   /**
-     * Save settings to Storage
-     */
+   * Save settings to Storage
+   */
   async saveRules(rules: Partial<BusinessRules>): Promise<void> {
     try {
       const current = await this.loadRules();
@@ -76,14 +87,14 @@ export const BusinessLogicManager = {
       const blob = new Blob([JSON.stringify(validated, null, 2)], { type: 'application/json' });
       const file = new File([blob], 'business_rules.json');
 
-      const { error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(FILE_PATH, file, {
-          upsert: true,
-          contentType: 'application/json'
-        });
+      const { error } = await supabase.storage.from(BUCKET_NAME).upload(FILE_PATH, file, {
+        upsert: true,
+        contentType: 'application/json'
+      });
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
       cachedRules = validated;
       Toast.show('Regole di business aggiornate con successo', 'success');

@@ -16,7 +16,9 @@ import { store } from './shared/state.js';
  */
 export async function showOperatorMenu(_userId: string, stationId: string | number): Promise<void> {
   const mainContent = document.getElementById('main-content');
-  if (!mainContent) { return; }
+  if (!mainContent) {
+    return;
+  }
 
   // Ensure state is updated (if not already set by app.js)
   const user = store.getUser();
@@ -48,14 +50,13 @@ export async function showOperatorMenu(_userId: string, stationId: string | numb
     if (opening) {
       // Optional: We could just show the menu (default) or go to specific page
       // For now, let's keep it on the dashboard (empty state but with menu) OR go to 'chiusura'
-      // To be less intrusive, we might just let them choose. 
+      // To be less intrusive, we might just let them choose.
       // BUT the user reported "White Screen", so maybe they want to see *something*.
       // Let's use a Toast to tell them what to do if we don't auto-nav.
       // BETTER: Auto-nav to 'chiusura' is standard for "I am working".
       // However, 'chiusura' might be the *end* of the shift.
-      // Let's go to 'promemoria' or just keep shell? 
+      // Let's go to 'promemoria' or just keep shell?
       // The shell has "Welcome message".
-
       // Fix: The issue is likely that "Welcome message" is not enough or confusing.
       // Let's just NOT auto-navigate if open, but ensure the shell is visible.
       // OR: Navigate to a "Status" view.

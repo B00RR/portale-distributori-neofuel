@@ -15,21 +15,13 @@ import { showOutflowMenu } from './outflows.js';
 import { showPrezziEditForm } from './prices.js';
 import { showVoucherMenu } from './vouchers.js';
 
-
 // ========== TYPE DEFINITIONS ==========
 
 export type OperatorView =
-    | 'apertura'
-    | 'chiusura'
-    | 'prezzi'
-    | 'crediti'
-    | 'uscite'
-    | 'incassi'
-    | 'voucher'
-    | 'fatture';
+  'apertura' | 'chiusura' | 'prezzi' | 'crediti' | 'uscite' | 'incassi' | 'voucher' | 'fatture';
 
 interface ExtendedUser extends User {
-    assignedStations?: Array<{ id: string }>;
+  assignedStations?: Array<{ id: string }>;
 }
 
 // ========== ROUTER CLASS ==========
@@ -42,8 +34,8 @@ class OperatorRouter {
   }
 
   /**
-     * Navigate to a view
-     */
+   * Navigate to a view
+   */
   async navigateTo(view: OperatorView): Promise<void> {
     const user = store.getUser() as ExtendedUser | null;
     const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
@@ -87,8 +79,8 @@ class OperatorRouter {
   }
 
   /**
-     * Get current view
-     */
+   * Get current view
+   */
   getCurrentView(): OperatorView | null {
     return this.currentView;
   }

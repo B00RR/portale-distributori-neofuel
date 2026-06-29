@@ -20,56 +20,56 @@ import { Pagination } from './components/Pagination.js';
 // ========== INTERFACES ==========
 
 interface FuelStation {
-    station_name: string;
+  station_name: string;
 }
 
 interface User {
-    full_name: string;
+  full_name: string;
 }
 
 interface SelfServiceData {
-    banconote_erogate?: number;
-    banconote_incassate?: number;
-    bancomat_erogati?: number;
-    transazioni_uta?: number;
+  banconote_erogate?: number;
+  banconote_incassate?: number;
+  bancomat_erogati?: number;
+  transazioni_uta?: number;
 }
 
 interface DettaglioIncasso {
-    contanti_operatore?: number;
-    pos_operatore?: number;
-    crediti?: number;
-    voucher?: number;
-    uta_dkv_operatore?: number;
-    rimborsi_uscite?: number;
+  contanti_operatore?: number;
+  pos_operatore?: number;
+  crediti?: number;
+  voucher?: number;
+  uta_dkv_operatore?: number;
+  rimborsi_uscite?: number;
 }
 
 interface ClosingData {
-    is_final?: boolean;
-    ricavo_teorico?: number;
-    totale_atteso?: number;
-    dettaglio_incasso?: DettaglioIncasso;
-    scontrino_self?: SelfServiceData;
-    extra_incassi?: number;
+  is_final?: boolean;
+  ricavo_teorico?: number;
+  totale_atteso?: number;
+  dettaglio_incasso?: DettaglioIncasso;
+  scontrino_self?: SelfServiceData;
+  extra_incassi?: number;
 }
 
 interface Shift {
-    id: number | string;
-    station_id: number | string;
-    operator_id: string | null;
-    status: string;
-    created_at: string;
-    closed_at: string | null;
-    closing_data: ClosingData;
-    fuel_stations?: FuelStation; // Joined
-    users?: User; // Joined
+  id: number | string;
+  station_id: number | string;
+  operator_id: string | null;
+  status: string;
+  created_at: string;
+  closed_at: string | null;
+  closing_data: ClosingData;
+  fuel_stations?: FuelStation; // Joined
+  users?: User; // Joined
 }
 
 interface BulkExportOptions {
-    stationId: string | null;
-    type: 'last_n' | 'date_range';
-    limit: number;
-    dateFrom?: string;
-    dateTo?: string;
+  stationId: string | null;
+  type: 'last_n' | 'date_range';
+  limit: number;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 // ========== MODULE ==========
@@ -80,11 +80,14 @@ export async function showChiusureTab(
   defaultStationId: string | null = null
 ): Promise<void> {
   // Basic structure
-  setSafeHTML(container, `
+  setSafeHTML(
+    container,
+    `
         <div id="filters-container"></div>
         <div id="data-container"></div>
         <div id="pagination-container"></div>
-    `);
+    `
+  );
 
   // Render Components
   const filterBar = new FilterBar('filters-container');
@@ -110,7 +113,9 @@ export async function showChiusureTab(
 
   const renderTable = async (): Promise<void> => {
     const dataContainer = document.getElementById('data-container');
-    if (!dataContainer) { return; }
+    if (!dataContainer) {
+      return;
+    }
 
     const filters = store.getFilters();
     const pagState = store.getPagination();
@@ -132,19 +137,27 @@ export async function showChiusureTab(
       const businessRules = await BusinessLogicManager.loadRules();
 
       // Build Query
-      let query = supabase.from('shifts')
-        .select(`
+      let query = supabase.from('shifts').select(
+        `
                     *,
                     fuel_stations(station_name),
                     users(full_name)
-                `, { count: 'exact' });
+                `,
+        { count: 'exact' }
+      );
 
       // 1. Station Filter
-      if (stationId) { query = query.eq('station_id', Number(stationId)); }
+      if (stationId) {
+        query = query.eq('station_id', Number(stationId));
+      }
 
       // 2. Date Range Filter
-      if (filters.dateFrom) { query = query.gte('created_at', filters.dateFrom); }
-      if (filters.dateTo) { query = query.lte('created_at', filters.dateTo + 'T23:59:59'); }
+      if (filters.dateFrom) {
+        query = query.gte('created_at', filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        query = query.lte('created_at', filters.dateTo + 'T23:59:59');
+      }
 
       // 3. Pagination
       const from = pagState.page * pagState.pageSize;
@@ -153,7 +166,9 @@ export async function showChiusureTab(
 
       const { data: closures, error, count } = await query;
 
-      if (error) { throw error; }
+      if (error) {
+        throw error;
+      }
 
       // Update totalCount if changed
       if (count !== null && count !== pagState.totalCount) {
@@ -231,22 +246,27 @@ export async function showChiusureTab(
       dataContainer.querySelectorAll('.view-closure').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = (btn as HTMLElement).dataset.id;
-          if (id) { showClosureDetails(id); }
+          if (id) {
+            showClosureDetails(id);
+          }
         });
       });
       dataContainer.querySelectorAll('.export-closure').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = (btn as HTMLElement).dataset.id;
-          if (id) { openExportModal(id); }
+          if (id) {
+            openExportModal(id);
+          }
         });
       });
       dataContainer.querySelectorAll('.delete-closure').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = (btn as HTMLElement).dataset.id;
-          if (id) { deleteClosure(id, renderTable); }
+          if (id) {
+            deleteClosure(id, renderTable);
+          }
         });
       });
-
     } catch (err) {
       handleError(err as Error, 'showChiusureTab', dataContainer);
     }
@@ -266,8 +286,7 @@ export async function showChiusureTab(
     if (key === 'filters' || key === 'stationFilter') {
       // Always render if filters change
       renderTable();
-    }
-    else if (key === 'pagination') {
+    } else if (key === 'pagination') {
       // Only render if PAGE changed. TotalCount change should be ignored (it was set by us)
       const paginationState = val as unknown as PaginationType;
       if (paginationState.page !== lastParams.page) {
@@ -283,7 +302,9 @@ export async function showChiusureTab(
 export async function showClosureDetails(closureId: string | number): Promise<void> {
   openModal('Dettagli Chiusura');
   const target = document.getElementById('modal-body');
-  if (!target) {return;}
+  if (!target) {
+    return;
+  }
 
   showLoadingMessage(target);
 
@@ -294,7 +315,9 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
       .eq('id', Number(closureId))
       .single();
 
-    if (error || !closureRaw) { throw new Error('Chiusura non trovata'); }
+    if (error || !closureRaw) {
+      throw new Error('Chiusura non trovata');
+    }
 
     const closure = closureRaw as unknown as Shift;
 
@@ -348,7 +371,9 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     const totaleRealeVal = vendutoCarburanteVal + extraVal;
     const totaleReale = formatEuro(totaleRealeVal);
 
-    setSafeHTML(target, `
+    setSafeHTML(
+      target,
+      `
       <div class="closure-details">
         <div class="closure-details-header">
             <span>ID Chiusura: <b>${closure.id}</b></span>
@@ -397,7 +422,8 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
              </button>
         </div>
       </div>
-    `);
+    `
+    );
 
     // Attach Event Listener for Export Button
     const exportBtn = document.getElementById('btn-export-details');
@@ -406,7 +432,6 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
         openExportModal(closure.id);
       });
     }
-
   } catch (err) {
     setSafeHTML(target, `<p class="error">Errore: ${escapeHtml((err as Error).message)}</p>`);
   }
@@ -426,24 +451,38 @@ export async function openExportModal(closureId: string | number): Promise<void>
 export async function openBulkExportModal(): Promise<void> {
   openModal('Export Multiplo Chiusure');
   const target = document.getElementById('modal-body');
-  if (!target) {return;}
+  if (!target) {
+    return;
+  }
 
   // Fetch stations for dropdown
   let stationsHtml = '<option value="all">Tutte le stazioni</option>';
   try {
-    const stations = await Cache.getOrFetch(CACHE_KEYS.STATIONS, async () => {
-      const { data, error } = await supabase.from('fuel_stations').select('station_id, station_name');
-      if (error) { throw error; }
-      return data;
-    }, 10 * 60 * 1000);
+    const stations = await Cache.getOrFetch(
+      CACHE_KEYS.STATIONS,
+      async () => {
+        const { data, error } = await supabase
+          .from('fuel_stations')
+          .select('station_id, station_name');
+        if (error) {
+          throw error;
+        }
+        return data;
+      },
+      10 * 60 * 1000
+    );
     if (stations) {
       stations.forEach((s: Record<string, unknown>) => {
         stationsHtml += `<option value="${escapeHtml(String(s.station_id))}">${escapeHtml(String(s.station_name))}</option>`;
       });
     }
-  } catch (e) { logger.error('shifts', e); }
+  } catch (e) {
+    logger.error('shifts', e);
+  }
 
-  setSafeHTML(target, `
+  setSafeHTML(
+    target,
+    `
         <div class="p-2">
             <p class="mb-3 text-muted">Seleziona i criteri per scaricare più chiusure in un unico file Excel.</p>
             
@@ -499,7 +538,8 @@ export async function openBulkExportModal(): Promise<void> {
                 <i class="fas fa-spinner fa-spin"></i> Generazione in corso...
             </div>
         </div>
-    `);
+    `
+  );
 
   // Handle Radio Change Events (CSP Safe)
   const radioLastN = document.getElementById('radio-last-n');
@@ -529,7 +569,9 @@ export async function openBulkExportModal(): Promise<void> {
     btn.addEventListener('click', async () => {
       const stationElement = document.getElementById('bulk-station') as HTMLSelectElement;
       const stationId = stationElement.value;
-      const typeElement = document.querySelector('input[name="bulk-type"]:checked') as HTMLInputElement;
+      const typeElement = document.querySelector(
+        'input[name="bulk-type"]:checked'
+      ) as HTMLInputElement;
       const type = typeElement.value as 'last_n' | 'date_range';
       const limitElement = document.getElementById('bulk-limit') as HTMLInputElement;
       const limit = parseInt(limitElement.value) || 10;
@@ -545,7 +587,9 @@ export async function openBulkExportModal(): Promise<void> {
       }
 
       const loadingDiv = document.getElementById('bulk-loading');
-      if (loadingDiv) {loadingDiv.classList.remove('hidden');}
+      if (loadingDiv) {
+        loadingDiv.classList.remove('hidden');
+      }
 
       const btnElement = btn as HTMLButtonElement;
       btnElement.disabled = true;
@@ -563,7 +607,9 @@ export async function openBulkExportModal(): Promise<void> {
         logger.error('shifts', err);
         Toast.show('Errore durante export multiplo: ' + getErrorMessage(err), 'error');
       } finally {
-        if (loadingDiv) {loadingDiv.classList.add('hidden');}
+        if (loadingDiv) {
+          loadingDiv.classList.add('hidden');
+        }
         btnElement.disabled = false;
       }
     });
@@ -573,26 +619,34 @@ export async function openBulkExportModal(): Promise<void> {
 export async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
   try {
     // 1. Fetch Data
-    let query = supabase.from('shifts')
-      .select(`
+    let query = supabase
+      .from('shifts')
+      .select(
+        `
             *,
             fuel_stations(station_name),
             users(full_name)
-        `)
+        `
+      )
       .order('created_at', { ascending: false });
 
-    if (opts.stationId) { query = query.eq('station_id', Number(opts.stationId)); }
+    if (opts.stationId) {
+      query = query.eq('station_id', Number(opts.stationId));
+    }
 
     if (opts.type === 'last_n') {
       query = query.limit(opts.limit);
     } else {
-      if (!opts.dateFrom || !opts.dateTo) {throw new Error('Range date mancante');}
-      query = query.gte('created_at', opts.dateFrom)
-        .lte('created_at', opts.dateTo + 'T23:59:59');
+      if (!opts.dateFrom || !opts.dateTo) {
+        throw new Error('Range date mancante');
+      }
+      query = query.gte('created_at', opts.dateFrom).lte('created_at', opts.dateTo + 'T23:59:59');
     }
 
     const { data: closures, error } = await query;
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
     if (!closures || closures.length === 0) {
       throw new Error('Nessuna chiusura trovata con i criteri selezionati.');
     }
@@ -615,8 +669,12 @@ export async function deleteClosure(
   closureId: string | number,
   onSuccessCallback?: () => void
 ): Promise<void> {
-  const confirmed = await openConfirmModal('Sei sicuro di voler eliminare questa chiusura? L\'operazione è irreversibile e cancellerà anche i dettagli dei contatori e lo scarico serbatoi.');
-  if (!confirmed) { return; }
+  const confirmed = await openConfirmModal(
+    "Sei sicuro di voler eliminare questa chiusura? L'operazione è irreversibile e cancellerà anche i dettagli dei contatori e lo scarico serbatoi."
+  );
+  if (!confirmed) {
+    return;
+  }
 
   try {
     // Use server-side RPC function for secure cascade delete
@@ -624,14 +682,15 @@ export async function deleteClosure(
       closure_id: Number(closureId)
     });
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     Toast.show('Chiusura eliminata con successo', 'success');
-    if (onSuccessCallback) { onSuccessCallback(); }
-
+    if (onSuccessCallback) {
+      onSuccessCallback();
+    }
   } catch (err) {
     handleError(err as Error, 'deleteClosure');
   }
 }
-
-

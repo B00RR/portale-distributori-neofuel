@@ -12,23 +12,34 @@ import { createErrorMessage, createFormActions } from './ui-components.js';
  * @param {number | string} stationId - ID della stazione
  * @param {string} userId - ID dell'operatore
  */
-export async function showExtraIncomeMenu(stationId: number | string, userId: string): Promise<void> {
+export async function showExtraIncomeMenu(
+  stationId: number | string,
+  userId: string
+): Promise<void> {
   openModal('Registra Incasso Extra');
   const modalBody = document.getElementById('modal-body');
-  if (!modalBody) { return; }
-  setSafeHTML(modalBody, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>');
+  if (!modalBody) {
+    return;
+  }
+  setSafeHTML(
+    modalBody,
+    '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>'
+  );
 
   try {
     // Verifica apertura turno
     const activeOpening = await checkOpeningStatus(stationId);
     if (!activeOpening) {
-      setSafeHTML(modalBody, `
+      setSafeHTML(
+        modalBody,
+        `
                 <div class="warning-box">
                     <h2><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
                     <p>Devi aprire un turno prima di poter registrare degli incassi extra.</p>
                     <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
                 </div>
-            `);
+            `
+      );
 
       const closeBtn = document.getElementById('btn-close-warning');
       if (closeBtn) {
@@ -38,10 +49,12 @@ export async function showExtraIncomeMenu(stationId: number | string, userId: st
     }
 
     renderExtraIncomeForm(modalBody, stationId, userId);
-
   } catch (err) {
-    setSafeHTML(modalBody, createErrorMessage('Errore Caricamento', err) +
-            '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>');
+    setSafeHTML(
+      modalBody,
+      createErrorMessage('Errore Caricamento', err) +
+        '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>'
+    );
     const closeBtn = document.getElementById('btn-close-err');
     if (closeBtn) {
       closeBtn.addEventListener('click', () => closeModal());
@@ -52,8 +65,14 @@ export async function showExtraIncomeMenu(stationId: number | string, userId: st
 /**
  * Renderizza il form per l'inserimento dell'incasso extra
  */
-function renderExtraIncomeForm(container: HTMLElement, stationId: number | string, userId: string): void {
-  setSafeHTML(container, `
+function renderExtraIncomeForm(
+  container: HTMLElement,
+  stationId: number | string,
+  userId: string
+): void {
+  setSafeHTML(
+    container,
+    `
       <div class="content-box">
         <p class="section-subtitle">Registra una vendita extra carburante</p>
         <form id="extra-income-form">
@@ -80,7 +99,8 @@ function renderExtraIncomeForm(container: HTMLElement, stationId: number | strin
             ${createFormActions({ confirmText: 'Registra Incasso', confirmClass: 'primary' })}
         </form>
       </div>
-    `);
+    `
+  );
 
   // Event Listeners
   const cancelBtn = container.querySelector('#btn-cancel');
@@ -90,11 +110,15 @@ function renderExtraIncomeForm(container: HTMLElement, stationId: number | strin
 
   // Dynamic required field based on product type
   const productTypeSelect = document.getElementById('product-type') as HTMLSelectElement | null;
-  const descriptionField = document.getElementById('description-field') as HTMLTextAreaElement | null;
+  const descriptionField = document.getElementById(
+    'description-field'
+  ) as HTMLTextAreaElement | null;
   const requiredIndicator = document.getElementById('required-indicator') as HTMLElement | null;
 
   function updateDescriptionRequired(): void {
-    if (!productTypeSelect || !descriptionField || !requiredIndicator) { return; }
+    if (!productTypeSelect || !descriptionField || !requiredIndicator) {
+      return;
+    }
 
     const selectedType = productTypeSelect.value;
     const requiresDescription = selectedType === 'accessori' || selectedType === 'altro_incasso';
@@ -114,12 +138,12 @@ function renderExtraIncomeForm(container: HTMLElement, stationId: number | strin
 
   const form = document.getElementById('extra-income-form') as HTMLFormElement | null;
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const formData = new FormData(form);
-      const amount = parseFloat(formData.get('amount') as string || '0');
-      const type = formData.get('type') as string || '';
-      const description = formData.get('description') as string || '';
+      const amount = parseFloat((formData.get('amount') as string) || '0');
+      const type = (formData.get('type') as string) || '';
+      const description = (formData.get('description') as string) || '';
 
       if (!amount || amount <= 0) {
         Toast.show('Inserire un importo valido.', 'warning');
@@ -128,22 +152,23 @@ function renderExtraIncomeForm(container: HTMLElement, stationId: number | strin
 
       try {
         // Salva in movimenti_cassa con tipo 'incasso'
-        const { error } = await supabase
-          .from('movimenti_cassa')
-          .insert([{
+        const { error } = await supabase.from('movimenti_cassa').insert([
+          {
             station_id: Number(stationId),
             operator_id: Number(userId),
             tipo: 'incasso', // Tipo per identificare gli incassi extra
             importo: amount,
             descrizione: `[${type.toUpperCase()}] ${description}`,
             created_at: new Date().toISOString()
-          }]);
+          }
+        ]);
 
-        if (error) { throw error; }
+        if (error) {
+          throw error;
+        }
 
         closeModal();
         showInfoModal(`Incasso di € ${amount.toFixed(2)} registrato correttamente.`);
-
       } catch (err: unknown) {
         Toast.show('Errore salvataggio: ' + getErrorMessage(err), 'error');
       }

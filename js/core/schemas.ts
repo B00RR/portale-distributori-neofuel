@@ -41,16 +41,17 @@ export const ShiftIdSchema = z.object({
   id: z.union([z.number(), z.string().transform(Number)])
 });
 
-export const BulkExportSchema = z.object({
-  stationId: z.string().nullable(),
-  type: z.enum(['last_n', 'date_range']),
-  limit: z.number().int().min(1).max(100).default(10),
-  dateFrom: z.string().optional(),
-  dateTo: z.string().optional()
-}).refine(
-  (data) => data.type !== 'date_range' || (data.dateFrom && data.dateTo),
-  { message: 'Date range requires both dateFrom and dateTo' }
-);
+export const BulkExportSchema = z
+  .object({
+    stationId: z.string().nullable(),
+    type: z.enum(['last_n', 'date_range']),
+    limit: z.number().int().min(1).max(100).default(10),
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional()
+  })
+  .refine(data => data.type !== 'date_range' || (data.dateFrom && data.dateTo), {
+    message: 'Date range requires both dateFrom and dateTo'
+  });
 
 // ========== STATION ASSIGNMENT SCHEMAS ==========
 
@@ -65,7 +66,10 @@ export const AssignStationSchema = z.object({
  * Safely parse and validate data with a Zod schema.
  * Returns { success: true, data } or { success: false, error }
  */
-export function safeParse<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; error: string } {
+export function safeParse<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown
+): { success: true; data: T } | { success: false; error: string } {
   const result = schema.safeParse(data);
   if (result.success) {
     return { success: true, data: result.data };

@@ -8,8 +8,8 @@ import { logger } from '../core/logger.js';
 // ========== TYPE DEFINITIONS ==========
 
 export interface AdminContentElements {
-    content: HTMLElement | null;
-    actions: HTMLElement | null;
+  content: HTMLElement | null;
+  actions: HTMLElement | null;
 }
 
 // ========== INITIALIZATION HELPERS ==========
@@ -30,7 +30,9 @@ export function initAdminContent(): AdminContentElements {
  * Show loading message (Animated Logo)
  */
 export function showLoadingMessage(content: HTMLElement | null): void {
-  if (!content) { return; }
+  if (!content) {
+    return;
+  }
   content.innerHTML = '';
   const container = document.createElement('div');
   container.className = 'loader-container';
@@ -92,7 +94,8 @@ export function showErrorMessage(
 ): void {
   if (content) {
     const errorObj = error as { message?: string };
-    const errorMsg = errorObj?.message || (typeof error === 'string' ? error : null) || defaultMessage;
+    const errorMsg =
+      errorObj?.message || (typeof error === 'string' ? error : null) || defaultMessage;
 
     const span = document.createElement('span');
     span.className = 'text-danger';
@@ -129,19 +132,27 @@ export function openModal(title: string = ''): void {
 
     // Close when clicking outside
     modal.addEventListener('click', (e: Event) => {
-      if (e.target === modal) {closeModal();}
+      if (e.target === modal) {
+        closeModal();
+      }
     });
 
     // Close with X button
     const closeBtn = modal.querySelector('#modal-close-btn');
-    if (closeBtn) {closeBtn.addEventListener('click', closeModal);}
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
   }
 
   const titleEl = modal.querySelector('#modal-title');
-  if (titleEl) {titleEl.textContent = title;}
+  if (titleEl) {
+    titleEl.textContent = title;
+  }
 
   const bodyEl = modal.querySelector('#modal-body');
-  if (bodyEl) {bodyEl.innerHTML = '';} // Clear previous content
+  if (bodyEl) {
+    bodyEl.innerHTML = '';
+  } // Clear previous content
 
   modal.style.display = 'flex';
 }
@@ -154,7 +165,9 @@ export function closeModal(): void {
   if (modal) {
     modal.style.display = 'none';
     const bodyEl = modal.querySelector('#modal-body');
-    if (bodyEl) {bodyEl.innerHTML = '';} // Clean to avoid duplicate IDs or pending listeners
+    if (bodyEl) {
+      bodyEl.innerHTML = '';
+    } // Clean to avoid duplicate IDs or pending listeners
   }
 }
 
@@ -164,7 +177,9 @@ export function closeModal(): void {
 export function showInfoModal(message: string, title: string = 'Informazione'): void {
   openModal(title);
   const target = document.getElementById('modal-body');
-  if (!target) {return;}
+  if (!target) {
+    return;
+  }
 
   target.innerHTML = '';
 
@@ -191,7 +206,7 @@ export function showInfoModal(message: string, title: string = 'Informazione'): 
  * @returns Promise that resolves to true if confirmed, false if cancelled
  */
 export function openConfirmModal(message: string): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     openModal('Conferma');
     const target = document.getElementById('modal-body');
     if (!target) {
@@ -249,7 +264,7 @@ export function showPromptModal(
   defaultValue: string = '',
   title: string = 'Input Richiesto'
 ): Promise<string | null> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     openModal(title);
     const target = document.getElementById('modal-body');
     if (!target) {
@@ -310,8 +325,12 @@ export function showPromptModal(
     okBtn.addEventListener('click', handleOk, { once: true });
     cancelBtn.addEventListener('click', handleCancel, { once: true });
     input.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {handleOk();}
-      if (e.key === 'Escape') {handleCancel();}
+      if (e.key === 'Enter') {
+        handleOk();
+      }
+      if (e.key === 'Escape') {
+        handleCancel();
+      }
     });
   });
 }
@@ -326,7 +345,9 @@ export function setButtonLoading(
   isLoading: boolean,
   loadingText: string = 'Attendi...'
 ): void {
-  if (!btn) {return;}
+  if (!btn) {
+    return;
+  }
 
   if (isLoading) {
     btn.dataset.originalText = btn.innerHTML;

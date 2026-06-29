@@ -29,7 +29,12 @@ export function renderKpiCards(config: DashboardConfig, kpiData: KPIData): strin
       const kpiMeta = KPI_CATALOG[kpi.id];
 
       // SPECIAL HANDLING FOR CHARTS
-      if (kpiMeta && ['andamento_ricavi', 'volume_erogato', 'metodi_pagamento', 'mix_carburanti'].includes(kpi.id)) {
+      if (
+        kpiMeta &&
+        ['andamento_ricavi', 'volume_erogato', 'metodi_pagamento', 'mix_carburanti'].includes(
+          kpi.id
+        )
+      ) {
         const sizeClass = `kpi-size-${kpi.size || kpiMeta.defaultSize || '2x1'}`;
         return `
                     <article class="kpi-card ${sizeClass} chart-widget" data-kpi-id="${kpi.id}">
@@ -43,7 +48,9 @@ export function renderKpiCards(config: DashboardConfig, kpiData: KPIData): strin
 
       // STANDARD CARDS
       const kpiValue = kpiData[kpi.id];
-      if (!kpiMeta || !kpiValue) { return ''; }
+      if (!kpiMeta || !kpiValue) {
+        return '';
+      }
 
       const sizeClass = `kpi-size-${kpi.size || kpiMeta.defaultSize || '1x1'}`;
 

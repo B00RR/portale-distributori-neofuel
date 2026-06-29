@@ -9,41 +9,41 @@ import { formatEuro, formatLitri, getISODate } from '../utils/utils.js';
 // Chart accessed lazily from window to support async loading and testing
 
 interface ClosingData extends Record<string, number | string | null | undefined> {
-    ricavo_teorico?: number | string | null;
-    litri_benzina?: number | string | null;
-    litri_gasolio?: number | string | null;
-    soldi_contanti?: number | string | null;
-    soldi_pos_totale?: number | string | null;
-    soldi_crediti?: number | string | null;
-    soldi_voucher?: number | string | null;
+  ricavo_teorico?: number | string | null;
+  litri_benzina?: number | string | null;
+  litri_gasolio?: number | string | null;
+  soldi_contanti?: number | string | null;
+  soldi_pos_totale?: number | string | null;
+  soldi_crediti?: number | string | null;
+  soldi_voucher?: number | string | null;
 }
 
 interface ShiftData {
-    closed_at: string;
-    closing_data: ClosingData | null;
-    station_id: number;
+  closed_at: string;
+  closing_data: ClosingData | null;
+  station_id: number;
 }
 
 interface DayStats {
-    date: string;
-    revenue: number;
-    liters_benzina: number;
-    liters_gasolio: number;
+  date: string;
+  revenue: number;
+  liters_benzina: number;
+  liters_gasolio: number;
 }
 
 interface AnalyticsTotals {
-    benzina: number;
-    gasolio: number;
-    contanti: number;
-    pos: number;
-    crediti: number;
-    voucher: number;
-    revenue: number;
+  benzina: number;
+  gasolio: number;
+  contanti: number;
+  pos: number;
+  crediti: number;
+  voucher: number;
+  revenue: number;
 }
 
 interface AnalyticsResult {
-    daily: DayStats[];
-    totals: AnalyticsTotals;
+  daily: DayStats[];
+  totals: AnalyticsTotals;
 }
 
 type DateRange = '7d' | '30d' | 'month' | 'year';
@@ -121,7 +121,7 @@ export async function showAnalyticsTab(
 
   // Event Listeners for Controls
   container.querySelectorAll('button[data-range]').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', async e => {
       const target = e.target as HTMLElement;
 
       // UI Toggle
@@ -175,7 +175,9 @@ async function updateCharts(
     }
 
     const { data: shifts, error } = await query;
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     // 3. Process Data
     const aggregated = processAnalyticsData(shifts as ShiftData[], startDate, endDate);
@@ -199,7 +201,11 @@ async function updateCharts(
 /**
  * Process raw shifts into daily and total aggregations
  */
-function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Date): AnalyticsResult {
+function processAnalyticsData(
+  shifts: ShiftData[],
+  startDate: Date,
+  endDate: Date
+): AnalyticsResult {
   const days: Record<string, DayStats> = {};
   const totals: AnalyticsTotals = {
     benzina: 0,
@@ -231,14 +237,16 @@ function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Dat
   }
 
   shifts.forEach(s => {
-    if (!s.closed_at) {return;}
+    if (!s.closed_at) {
+      return;
+    }
     const day = s.closed_at.substring(0, 10);
     const data = s.closing_data || {};
 
     // eslint-disable-next-line security/detect-object-injection -- day is a substring of closed_at already validated
     if (days[day]) {
       // Revenue
-       
+
       const rev = Number(data.ricavo_teorico || 0);
       // eslint-disable-next-line security/detect-object-injection -- day is validated above
       days[day].revenue += rev;
@@ -270,7 +278,9 @@ function processAnalyticsData(shifts: ShiftData[], startDate: Date, endDate: Dat
 
 function getChartContext(id: string): HTMLCanvasElement | null {
   const ctx = document.getElementById(id) as HTMLCanvasElement;
-  if (!ctx) { return null; }
+  if (!ctx) {
+    return null;
+  }
 
   // Destroy existing
   // eslint-disable-next-line security/detect-object-injection -- id is a literal canvas element id
@@ -285,23 +295,31 @@ function getChartContext(id: string): HTMLCanvasElement | null {
 
 function renderRevenueChart(data: AnalyticsResult): void {
   const ctx = getChartContext('revenue-chart');
-  if (!ctx) { return; }
+  if (!ctx) {
+    return;
+  }
 
   const customWindow = window as unknown as CustomWindow;
   const Chart = customWindow.Chart;
-  if (!Chart) { return; }
+  if (!Chart) {
+    return;
+  }
   charts['revenue-chart'] = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: data.daily.map(d => new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
-      datasets: [{
-        label: 'Ricavi Totali (€)',
-        data: data.daily.map(d => d.revenue),
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        fill: true,
-        tension: 0.3
-      }]
+      labels: data.daily.map(d =>
+        new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
+      ),
+      datasets: [
+        {
+          label: 'Ricavi Totali (€)',
+          data: data.daily.map(d => d.revenue),
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: true,
+          tension: 0.3
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -315,15 +333,21 @@ function renderRevenueChart(data: AnalyticsResult): void {
 
 function renderVolumeChart(data: AnalyticsResult): void {
   const ctx = getChartContext('volume-chart');
-  if (!ctx) { return; }
+  if (!ctx) {
+    return;
+  }
 
   const customWindow = window as unknown as CustomWindow;
   const Chart = customWindow.Chart;
-  if (!Chart) { return; }
+  if (!Chart) {
+    return;
+  }
   charts['volume-chart'] = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: data.daily.map(d => new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
+      labels: data.daily.map(d =>
+        new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
+      ),
       datasets: [
         {
           label: 'Benzina (L)',
@@ -354,19 +378,25 @@ function renderVolumeChart(data: AnalyticsResult): void {
 
 function renderPaymentChart(data: AnalyticsResult): void {
   const ctx = getChartContext('payments-chart');
-  if (!ctx) { return; }
+  if (!ctx) {
+    return;
+  }
 
   const customWindow = window as unknown as CustomWindow;
   const Chart = customWindow.Chart;
-  if (!Chart) { return; }
+  if (!Chart) {
+    return;
+  }
   charts['payments-chart'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: ['Contanti', 'POS', 'Crediti', 'Voucher'],
-      datasets: [{
-        data: [data.totals.contanti, data.totals.pos, data.totals.crediti, data.totals.voucher],
-        backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899']
-      }]
+      datasets: [
+        {
+          data: [data.totals.contanti, data.totals.pos, data.totals.crediti, data.totals.voucher],
+          backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899']
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -380,19 +410,25 @@ function renderPaymentChart(data: AnalyticsResult): void {
 
 function renderFuelMixChart(data: AnalyticsResult): void {
   const ctx = getChartContext('fuels-chart');
-  if (!ctx) { return; }
+  if (!ctx) {
+    return;
+  }
 
   const customWindow = window as unknown as CustomWindow;
   const Chart = customWindow.Chart;
-  if (!Chart) { return; }
+  if (!Chart) {
+    return;
+  }
   charts['fuels-chart'] = new Chart(ctx, {
     type: 'pie',
     data: {
       labels: ['Benzina', 'Gasolio'],
-      datasets: [{
-        data: [data.totals.benzina, data.totals.gasolio],
-        backgroundColor: ['#22c55e', '#1f2937']
-      }]
+      datasets: [
+        {
+          data: [data.totals.benzina, data.totals.gasolio],
+          backgroundColor: ['#22c55e', '#1f2937']
+        }
+      ]
     },
     options: {
       responsive: true,

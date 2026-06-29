@@ -67,9 +67,15 @@ function createEl<K extends keyof HTMLElementTagNameMap>(
   } = {}
 ): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
-  if (options.id) { el.id = options.id; }
-  if (options.classes) { el.classList.add(...options.classes.filter(Boolean)); }
-  if (options.text !== undefined) { el.textContent = options.text; }
+  if (options.id) {
+    el.id = options.id;
+  }
+  if (options.classes) {
+    el.classList.add(...options.classes.filter(Boolean));
+  }
+  if (options.text !== undefined) {
+    el.textContent = options.text;
+  }
   if (options.attrs) {
     Object.entries(options.attrs).forEach(([key, value]) => {
       el.setAttribute(key, value);
@@ -120,11 +126,15 @@ function renderTanksAdminContent(
       const li = createEl('li', { classes: ['list-item', 'tank-row'] });
       const infoDiv = createEl('div');
       infoDiv.appendChild(createEl('strong', { text: t.name }));
-      infoDiv.appendChild(createEl('span', { classes: ['badge', 'badge-info'], text: t.fuel_type }));
-      infoDiv.appendChild(createEl('span', {
-        classes: ['tank-meta'],
-        text: `Capacità: ${formatNumberIt(t.capacity)} L`
-      }));
+      infoDiv.appendChild(
+        createEl('span', { classes: ['badge', 'badge-info'], text: t.fuel_type })
+      );
+      infoDiv.appendChild(
+        createEl('span', {
+          classes: ['tank-meta'],
+          text: `Capacità: ${formatNumberIt(t.capacity)} L`
+        })
+      );
       li.appendChild(infoDiv);
 
       const deleteBtn = createEl('button', {
@@ -150,14 +160,16 @@ function renderTanksAdminContent(
 
   const nameGroup = createEl('div', { classes: ['form-group'] });
   nameGroup.appendChild(createEl('label', { text: 'Nome (es. Cisterna 1)' }));
-  nameGroup.appendChild(createEl('input', {
-    attrs: {
-      type: 'text',
-      name: 'name',
-      required: 'required',
-      placeholder: 'Cisterna 1'
-    }
-  }));
+  nameGroup.appendChild(
+    createEl('input', {
+      attrs: {
+        type: 'text',
+        name: 'name',
+        required: 'required',
+        placeholder: 'Cisterna 1'
+      }
+    })
+  );
 
   const fuelGroup = createEl('div', { classes: ['form-group'] });
   fuelGroup.appendChild(createEl('label', { text: 'Tipo Carburante' }));
@@ -174,22 +186,26 @@ function renderTanksAdminContent(
 
   const capGroup = createEl('div', { classes: ['form-group'] });
   capGroup.appendChild(createEl('label', { text: 'Capacità Totale (Litri)' }));
-  capGroup.appendChild(createEl('input', {
-    attrs: {
-      type: 'number',
-      name: 'capacity',
-      required: 'required',
-      min: '0',
-      step: '1'
-    }
-  }));
+  capGroup.appendChild(
+    createEl('input', {
+      attrs: {
+        type: 'number',
+        name: 'capacity',
+        required: 'required',
+        min: '0',
+        step: '1'
+      }
+    })
+  );
   addForm.appendChild(capGroup);
 
-  addForm.appendChild(createEl('button', {
-    classes: ['menu-button', 'success', 'small-btn'],
-    attrs: { type: 'submit' },
-    text: 'Aggiungi Cisterna'
-  }));
+  addForm.appendChild(
+    createEl('button', {
+      classes: ['menu-button', 'success', 'small-btn'],
+      attrs: { type: 'submit' },
+      text: 'Aggiungi Cisterna'
+    })
+  );
 
   addTankFormDiv.appendChild(addForm);
 
@@ -200,10 +216,12 @@ function renderTanksAdminContent(
   const headerDiv = createEl('div', { classes: ['section-header'] });
   const headerTextDiv = createEl('div');
   headerTextDiv.appendChild(createEl('h4', { text: 'Associazioni Pistole ↔︎ Cisterne' }));
-  headerTextDiv.appendChild(createEl('p', {
-    classes: ['section-subtitle'],
-    text: 'Configura se una pistola attinge automaticamente da più serbatoi o se richiede la scelta dell\'operatore.'
-  }));
+  headerTextDiv.appendChild(
+    createEl('p', {
+      classes: ['section-subtitle'],
+      text: "Configura se una pistola attinge automaticamente da più serbatoi o se richiede la scelta dell'operatore."
+    })
+  );
   headerDiv.appendChild(headerTextDiv);
   tankLinksSection.appendChild(headerDiv);
 
@@ -232,21 +250,27 @@ function renderTanksAdminContent(
       tr.appendChild(createEl('td', { text: tankLabel }));
 
       const modeTd = createEl('td');
-      modeTd.appendChild(createEl('span', {
-        classes: ['badge', link.mode === 'manual' ? 'badge-warning' : 'badge-info'],
-        text: link.mode === 'manual' ? 'Manuale' : 'Automatica'
-      }));
+      modeTd.appendChild(
+        createEl('span', {
+          classes: ['badge', link.mode === 'manual' ? 'badge-warning' : 'badge-info'],
+          text: link.mode === 'manual' ? 'Manuale' : 'Automatica'
+        })
+      );
       tr.appendChild(modeTd);
 
-      tr.appendChild(createEl('td', {
-        text: link.mode === 'manual' ? `Priorità ${link.priority || 1}` : `${link.ratio || 0}%`
-      }));
+      tr.appendChild(
+        createEl('td', {
+          text: link.mode === 'manual' ? `Priorità ${link.priority || 1}` : `${link.ratio || 0}%`
+        })
+      );
 
       const statusTd = createEl('td');
-      statusTd.appendChild(createEl('span', {
-        classes: ['badge', link.is_active ? 'badge-success' : 'badge-muted'],
-        text: link.is_active ? 'Attiva' : 'Disattiva'
-      }));
+      statusTd.appendChild(
+        createEl('span', {
+          classes: ['badge', link.is_active ? 'badge-success' : 'badge-muted'],
+          text: link.is_active ? 'Attiva' : 'Disattiva'
+        })
+      );
       tr.appendChild(statusTd);
 
       const actionsTd = createEl('td');
@@ -296,11 +320,13 @@ function renderTanksAdminContent(
     classes: ['tank-link-form', formDisabled ? 'form-disabled' : '']
   });
 
-  linkForm.appendChild(createEl('h5', {
-    text: formDisabled
-      ? 'Configura almeno una pistola e una cisterna per creare un\'associazione'
-      : 'Crea nuova associazione'
-  }));
+  linkForm.appendChild(
+    createEl('h5', {
+      text: formDisabled
+        ? "Configura almeno una pistola e una cisterna per creare un'associazione"
+        : 'Crea nuova associazione'
+    })
+  );
 
   const pumpGroup = createEl('div', { classes: ['form-group'] });
   pumpGroup.appendChild(createEl('label', { text: 'Pistola' }));
@@ -313,13 +339,17 @@ function renderTanksAdminContent(
   });
   if (pumpsData.length) {
     pumpsData.forEach(p => {
-      pumpSelect.appendChild(createEl('option', {
-        attrs: { value: String(p.id) },
-        text: formatPumpLabel(p)
-      }));
+      pumpSelect.appendChild(
+        createEl('option', {
+          attrs: { value: String(p.id) },
+          text: formatPumpLabel(p)
+        })
+      );
     });
   } else {
-    pumpSelect.appendChild(createEl('option', { attrs: { value: '' }, text: 'Nessuna pistola disponibile' }));
+    pumpSelect.appendChild(
+      createEl('option', { attrs: { value: '' }, text: 'Nessuna pistola disponibile' })
+    );
   }
   pumpGroup.appendChild(pumpSelect);
 
@@ -334,13 +364,17 @@ function renderTanksAdminContent(
   });
   if (tanksData.length) {
     tanksData.forEach(t => {
-      tankSelect.appendChild(createEl('option', {
-        attrs: { value: String(t.id) },
-        text: `${t.name} (${t.fuel_type || '-'})`
-      }));
+      tankSelect.appendChild(
+        createEl('option', {
+          attrs: { value: String(t.id) },
+          text: `${t.name} (${t.fuel_type || '-'})`
+        })
+      );
     });
   } else {
-    tankSelect.appendChild(createEl('option', { attrs: { value: '' }, text: 'Nessuna cisterna disponibile' }));
+    tankSelect.appendChild(
+      createEl('option', { attrs: { value: '' }, text: 'Nessuna cisterna disponibile' })
+    );
   }
   tankGroup.appendChild(tankSelect);
 
@@ -352,17 +386,28 @@ function renderTanksAdminContent(
   const modeGroup = createEl('div', { classes: ['form-group'] });
   modeGroup.appendChild(createEl('label', { text: 'Modalità' }));
   const modeSelect = createEl('select', { attrs: { name: 'mode', id: 'tank-link-mode' } });
-  if (formDisabled) { modeSelect.setAttribute('disabled', 'disabled'); }
-  modeSelect.appendChild(createEl('option', { attrs: { value: 'auto' }, text: 'Automatica (ripartizione)' }));
-  modeSelect.appendChild(createEl('option', { attrs: { value: 'manual' }, text: 'Manuale (scelta operatore)' }));
+  if (formDisabled) {
+    modeSelect.setAttribute('disabled', 'disabled');
+  }
+  modeSelect.appendChild(
+    createEl('option', { attrs: { value: 'auto' }, text: 'Automatica (ripartizione)' })
+  );
+  modeSelect.appendChild(
+    createEl('option', { attrs: { value: 'manual' }, text: 'Manuale (scelta operatore)' })
+  );
   modeGroup.appendChild(modeSelect);
 
-  const ratioGroup = createEl('div', { classes: ['form-group'], attrs: { 'data-role': 'ratio-group' } });
+  const ratioGroup = createEl('div', {
+    classes: ['form-group'],
+    attrs: { 'data-role': 'ratio-group' }
+  });
   ratioGroup.appendChild(createEl('label', { text: 'Percentuale (automatica)' }));
   const ratioInput = createEl('input', {
     attrs: { type: 'number', name: 'ratio', value: '100', min: '1', max: '100', step: '1' }
   });
-  if (formDisabled) { ratioInput.setAttribute('disabled', 'disabled'); }
+  if (formDisabled) {
+    ratioInput.setAttribute('disabled', 'disabled');
+  }
   ratioGroup.appendChild(ratioInput);
 
   const priorityGroup = createEl('div', {
@@ -374,7 +419,9 @@ function renderTanksAdminContent(
   const priorityInput = createEl('input', {
     attrs: { type: 'number', name: 'priority', value: '1', min: '1', step: '1' }
   });
-  if (formDisabled) { priorityInput.setAttribute('disabled', 'disabled'); }
+  if (formDisabled) {
+    priorityInput.setAttribute('disabled', 'disabled');
+  }
   priorityGroup.appendChild(priorityInput);
 
   const rowMode = createEl('div', { classes: ['form-row'] });
@@ -386,7 +433,9 @@ function renderTanksAdminContent(
   const checkboxGroup = createEl('div', { classes: ['form-group', 'checkbox-group'] });
   const checkboxLabel = createEl('label', { classes: ['checkbox'] });
   const checkboxInput = createEl('input', { attrs: { type: 'checkbox', name: 'is_active' } });
-  if (formDisabled) { checkboxInput.setAttribute('disabled', 'disabled'); }
+  if (formDisabled) {
+    checkboxInput.setAttribute('disabled', 'disabled');
+  }
   checkboxInput.checked = true;
   checkboxLabel.appendChild(checkboxInput);
   checkboxLabel.appendChild(document.createTextNode(' Associazione attiva'));
@@ -394,13 +443,15 @@ function renderTanksAdminContent(
 
   const notesGroup = createEl('div', { classes: ['form-group'], style: { flex: '2' } });
   notesGroup.appendChild(createEl('label', { text: 'Note (opzionale)' }));
-  notesGroup.appendChild(createEl('input', {
-    attrs: {
-      type: 'text',
-      name: 'notes',
-      placeholder: 'Es. Devia verso cisterna 2 in caso di scorta'
-    }
-  }));
+  notesGroup.appendChild(
+    createEl('input', {
+      attrs: {
+        type: 'text',
+        name: 'notes',
+        placeholder: 'Es. Devia verso cisterna 2 in caso di scorta'
+      }
+    })
+  );
 
   const rowCheckNotes = createEl('div', { classes: ['form-row'] });
   rowCheckNotes.appendChild(checkboxGroup);
@@ -412,7 +463,9 @@ function renderTanksAdminContent(
     attrs: { type: 'submit' },
     children: [createIcon('fas fa-plug'), document.createTextNode(' Salva Associazione')]
   });
-  if (formDisabled) { saveBtn.setAttribute('disabled', 'disabled'); }
+  if (formDisabled) {
+    saveBtn.setAttribute('disabled', 'disabled');
+  }
   linkForm.appendChild(saveBtn);
 
   tankLinksSection.appendChild(linkForm);
@@ -429,23 +482,25 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
   const stationName = await getStationName(stationId);
   openModal(`Gestione Cisterne - ${escapeHtml(stationName)}`);
   const target = document.getElementById('modal-body');
-  if (!target) { return; }
+  if (!target) {
+    return;
+  }
 
   const renderTanks = async (): Promise<void> => {
-    const loadingP = createEl('p', { classes: ['loading-text'], text: 'Caricamento cisterne e connessioni...' });
+    const loadingP = createEl('p', {
+      classes: ['loading-text'],
+      text: 'Caricamento cisterne e connessioni...'
+    });
     target.textContent = '';
     target.appendChild(loadingP);
 
     try {
       const [tanksResult, linksResult, pumpsResult] = await Promise.all([
-        supabase
-          .from('tanks')
-          .select('*')
-          .eq('station_id', stationIdNum)
-          .order('name'),
+        supabase.from('tanks').select('*').eq('station_id', stationIdNum).order('name'),
         supabase
           .from('tank_pump_links')
-          .select(`
+          .select(
+            `
                       id,
                       station_id,
                       tank_id,
@@ -457,7 +512,8 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
                       notes,
                       tanks ( id, name, fuel_type ),
                       pistole ( id, nome, tipo_carburante, islands(nome) )
-                    `)
+                    `
+          )
           .eq('station_id', stationIdNum)
           .order('pump_id'),
         supabase
@@ -500,7 +556,9 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
         const btn = btnElement as HTMLElement;
         btn.addEventListener('click', async () => {
           const confirmed = await openConfirmModal('Eliminare questa cisterna?');
-          if (!confirmed) { return; }
+          if (!confirmed) {
+            return;
+          }
           const id = btn.dataset.id;
           if (id) {
             await safeSupabaseQuery(() => supabase.from('tanks').delete().eq('id', Number(id)));
@@ -510,7 +568,7 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
       });
 
       const addTankForm = document.getElementById('add-tank-form');
-      addTankForm?.addEventListener('submit', async (e) => {
+      addTankForm?.addEventListener('submit', async e => {
         e.preventDefault();
         const form = e.target as HTMLFormElement;
         const fd = new FormData(form);
@@ -537,7 +595,9 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
       const priorityGroup = linkForm?.querySelector('[data-role="priority-group"]') as HTMLElement;
 
       const refreshModeFields = (): void => {
-        if (!modeSelect || !ratioGroup || !priorityGroup) { return; }
+        if (!modeSelect || !ratioGroup || !priorityGroup) {
+          return;
+        }
         const mode = modeSelect.value;
         const isFormDisabled = linkForm?.classList.contains('form-disabled');
         const ratioInput = ratioGroup.querySelector('input');
@@ -545,21 +605,29 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
 
         if (mode === 'manual') {
           ratioGroup.style.display = 'none';
-          if (ratioInput) { ratioInput.disabled = true; }
+          if (ratioInput) {
+            ratioInput.disabled = true;
+          }
           priorityGroup.style.display = 'block';
-          if (priorityInput) { priorityInput.disabled = isFormDisabled ? true : false; }
+          if (priorityInput) {
+            priorityInput.disabled = isFormDisabled ? true : false;
+          }
         } else {
           ratioGroup.style.display = 'block';
-          if (ratioInput) { ratioInput.disabled = isFormDisabled ? true : false; }
+          if (ratioInput) {
+            ratioInput.disabled = isFormDisabled ? true : false;
+          }
           priorityGroup.style.display = 'none';
-          if (priorityInput) { priorityInput.disabled = true; }
+          if (priorityInput) {
+            priorityInput.disabled = true;
+          }
         }
       };
 
       modeSelect?.addEventListener('change', refreshModeFields);
       refreshModeFields();
 
-      linkForm?.addEventListener('submit', async (e) => {
+      linkForm?.addEventListener('submit', async e => {
         e.preventDefault();
         const form = e.target as HTMLFormElement;
         const fd = new FormData(form);
@@ -569,8 +637,9 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
           pump_id: parseInt(fd.get('pump_id')?.toString() || '0', 10),
           tank_id: parseInt(fd.get('tank_id')?.toString() || '0', 10),
           mode,
-          ratio: mode === 'auto' ? (parseFloat(fd.get('ratio')?.toString() || '0') || 0) : null,
-          priority: mode === 'manual' ? (parseInt(fd.get('priority')?.toString() || '0', 10) || 1) : null,
+          ratio: mode === 'auto' ? parseFloat(fd.get('ratio')?.toString() || '0') || 0 : null,
+          priority:
+            mode === 'manual' ? parseInt(fd.get('priority')?.toString() || '0', 10) || 1 : null,
           is_active: fd.get('is_active') !== null,
           notes: fd.get('notes')?.toString().trim() || null
         };
@@ -592,7 +661,9 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
           const id = btn.dataset.id;
           const current = btn.dataset.active === 'true';
           if (id) {
-            await safeSupabaseQuery(() => supabase.from('tank_pump_links').update({ is_active: !current }).eq('id', Number(id)));
+            await safeSupabaseQuery(() =>
+              supabase.from('tank_pump_links').update({ is_active: !current }).eq('id', Number(id))
+            );
             renderTanks();
           }
         });
@@ -602,16 +673,21 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
       target.querySelectorAll('.tank-link-delete').forEach(btnElement => {
         const btn = btnElement as HTMLElement;
         btn.addEventListener('click', async () => {
-          const confirmed = await openConfirmModal('Rimuovere questa associazione pistola/cisterna?');
-          if (!confirmed) { return; }
+          const confirmed = await openConfirmModal(
+            'Rimuovere questa associazione pistola/cisterna?'
+          );
+          if (!confirmed) {
+            return;
+          }
           const id = btn.dataset.id;
           if (id) {
-            await safeSupabaseQuery(() => supabase.from('tank_pump_links').delete().eq('id', Number(id)));
+            await safeSupabaseQuery(() =>
+              supabase.from('tank_pump_links').delete().eq('id', Number(id))
+            );
             renderTanks();
           }
         });
       });
-
     } catch (err) {
       handleError(err, 'renderTanks_main', target);
     }
@@ -620,13 +696,20 @@ export async function showTanksAdminModal(stationId: number | string): Promise<v
   await renderTanks();
 }
 
-export async function showTanksTab(container: HTMLElement, headerActions: HTMLElement | null): Promise<void> {
-  if (headerActions) { headerActions.textContent = ''; }
+export async function showTanksTab(
+  container: HTMLElement,
+  headerActions: HTMLElement | null
+): Promise<void> {
+  if (headerActions) {
+    headerActions.textContent = '';
+  }
   const wrapper = createEl('div', { classes: ['content-box'] });
   wrapper.appendChild(createEl('h3', { text: 'Gestione Cisterne' }));
-  wrapper.appendChild(createEl('p', {
-    text: 'Seleziona un distributore dalla sezione "Distributori" per gestirne le cisterne.'
-  }));
+  wrapper.appendChild(
+    createEl('p', {
+      text: 'Seleziona un distributore dalla sezione "Distributori" per gestirne le cisterne.'
+    })
+  );
   const gotoBtn = createEl('button', {
     classes: ['menu-button', 'primary'],
     text: 'Vai a Distributori'

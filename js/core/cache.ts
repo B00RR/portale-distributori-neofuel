@@ -1,9 +1,9 @@
 /**
  * Client-Side Caching Module
- * 
+ *
  * Implements a robust caching strategy for static/semi-static data using LocalStorage.
  * Follows enterprise best practices with TTL, versioning, and automatic cleanup.
- * 
+ *
  * @module cache
  */
 
@@ -12,9 +12,9 @@ import { CACHE_DEFAULT_TTL_MS, CACHE_CLEANUP_INTERVAL_MS } from '../shared/app-c
 import { logger } from './logger.js';
 
 interface CacheEntry<T> {
-    data: T;
-    timestamp: number;
-    version: string;
+  data: T;
+  timestamp: number;
+  version: string;
 }
 
 const CACHE_VERSION = '1.0';
@@ -26,7 +26,7 @@ const CACHE_VERSION = '1.0';
  * @returns boolean
  */
 function isValid(timestamp: number, ttlMs: number): boolean {
-  return (Date.now() - timestamp) < ttlMs;
+  return Date.now() - timestamp < ttlMs;
 }
 
 /**
@@ -38,7 +38,9 @@ function isValid(timestamp: number, ttlMs: number): boolean {
 export function getFromCache<T>(key: string, ttlMs: number = CACHE_DEFAULT_TTL_MS): T | null {
   try {
     const raw = localStorage.getItem(`cache_${key}`);
-    if (!raw) {return null;}
+    if (!raw) {
+      return null;
+    }
 
     const entry: CacheEntry<T> = JSON.parse(raw);
 

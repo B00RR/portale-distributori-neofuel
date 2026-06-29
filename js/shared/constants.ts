@@ -12,14 +12,14 @@ export const REQUEST_TIMEOUT_MS = 30000;
 
 // === Validation ===
 export const MIN_PRICE_EURO = 0.01;
-export const MAX_PRICE_EURO = 10.00;
+export const MAX_PRICE_EURO = 10.0;
 export const MIN_COUNTER_VALUE = 0;
 export const MAX_COUNTER_VALUE = 999999.99;
 export const COUNTER_DECIMAL_PLACES = 2;
 
 // === Discrepancy Thresholds ===
-export const MINOR_DISCREPANCY_THRESHOLD = 20.00; // €
-export const MAJOR_DISCREPANCY_THRESHOLD = 100.00; // €
+export const MINOR_DISCREPANCY_THRESHOLD = 20.0; // €
+export const MAJOR_DISCREPANCY_THRESHOLD = 100.0; // €
 export const ACCEPTABLE_VARIANCE_PERCENT = 2; // 2%
 
 // === UI Configuration ===

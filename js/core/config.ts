@@ -17,4 +17,3 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
     '[CONFIG] Missing Supabase credentials. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env (or as environment variables in production). See .env.example for the template.'
   );
 }
-

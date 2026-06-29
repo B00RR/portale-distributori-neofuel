@@ -10,7 +10,7 @@ import { Toast } from '../ui/toast.js';
 
 /** Narrow an unknown value to a property bag, defaulting to an empty record. */
 function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
 
 import { closureTemplateXlsxBase64 } from './template_chiusura_base64.js';
@@ -43,76 +43,98 @@ const ISLAND_TEMPLATE_BLOCKS = [
     startRow: 33,
     endRow: 40,
     pistolaRows: 2,
-    totals: [
-      { type: 'totale', valueCell: 'O38', priceCell: 'U38', priceType: 'totale' }
-    ]
+    totals: [{ type: 'totale', valueCell: 'O38', priceCell: 'U38', priceType: 'totale' }]
   }
 ];
 
 export interface ExportPistola {
-    label: string;
-    chiusura: number;
-    apertura: number;
-    venduti: number;
-    totaleEuro: number;
-    tipo: string;
-    tipoSigla: string;
+  label: string;
+  chiusura: number;
+  apertura: number;
+  venduti: number;
+  totaleEuro: number;
+  tipo: string;
+  tipoSigla: string;
 }
 
 export interface ExportSection {
-    id: number | string;
-    label: string;
-    pistole: ExportPistola[];
+  id: number | string;
+  label: string;
+  pistole: ExportPistola[];
 }
 
 export interface ExportSummary {
-    self: number;
-    carteSelf: number;
-    contanti: number;
-    cartePos: number;
-    nonErogato: number;
-    lubrAdblue: number;
-    crediti: number;
-    utaDkv: number;
+  self: number;
+  carteSelf: number;
+  contanti: number;
+  cartePos: number;
+  nonErogato: number;
+  lubrAdblue: number;
+  crediti: number;
+  utaDkv: number;
 }
 
 export interface ExportMetrics {
-    meta: {
-        stationSlug: string;
-        dateSlug: string;
-        dateDisplay: string;
-        prices: Record<string, number>;
-        totals: {
-            ltGasolio: number;
-            ltBenzina: number;
-            ltOther: number;
-            euroGasolio: number;
-            euroBenzina: number;
-            totalEuro: number;
-        };
+  meta: {
+    stationSlug: string;
+    dateSlug: string;
+    dateDisplay: string;
+    prices: Record<string, number>;
+    totals: {
+      ltGasolio: number;
+      ltBenzina: number;
+      ltOther: number;
+      euroGasolio: number;
+      euroBenzina: number;
+      totalEuro: number;
     };
-    sections: ExportSection[];
-    summary: ExportSummary;
+  };
+  sections: ExportSection[];
+  summary: ExportSummary;
 }
 
 function inferFuelTypeFromNameExport(nomePistola: string = ''): string {
   const n = nomePistola.toLowerCase();
-  if (n.includes('adblue')) { return 'adblue'; }
-  if (n.includes('blue') || n.includes('supreme') || n.includes('hiq')) { return 'supreme'; }
-  if (n.includes('gasolio') || n.includes('diesel')) { return 'gasolio'; }
-  if (n.includes('benzina') || n.includes('verde')) { return 'benzina'; }
-  if (n.includes('gpl')) { return 'gpl'; }
-  if (n.includes('metano')) { return 'metano'; }
+  if (n.includes('adblue')) {
+    return 'adblue';
+  }
+  if (n.includes('blue') || n.includes('supreme') || n.includes('hiq')) {
+    return 'supreme';
+  }
+  if (n.includes('gasolio') || n.includes('diesel')) {
+    return 'gasolio';
+  }
+  if (n.includes('benzina') || n.includes('verde')) {
+    return 'benzina';
+  }
+  if (n.includes('gpl')) {
+    return 'gpl';
+  }
+  if (n.includes('metano')) {
+    return 'metano';
+  }
   return 'altro';
 }
 
 function fuelTypeSigla(tipo: string): string {
-  if (tipo === 'gasolio') { return 'D'; }
-  if (tipo === 'benzina') { return 'B'; }
-  if (tipo === 'supreme') { return 'S'; }
-  if (tipo === 'gpl') { return 'G'; }
-  if (tipo === 'metano') { return 'M'; }
-  if (tipo === 'adblue') { return 'A'; }
+  if (tipo === 'gasolio') {
+    return 'D';
+  }
+  if (tipo === 'benzina') {
+    return 'B';
+  }
+  if (tipo === 'supreme') {
+    return 'S';
+  }
+  if (tipo === 'gpl') {
+    return 'G';
+  }
+  if (tipo === 'metano') {
+    return 'M';
+  }
+  if (tipo === 'adblue') {
+    return 'A';
+  }
   return '';
 }
 
@@ -120,7 +142,11 @@ function getClosureTemplateBase64(): string | null {
   return closureTemplateXlsxBase64 || null;
 }
 
-export async function computeExportSummaryMetrics(adminClient: SupabaseClient, closure: Record<string, unknown>, stationId: unknown): Promise<ExportMetrics> {
+export async function computeExportSummaryMetrics(
+  adminClient: SupabaseClient,
+  closure: Record<string, unknown>,
+  stationId: unknown
+): Promise<ExportMetrics> {
   const safeNumber = (value: unknown): number => {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
@@ -163,17 +189,23 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
         .select('station_name')
         .eq('station_id', stationId)
         .single();
-      if (st) { stationName = st.station_name; }
+      if (st) {
+        stationName = st.station_name;
+      }
     }
     const closingData = asRecord(closure.closing_data);
 
     metrics.meta.stationSlug = slugifyLabel(stationName);
-    const dateRaw = (closure.closed_at || closure.created_at || closure.data_chiusura) as string | undefined;
+    const dateRaw = (closure.closed_at || closure.created_at || closure.data_chiusura) as
+      string | undefined;
     metrics.meta.dateSlug = dateRaw ? (dateRaw.split('T')[0] ?? 'date') : 'date';
     metrics.meta.dateDisplay = formatDate(dateRaw);
 
     // Prices might be in 'prezzi' (legacy) or 'closing_data.prezzi' or 'closing_data.prices'
-    metrics.meta.prices = (closure.prezzi || closingData.prezzi || closingData.prices || {}) as Record<string, number>;
+    metrics.meta.prices = (closure.prezzi ||
+      closingData.prezzi ||
+      closingData.prices ||
+      {}) as Record<string, number>;
 
     // 2. Fetch Pistole e Tank Pumps
     let shiftPistols: Record<string, unknown>[] = Array.isArray(closure.shift_pistols)
@@ -190,7 +222,9 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
         const rawPistols = sp || [];
 
         if (rawPistols.length > 0) {
-          const pistolIds = [...new Set(rawPistols.map((p: Record<string, unknown>) => p.pistol_id))];
+          const pistolIds = [
+            ...new Set(rawPistols.map((p: Record<string, unknown>) => p.pistol_id))
+          ];
 
           // 2a. Fetch Pistols (Flat)
           const { data: pistolsFlat } = await adminClient
@@ -202,7 +236,9 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
           const pumpIds = new Set<unknown>();
           (pistolsFlat || []).forEach((p: Record<string, unknown>) => {
             pistolsMap.set(String(p.pistol_id), { ...p });
-            if (p.pump_id) { pumpIds.add(p.pump_id); }
+            if (p.pump_id) {
+              pumpIds.add(p.pump_id);
+            }
           });
 
           // 2b. Fetch Pumps (Flat)
@@ -216,7 +252,9 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
 
             (pumpsFlat || []).forEach((p: Record<string, unknown>) => {
               pumpsMap.set(String(p.pump_id), p);
-              if (p.island_id) { islandIds.add(p.island_id); }
+              if (p.island_id) {
+                islandIds.add(p.island_id);
+              }
             });
           }
 
@@ -228,7 +266,9 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
               .select('island_id, island_name')
               .in('island_id', [...islandIds]);
 
-            (islandsFlat || []).forEach((i: Record<string, unknown>) => islandsMapRef.set(String(i.island_id), i));
+            (islandsFlat || []).forEach((i: Record<string, unknown>) =>
+              islandsMapRef.set(String(i.island_id), i)
+            );
           }
 
           // Step 3: Deep Merge in JS
@@ -244,11 +284,13 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
               constructedPistol = {
                 pistol_name: pistolBase.pistol_name,
                 pump_id: pistolBase.pump_id,
-                fuel_pumps: pump ? {
-                  pump_name: pump.pump_name,
-                  island_id: pump.island_id,
-                  islands: island ? { island_name: island.island_name } : null
-                } : null
+                fuel_pumps: pump
+                  ? {
+                      pump_name: pump.pump_name,
+                      island_id: pump.island_id,
+                      islands: island ? { island_name: island.island_name } : null
+                    }
+                  : null
               };
             } else {
               constructedPistol = {
@@ -316,7 +358,9 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
     });
 
     // Ordina isole e pistole
-    const sortedIslands = Array.from(islandsMap.values()).sort((a, b) => Number(a.id) - Number(b.id));
+    const sortedIslands = Array.from(islandsMap.values()).sort(
+      (a, b) => Number(a.id) - Number(b.id)
+    );
     metrics.sections = sortedIslands;
 
     // 3. Summary Totals (Incassi)
@@ -329,22 +373,27 @@ export async function computeExportSummaryMetrics(adminClient: SupabaseClient, c
     metrics.summary.lubrAdblue = safeNumber(incassi.accessori);
 
     return metrics;
-
   } catch (e) {
     logger.error('exportUtils', 'Error computing metrics', e);
     return metrics;
   }
 }
 
-export async function fetchClosureExportData(closureId: string | number): Promise<Record<string, unknown>> {
+export async function fetchClosureExportData(
+  closureId: string | number
+): Promise<Record<string, unknown>> {
   const { data: closure, error } = await supabase
     .from('shifts')
     .select('*')
     .eq('id', Number(closureId))
     .single();
 
-  if (error) { throw error; }
-  if (!closure) { throw new Error('Chiusura non trovata'); }
+  if (error) {
+    throw error;
+  }
+  if (!closure) {
+    throw new Error('Chiusura non trovata');
+  }
 
   const { data: sp } = await supabase
     .from('shift_pistols')
@@ -358,7 +407,8 @@ export async function fetchClosureExportData(closureId: string | number): Promis
     const pistolIds = [...new Set(rawPistols.map((p: Record<string, unknown>) => p.pistol_id))];
     const { data: pistolDetails } = await supabase
       .from('pistole')
-      .select(`
+      .select(
+        `
                 pistol_id,
                 pistol_name,
                 pump_id,
@@ -367,7 +417,8 @@ export async function fetchClosureExportData(closureId: string | number): Promis
                     island_id,
                     islands ( island_name, island_id )
                 )
-            `)
+            `
+      )
       .in('pistol_id', pistolIds);
 
     const pxMap = new Map<unknown, Record<string, unknown>>();
@@ -375,7 +426,7 @@ export async function fetchClosureExportData(closureId: string | number): Promis
     // queried here (see CLAUDE.md: repo types can lag the live DB), so the row
     // shape is treated as a generic record. Runtime query is unchanged.
     const pistolRows = (pistolDetails ?? []) as unknown as Record<string, unknown>[];
-    pistolRows.forEach((p) => pxMap.set(p.pistol_id, p));
+    pistolRows.forEach(p => pxMap.set(p.pistol_id, p));
 
     enrichedPistols = rawPistols.map((rp: Record<string, unknown>) => ({
       ...rp,
@@ -390,7 +441,9 @@ export async function fetchClosureExportData(closureId: string | number): Promis
 function populateClosureSheet(sheet: XlsxSheet, templateData: ExportMetrics): void {
   const setCell = (addr: string, value: unknown): void => {
     const cell = sheet.cell(addr);
-    if (cell) { cell.value(value ?? ''); }
+    if (cell) {
+      cell.value(value ?? '');
+    }
   };
 
   const meta = templateData.meta || {};
@@ -444,7 +497,9 @@ function populateClosureSheet(sheet: XlsxSheet, templateData: ExportMetrics): vo
       }
       block.totals.forEach(t => {
         setCell(t.valueCell, null);
-        if (t.priceCell) { setCell(t.priceCell, null); }
+        if (t.priceCell) {
+          setCell(t.priceCell, null);
+        }
       });
       return;
     }
@@ -526,7 +581,9 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
     for (let i = 0; i < closuresData.length; i++) {
       // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
       const data = closuresData[i];
-      if (!data) {continue;}
+      if (!data) {
+        continue;
+      }
 
       const dateStr = data.meta?.dateSlug || `C${i + 1}`;
       const sheetName = `${dateStr}_${i + 1}`.substring(0, 31);
@@ -537,7 +594,9 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
     }
 
     templateSheet.delete();
-    if (wb.sheets().length > 0) { wb.sheet(0).active(true); }
+    if (wb.sheets().length > 0) {
+      wb.sheet(0).active(true);
+    }
 
     const blob = await wb.outputAsync();
     const url = URL.createObjectURL(blob);
@@ -551,7 +610,6 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
 
     Toast.show('Export completato!', 'success');
     return;
-
   } catch (e) {
     logger.warn('exportUtils', 'Clone failed, falling back to ZIP strategy:', e);
     Toast.show('Export unico non supportato dal browser. Generazione ZIP...', 'warning');
@@ -568,7 +626,9 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
     for (let i = 0; i < closuresData.length; i++) {
       // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
       const data = closuresData[i];
-      if (!data) {continue;}
+      if (!data) {
+        continue;
+      }
 
       const dateStr = data.meta?.dateSlug || `C${i + 1}`;
       const fileName = `chiusura_${dateStr}_${i + 1}.xlsx`;
@@ -592,7 +652,6 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
     document.body.removeChild(a);
 
     Toast.show('Download ZIP completato!', 'success');
-
   } catch (e) {
     logger.error('exportUtils', 'ZIP Fallback error:', e);
     const message = e instanceof Error ? e.message : 'Errore sconosciuto';

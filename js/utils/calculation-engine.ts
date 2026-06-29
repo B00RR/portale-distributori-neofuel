@@ -10,13 +10,15 @@ const MODULE_TABLE = 'calculation_modules';
 interface CalcModuleRow {
   id: string;
   active_version_id: string | null;
-  calculation_versions: {
-    id: string;
-    version: number;
-    status: string;
-    dsl: unknown;
-    created_at: string;
-  }[] | null;
+  calculation_versions:
+    | {
+        id: string;
+        version: number;
+        status: string;
+        dsl: unknown;
+        created_at: string;
+      }[]
+    | null;
 }
 
 /** A value flowing through the calculation engine — genuinely dynamic data. */
@@ -52,7 +54,9 @@ const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
   input: ({ path }, ctx) => (path ? getByPath(ctx, String(path)) : ctx),
   sum: ({ source, selector }, ctx) => {
     const data = source ? getByPath(ctx, String(source)) : ctx;
-    if (!Array.isArray(data)) { return 0; }
+    if (!Array.isArray(data)) {
+      return 0;
+    }
     return data.reduce((acc: number, item) => {
       if (selector) {
         return acc + (Number(getByPath(item, String(selector))) || 0);
@@ -73,7 +77,9 @@ const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
   divide: ({ dividend, divisor, precision = 2 }, ctx, evaluate) => {
     const a = Number(evaluate(dividend, ctx) || 0);
     const b = Number(evaluate(divisor, ctx) || 1);
-    if (b === 0) { return 0; }
+    if (b === 0) {
+      return 0;
+    }
     const result = a / b;
     return typeof precision === 'number' ? Number(result.toFixed(precision)) : result;
   },
@@ -90,7 +96,9 @@ const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
   },
   map: ({ source, iteratee }, ctx, evaluate) => {
     const data = source ? getByPath(ctx, String(source)) : ctx;
-    if (!Array.isArray(data)) { return []; }
+    if (!Array.isArray(data)) {
+      return [];
+    }
     return data.map(item => evaluate(iteratee, item));
   },
   function: ({ name, args }, ctx, evaluate, engine) => {
@@ -101,7 +109,8 @@ const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
       return null;
     }
     const resolvedArgs: Record<string, unknown> = {};
-    const argEntries = args && typeof args === 'object' ? Object.entries(args as Record<string, unknown>) : [];
+    const argEntries =
+      args && typeof args === 'object' ? Object.entries(args as Record<string, unknown>) : [];
     for (const [key, val] of argEntries) {
       // eslint-disable-next-line security/detect-object-injection -- key comes from Object.entries() of a local DSL arg object, written to a fresh local Record
       resolvedArgs[key] = evaluate(val, ctx);
@@ -130,7 +139,7 @@ class CalculationEngine {
   private lastFetchTime: Map<string, number> = new Map();
   private staleAfterMs: number = 5 * 60 * 1000; // 5 minuti
 
-  constructor() { }
+  constructor() {}
 
   public registerFallback(scope: string, evaluator: CompiledScope): void {
     this.fallbacks.set(scope, evaluator);
@@ -145,9 +154,9 @@ class CalculationEngine {
   }
 
   /**
-     * Invalidate cache for a scope or all
-     * @param {string|null} scope
-     */
+   * Invalidate cache for a scope or all
+   * @param {string|null} scope
+   */
   public invalidate(scope: string | null = null): void {
     if (scope) {
       this.cache.delete(scope);
@@ -160,11 +169,17 @@ class CalculationEngine {
     this.pending.clear();
   }
 
-  public async run(scope: string, context: CalcContext = {}, options: { forceRefresh?: boolean } = {}): Promise<CalcValue> {
+  public async run(
+    scope: string,
+    context: CalcContext = {},
+    options: { forceRefresh?: boolean } = {}
+  ): Promise<CalcValue> {
     const compiled = await this.loadScope(scope, options.forceRefresh);
     if (!compiled) {
       const fallback = this.fallbacks.get(scope) || this.fallbacks.get(CALCULATION_SCOPES.DEFAULT);
-      if (fallback) { return fallback(context); }
+      if (fallback) {
+        return fallback(context);
+      }
       logger.warn('calcEngine', `Nessun motore disponibile per lo scope "${scope}"`);
       return null;
     }
@@ -203,7 +218,8 @@ class CalculationEngine {
       const { data, error } = await safeSupabaseQuery<CalcModuleRow | null>(() =>
         supabase
           .from(MODULE_TABLE)
-          .select(`
+          .select(
+            `
             id,
             scope,
             active_version_id,
@@ -214,12 +230,15 @@ class CalculationEngine {
               dsl,
               created_at
             )
-          `)
+          `
+          )
           .eq('scope', scope)
           .maybeSingle()
       );
 
-      if (error) { throw error; }
+      if (error) {
+        throw error;
+      }
       if (!data || !data.active_version_id) {
         return null;
       }
@@ -227,7 +246,7 @@ class CalculationEngine {
       // Accedi alle versioni usando il nome corretto della relazione
       const versions = data.calculation_versions || [];
       const activeVersion = Array.isArray(versions)
-        ? versions.find((v) => v.id === data.active_version_id && v.status === 'published')
+        ? versions.find(v => v.id === data.active_version_id && v.status === 'published')
         : null;
 
       if (!activeVersion || !activeVersion.dsl) {
@@ -235,9 +254,8 @@ class CalculationEngine {
         return null;
       }
 
-      const parsedDsl: DslNode = typeof activeVersion.dsl === 'string'
-        ? JSON.parse(activeVersion.dsl)
-        : activeVersion.dsl;
+      const parsedDsl: DslNode =
+        typeof activeVersion.dsl === 'string' ? JSON.parse(activeVersion.dsl) : activeVersion.dsl;
 
       validateDsl(parsedDsl);
       return this.compile(parsedDsl);
@@ -249,8 +267,12 @@ class CalculationEngine {
 
   public compile(dsl: DslNode): CompiledScope {
     const evaluator: EvaluateFn = (node, ctx) => {
-      if (node === null || node === undefined) { return node; }
-      if (typeof node !== 'object') { return node; }
+      if (node === null || node === undefined) {
+        return node;
+      }
+      if (typeof node !== 'object') {
+        return node;
+      }
 
       const { op } = node as DslOpNode;
       if (!op) {
@@ -266,7 +288,7 @@ class CalculationEngine {
       return handler(node as DslOpNode, ctx, evaluator, this);
     };
 
-    return (context) => evaluator(dsl, context);
+    return context => evaluator(dsl, context);
   }
 }
 
@@ -276,13 +298,21 @@ class CalculationEngine {
 const FORBIDDEN_PATH_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function getByPath(obj: unknown, path: string): unknown {
-  if (!path) { return obj; }
+  if (!path) {
+    return obj;
+  }
   const segments = path.split('.');
   let current: unknown = obj;
   for (const segment of segments) {
-    if (current === null || current === undefined) { return undefined; }
-    if (FORBIDDEN_PATH_SEGMENTS.has(segment)) { return undefined; }
-    if (!Object.prototype.hasOwnProperty.call(current, segment)) { return undefined; }
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    if (FORBIDDEN_PATH_SEGMENTS.has(segment)) {
+      return undefined;
+    }
+    if (!Object.prototype.hasOwnProperty.call(current, segment)) {
+      return undefined;
+    }
     // eslint-disable-next-line security/detect-object-injection -- segment is guarded above (forbidden keys rejected, own-property checked)
     current = (current as Record<string, unknown>)[segment];
   }
@@ -290,16 +320,25 @@ function getByPath(obj: unknown, path: string): unknown {
 }
 
 function truthy(value: unknown): boolean {
-  if (Array.isArray(value)) { return value.length > 0; }
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
   return !!value;
 }
 
 function validateDsl(dsl: unknown): void {
-  if (!dsl || typeof dsl !== 'object') { throw new Error('DSL non valido'); }
+  if (!dsl || typeof dsl !== 'object') {
+    throw new Error('DSL non valido');
+  }
   const op = (dsl as DslOpNode).op;
-  if (!op) { throw new Error("Ogni DSL deve avere la proprietà 'op'"); }
+  if (!op) {
+    throw new Error("Ogni DSL deve avere la proprietà 'op'");
+  }
   if (!(op in DEFAULT_OPERATIONS) && op !== 'function') {
-    logger.warn('calcEngine', `Opzione "${op}" non predefinita: assicurarsi di registrare l'operazione custom prima dell'uso.`);
+    logger.warn(
+      'calcEngine',
+      `Opzione "${op}" non predefinita: assicurarsi di registrare l'operazione custom prima dell'uso.`
+    );
   }
 }
 

@@ -42,19 +42,27 @@ function toNumericId(value: number | string): number {
 export async function showCreditsMenu(stationId: number | string, userId: string): Promise<void> {
   openModal('Gestione Crediti');
   const modalBody = document.getElementById('modal-body');
-  if (!modalBody) { return; }
-  setSafeHTML(modalBody, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>');
+  if (!modalBody) {
+    return;
+  }
+  setSafeHTML(
+    modalBody,
+    '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>'
+  );
 
   // Verifica apertura turno
   const activeOpening = await checkOpeningStatus(stationId);
   if (!activeOpening) {
-    setSafeHTML(modalBody, `
+    setSafeHTML(
+      modalBody,
+      `
             <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
                 <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
                 <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter gestire i crediti.</p>
                 <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
             </div>
-        `);
+        `
+    );
 
     const closeBtn = document.getElementById('btn-close-warning');
     if (closeBtn) {
@@ -63,7 +71,9 @@ export async function showCreditsMenu(stationId: number | string, userId: string
     return;
   }
 
-  setSafeHTML(modalBody, `
+  setSafeHTML(
+    modalBody,
+    `
         <div class="credits-menu-container">
             <p class="section-subtitle" style="text-align: center; margin-bottom: 20px;">Seleziona un'operazione</p>
             
@@ -138,10 +148,15 @@ export async function showCreditsMenu(stationId: number | string, userId: string
             }
         </style>
       </div>
-    `);
+    `
+  );
 
-  document.getElementById('btn-new-credit')?.addEventListener('click', () => showNewCreditForm(stationId, userId));
-  document.getElementById('btn-payment-credit')?.addEventListener('click', () => showPaymentSelection(stationId, userId));
+  document
+    .getElementById('btn-new-credit')
+    ?.addEventListener('click', () => showNewCreditForm(stationId, userId));
+  document
+    .getElementById('btn-payment-credit')
+    ?.addEventListener('click', () => showPaymentSelection(stationId, userId));
 }
 
 /**
@@ -151,8 +166,12 @@ export async function showCreditsMenu(stationId: number | string, userId: string
  */
 async function showNewCreditForm(stationId: number | string, userId: string): Promise<void> {
   const modalBody = document.getElementById('modal-body');
-  if (!modalBody) { return; }
-  setSafeHTML(modalBody, `
+  if (!modalBody) {
+    return;
+  }
+  setSafeHTML(
+    modalBody,
+    `
         <div class="content-box">
             <h3><i class="fas fa-user-plus"></i> Nuovo Credito</h3>
             <p class="section-subtitle">Registra un debito per un cliente</p>
@@ -221,10 +240,13 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
                 }
             </style>
         </div>
-    `);
+    `
+  );
 
   // Back button
-  document.getElementById('btn-back-credits')?.addEventListener('click', () => showCreditsMenu(stationId, userId));
+  document
+    .getElementById('btn-back-credits')
+    ?.addEventListener('click', () => showCreditsMenu(stationId, userId));
 
   // Customer Search Logic
   const nameInput = document.getElementById('customer-name') as HTMLInputElement | null;
@@ -232,8 +254,10 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   if (nameInput && suggestionsDiv) {
-    nameInput.addEventListener('input', (e) => {
-      if (debounceTimer) { clearTimeout(debounceTimer); }
+    nameInput.addEventListener('input', e => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       const query = (e.target as HTMLInputElement).value;
       if (query.length < 2) {
         suggestionsDiv.style.display = 'none';
@@ -248,15 +272,17 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
   // Form Submit
   const form = document.getElementById('new-credit-form') as HTMLFormElement | null;
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const formData = new FormData(form);
       const customerName = (formData.get('customer_name') as string)?.trim() || '';
-      const amount = parseFloat(formData.get('amount') as string || '0');
+      const amount = parseFloat((formData.get('amount') as string) || '0');
       const product = (formData.get('product') as string) || '';
       const notes = (formData.get('notes') as string) || '';
 
-      if (!customerName || amount <= 0) { return; }
+      if (!customerName || amount <= 0) {
+        return;
+      }
 
       try {
         await processNewCredit(stationId, userId, customerName, amount, product, notes);
@@ -273,7 +299,12 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
   }
 }
 
-async function searchCustomersForInput(query: string, stationId: number | string, suggestionsDiv: HTMLElement, inputField: HTMLInputElement): Promise<void> {
+async function searchCustomersForInput(
+  query: string,
+  stationId: number | string,
+  suggestionsDiv: HTMLElement,
+  inputField: HTMLInputElement
+): Promise<void> {
   try {
     const numericStationId = toNumericId(stationId);
     const { data: customers } = await supabase
@@ -284,9 +315,16 @@ async function searchCustomersForInput(query: string, stationId: number | string
       .limit(5);
 
     if (customers && customers.length > 0) {
-      setSafeHTML(suggestionsDiv, customers.map((c) => `
+      setSafeHTML(
+        suggestionsDiv,
+        customers
+          .map(
+            c => `
                 <div class="suggestion-item">${escapeHtml(c.cliente)}</div>
-            `).join(''));
+            `
+          )
+          .join('')
+      );
       suggestionsDiv.style.display = 'block';
 
       suggestionsDiv.querySelectorAll('.suggestion-item').forEach(itemElement => {
@@ -304,7 +342,14 @@ async function searchCustomersForInput(query: string, stationId: number | string
   }
 }
 
-export async function processNewCredit(stationId: number | string, userId: string, customerName: string, amount: number, product: string, notes: string): Promise<void> {
+export async function processNewCredit(
+  stationId: number | string,
+  userId: string,
+  customerName: string,
+  amount: number,
+  product: string,
+  notes: string
+): Promise<void> {
   const numericStationId = toNumericId(stationId);
   const numericOperatorId = toNumericId(userId);
 
@@ -316,7 +361,9 @@ export async function processNewCredit(stationId: number | string, userId: strin
     .ilike('cliente', customerName)
     .maybeSingle();
 
-  if (fetchError) { throw fetchError; }
+  if (fetchError) {
+    throw fetchError;
+  }
 
   let customer = initialCustomer;
 
@@ -327,11 +374,15 @@ export async function processNewCredit(stationId: number | string, userId: strin
       .select()
       .single();
 
-    if (createError) { throw createError; }
+    if (createError) {
+      throw createError;
+    }
     customer = newCustomer;
   }
 
-  if (!customer) { throw new Error('Impossibile creare il cliente'); }
+  if (!customer) {
+    throw new Error('Impossibile creare il cliente');
+  }
 
   // 2. Aggiorna saldo (Aumenta debito)
   const newBalance = (customer.saldo || 0) + amount;
@@ -340,12 +391,13 @@ export async function processNewCredit(stationId: number | string, userId: strin
     .update({ saldo: newBalance, updated_at: new Date().toISOString() })
     .eq('id', customer.id);
 
-  if (updateError) { throw updateError; }
+  if (updateError) {
+    throw updateError;
+  }
 
   // 3. Registra movimento in crediti_movimenti
-  const { error: moveError } = await supabase
-    .from('crediti_movimenti')
-    .insert([{
+  const { error: moveError } = await supabase.from('crediti_movimenti').insert([
+    {
       cliente_id: customer.id,
       station_id: numericStationId,
       operator_id: numericOperatorId,
@@ -354,21 +406,24 @@ export async function processNewCredit(stationId: number | string, userId: strin
       metodo: 'credito',
       note: `${product} - ${notes || ''}`,
       created_at: new Date().toISOString()
-    }]);
+    }
+  ]);
 
   // 4. Registra anche in movimenti_cassa
-  const { error: cashMoveError } = await supabase
-    .from('movimenti_cassa')
-    .insert([{
+  const { error: cashMoveError } = await supabase.from('movimenti_cassa').insert([
+    {
       station_id: numericStationId,
       operator_id: numericOperatorId,
       tipo: 'credito',
       importo: amount,
       descrizione: `Credito: ${customerName} (${product}) ${notes ? '- ' + notes : ''}`,
       created_at: new Date().toISOString()
-    }]);
+    }
+  ]);
 
-  if (moveError || cashMoveError) { throw moveError || cashMoveError; }
+  if (moveError || cashMoveError) {
+    throw moveError || cashMoveError;
+  }
 }
 
 /**
@@ -378,8 +433,12 @@ export async function processNewCredit(stationId: number | string, userId: strin
  */
 async function showPaymentSelection(stationId: number | string, userId: string): Promise<void> {
   const modalBody = document.getElementById('modal-body');
-  if (!modalBody) { return; }
-  setSafeHTML(modalBody, `
+  if (!modalBody) {
+    return;
+  }
+  setSafeHTML(
+    modalBody,
+    `
         <div class="content-box">
             <h3><i class="fas fa-list"></i> Crediti Aperti</h3>
             <div class="form-group">
@@ -394,14 +453,19 @@ async function showPaymentSelection(stationId: number | string, userId: string):
                 </button>
             </div>
         </div>
-    `);
+    `
+  );
 
-  document.getElementById('btn-back-credits-2')?.addEventListener('click', () => showCreditsMenu(stationId, userId));
+  document
+    .getElementById('btn-back-credits-2')
+    ?.addEventListener('click', () => showCreditsMenu(stationId, userId));
 
   const listContainer = document.getElementById('debtors-list') as HTMLElement | null;
   const searchInput = document.getElementById('debtor-search') as HTMLInputElement | null;
 
-  if (!listContainer || !searchInput) { return; }
+  if (!listContainer || !searchInput) {
+    return;
+  }
 
   // Load debtors
   const loadDebtors = async (filter = ''): Promise<void> => {
@@ -419,14 +483,23 @@ async function showPaymentSelection(stationId: number | string, userId: string):
       }
 
       const { data: debtors, error } = await query;
-      if (error) { throw error; }
+      if (error) {
+        throw error;
+      }
 
       if (!debtors || debtors.length === 0) {
-        setSafeHTML(listContainer, '<p style="text-align:center; color:#64748b; padding:20px;">Nessun credito aperto trovato.</p>');
+        setSafeHTML(
+          listContainer,
+          '<p style="text-align:center; color:#64748b; padding:20px;">Nessun credito aperto trovato.</p>'
+        );
         return;
       }
 
-      setSafeHTML(listContainer, debtors.map((d) => `
+      setSafeHTML(
+        listContainer,
+        debtors
+          .map(
+            d => `
                 <div class="result-item" data-id="${d.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer;">
                     <div>
                         <div style="font-weight: bold; font-size: 1.1rem;">${escapeHtml(d.cliente)}</div>
@@ -437,18 +510,22 @@ async function showPaymentSelection(stationId: number | string, userId: string):
                         <div style="font-size: 0.8rem; color: #3b82f6;">Paga <i class="fas fa-chevron-right"></i></div>
                     </div>
                 </div>
-            `).join(''));
+            `
+          )
+          .join('')
+      );
 
       // Attach event listeners to items
       listContainer.querySelectorAll('.result-item').forEach(itemElement => {
         const item = itemElement as HTMLElement;
         item.addEventListener('click', () => {
           const id = item.dataset.id;
-          const debtor = debtors.find((x) => x.id.toString() === id);
-          if (debtor) { showPaymentModal(debtor, stationId, userId); }
+          const debtor = debtors.find(x => x.id.toString() === id);
+          if (debtor) {
+            showPaymentModal(debtor, stationId, userId);
+          }
         });
       });
-
     } catch (err) {
       if (err instanceof Error) {
         setSafeHTML(listContainer, `<p class="error-text">Errore: ${escapeHtml(err.message)}</p>`);
@@ -460,17 +537,25 @@ async function showPaymentSelection(stationId: number | string, userId: string):
 
   loadDebtors();
 
-  searchInput.addEventListener('input', (e) => {
+  searchInput.addEventListener('input', e => {
     loadDebtors((e.target as HTMLInputElement).value);
   });
 }
 
-function showPaymentModal(customer: CreditoCliente, stationId: number | string, userId: string): void {
+function showPaymentModal(
+  customer: CreditoCliente,
+  stationId: number | string,
+  userId: string
+): void {
   openModal(`Pagamento: ${escapeHtml(customer.cliente)}`);
   const modalBody = document.getElementById('modal-body');
-  if (!modalBody) { return; }
+  if (!modalBody) {
+    return;
+  }
 
-  setSafeHTML(modalBody, `
+  setSafeHTML(
+    modalBody,
+    `
         <div style="background: #fff1f2; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #fecdd3;">
             <div style="font-size: 0.9rem; color: #9f1239;">Debito Attuale</div>
             <div style="font-size: 2rem; font-weight: 700; color: #e11d48;">${formatEuro(customer.saldo)}</div>
@@ -511,7 +596,8 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
                 </button>
             </div>
         </form>
-    `);
+    `
+  );
 
   // Toggle Info based on method
   const methodSelect = document.getElementById('pay-method') as HTMLSelectElement | null;
@@ -545,15 +631,17 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
   // Submit
   const form = document.getElementById('payment-form') as HTMLFormElement | null;
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const formData = new FormData(form);
-      const amount = parseFloat(formData.get('amount') as string || '0');
+      const amount = parseFloat((formData.get('amount') as string) || '0');
       const method = (formData.get('method') as string) || '';
 
-      if (amount <= 0) { return; }
+      if (amount <= 0) {
+        return;
+      }
       if (amount > customer.saldo + 0.01) {
-        Toast.show('L\'importo non può superare il debito!', 'warning');
+        Toast.show("L'importo non può superare il debito!", 'warning');
         return;
       }
 
@@ -568,7 +656,13 @@ function showPaymentModal(customer: CreditoCliente, stationId: number | string, 
   }
 }
 
-export async function processPayment(stationId: number | string, userId: string, customer: CreditoCliente, amount: number, method: string): Promise<void> {
+export async function processPayment(
+  stationId: number | string,
+  userId: string,
+  customer: CreditoCliente,
+  amount: number,
+  method: string
+): Promise<void> {
   const numericStationId = toNumericId(stationId);
   const numericOperatorId = toNumericId(userId);
 
@@ -579,16 +673,21 @@ export async function processPayment(stationId: number | string, userId: string,
     .update({ saldo: newBalance, updated_at: new Date().toISOString() })
     .eq('id', customer.id);
 
-  if (updateError) { throw updateError; }
+  if (updateError) {
+    throw updateError;
+  }
 
   // 2. Registra movimento in crediti_movimenti
   let movementType = 'incasso'; // Default contanti
-  if (method === 'pos') { movementType = 'incasso_pos'; }
-  if (method === 'uta') { movementType = 'incasso_uta'; }
+  if (method === 'pos') {
+    movementType = 'incasso_pos';
+  }
+  if (method === 'uta') {
+    movementType = 'incasso_uta';
+  }
 
-  const { error: moveError } = await supabase
-    .from('crediti_movimenti')
-    .insert([{
+  const { error: moveError } = await supabase.from('crediti_movimenti').insert([
+    {
       cliente_id: customer.id,
       station_id: numericStationId,
       operator_id: numericOperatorId,
@@ -596,19 +695,22 @@ export async function processPayment(stationId: number | string, userId: string,
       importo: amount,
       metodo: method,
       created_at: new Date().toISOString()
-    }]);
+    }
+  ]);
 
   // 3. Registra in movimenti_cassa
-  const { error: cashMoveError } = await supabase
-    .from('movimenti_cassa')
-    .insert([{
+  const { error: cashMoveError } = await supabase.from('movimenti_cassa').insert([
+    {
       station_id: numericStationId,
       operator_id: numericOperatorId,
       tipo: movementType,
       importo: amount,
       descrizione: `Pagamento Credito: ${customer.cliente} (${method})`,
       created_at: new Date().toISOString()
-    }]);
+    }
+  ]);
 
-  if (moveError || cashMoveError) { throw moveError || cashMoveError; }
+  if (moveError || cashMoveError) {
+    throw moveError || cashMoveError;
+  }
 }

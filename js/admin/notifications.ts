@@ -38,8 +38,13 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
   try {
     const [rules, tanksRes, shiftsRes] = await Promise.all([
       BusinessLogicManager.loadRules(),
-      supabase.from('tanks').select('name, fuel_type, liters, station_id, fuel_stations(station_name)'),
-      supabase.from('shifts').select('id, created_at, status, station_id, fuel_stations(station_name)').eq('status', 'open')
+      supabase
+        .from('tanks')
+        .select('name, fuel_type, liters, station_id, fuel_stations(station_name)'),
+      supabase
+        .from('shifts')
+        .select('id, created_at, status, station_id, fuel_stations(station_name)')
+        .eq('status', 'open')
     ]);
 
     // Check if notifications are globally enabled
@@ -68,19 +73,32 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
 
     // Check for query errors
     if (tanksRes.error) {
-      errors.push('Impossibile caricare i dati dei serbatoi: ' + (tanksRes.error.message || 'Errore sconosciuto'));
+      errors.push(
+        'Impossibile caricare i dati dei serbatoi: ' +
+          (tanksRes.error.message || 'Errore sconosciuto')
+      );
     }
     if (shiftsRes.error) {
-      errors.push('Impossibile caricare i dati dei turni: ' + (shiftsRes.error.message || 'Errore sconosciuto'));
+      errors.push(
+        'Impossibile caricare i dati dei turni: ' +
+          (shiftsRes.error.message || 'Errore sconosciuto')
+      );
     }
 
     // 1. Check Fuel Reserves
     if (tanksRes.data) {
-      (tanksRes.data as TankRow[]).forEach((t) => {
+      (tanksRes.data as TankRow[]).forEach(t => {
         const liters = t.liters || 0;
         if (liters < rules.fuel_reserve_alert_liters) {
           const stationName = t.fuel_stations?.station_name || 'Stazione #' + String(t.station_id);
-          alerts.push(createAlertCard('critical', 'fa-gas-pump', 'Scorta Critica: ' + t.name + ' (' + t.fuel_type + ')', 'Presso ' + stationName + ': Rimangono solo ' + formatNumberIt(liters) + ' litri.'));
+          alerts.push(
+            createAlertCard(
+              'critical',
+              'fa-gas-pump',
+              'Scorta Critica: ' + t.name + ' (' + t.fuel_type + ')',
+              'Presso ' + stationName + ': Rimangono solo ' + formatNumberIt(liters) + ' litri.'
+            )
+          );
         }
       });
     }
@@ -88,12 +106,25 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
     // 2. Check Stale Shifts
     if (shiftsRes.data) {
       const now = new Date().getTime();
-      (shiftsRes.data as ShiftRow[]).forEach((s) => {
+      (shiftsRes.data as ShiftRow[]).forEach(s => {
         const createdAt = new Date(s.created_at).getTime();
         const hoursOpen = (now - createdAt) / (1000 * 60 * 60);
         if (hoursOpen > rules.force_close_hours_threshold) {
           const stationName = s.fuel_stations?.station_name || 'Stazione #' + String(s.station_id);
-          alerts.push(createAlertCard('warning', 'fa-clock', 'Turno Aperto da troppo tempo', 'ID #' + String(s.id) + ' presso ' + stationName + ' è aperto da ' + hoursOpen.toFixed(1) + ' ore.'));
+          alerts.push(
+            createAlertCard(
+              'warning',
+              'fa-clock',
+              'Turno Aperto da troppo tempo',
+              'ID #' +
+                String(s.id) +
+                ' presso ' +
+                stationName +
+                ' è aperto da ' +
+                hoursOpen.toFixed(1) +
+                ' ore.'
+            )
+          );
         }
       });
     }
@@ -110,7 +141,9 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
       list.appendChild(title);
 
       errors.forEach(errorMsg => {
-        list.appendChild(createAlertCard('critical', 'fa-exclamation-triangle', 'Errore di Caricamento', errorMsg));
+        list.appendChild(
+          createAlertCard('critical', 'fa-exclamation-triangle', 'Errore di Caricamento', errorMsg)
+        );
       });
 
       alerts.forEach(alert => list.appendChild(alert));

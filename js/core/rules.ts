@@ -5,60 +5,60 @@
 
 // ========== TYPES ==========
 export interface Voucher {
-    id?: string;
-    code: string;
-    amount: number;
-    status: string | null;
-    expiration_date?: string | null;
-    redeemed_at?: string | null;
+  id?: string;
+  code: string;
+  amount: number;
+  status: string | null;
+  expiration_date?: string | null;
+  redeemed_at?: string | null;
 }
 
 export interface ValidationResult {
-    valid: boolean;
-    error?: string;
-    reason?: 'not_found' | 'redeemed' | 'expired';
-    details?: { date?: string | null };
+  valid: boolean;
+  error?: string;
+  reason?: 'not_found' | 'redeemed' | 'expired';
+  details?: { date?: string | null };
 }
 
 export interface Movement {
-    tipo: string;
-    importo: number;
-    descrizione?: string;
+  tipo: string;
+  importo: number;
+  descrizione?: string;
 }
 
 export interface MovimentiSummary {
-    credits: number;
-    vouchers: number;
-    refunds: number;
-    extra_cash: number;
+  credits: number;
+  vouchers: number;
+  refunds: number;
+  extra_cash: number;
 }
 
 export interface RevenueParams {
-    litersB: number;
-    litersG: number;
-    priceB: number;
-    priceG: number;
+  litersB: number;
+  litersG: number;
+  priceB: number;
+  priceG: number;
 }
 
 export interface CashParams {
-    carburanteAtteso: number;
-    totalPosOperatore: number;
-    totalUtaOperatore: number;
-    selfPos: number;
-    creditsSum: number;
-    vouchersSum: number;
-    selfCashIn: number;
-    selfCashOut: number;
-    refundsSum: number;
-    extraCashSum: number;
-    cashReal: number;
-    tolerance?: number;
+  carburanteAtteso: number;
+  totalPosOperatore: number;
+  totalUtaOperatore: number;
+  selfPos: number;
+  creditsSum: number;
+  vouchersSum: number;
+  selfCashIn: number;
+  selfCashOut: number;
+  refundsSum: number;
+  extraCashSum: number;
+  cashReal: number;
+  tolerance?: number;
 }
 
 export interface CashResult {
-    expected_cash: number;
-    cash_diff: number;
-    is_valid: boolean;
+  expected_cash: number;
+  cash_diff: number;
+  is_valid: boolean;
 }
 
 // ========== FUNCTIONS ==========
@@ -116,9 +116,21 @@ export function summarizeMovimenti(movimenti: Movement[] = []): MovimentiSummary
     movimenti.reduce((sum, m) => sum + (filterFn(m) ? normalize(m.importo) : 0), 0);
 
   return {
-    credits: sumBy(m => (m.tipo === 'credito' || (toLower(m.descrizione).includes('credito') && m.tipo !== 'incasso'))),
-    vouchers: sumBy(m => (m.tipo === 'voucher' || m.tipo === 'punti' || toLower(m.descrizione).includes('voucher') || toLower(m.descrizione).includes('punti'))),
-    refunds: sumBy(m => (m.tipo === 'pagamento' || m.tipo === 'uscita' || toLower(m.descrizione).includes('rimborso'))),
+    credits: sumBy(
+      m =>
+        m.tipo === 'credito' || (toLower(m.descrizione).includes('credito') && m.tipo !== 'incasso')
+    ),
+    vouchers: sumBy(
+      m =>
+        m.tipo === 'voucher' ||
+        m.tipo === 'punti' ||
+        toLower(m.descrizione).includes('voucher') ||
+        toLower(m.descrizione).includes('punti')
+    ),
+    refunds: sumBy(
+      m =>
+        m.tipo === 'pagamento' || m.tipo === 'uscita' || toLower(m.descrizione).includes('rimborso')
+    ),
     extra_cash: sumBy(m => m.tipo === 'incasso')
   };
 }
@@ -126,9 +138,14 @@ export function summarizeMovimenti(movimenti: Movement[] = []): MovimentiSummary
 /**
  * Calculates theoretic revenue for a shift
  */
-export function calculateTheoreticRevenue({ litersB, litersG, priceB, priceG }: RevenueParams): number {
+export function calculateTheoreticRevenue({
+  litersB,
+  litersG,
+  priceB,
+  priceG
+}: RevenueParams): number {
   const round = (val: number): number => Math.round((val || 0) * 100) / 100;
-  return round((litersB * priceB) + (litersG * priceG));
+  return round(litersB * priceB + litersG * priceG);
 }
 
 /**
@@ -153,15 +170,16 @@ export function calculateExpectedCash(params: CashParams): CashResult {
   const round = (val: number): number => Math.round((val || 0) * 100) / 100;
   const deltaSelf = (Number(selfCashIn) || 0) - (Number(selfCashOut) || 0);
 
-  const expectedCash = (Number(carburanteAtteso) || 0)
-        - (Number(totalPosOperatore) || 0)
-        - (Number(totalUtaOperatore) || 0)
-        - (Number(selfPos) || 0)
-        - (Number(creditsSum) || 0)
-        - (Number(vouchersSum) || 0)
-        + deltaSelf
-        - (Number(refundsSum) || 0)
-        + (Number(extraCashSum) || 0);
+  const expectedCash =
+    (Number(carburanteAtteso) || 0) -
+    (Number(totalPosOperatore) || 0) -
+    (Number(totalUtaOperatore) || 0) -
+    (Number(selfPos) || 0) -
+    (Number(creditsSum) || 0) -
+    (Number(vouchersSum) || 0) +
+    deltaSelf -
+    (Number(refundsSum) || 0) +
+    (Number(extraCashSum) || 0);
 
   const roundedExpected = round(expectedCash);
   const cashRealNum = Number(cashReal) || 0;

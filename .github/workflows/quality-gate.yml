@@ -12,68 +12,64 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install Dependencies
         run: npm ci
-      
-      - name: Run ESLint (ratchet)
-        run: npx eslint js --max-warnings 233
 
-      - name: Run Prettier Check (ratchet)
-        run: |
-          set +e
-          npx --yes prettier --check "js/**/*.{js,ts}" 2>&1 | tee prettier-output.txt
-          PRETTIER_STATUS=${PIPESTATUS[0]}
-          set -e
+      - name: Run ESLint
+        run: npx eslint js --max-warnings 0
 
-          WARNINGS=$(node - <<'NODE'
-          const fs = require('fs');
-          const output = fs.readFileSync('prettier-output.txt', 'utf8').replace(/\u001b\[[0-9;]*m/g, '');
-          const warnings = output.split('\n').filter((line) => line.replace(String.fromCharCode(13), '').startsWith('[warn] js/')).length;
-          console.log(warnings);
-          NODE
-          )
-          echo "Prettier warnings: ${WARNINGS} / 76 baseline"
+      - name: Run Prettier Check
+        run: npx --yes prettier --check "js/**/*.{js,ts}"
 
-          if [ "$WARNINGS" -gt 76 ]; then
-            echo "Prettier warning count increased above baseline (76)."
-            exit 1
-          fi
+  type-check:
+    name: 🧩 TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-          if [ "$PRETTIER_STATUS" -ne 0 ]; then
-            echo "Existing Prettier debt is present; ratchet allows the current baseline only."
-          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run type-check
+        run: npm run type-check
 
   unit-tests:
     name: 🧪 Unit & Integration Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install Dependencies
         run: npm ci
-      
+
       - name: Run Vitest
         run: npm run test:coverage
-      
+
       - name: Upload Coverage Reports
         uses: codecov/codecov-action@v3
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
-      
+
       - name: Archive Coverage
         uses: actions/upload-artifact@v4
         with:
@@ -89,16 +85,16 @@ jobs:
         browser: [chromium, firefox, mobile]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install Dependencies
         run: npm ci
-      
+
       - name: Install Playwright Browsers
         run: |
           if [ "${{ matrix.browser }}" = "mobile" ]; then
@@ -106,7 +102,7 @@ jobs:
           else
             npx playwright install --with-deps ${{ matrix.browser }}
           fi
-      
+
       - name: Run Playwright Tests
         run: npx playwright test -c config/playwright.config.js --project=${{ matrix.browser }}
         env:
@@ -114,7 +110,7 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
-      
+
       - name: Upload Test Results
         if: failure()
         uses: actions/upload-artifact@v4
@@ -128,77 +124,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
-      - name: Run npm audit (ratchet)
-        run: |
-          set +e
-          npm audit --audit-level=moderate --json > audit-report.json
-          AUDIT_STATUS=$?
-          set -e
 
-          node - <<'NODE'
-          const fs = require('fs');
-          const report = JSON.parse(fs.readFileSync('audit-report.json', 'utf8'));
-          const current = report.metadata?.vulnerabilities ?? {};
-          const baseline = { moderate: 8, high: 11, critical: 3 };
-          const levels = ['moderate', 'high', 'critical'];
+      - name: Install Dependencies
+        run: npm ci
 
-          let failed = false;
-          for (const level of levels) {
-            const count = current[level] ?? 0;
-            const limit = baseline[level];
-            console.log(`${level}: ${count} / ${limit} baseline`);
-            if (count > limit) {
-              console.error(`npm audit ${level} vulnerabilities increased above baseline (${limit}).`);
-              failed = true;
-            }
-          }
-
-          if (failed) process.exit(1);
-          NODE
-
-          cp audit-report.json security-report.txt
-
-          if [ "$AUDIT_STATUS" -ne 0 ]; then
-            echo "Existing npm audit debt is present; ratchet allows the current baseline only."
-          fi
+      - name: Run npm audit
+        run: npm audit --audit-level=high
 
       - name: Dependency Check
         run: npx snyk test --severity-threshold=high
-        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      
-      - name: Upload Security Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-report
-          path: security-report.txt
 
   build-check:
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, security-scan]
+    needs: [lint, type-check, unit-tests, security-scan]
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
         node-version: '20.x'
         cache: 'npm'
-    
+
     - run: npm ci
     - name: Build Application
       run: npm run build
       env:
         VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
-    
+
     - name: Archive Production Build
       uses: actions/upload-artifact@v4
       with:
@@ -208,19 +168,21 @@ jobs:
   report:
     name: 📊 Test Summary
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, e2e-tests, security-scan, build-check]
+    needs: [lint, type-check, unit-tests, e2e-tests, security-scan, build-check]
     if: always()
     steps:
       - name: Check Results
         run: |
           echo "Quality gate summary:"
           echo "Lint: ${{ needs.lint.result }}"
+          echo "Type-check: ${{ needs.type-check.result }}"
           echo "Unit Tests: ${{ needs.unit-tests.result }}"
           echo "E2E Tests: ${{ needs.e2e-tests.result }}"
           echo "Security Scan: ${{ needs.security-scan.result }}"
           echo "Build: ${{ needs.build-check.result }}"
 
           if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.type-check.result }}" != "success" ] || \
              [ "${{ needs.unit-tests.result }}" != "success" ] || \
              [ "${{ needs.e2e-tests.result }}" != "success" ] || \
              [ "${{ needs.security-scan.result }}" != "success" ] || \

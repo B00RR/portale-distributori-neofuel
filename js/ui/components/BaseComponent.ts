@@ -11,32 +11,34 @@ export class BaseComponent extends LitElement {
   /**
    * Stili comuni a tutti i componenti
    */
-  static override styles: CSSResultGroup = [css`
-    * {
-      box-sizing: border-box;
-    }
+  static override styles: CSSResultGroup = [
+    css`
+      * {
+        box-sizing: border-box;
+      }
 
-    :host {
-      display: block;
-    }
+      :host {
+        display: block;
+      }
 
-    /* Utility classes */
-    .hidden {
-      display: none !important;
-    }
+      /* Utility classes */
+      .hidden {
+        display: none !important;
+      }
 
-    .error {
-      color: var(--danger-color, #dc3545);
-    }
+      .error {
+        color: var(--danger-color, #dc3545);
+      }
 
-    .success {
-      color: var(--success-color, #28a745);
-    }
+      .success {
+        color: var(--success-color, #28a745);
+      }
 
-    .warning {
-      color: var(--warning-color, #ffc107);
-    }
-  `];
+      .warning {
+        color: var(--warning-color, #ffc107);
+      }
+    `
+  ];
 
   /**
    * Emette un evento personalizzato
@@ -44,11 +46,13 @@ export class BaseComponent extends LitElement {
    * @param {unknown} detail - Dettagli dell'evento
    */
   public emit(eventName: string, detail: unknown = {}): void {
-    this.dispatchEvent(new CustomEvent(eventName, {
-      detail,
-      bubbles: true,
-      composed: true
-    }));
+    this.dispatchEvent(
+      new CustomEvent(eventName, {
+        detail,
+        bubbles: true,
+        composed: true
+      })
+    );
   }
 
   /**

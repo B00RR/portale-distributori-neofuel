@@ -77,9 +77,9 @@ npm run lint        # ESLint with max-warnings 0
    - Validation and Supabase calls are stubbed, so unit tests do not exercise true end-to-end behavior.
    - E2E tests (`e2e/`) are the source of truth for real integrations.
 
-4. **CI "Elite Quality Gate" is permissive**  
-   - Lint, format, and audit steps have `continue-on-error: true` in CI.
-   - Local runs fail hard; CI is more lenient.
+4. **CI "Elite Quality Gate" is strict (zero-tolerance)**  
+   - `lint` (eslint `--max-warnings 0`), `type-check`, `unit-tests`, `e2e-tests`, `security-scan` (npm audit `--audit-level=high` + Snyk), and `build-check` all hard-fail the gate.
+   - No `continue-on-error` and no ratchet baselines: any new lint warning, prettier diff, type error, or high/critical vuln blocks the merge.
 
 ## Safety
 

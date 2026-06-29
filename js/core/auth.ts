@@ -17,29 +17,30 @@ import { logger } from './logger.js';
 
 // ========== TYPE DEFINITIONS ==========
 
-export type UserRole = 'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accounting' | 'billing';
+export type UserRole =
+  'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accounting' | 'billing';
 
 export interface AssignedStation {
-    id: number;
-    name?: string | undefined;
+  id: number;
+  name?: string | undefined;
 }
 
 export interface UserStationData {
-    station_id: number;
-    fuel_stations?: {
-        station_name?: string;
-    };
+  station_id: number;
+  fuel_stations?: {
+    station_name?: string;
+  };
 }
 
 export interface LoggedUserData {
-    id: string; // Supabase Auth UUID
-    user_id: number; // Database user_id
-    email: string;
-    full_name: string;
-    role: UserRole;
-    station_id?: number | null;
-    user_stations?: UserStationData[];
-    assignedStations?: AssignedStation[];
+  id: string; // Supabase Auth UUID
+  user_id: number; // Database user_id
+  email: string;
+  full_name: string;
+  role: UserRole;
+  station_id?: number | null;
+  user_stations?: UserStationData[];
+  assignedStations?: AssignedStation[];
 }
 
 export type LoginSuccessCallback = (user: LoggedUserData) => void;
@@ -73,7 +74,9 @@ export function setLoggedUser(user: LoggedUserData): void {
  */
 export function initLoginElements(): void {
   const form = document.getElementById('login-form') as HTMLFormElement | null;
-  if (!form) {return;}
+  if (!form) {
+    return;
+  }
 
   if (form !== loginForm) {
     loginFormInitialized = false;
@@ -99,7 +102,14 @@ export function initLoginElements(): void {
 
 function normalizeUserRole(role: string | undefined): UserRole {
   const normalized = (role || 'operator').trim();
-  const allowed: readonly UserRole[] = ['admin', 'super_admin', 'full_admin', 'operator', 'accounting', 'billing'];
+  const allowed: readonly UserRole[] = [
+    'admin',
+    'super_admin',
+    'full_admin',
+    'operator',
+    'accounting',
+    'billing'
+  ];
   if ((allowed as readonly string[]).includes(normalized)) {
     return normalized as UserRole;
   }
@@ -135,7 +145,9 @@ function setupPasswordToggle(toggleId: string, inputId: string, iconId: string):
   const passwordInput = document.getElementById(inputId) as HTMLInputElement | null;
   const passwordIcon = document.getElementById(iconId);
 
-  if (!toggleBtn || !passwordInput || !passwordIcon) {return;}
+  if (!toggleBtn || !passwordInput || !passwordIcon) {
+    return;
+  }
 
   setPasswordToggleState(toggleBtn, passwordInput, passwordIcon);
 
@@ -152,8 +164,12 @@ function setupPasswordToggle(toggleId: string, inputId: string, iconId: string):
  * Setup login form event listeners
  */
 export function setupLoginForm(): void {
-  if (!loginForm) {return;}
-  if (loginFormInitialized) {return;}
+  if (!loginForm) {
+    return;
+  }
+  if (loginFormInitialized) {
+    return;
+  }
 
   // Direct event listener for password toggle (more reliable than delegation)
   setupPasswordToggle('toggle-password', 'password', 'password-icon');
@@ -162,7 +178,9 @@ export function setupLoginForm(): void {
     e.preventDefault();
 
     const errorElement = loginError || document.getElementById('login-error');
-    if (errorElement) {errorElement.textContent = '';}
+    if (errorElement) {
+      errorElement.textContent = '';
+    }
 
     // Defense-in-depth: enforce native HTML5 constraints (required, type=email)
     // and surface field-level feedback before any further processing. This guards
@@ -188,7 +206,9 @@ export function setupLoginForm(): void {
     });
 
     if (!validation.success) {
-      if (errorElement) {errorElement.textContent = validation.error;}
+      if (errorElement) {
+        errorElement.textContent = validation.error;
+      }
       return;
     }
 
@@ -196,7 +216,8 @@ export function setupLoginForm(): void {
 
     // SECURITY: Rate limiting - prevent brute force attacks
     const rateLimitKey = `login:${email}`;
-    if (isRateLimited(rateLimitKey, 5, 60000)) { // 5 attempts per minute
+    if (isRateLimited(rateLimitKey, 5, 60000)) {
+      // 5 attempts per minute
       const remaining = getRemainingAttempts(rateLimitKey, 5);
       if (errorElement) {
         errorElement.textContent = `Troppi tentativi di login. Riprova tra 1 minuto. (${remaining} tentativi rimanenti)`;
@@ -207,13 +228,14 @@ export function setupLoginForm(): void {
 
     try {
       showFullScreenLoader();
-      const submitBtn = loginForm?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const submitBtn = loginForm?.querySelector(
+        'button[type="submit"]'
+      ) as HTMLButtonElement | null;
       setButtonLoading(submitBtn, true, 'Accesso in corso...');
 
       // Get UI containers for later use
       const loginContainer = document.getElementById('login-container');
       const appContainer = document.getElementById('app-container');
-
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
@@ -226,55 +248,65 @@ export function setupLoginForm(): void {
         logger.error('auth', 'Auth error:', authError);
 
         // Email not confirmed error
-        if (authError.message && (
-          authError.message.includes('Email not confirmed') ||
-                    authError.message.includes('email_not_confirmed')
-        )) {
+        if (
+          authError.message &&
+          (authError.message.includes('Email not confirmed') ||
+            authError.message.includes('email_not_confirmed'))
+        ) {
           if (errorElement) {
-            errorElement.textContent = "Email non confermata. Contatta l'amministratore per la convalida.";
+            errorElement.textContent =
+              "Email non confermata. Contatta l'amministratore per la convalida.";
           }
           return;
         }
 
         // Invalid credentials or other errors - NO DATABASE FALLBACK
         if (errorElement) {
-          errorElement.textContent = authError.message === 'Invalid login credentials' ||
-                        authError.message.includes('Invalid') ||
-                        authError.message.includes('invalid')
-            ? 'Email o password errati.'
-            : `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message}`;
+          errorElement.textContent =
+            authError.message === 'Invalid login credentials' ||
+            authError.message.includes('Invalid') ||
+            authError.message.includes('invalid')
+              ? 'Email o password errati.'
+              : `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message}`;
         }
         return;
       }
 
       if (!authData?.user) {
         logger.error('auth', 'No user data returned');
-        if (errorElement) {errorElement.textContent = 'Errore durante il login. Riprova.';}
+        if (errorElement) {
+          errorElement.textContent = 'Errore durante il login. Riprova.';
+        }
         return;
       }
 
       // Fetch user data from database using authenticated user's email
       if (authData?.user) {
         if (!authData.user.email) {
-          if (errorElement) {errorElement.textContent = 'Errore: email utente non disponibile.';}
+          if (errorElement) {
+            errorElement.textContent = 'Errore: email utente non disponibile.';
+          }
           return;
         }
         const userEmail = authData.user.email;
 
         const { data: dbUserData, error: _userError } = await supabase
           .from('users')
-          .select(`
+          .select(
+            `
                     *,
                     user_stations(
                         station_id,
                         fuel_stations(station_name)
                     )
-                `)
+                `
+          )
           .eq('email', userEmail)
           .maybeSingle();
 
         if (dbUserData) {
-          const fullName = dbUserData.full_name ||
+          const fullName =
+            dbUserData.full_name ||
             authData.user.user_metadata?.full_name ||
             userEmail.split('@')[0] ||
             'Operatore';
@@ -288,14 +320,18 @@ export function setupLoginForm(): void {
             assignedStations: mapAssignedStations(dbUserData.user_stations)
           };
         } else {
-          logger.warn('auth', 'User not found via standard SELECT. Attempting Secure RPC lookup...');
+          logger.warn(
+            'auth',
+            'User not found via standard SELECT. Attempting Secure RPC lookup...'
+          );
 
           // Only try RPC if we have authData.user
           if (authData?.user) {
             const { data: rpcId, error: rpcError } = await supabase.rpc('current_user_id');
 
             if (rpcId && !rpcError) {
-              const fallbackName = authData.user.user_metadata?.full_name ||
+              const fallbackName =
+                authData.user.user_metadata?.full_name ||
                 authData.user.email?.split('@')[0] ||
                 'Operatore';
               userData = {
@@ -309,10 +345,13 @@ export function setupLoginForm(): void {
             } else {
               logger.error('auth', 'RPC lookup failed:', rpcError);
               if (!authData.user.email) {
-                if (errorElement) {errorElement.textContent = 'Errore: email utente non disponibile.';}
+                if (errorElement) {
+                  errorElement.textContent = 'Errore: email utente non disponibile.';
+                }
                 return;
               }
-              const fallbackName = authData.user.user_metadata?.full_name ||
+              const fallbackName =
+                authData.user.user_metadata?.full_name ||
                 authData.user.email.split('@')[0] ||
                 'Operatore';
               userData = {
@@ -336,7 +375,9 @@ export function setupLoginForm(): void {
       // Final userData validation
       if (!userData) {
         logger.error('auth', 'Failed to get userData from any source');
-        if (errorElement) {errorElement.textContent = 'Errore durante il login. Utente non trovato.';}
+        if (errorElement) {
+          errorElement.textContent = 'Errore durante il login. Utente non trovato.';
+        }
         return;
       }
 
@@ -358,7 +399,8 @@ export function setupLoginForm(): void {
       // SECURITY: Clean URL to remove any credentials that may have leaked
       // (runs in all environments, not just dev)
       if (window.location.search || window.location.hash) {
-        const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+        const cleanUrl =
+          window.location.protocol + '//' + window.location.host + window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
       }
 
@@ -371,7 +413,9 @@ export function setupLoginForm(): void {
         appContainer.style.display = 'block';
       }
 
-      const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(loggedUser.role);
+      const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(
+        loggedUser.role
+      );
       if (isAdminRole) {
         document.body.classList.add('admin-layout', 'desktop-layout');
       } else {
@@ -385,7 +429,6 @@ export function setupLoginForm(): void {
         // SECURITY: Reset rate limit on successful login
         resetRateLimit(`login:${email}`);
       }
-
     } catch (err: unknown) {
       logger.error('auth', 'Errore durante il login (catch):', err);
       if (errorElement) {
@@ -394,7 +437,9 @@ export function setupLoginForm(): void {
       }
     } finally {
       hideFullScreenLoader();
-      const submitBtn = loginForm?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+      const submitBtn = loginForm?.querySelector(
+        'button[type="submit"]'
+      ) as HTMLButtonElement | null;
       setButtonLoading(submitBtn, false);
     }
   });
@@ -410,8 +455,13 @@ export async function loadSession(): Promise<LoggedUserData | null> {
       return null;
     }
 
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error || !session?.user) {return null;}
+    const {
+      data: { session },
+      error
+    } = await supabase.auth.getSession();
+    if (error || !session?.user) {
+      return null;
+    }
 
     const email = session.user.email;
     if (!email) {
@@ -420,13 +470,15 @@ export async function loadSession(): Promise<LoggedUserData | null> {
 
     const { data: dbUserData } = await supabase
       .from('users')
-      .select(`
+      .select(
+        `
                 *,
                 user_stations(
                     station_id,
                     fuel_stations(station_name)
                 )
-            `)
+            `
+      )
       .eq('email', email)
       .maybeSingle();
 
@@ -437,9 +489,8 @@ export async function loadSession(): Promise<LoggedUserData | null> {
       const { data: rpcId, error: rpcError } = await supabase.rpc('current_user_id');
 
       if (rpcId && !rpcError) {
-        const fallbackName = session.user.user_metadata?.full_name ||
-          email.split('@')[0] ||
-          'Operatore';
+        const fallbackName =
+          session.user.user_metadata?.full_name || email.split('@')[0] || 'Operatore';
         userData = {
           id: session.user.id,
           user_id: rpcId,
@@ -450,9 +501,8 @@ export async function loadSession(): Promise<LoggedUserData | null> {
         };
       } else {
         logger.error('auth', 'RPC lookup failed:', rpcError);
-        const fallbackName = session.user.user_metadata?.full_name ||
-          email.split('@')[0] ||
-          'Operatore';
+        const fallbackName =
+          session.user.user_metadata?.full_name || email.split('@')[0] || 'Operatore';
         userData = {
           id: session.user.id,
           // No numeric DB user_id is resolvable here: the DB row is missing
@@ -468,7 +518,8 @@ export async function loadSession(): Promise<LoggedUserData | null> {
         };
       }
     } else {
-      const fullName = dbUserData.full_name ||
+      const fullName =
+        dbUserData.full_name ||
         session.user.user_metadata?.full_name ||
         email.split('@')[0] ||
         'Operatore';
@@ -511,14 +562,14 @@ export async function clearSession(): Promise<void> {
     }
 
     // Clear Supabase localStorage keys
-    const supabaseKeys = Object.keys(localStorage).filter(key =>
-      key.startsWith('sb-') || key.includes('supabase')
+    const supabaseKeys = Object.keys(localStorage).filter(
+      key => key.startsWith('sb-') || key.includes('supabase')
     );
     supabaseKeys.forEach(key => localStorage.removeItem(key));
 
     // Clear sessionStorage
-    const supabaseSessionKeys = Object.keys(sessionStorage).filter(key =>
-      key.startsWith('sb-') || key.includes('supabase')
+    const supabaseSessionKeys = Object.keys(sessionStorage).filter(
+      key => key.startsWith('sb-') || key.includes('supabase')
     );
     supabaseSessionKeys.forEach(key => sessionStorage.removeItem(key));
 
@@ -532,7 +583,9 @@ export async function clearSession(): Promise<void> {
 /**
  * Request password reset email
  */
-export async function requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
+export async function requestPasswordReset(
+  email: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     const redirectUrl = `${window.location.origin}${window.location.pathname}`;
 
@@ -542,9 +595,15 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
       redirectTo: redirectUrl
     });
 
-    if (error) {throw error;}
+    if (error) {
+      throw error;
+    }
 
-    Toast.show('Email di reset password inviata! Usa il codice OTP a 6 cifre ricevuto via email.', 'success', 5000);
+    Toast.show(
+      'Email di reset password inviata! Usa il codice OTP a 6 cifre ricevuto via email.',
+      'success',
+      5000
+    );
 
     showOTPResetForm();
 
@@ -552,7 +611,7 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
   } catch (error: unknown) {
     logger.error('auth', 'Errore durante la richiesta di reset password:', error);
     const message = error instanceof Error ? error.message : 'Errore sconosciuto';
-    Toast.show('Errore durante l\'invio dell\'email di reset password: ' + message, 'error');
+    Toast.show("Errore durante l'invio dell'email di reset password: " + message, 'error');
     return { success: false, error: message };
   }
 }
@@ -562,8 +621,12 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
  */
 export function showOTPResetForm(): void {
   initLoginElements();
-  if (loginContainer) {loginContainer.style.display = 'none';}
-  if (appContainer) {appContainer.style.display = 'block';}
+  if (loginContainer) {
+    loginContainer.style.display = 'none';
+  }
+  if (appContainer) {
+    appContainer.style.display = 'block';
+  }
 
   const mainContent = document.getElementById('main-content') || document.body;
   mainContent.innerHTML = `
@@ -611,13 +674,21 @@ export function showOTPResetForm(): void {
       const savedEmail = localStorage.getItem('password_reset_email');
 
       if (!savedEmail) {
-        const email = await showPromptModal('Inserisci la tua email per verificare il codice:', 'email@esempio.com', 'Email Richiesta');
+        const email = await showPromptModal(
+          'Inserisci la tua email per verificare il codice:',
+          'email@esempio.com',
+          'Email Richiesta'
+        );
         if (!email) {
           errorElement.textContent = 'Email richiesta per verificare il codice.';
           return;
         }
         sessionStorage.setItem('password_reset_in_progress', 'true');
-        const { error } = await supabase.auth.verifyOtp({ email: email, token: otpCode, type: 'recovery' });
+        const { error } = await supabase.auth.verifyOtp({
+          email: email,
+          token: otpCode,
+          type: 'recovery'
+        });
         if (error) {
           errorElement.textContent = 'Codice non valido o scaduto: ' + error.message;
           return;
@@ -627,7 +698,11 @@ export function showOTPResetForm(): void {
         showResetPasswordForm();
       } else {
         sessionStorage.setItem('password_reset_in_progress', 'true');
-        const { error } = await supabase.auth.verifyOtp({ email: savedEmail, token: otpCode, type: 'recovery' });
+        const { error } = await supabase.auth.verifyOtp({
+          email: savedEmail,
+          token: otpCode,
+          type: 'recovery'
+        });
         if (error) {
           errorElement.textContent = 'Codice non valido o scaduto: ' + error.message;
           return;
@@ -638,9 +713,13 @@ export function showOTPResetForm(): void {
         showResetPasswordForm();
       }
     } catch (err: unknown) {
-      const msg = 'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
-      if (errorElement) { errorElement.textContent = msg; }
-      else { logger.error('auth', 'OTP reset failure (no error element):', msg); }
+      const msg =
+        'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
+      if (errorElement) {
+        errorElement.textContent = msg;
+      } else {
+        logger.error('auth', 'OTP reset failure (no error element):', msg);
+      }
     }
   });
 
@@ -656,8 +735,12 @@ export function showOTPResetForm(): void {
  */
 export function showResetPasswordForm(): void {
   initLoginElements();
-  if (loginContainer) {loginContainer.style.display = 'none';}
-  if (appContainer) {appContainer.style.display = 'block';}
+  if (loginContainer) {
+    loginContainer.style.display = 'none';
+  }
+  if (appContainer) {
+    appContainer.style.display = 'block';
+  }
 
   const mainContent = document.getElementById('main-content') || document.body;
   mainContent.innerHTML = `
@@ -711,7 +794,8 @@ export function showResetPasswordForm(): void {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
-        errorElement.textContent = 'Errore durante l\'aggiornamento della password: ' + error.message;
+        errorElement.textContent =
+          "Errore durante l'aggiornamento della password: " + error.message;
         return;
       }
       sessionStorage.removeItem('password_reset_in_progress');
@@ -720,9 +804,13 @@ export function showResetPasswordForm(): void {
       Toast.show('Password aggiornata con successo! Ora puoi effettuare il login.', 'success');
       window.location.href = window.location.pathname;
     } catch (err: unknown) {
-      const msg = 'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
-      if (errorElement) { errorElement.textContent = msg; }
-      else { logger.error('auth', 'Password reset failure (no error element):', msg); }
+      const msg =
+        'Errore imprevisto: ' + (err instanceof Error ? err.message : 'Errore sconosciuto');
+      if (errorElement) {
+        errorElement.textContent = msg;
+      } else {
+        logger.error('auth', 'Password reset failure (no error element):', msg);
+      }
     }
   });
 }

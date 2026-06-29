@@ -9,6 +9,7 @@ import noUnsanitized from 'eslint-plugin-no-unsanitized';
 import importPlugin from 'eslint-plugin-import';
 import promise from 'eslint-plugin-promise';
 import globals from 'globals';
+import prettierConfig from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
@@ -151,5 +152,9 @@ export default tseslint.config(
         }
       ]
     }
-  }
+  },
+
+  // Must be last: disables ESLint stylistic rules that conflict with Prettier
+  // (indent, semi, quotes, comma-dangle, spacing). Prettier owns formatting.
+  prettierConfig
 );

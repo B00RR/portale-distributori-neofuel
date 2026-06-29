@@ -9,9 +9,7 @@ import { closeModal, openModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
 
-import {
-  createWarningMessage
-} from './ui-components.js';
+import { createWarningMessage } from './ui-components.js';
 // Import component to register it
 import '../ui/components/ShiftOpener.js';
 
@@ -31,7 +29,9 @@ function getClosingStage(data: Json | null): 'partial' | 'final' | undefined {
  */
 export async function updateOpeningStatus(stationId: number | string): Promise<void> {
   const badge = document.getElementById('opening-status');
-  if (!badge) { return; }
+  if (!badge) {
+    return;
+  }
 
   const activeOpening = await checkOpeningStatus(stationId);
 
@@ -58,15 +58,21 @@ export async function checkOpeningStatus(stationId: number | string): Promise<Sh
     // Usa la nuova tabella shifts unificata
     const { data, error } = await supabase
       .from('shifts')
-      .select('id, opened_at, operator_id, status, opening_data, closing_data, users!operator_id(full_name)')
+      .select(
+        'id, opened_at, operator_id, status, opening_data, closing_data, users!operator_id(full_name)'
+      )
       .eq('station_id', Number(stationId))
       .is('closed_at', null)
       .order('opened_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (error) { throw error; }
-    if (!data) { return null; }
+    if (error) {
+      throw error;
+    }
+    if (!data) {
+      return null;
+    }
 
     return data as unknown as Shift;
   } catch (err) {
@@ -90,11 +96,15 @@ export async function showAperturaForm(stationId: number | string, userId: strin
       openModal('Apertura Già Effettuata');
       const modalBody = document.getElementById('modal-body');
       if (modalBody) {
-        setSafeHTML(modalBody, createWarningMessage(
-          'Apertura Già Effettuata',
-          'Il turno è già stato aperto',
-          `Data apertura: ${openingDate}. Devi prima chiudere il turno corrente prima di aprirne uno nuovo.`
-        ) + '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>');
+        setSafeHTML(
+          modalBody,
+          createWarningMessage(
+            'Apertura Già Effettuata',
+            'Il turno è già stato aperto',
+            `Data apertura: ${openingDate}. Devi prima chiudere il turno corrente prima di aprirne uno nuovo.`
+          ) +
+            '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-warning" class="menu-button primary">Chiudi</button></div>'
+        );
 
         const closeBtn = document.getElementById('btn-close-warning');
         if (closeBtn) {
@@ -107,7 +117,9 @@ export async function showAperturaForm(stationId: number | string, userId: strin
     // Apri il modal e renderizza il componente
     openModal('Apertura Turno');
     const modalBody = document.getElementById('modal-body');
-    if (!modalBody) { return; }
+    if (!modalBody) {
+      return;
+    }
 
     setSafeHTML(modalBody, ''); // Pulisci modal
 
@@ -129,14 +141,16 @@ export async function showAperturaForm(stationId: number | string, userId: strin
     });
 
     modalBody.appendChild(opener);
-
   } catch (err) {
     logger.error('opening', 'Errore apertura form:', err);
     openModal('Errore');
     const errorModalBody = document.getElementById('modal-body');
     if (errorModalBody) {
       const message = err instanceof Error ? err.message : 'Errore imprevisto';
-      setSafeHTML(errorModalBody, `<p style="color: red; padding: 20px;">${escapeHtml(message)}</p>`);
+      setSafeHTML(
+        errorModalBody,
+        `<p style="color: red; padding: 20px;">${escapeHtml(message)}</p>`
+      );
     }
   }
 }

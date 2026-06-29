@@ -17,36 +17,31 @@ import { showStationsTab } from './stations.js';
 // ========== TYPE DEFINITIONS ==========
 
 export type AdminTab =
-    | 'dashboard'
-    | 'stations'
-    | 'operators'
-    | 'shifts'
-    | 'crediti'
-    | 'invoices'
-    | 'vouchers'
-    | 'notifiche'
-    | 'analytics'
-    | 'settings';
+  | 'dashboard'
+  | 'stations'
+  | 'operators'
+  | 'shifts'
+  | 'crediti'
+  | 'invoices'
+  | 'vouchers'
+  | 'notifiche'
+  | 'analytics'
+  | 'settings';
 
 export type UserRole =
-    | 'admin'
-    | 'super_admin'
-    | 'full_admin'
-    | 'operator'
-    | 'accounting'
-    | 'billing';
+  'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accounting' | 'billing';
 
 const TAB_TITLES: Record<AdminTab, string> = {
-  'dashboard': 'Dashboard',
-  'stations': 'Gestione Distributori',
-  'operators': 'Gestione Operatori',
-  'shifts': 'Registro Chiusure',
-  'crediti': 'Gestione Crediti',
-  'invoices': 'Richieste Fatture',
-  'vouchers': 'Gestione Voucher',
-  'notifiche': 'Notifiche',
-  'analytics': 'Analytics',
-  'settings': 'Impostazioni'
+  dashboard: 'Dashboard',
+  stations: 'Gestione Distributori',
+  operators: 'Gestione Operatori',
+  shifts: 'Registro Chiusure',
+  crediti: 'Gestione Crediti',
+  invoices: 'Richieste Fatture',
+  vouchers: 'Gestione Voucher',
+  notifiche: 'Notifiche',
+  analytics: 'Analytics',
+  settings: 'Impostazioni'
 };
 
 // ========== ROUTER CLASS ==========
@@ -63,16 +58,16 @@ class AdminRouter {
   }
 
   /**
-     * Initialize router with user permissions
-     */
+   * Initialize router with user permissions
+   */
   init(userRole: string | null | undefined): void {
     this.userRole = (userRole as UserRole) || 'operator';
     this.isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(this.userRole);
   }
 
   /**
-     * Navigate to a specific tab
-     */
+   * Navigate to a specific tab
+   */
   async navigateTo(tab: AdminTab): Promise<void> {
     this.currentTab = tab;
 
@@ -80,7 +75,9 @@ class AdminRouter {
     const headerActions = document.getElementById('header-actions');
     const pageSubtitle = document.getElementById('page-subtitle');
 
-    if (!content) {return;}
+    if (!content) {
+      return;
+    }
 
     document.querySelectorAll('.nav-btn').forEach(btn => {
       const element = btn as HTMLElement;
@@ -110,8 +107,8 @@ class AdminRouter {
   }
 
   /**
-     * Check if user has permission for a tab
-     */
+   * Check if user has permission for a tab
+   */
   private checkPermission(tab: AdminTab): boolean {
     const { userRole, isFullAdmin } = this;
 
@@ -138,8 +135,8 @@ class AdminRouter {
   }
 
   /**
-     * Load the appropriate tab module
-     */
+   * Load the appropriate tab module
+   */
   private async loadTab(
     tab: AdminTab,
     content: HTMLElement,
@@ -152,7 +149,7 @@ class AdminRouter {
         break;
 
       case 'stations':
-        (showStationsTab)(content, headerActions);
+        showStationsTab(content, headerActions);
         break;
 
       case 'operators':
@@ -218,8 +215,8 @@ class AdminRouter {
   }
 
   /**
-     * Get current tab
-     */
+   * Get current tab
+   */
   getCurrentTab(): AdminTab {
     return this.currentTab;
   }

@@ -1,70 +1,76 @@
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { Toast } from '../ui/toast.js';
-import { showLoadingMessage, showInfoModal, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
+import {
+  showLoadingMessage,
+  showInfoModal,
+  openModal,
+  closeModal,
+  openConfirmModal
+} from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatEuro, formatDate, getErrorMessage } from '../utils/utils.js';
 
 // --- INTERFACES ---
 
 interface VoucherBatch {
-    id: string;
-    description: string;
-    customer_name: string | null;
-    expiration_date: string | null;
-    created_at: string;
+  id: string;
+  description: string;
+  customer_name: string | null;
+  expiration_date: string | null;
+  created_at: string;
 }
 
 interface Voucher {
-    id: number | string;
-    batch_id: string;
-    code: string;
-    amount: number;
-    status: 'active' | 'redeemed' | 'expired' | 'void';
-    expiration_date: string | null;
-    created_at: string;
-    redeemed_at: string | null;
-    serial_number: number;
+  id: number | string;
+  batch_id: string;
+  code: string;
+  amount: number;
+  status: 'active' | 'redeemed' | 'expired' | 'void';
+  expiration_date: string | null;
+  created_at: string;
+  redeemed_at: string | null;
+  serial_number: number;
 }
 
 interface Customer {
-    id: number;
-    cliente: string;
+  id: number;
+  cliente: string;
 }
 
 interface VoucherFilters {
-    status: string;
-    dateFrom: string;
-    dateTo: string;
-    clientSearch: string;
+  status: string;
+  dateFrom: string;
+  dateTo: string;
+  clientSearch: string;
 }
 
 interface VoucherState {
-    batches: VoucherBatch[];
-    customers: Customer[];
-    activeTab: 'generator' | 'dashboard';
-    dashboardView: 'batches' | 'vouchers';
-    currentPage: number;
-    pageSize: number;
-    totalCount: number;
-    filters: VoucherFilters;
+  batches: VoucherBatch[];
+  customers: Customer[];
+  activeTab: 'generator' | 'dashboard';
+  dashboardView: 'batches' | 'vouchers';
+  currentPage: number;
+  pageSize: number;
+  totalCount: number;
+  filters: VoucherFilters;
 }
 
 interface BatchStats {
-    totalCount: number;
-    redeemedCount: number;
-    activeCount: number;
-    voidCount: number;
-    totalAmount: number;
-    redeemedAmount: number;
+  totalCount: number;
+  redeemedCount: number;
+  activeCount: number;
+  voidCount: number;
+  totalAmount: number;
+  redeemedAmount: number;
 }
 
 interface CustomWindow extends Window {
-    voucherActions?: {
-        openPrintView: (batchId: string) => void;
-        showBatchDetails: (batchId: string) => void;
-        handleDeleteBatch: (batchId: string) => void;
-    };
+  voucherActions?: {
+    openPrintView: (batchId: string) => void;
+    showBatchDetails: (batchId: string) => void;
+    handleDeleteBatch: (batchId: string) => void;
+  };
 }
 
 declare const window: CustomWindow;
@@ -87,13 +93,18 @@ const voucherState: VoucherState = {
 };
 
 // --- INITIALIZATION ---
-export async function showVoucherAdminTab(container: HTMLElement, _headerActions?: HTMLElement | null): Promise<void> {
+export async function showVoucherAdminTab(
+  container: HTMLElement,
+  _headerActions?: HTMLElement | null
+): Promise<void> {
   // Initial structure rendering (Shell)
   // We only re-render the full container if it's the first time or if forced
   const isAlreadyRendered = container.querySelector('[data-testid="voucher-admin-panel"]');
 
   if (!isAlreadyRendered) {
-    setSafeHTML(container, `
+    setSafeHTML(
+      container,
+      `
             <div class="app-container" data-testid="voucher-admin-panel" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
                 <div class="top-bar-title">
                     <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher V3</h2>
@@ -108,17 +119,22 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
                     <!-- Content injected here -->
                 </div>
             </div>
-        `);
+        `
+    );
 
     // Bind Tabs ONCE using Delegation on the permanent tabs container
     const tabsContainer = document.getElementById('voucher-tabs');
     if (tabsContainer) {
-      tabsContainer.addEventListener('click', (e) => {
+      tabsContainer.addEventListener('click', e => {
         const btn = (e.target as HTMLElement).closest('.menu-button[data-tab]');
-        if (!btn) {return;}
+        if (!btn) {
+          return;
+        }
 
         const tabId = (btn as HTMLElement).dataset.tab as 'generator' | 'dashboard';
-        if (!tabId || tabId === voucherState.activeTab) {return;}
+        if (!tabId || tabId === voucherState.activeTab) {
+          return;
+        }
 
         voucherState.activeTab = tabId;
         updateTabButtons();
@@ -141,9 +157,13 @@ export async function showVoucherAdminTab(container: HTMLElement, _headerActions
 
 function updateTabButtons(): void {
   const tabsContainer = document.getElementById('voucher-tabs');
-  if (!tabsContainer) {return;}
+  if (!tabsContainer) {
+    return;
+  }
 
-  setSafeHTML(tabsContainer, `
+  setSafeHTML(
+    tabsContainer,
+    `
         <button class="menu-button ${voucherState.activeTab === 'generator' ? 'primary' : 'outline'}" data-tab="generator" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
             <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
                 <i class="fas fa-plus-circle"></i> Genera
@@ -157,7 +177,8 @@ function updateTabButtons(): void {
             </div>
             <div style="font-size: 0.85rem; opacity: 0.8;">Statistiche e liste</div>
         </button>
-    `);
+    `
+  );
 }
 
 // Global reference for the sync handler to allow removal
@@ -176,7 +197,9 @@ async function loadCustomers(): Promise<void> {
       .select('id, cliente')
       .order('cliente');
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
     voucherState.customers = (data as Customer[]) || [];
   } catch (err) {
     logger.error('vouchers', 'Error loading customers:', err);
@@ -186,7 +209,9 @@ async function loadCustomers(): Promise<void> {
 
 async function renderActiveTab(): Promise<void> {
   const content = document.getElementById('voucher-content');
-  if (!content) { return; }
+  if (!content) {
+    return;
+  }
 
   switch (voucherState.activeTab) {
     case 'generator':
@@ -205,7 +230,9 @@ function renderGenerator(container: HTMLElement): void {
   nextYear.setFullYear(nextYear.getFullYear() + 1);
   const nextYearStr = nextYear.toISOString().split('T')[0];
 
-  setSafeHTML(container, `
+  setSafeHTML(
+    container,
+    `
         <div class="menu-card" style="max-width: 900px; margin: 40px auto; padding: 50px; border-radius: 20px; box-shadow: var(--shadow-md);">
             <div style="text-align: center; margin-bottom: 50px;">
                 <h3 style="font-size: 2rem; margin-bottom: 12px; color: var(--primary-color);">Crea Nuovi Voucher</h3>
@@ -249,7 +276,8 @@ function renderGenerator(container: HTMLElement): void {
                 </div>
             </form>
         </div>
-    `);
+    `
+  );
 
   document.getElementById('voucher-generator-form')?.addEventListener('submit', handleGeneration);
 }
@@ -263,30 +291,40 @@ async function handleGeneration(e: Event): Promise<void> {
   const expiration = formData.get('expiration_date')?.toString() || '';
   const quantity = parseInt(formData.get('quantity')?.toString() || '0');
 
-  if (!amount || quantity < 1) { return; }
+  if (!amount || quantity < 1) {
+    return;
+  }
 
-  const confirmed = await openConfirmModal(`Confermi la generazione di ${quantity} voucher da ${formatEuro(amount)} ciascuno?\nTotale Valore Nominale: ${formatEuro(amount * quantity)}`);
+  const confirmed = await openConfirmModal(
+    `Confermi la generazione di ${quantity} voucher da ${formatEuro(amount)} ciascuno?\nTotale Valore Nominale: ${formatEuro(amount * quantity)}`
+  );
   if (!confirmed) {
     return;
   }
 
   const content = document.getElementById('voucher-content');
-  if (content) {showLoadingMessage(content);}
+  if (content) {
+    showLoadingMessage(content);
+  }
 
   try {
     // 1. Create Batch
     const batchDesc = `${quantity}x ${formatEuro(amount)}`;
     const { data: batch, error: batchError } = await supabase
       .from('voucher_batches')
-      .insert([{
-        description: batchDesc,
-        customer_name: customer || null,
-        expiration_date: expiration || null
-      }])
+      .insert([
+        {
+          description: batchDesc,
+          customer_name: customer || null,
+          expiration_date: expiration || null
+        }
+      ])
       .select()
       .single();
 
-    if (batchError || !batch) { throw batchError || new Error('Failed to create batch'); }
+    if (batchError || !batch) {
+      throw batchError || new Error('Failed to create batch');
+    }
 
     // 2. Generate Vouchers
     const vouchersPayload = [];
@@ -305,11 +343,11 @@ async function handleGeneration(e: Event): Promise<void> {
       });
     }
 
-    const { error: vouchersError } = await supabase
-      .from('vouchers')
-      .insert(vouchersPayload);
+    const { error: vouchersError } = await supabase.from('vouchers').insert(vouchersPayload);
 
-    if (vouchersError) { throw vouchersError; }
+    if (vouchersError) {
+      throw vouchersError;
+    }
 
     Toast.show('Voucher generati con successo!', 'success');
 
@@ -318,11 +356,12 @@ async function handleGeneration(e: Event): Promise<void> {
     voucherState.dashboardView = 'batches';
     updateTabButtons();
     renderActiveTab();
-
   } catch (err: unknown) {
     logger.error('vouchers', err);
     const content = document.getElementById('voucher-content');
-    if (content) {renderGenerator(content);} // Reset UI
+    if (content) {
+      renderGenerator(content);
+    } // Reset UI
     Toast.show('Errore Generazione: ' + getErrorMessage(err), 'error');
   }
 }
@@ -331,7 +370,9 @@ function generateVoucherCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I, O, 0, 1 to avoid confusion
   let result = '';
   for (let i = 0; i < 12; i++) {
-    if (i === 4 || i === 8) { result += '-'; }
+    if (i === 4 || i === 8) {
+      result += '-';
+    }
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result; // e.g. A4K9-XP3M-9L2N
@@ -339,13 +380,24 @@ function generateVoucherCode(): string {
 
 // --- DASHBOARD TAB ---
 async function renderDashboard(container: HTMLElement): Promise<void> {
-  setSafeHTML(container, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento Dashboard...</div>');
+  setSafeHTML(
+    container,
+    '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento Dashboard...</div>'
+  );
 
   try {
     // Fetch stats
-    const { count: totalGen } = await supabase.from('vouchers').select('*', { count: 'exact', head: true });
-    const { count: totalRedeemed } = await supabase.from('vouchers').select('*', { count: 'exact', head: true }).eq('status', 'redeemed');
-    const { count: totalActive } = await supabase.from('vouchers').select('*', { count: 'exact', head: true }).eq('status', 'active');
+    const { count: totalGen } = await supabase
+      .from('vouchers')
+      .select('*', { count: 'exact', head: true });
+    const { count: totalRedeemed } = await supabase
+      .from('vouchers')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'redeemed');
+    const { count: totalActive } = await supabase
+      .from('vouchers')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active');
 
     // PREPARE DATA - BATCHES VIEW ONLY
     const { data: batches, error: batchError } = await supabase
@@ -353,14 +405,18 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (batchError) { throw batchError; }
+    if (batchError) {
+      throw batchError;
+    }
 
     // Fetch aggregation data (all vouchers) needed for stats
     const { data: allVouchers, error: vouchersError } = await supabase
       .from('vouchers')
       .select('batch_id, status, amount');
 
-    if (vouchersError) { throw vouchersError; }
+    if (vouchersError) {
+      throw vouchersError;
+    }
 
     // Calculate stats per batch AND global monetary stats
     const batchStats: Record<string, BatchStats> = {};
@@ -370,7 +426,14 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
     (allVouchers as Voucher[]).forEach(v => {
       let stats = batchStats[v.batch_id];
       if (!stats) {
-        stats = { totalAmount: 0, redeemedAmount: 0, totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0 };
+        stats = {
+          totalAmount: 0,
+          redeemedAmount: 0,
+          totalCount: 0,
+          redeemedCount: 0,
+          activeCount: 0,
+          voidCount: 0
+        };
         batchStats[v.batch_id] = stats;
       }
       stats.totalAmount += v.amount;
@@ -568,32 +631,45 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                         </div>
 
                         <!-- ROWS -->
-                        ${(batches as VoucherBatch[]).map(b => {
-    const stats = batchStats[b.id] || { totalCount: 0, redeemedCount: 0, activeCount: 0, voidCount: 0, totalAmount: 0, redeemedAmount: 0 };
-    const residualAmount = stats.totalAmount - stats.redeemedAmount;
-    const isExpired = b.expiration_date && new Date(b.expiration_date) < new Date();
+                        ${(batches as VoucherBatch[])
+                          .map(b => {
+                            const stats = batchStats[b.id] || {
+                              totalCount: 0,
+                              redeemedCount: 0,
+                              activeCount: 0,
+                              voidCount: 0,
+                              totalAmount: 0,
+                              redeemedAmount: 0
+                            };
+                            const residualAmount = stats.totalAmount - stats.redeemedAmount;
+                            const isExpired =
+                              b.expiration_date && new Date(b.expiration_date) < new Date();
 
-    let statusLabel = 'Attivo';
-    let statusClass = 'badge-success';
+                            let statusLabel = 'Attivo';
+                            let statusClass = 'badge-success';
 
-    if (stats.voidCount === stats.totalCount && stats.totalCount > 0) {
-      statusLabel = 'Bloccato';
-      statusClass = 'badge-danger';
-    } else if (stats.redeemedCount === stats.totalCount && stats.totalCount > 0) {
-      statusLabel = 'Riscattato';
-      statusClass = 'badge-secondary';
-    } else if (isExpired) {
-      statusLabel = 'Scaduto';
-      statusClass = 'badge-danger';
-    } else if (stats.activeCount === 0 && stats.totalCount > 0) {
-      statusLabel = 'Riscattato';
-      statusClass = 'badge-secondary';
-    }
+                            if (stats.voidCount === stats.totalCount && stats.totalCount > 0) {
+                              statusLabel = 'Bloccato';
+                              statusClass = 'badge-danger';
+                            } else if (
+                              stats.redeemedCount === stats.totalCount &&
+                              stats.totalCount > 0
+                            ) {
+                              statusLabel = 'Riscattato';
+                              statusClass = 'badge-secondary';
+                            } else if (isExpired) {
+                              statusLabel = 'Scaduto';
+                              statusClass = 'badge-danger';
+                            } else if (stats.activeCount === 0 && stats.totalCount > 0) {
+                              statusLabel = 'Riscattato';
+                              statusClass = 'badge-secondary';
+                            }
 
-    const singleAmount = stats.totalCount > 0 ? (stats.totalAmount / stats.totalCount) : 0;
-    const lottoStr = `${stats.totalCount} / ${formatEuro(singleAmount)}`;
+                            const singleAmount =
+                              stats.totalCount > 0 ? stats.totalAmount / stats.totalCount : 0;
+                            const lottoStr = `${stats.totalCount} / ${formatEuro(singleAmount)}`;
 
-    return `
+                            return `
                             <div class="voucher-grid-row">
                                 <div class="voucher-cell">
                                     <div style="color: #334155; font-weight: 500;">${escapeHtml(b.customer_name || '-')}</div>
@@ -639,12 +715,15 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                                 </div>
                             </div>
                         `;
-  }).join('')}
+                          })
+                          .join('')}
                     </div>
                 </div>
             </div>`;
 
-    setSafeHTML(container, `
+    setSafeHTML(
+      container,
+      `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 1rem;">
                 <h3 style="margin: 0; font-size: 1.25rem; color: #0f172a;">Gestione Voucher</h3>
                 <button id="refresh-dashboard-btn" class="menu-button primary" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: 0.95rem;">
@@ -701,18 +780,22 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
             <div class="menu-card" style="padding: 0; background: transparent; box-shadow: none; max-width: 100%; overflow: hidden;">
                 ${tableHtml}
             </div>
-        `);
-
+        `
+    );
 
     // Bind action buttons with event delegation
-    container.addEventListener('click', (e) => {
+    container.addEventListener('click', e => {
       const btn = (e.target as HTMLElement).closest('[data-action]');
-      if (!btn) { return; }
+      if (!btn) {
+        return;
+      }
 
       const action = (btn as HTMLElement).dataset.action;
       const batchId = (btn as HTMLElement).dataset.batchId;
 
-      if (!batchId) { return; }
+      if (!batchId) {
+        return;
+      }
 
       switch (action) {
         case 'print':
@@ -744,22 +827,25 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
     if (refreshBtn) {
       refreshBtn.addEventListener('click', async () => {
         const icon = refreshBtn.querySelector('i');
-        if (icon) {icon.classList.add('fa-spin');}
+        if (icon) {
+          icon.classList.add('fa-spin');
+        }
         refreshBtn.disabled = true;
 
         try {
           await renderDashboard(container);
           Toast.show('Dashboard aggiornata', 'success');
         } catch (error) {
-          Toast.show('Errore durante l\'aggiornamento', 'error');
+          Toast.show("Errore durante l'aggiornamento", 'error');
           logger.error('vouchers', error);
         } finally {
-          if (icon) {icon.classList.remove('fa-spin');}
+          if (icon) {
+            icon.classList.remove('fa-spin');
+          }
           refreshBtn.disabled = false;
         }
       });
     }
-
   } catch (err: unknown) {
     setSafeHTML(container, `<p class="error-text">Errore: ${escapeHtml(getErrorMessage(err))}</p>`);
     logger.error('vouchers', err);
@@ -768,7 +854,9 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
 
 // --- COLUMN RESIZING UTILS ---
 function setupColumnResizing(table: HTMLElement | null): void {
-  if (!table) { return; }
+  if (!table) {
+    return;
+  }
 
   // LOAD SAVED WIDTHS
   try {
@@ -786,7 +874,9 @@ function setupColumnResizing(table: HTMLElement | null): void {
   const headers = table.querySelectorAll('.voucher-grid-header .voucher-header-cell');
 
   headers.forEach((header, index) => {
-    if (index === headers.length - 1) { return; }
+    if (index === headers.length - 1) {
+      return;
+    }
 
     const resizer = document.createElement('div');
     resizer.classList.add('resizer');
@@ -795,7 +885,12 @@ function setupColumnResizing(table: HTMLElement | null): void {
   });
 }
 
-function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex: number, table: HTMLElement): void {
+function createResizableColumn(
+  col: HTMLElement,
+  resizer: HTMLElement,
+  colIndex: number,
+  table: HTMLElement
+): void {
   let x = 0;
   let w = 0;
 
@@ -817,8 +912,10 @@ function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex:
       const widths: Record<string, string> = {};
       for (let i = 1; i <= 6; i++) {
         const val = table.style.getPropertyValue(`--col-${i}`);
-        // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index written to a fresh local record
-        if (val) { widths[i] = val; }
+        if (val) {
+          // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index written to a fresh local record
+          widths[i] = val;
+        }
       }
       localStorage.setItem('voucher_table_widths', JSON.stringify(widths));
     } catch (e) {
@@ -841,9 +938,14 @@ function createResizableColumn(col: HTMLElement, resizer: HTMLElement, colIndex:
 async function showBatchDetails(batchId: string): Promise<void> {
   openModal('Dettaglio Lotto Voucher');
   const modalBody = document.getElementById('modal-body');
-  if (!modalBody) {return;}
+  if (!modalBody) {
+    return;
+  }
 
-  setSafeHTML(modalBody, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento dettagli...</div>');
+  setSafeHTML(
+    modalBody,
+    '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento dettagli...</div>'
+  );
 
   try {
     const { data: vouchers, error } = await supabase
@@ -852,7 +954,9 @@ async function showBatchDetails(batchId: string): Promise<void> {
       .eq('batch_id', batchId)
       .order('serial_number');
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     const { data: batch } = await supabase
       .from('voucher_batches')
@@ -860,7 +964,9 @@ async function showBatchDetails(batchId: string): Promise<void> {
       .eq('id', batchId)
       .single();
 
-    setSafeHTML(modalBody, `
+    setSafeHTML(
+      modalBody,
+      `
             <div style="padding: 10px;">
                 <h3 style="margin-bottom: 20px;">${escapeHtml(batch?.description || 'Dettaglio Lotto')}</h3>
                 <div class="table-responsive" style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -874,23 +980,27 @@ async function showBatchDetails(batchId: string): Promise<void> {
                             </tr>
                         </thead>
                         <tbody>
-                            ${(vouchers as Voucher[]).map(v => {
-    const isRedeemed = v.status === 'redeemed';
-    return `
+                            ${(vouchers as Voucher[])
+                              .map(v => {
+                                const isRedeemed = v.status === 'redeemed';
+                                return `
                                     <tr style="background: ${isRedeemed ? '#f1f5f9' : 'white'}; border-bottom: 1px solid #f1f5f9;">
                                         <td style="padding: 12px; font-weight: 500;">#${v.serial_number}</td>
                                         <td style="padding: 12px; font-family: monospace; font-size: 1.1em;">${escapeHtml(v.code)}</td>
                                         <td style="padding: 12px; text-align: center;">
-                                            ${isRedeemed
-    ? '<span class="badge badge-secondary"><i class="fas fa-check"></i> Riscattato</span>'
-    : '<span class="badge badge-success">Attivo</span>'}
+                                            ${
+                                              isRedeemed
+                                                ? '<span class="badge badge-secondary"><i class="fas fa-check"></i> Riscattato</span>'
+                                                : '<span class="badge badge-success">Attivo</span>'
+                                            }
                                         </td>
                                         <td style="padding: 12px; color: #64748b; font-size: 0.9rem;">
                                             ${v.redeemed_at ? formatDate(v.redeemed_at) : '-'}
                                         </td>
                                     </tr>
                                 `;
-  }).join('')}
+                              })
+                              .join('')}
                         </tbody>
                     </table>
                 </div>
@@ -898,27 +1008,33 @@ async function showBatchDetails(batchId: string): Promise<void> {
                     <button class="menu-button primary" id="btn-close-details">Chiudi</button>
                 </div>
             </div>
-        `);
+        `
+    );
 
     document.getElementById('btn-close-details')?.addEventListener('click', () => closeModal());
-
   } catch (err: unknown) {
     logger.error('vouchers', err);
-    setSafeHTML(modalBody, `<div class="alert alert-danger">Errore caricamento: ${escapeHtml(getErrorMessage(err))}</div>`);
+    setSafeHTML(
+      modalBody,
+      `<div class="alert alert-danger">Errore caricamento: ${escapeHtml(getErrorMessage(err))}</div>`
+    );
   }
 }
 
 async function handleDeleteBatch(batchId: string): Promise<void> {
-  const confirmed = await openConfirmModal('PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.');
-  if (!confirmed) { return; }
+  const confirmed = await openConfirmModal(
+    'PERICOLO: Sei sicuro di voler ELIMINARE definitivamente questo lotto e tutti i suoi voucher? I dati storici (se riscattati) andranno persi o corrotti. Procedi solo se sei sicuro.'
+  );
+  if (!confirmed) {
+    return;
+  }
 
   try {
-    const { error } = await supabase
-      .from('voucher_batches')
-      .delete()
-      .eq('id', batchId);
+    const { error } = await supabase.from('voucher_batches').delete().eq('id', batchId);
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
     Toast.show('Lotto eliminato correttamente.', 'success');
     renderActiveTab();
   } catch (err: unknown) {
@@ -927,23 +1043,30 @@ async function handleDeleteBatch(batchId: string): Promise<void> {
   }
 }
 
-
-
 export async function openPrintView(batchId: string | undefined): Promise<void> {
-  if (!batchId) {return;}
+  if (!batchId) {
+    return;
+  }
 
   // 1. OPEN WINDOW IMMEDIATELY (Synchronous) to bypass Popup Blocker
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
-    showInfoModal('Attenzione: Il browser ha bloccato il popup. Autorizza i popup per stampare.', 'Stampa Bloccata');
+    showInfoModal(
+      'Attenzione: Il browser ha bloccato il popup. Autorizza i popup per stampare.',
+      'Stampa Bloccata'
+    );
     return;
   }
 
   // 2. Show Loading State in the new window
-  printWindow.document.write('<html><head><title>Caricamento...</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;"><h2>Generazione Voucher in corso...</h2><p>Attendere prego...</p></body></html>');
+  printWindow.document.write(
+    '<html><head><title>Caricamento...</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;"><h2>Generazione Voucher in corso...</h2><p>Attendere prego...</p></body></html>'
+  );
 
   const container = document.getElementById('voucher-content');
-  if (container) {showLoadingMessage(container);} // Loader in parent too
+  if (container) {
+    showLoadingMessage(container);
+  } // Loader in parent too
 
   try {
     // 3. Fetch Data (Async)
@@ -953,20 +1076,26 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
       .eq('batch_id', batchId)
       .order('serial_number');
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     renderActiveTab(); // Refresh list to update icons if needed
 
     // 4. Update Window Content
     await generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
-
   } catch (err: unknown) {
     logger.error('vouchers', err);
     Toast.show('Errore recupero voucher: ' + getErrorMessage(err), 'error');
-    if (container) {renderDashboard(container);} // Reset UI
+    if (container) {
+      renderDashboard(container);
+    } // Reset UI
 
     // Show error in popup
-    setSafeHTML(printWindow.document.body, `<h3 style="color:red">Errore: ${escapeHtml(getErrorMessage(err))}</h3>`);
+    setSafeHTML(
+      printWindow.document.body,
+      `<h3 style="color:red">Errore: ${escapeHtml(getErrorMessage(err))}</h3>`
+    );
   }
 }
 
@@ -987,7 +1116,8 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
   let pagesHtml = '';
 
   if (!vouchers || vouchers.length === 0) {
-    pagesHtml = '<div style="text-align:center; padding: 50px;"><h3>Nessun voucher da stampare in questo lotto.</h3></div>';
+    pagesHtml =
+      '<div style="text-align:center; padding: 50px;"><h3>Nessun voucher da stampare in questo lotto.</h3></div>';
   } else {
     const chunkSize = 1; // 1 Voucher per Page
 
@@ -995,22 +1125,24 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
     const qrCodeMap: Record<string, string> = {};
 
     if (QRCode) {
-      await Promise.all(vouchers.map(async (v) => {
-        try {
-          qrCodeMap[v.code] = await QRCode.toDataURL(v.code, {
-            errorCorrectionLevel: 'H',
-            margin: 0,
-            width: 160,
-            color: {
-              dark: '#000000',
-              light: '#ffffff00' // Transparent background
-            }
-          });
-        } catch (err) {
-          logger.error('vouchers', 'QR Generation failed for', v.code, err);
-          qrCodeMap[v.code] = ''; // Handle gracefully
-        }
-      }));
+      await Promise.all(
+        vouchers.map(async v => {
+          try {
+            qrCodeMap[v.code] = await QRCode.toDataURL(v.code, {
+              errorCorrectionLevel: 'H',
+              margin: 0,
+              width: 160,
+              color: {
+                dark: '#000000',
+                light: '#ffffff00' // Transparent background
+              }
+            });
+          } catch (err) {
+            logger.error('vouchers', 'QR Generation failed for', v.code, err);
+            qrCodeMap[v.code] = ''; // Handle gracefully
+          }
+        })
+      );
     }
 
     for (let i = 0; i < vouchers.length; i += chunkSize) {
@@ -1018,8 +1150,10 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
 
       // --- FRONT PAGE ---
       let frontContent = '';
-      chunk.forEach((v) => {
-        const date = v.expiration_date ? new Date(v.expiration_date).toLocaleDateString('it-IT') : 'Illimitata';
+      chunk.forEach(v => {
+        const date = v.expiration_date
+          ? new Date(v.expiration_date).toLocaleDateString('it-IT')
+          : 'Illimitata';
         const amount = Math.floor(v.amount) + ' euro';
         const visibleCode = v.code.substring(0, 4);
         const qrSrc = qrCodeMap[v.code] || '';

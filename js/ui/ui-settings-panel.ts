@@ -3,7 +3,13 @@
  * Renders the Business Logic settings in a card layout.
  */
 
-import { loadDashboardConfig, saveDashboardConfig, KPI_CATALOG, DashboardConfig, KPIConfigItem } from '../admin/dashboard-config.js';
+import {
+  loadDashboardConfig,
+  saveDashboardConfig,
+  KPI_CATALOG,
+  DashboardConfig,
+  KPIConfigItem
+} from '../admin/dashboard-config.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { logger } from '../core/logger.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
@@ -11,13 +17,15 @@ import { escapeHtml } from '../utils/utils.js';
 
 import { BUSINESS_LOGIC_FIELDS } from './ui-settings-constants.js';
 
-
-
 export async function renderSettingsPanel(container: HTMLElement): Promise<void> {
-  if (!container) {return;}
+  if (!container) {
+    return;
+  }
 
   // Render Skeleton Structure
-  setSafeHTML(container, `
+  setSafeHTML(
+    container,
+    `
     <div class="settings-header mb-4">
       <h2>Impostazioni Applicazione</h2>
       <p class="text-secondary">Configura le regole operative e i KPI della dashboard.</p>
@@ -40,7 +48,8 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
             <i class="fas fa-save"></i> Salva Tutto
         </button>
     </div>
-  `);
+  `
+  );
 
   const rulesGrid = container.querySelector('#business-rules-grid') as HTMLElement;
   const dashGrid = container.querySelector('#dashboard-config-grid') as HTMLElement;
@@ -93,15 +102,18 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
     });
     setSafeHTML(rulesGrid, rulesHtml || '<p>Nessuna impostazione disponibile.</p>');
 
-
     // 2. RENDER DASHBOARD KPI SELECTOR
     // Sort items by current order to keep logic consistent
-    const sortedKpis = dashConfig.kpiLayout.sort((a: KPIConfigItem, b: KPIConfigItem) => a.order - b.order);
+    const sortedKpis = dashConfig.kpiLayout.sort(
+      (a: KPIConfigItem, b: KPIConfigItem) => a.order - b.order
+    );
 
     let kpiListHtml = '';
     sortedKpis.forEach((item: KPIConfigItem) => {
       const meta = KPI_CATALOG[item.id];
-      if (!meta) {return;}
+      if (!meta) {
+        return;
+      }
 
       kpiListHtml += `
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--bg-body); border-radius: 8px; margin-bottom: 8px;">
@@ -119,7 +131,9 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
         `;
     });
 
-    setSafeHTML(dashGrid, `
+    setSafeHTML(
+      dashGrid,
+      `
         <div class="card" style="grid-column: 1 / -1;">
             <div class="card-header">
                 <h4 class="card-title"><i class="fas fa-eye"></i> Visibilità KPI Dashboard</h4>
@@ -129,7 +143,8 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
                 ${kpiListHtml}
             </div>
         </div>
-    `);
+    `
+    );
 
     // 3. HANDLE SAVE
     const saveBtn = container.querySelector('#save-settings-btn');
@@ -175,7 +190,6 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
           setSafeHTML(btn, originalText);
           btn.disabled = false;
         }, 2000);
-
       } catch (err) {
         setSafeHTML(btn, '<i class="fas fa-exclamation-triangle"></i> Errore');
         setTimeout(() => {
@@ -185,8 +199,10 @@ export async function renderSettingsPanel(container: HTMLElement): Promise<void>
         logger.error('settingsPanel', err);
       }
     });
-
   } catch (err) {
-    setSafeHTML(rulesGrid, `<div class="error-box"><p>Errore nel caricamento delle impostazioni: ${escapeHtml(err instanceof Error ? err.message : String(err))}</p></div>`);
+    setSafeHTML(
+      rulesGrid,
+      `<div class="error-box"><p>Errore nel caricamento delle impostazioni: ${escapeHtml(err instanceof Error ? err.message : String(err))}</p></div>`
+    );
   }
 }

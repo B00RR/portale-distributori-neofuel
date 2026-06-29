@@ -1,7 +1,7 @@
 /**
  * LoadingState Component
  * Spinner di caricamento riusabile
- * 
+ *
  * @example
  * <loading-state message="Caricamento dati..."></loading-state>
  */

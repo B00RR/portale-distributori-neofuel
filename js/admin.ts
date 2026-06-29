@@ -16,7 +16,9 @@ import { FuelStation } from './types.js';
  */
 export function showAdminArea(): void {
   const mainContent = document.getElementById('main-content');
-  if (!mainContent) { return; }
+  if (!mainContent) {
+    return;
+  }
 
   const user = store.getUser();
   const userRole = user?.role || 'operator';
@@ -37,7 +39,9 @@ export function showAdminArea(): void {
   // Setup global filter
   async function renderGlobalFilter(): Promise<void> {
     const container = document.getElementById('header-actions');
-    if (!container) { return; }
+    if (!container) {
+      return;
+    }
 
     let stations = store.getStations() as FuelStation[];
 

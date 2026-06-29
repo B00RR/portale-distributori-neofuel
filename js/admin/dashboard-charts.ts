@@ -5,49 +5,49 @@ import { formatEuro, getISODate } from '../utils/utils.js';
 
 // --- TYPES (Simplified for Dashboard) ---
 declare global {
-    interface Window {
-        Chart: ChartConstructor;
-    }
+  interface Window {
+    Chart: ChartConstructor;
+  }
 }
 
 const Chart = window.Chart;
 
 interface ClosingData extends Record<string, number | string | null | undefined> {
-    ricavo_teorico?: number | string | null;
-    litri_benzina?: number | string | null;
-    litri_gasolio?: number | string | null;
-    soldi_contanti?: number | string | null;
-    soldi_pos_totale?: number | string | null;
-    soldi_crediti?: number | string | null;
-    soldi_voucher?: number | string | null;
+  ricavo_teorico?: number | string | null;
+  litri_benzina?: number | string | null;
+  litri_gasolio?: number | string | null;
+  soldi_contanti?: number | string | null;
+  soldi_pos_totale?: number | string | null;
+  soldi_crediti?: number | string | null;
+  soldi_voucher?: number | string | null;
 }
 
 interface ShiftData {
-    closed_at: string | null;
-    closing_data: Json | null;
-    station_id: number;
+  closed_at: string | null;
+  closing_data: Json | null;
+  station_id: number;
 }
 
 interface AnalyticsResult {
-    daily: DayStats[];
-    totals: AnalyticsTotals;
+  daily: DayStats[];
+  totals: AnalyticsTotals;
 }
 
 interface DayStats {
-    date: string;
-    revenue: number;
-    liters_benzina: number;
-    liters_gasolio: number;
+  date: string;
+  revenue: number;
+  liters_benzina: number;
+  liters_gasolio: number;
 }
 
 interface AnalyticsTotals {
-    benzina: number;
-    gasolio: number;
-    contanti: number;
-    pos: number;
-    crediti: number;
-    voucher: number;
-    revenue: number;
+  benzina: number;
+  gasolio: number;
+  contanti: number;
+  pos: number;
+  crediti: number;
+  voucher: number;
+  revenue: number;
 }
 
 // Global chart instances store to destroy old charts on redraw
@@ -57,7 +57,9 @@ const dashboardCharts: Record<string, ChartInstance> = {};
  * FETCH & PROCESS DATA (Unified for all 4 charts to save requests)
  * Fetches last 30 days data.
  */
-export async function fetchAnalyticsData(stationId: string | number | null = null): Promise<AnalyticsResult> {
+export async function fetchAnalyticsData(
+  stationId: string | number | null = null
+): Promise<AnalyticsResult> {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - 30); // Fixed 30 days for Dashboard view
@@ -68,7 +70,13 @@ export async function fetchAnalyticsData(stationId: string | number | null = nul
   // Initial Empty Data
   const days: Record<string, DayStats> = {};
   const totals: AnalyticsTotals = {
-    benzina: 0, gasolio: 0, contanti: 0, pos: 0, crediti: 0, voucher: 0, revenue: 0
+    benzina: 0,
+    gasolio: 0,
+    contanti: 0,
+    pos: 0,
+    crediti: 0,
+    voucher: 0,
+    revenue: 0
   };
 
   // Fill dates
@@ -88,18 +96,25 @@ export async function fetchAnalyticsData(stationId: string | number | null = nul
       .gte('closed_at', startDate.toISOString())
       .lte('closed_at', endDate.toISOString());
 
-    if (stationId) { query = query.eq('station_id', Number(stationId)); }
+    if (stationId) {
+      query = query.eq('station_id', Number(stationId));
+    }
 
     const { data: shifts, error } = await query;
-    if (error) {throw error;}
+    if (error) {
+      throw error;
+    }
 
     (shifts || []).forEach((s: ShiftData) => {
-      if (!s.closed_at) {return;}
+      if (!s.closed_at) {
+        return;
+      }
       const day = s.closed_at.substring(0, 10);
       const rawData = s.closing_data;
-      const data: ClosingData = (rawData && typeof rawData === 'object' && !Array.isArray(rawData))
-        ? rawData as ClosingData
-        : {};
+      const data: ClosingData =
+        rawData && typeof rawData === 'object' && !Array.isArray(rawData)
+          ? (rawData as ClosingData)
+          : {};
 
       // eslint-disable-next-line security/detect-object-injection -- day validated by days map
       if (days[day]) {
@@ -154,21 +169,27 @@ function getCtx(canvasId: string): HTMLCanvasElement | null {
  */
 export function renderRevenueChart(data: AnalyticsResult, canvasId: string): void {
   const ctx = getCtx(canvasId);
-  if (!ctx || !Chart) {return;}
+  if (!ctx || !Chart) {
+    return;
+  }
 
   // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: data.daily.map(d => new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
-      datasets: [{
-        label: 'Ricavi (€)',
-        data: data.daily.map(d => d.revenue),
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        fill: true,
-        tension: 0.3
-      }]
+      labels: data.daily.map(d =>
+        new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
+      ),
+      datasets: [
+        {
+          label: 'Ricavi (€)',
+          data: data.daily.map(d => d.revenue),
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: true,
+          tension: 0.3
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -184,16 +205,28 @@ export function renderRevenueChart(data: AnalyticsResult, canvasId: string): voi
 
 export function renderVolumeChart(data: AnalyticsResult, canvasId: string): void {
   const ctx = getCtx(canvasId);
-  if (!ctx || !Chart) {return;}
+  if (!ctx || !Chart) {
+    return;
+  }
 
   // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: data.daily.map(d => new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
+      labels: data.daily.map(d =>
+        new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
+      ),
       datasets: [
-        { label: 'Benzina', data: data.daily.map(d => d.liters_benzina), backgroundColor: '#22c55e' },
-        { label: 'Gasolio', data: data.daily.map(d => d.liters_gasolio), backgroundColor: '#1f2937' }
+        {
+          label: 'Benzina',
+          data: data.daily.map(d => d.liters_benzina),
+          backgroundColor: '#22c55e'
+        },
+        {
+          label: 'Gasolio',
+          data: data.daily.map(d => d.liters_gasolio),
+          backgroundColor: '#1f2937'
+        }
       ]
     },
     options: {
@@ -210,17 +243,21 @@ export function renderVolumeChart(data: AnalyticsResult, canvasId: string): void
 
 export function renderPaymentChart(data: AnalyticsResult, canvasId: string): void {
   const ctx = getCtx(canvasId);
-  if (!ctx || !Chart) {return;}
+  if (!ctx || !Chart) {
+    return;
+  }
 
   // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: ['Contanti', 'POS', 'Crediti', 'Voucher'],
-      datasets: [{
-        data: [data.totals.contanti, data.totals.pos, data.totals.crediti, data.totals.voucher],
-        backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899']
-      }]
+      datasets: [
+        {
+          data: [data.totals.contanti, data.totals.pos, data.totals.crediti, data.totals.voucher],
+          backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899']
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -232,17 +269,21 @@ export function renderPaymentChart(data: AnalyticsResult, canvasId: string): voi
 
 export function renderFuelMixChart(data: AnalyticsResult, canvasId: string): void {
   const ctx = getCtx(canvasId);
-  if (!ctx || !Chart) {return;}
+  if (!ctx || !Chart) {
+    return;
+  }
 
   // eslint-disable-next-line security/detect-object-injection -- canvasId is a literal id string
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'pie',
     data: {
       labels: ['Benzina', 'Gasolio'],
-      datasets: [{
-        data: [data.totals.benzina, data.totals.gasolio],
-        backgroundColor: ['#22c55e', '#1f2937']
-      }]
+      datasets: [
+        {
+          data: [data.totals.benzina, data.totals.gasolio],
+          backgroundColor: ['#22c55e', '#1f2937']
+        }
+      ]
     },
     options: {
       responsive: true,

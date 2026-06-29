@@ -23,8 +23,10 @@ const escapeMap: Record<EscapeMapKey, string> = {
  * // => '&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;'
  */
 export function escapeHtml(text: string | number | null | undefined): string {
-  if (text == null) {return '';}
-  return String(text).replace(/[&<>"']/g, (match) => escapeMap[match as EscapeMapKey]);
+  if (text == null) {
+    return '';
+  }
+  return String(text).replace(/[&<>"']/g, match => escapeMap[match as EscapeMapKey]);
 }
 
 /**
@@ -35,7 +37,9 @@ export function escapeHtml(text: string | number | null | undefined): string {
  * @returns A best-effort message string
  */
 export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) { return error.message; }
+  if (error instanceof Error) {
+    return error.message;
+  }
   if (error && typeof error === 'object' && 'message' in error) {
     return String((error as { message: unknown }).message);
   }
@@ -48,7 +52,9 @@ export function getErrorMessage(error: unknown): string {
  * @returns Safe string representation of the number
  */
 export function escapeNumber(num: number | string | null | undefined): string {
-  if (num == null || num === '') {return '';}
+  if (num == null || num === '') {
+    return '';
+  }
   return String(parseFloat(String(num)));
 }
 
@@ -64,7 +70,7 @@ export function formatNumberIt(value: number | string, fractionDigits: number = 
   return new Intl.NumberFormat('it-IT', {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
-    useGrouping: true  // Explicitly enable thousands separator
+    useGrouping: true // Explicitly enable thousands separator
   }).format(safeNum);
 }
 
@@ -93,12 +99,17 @@ export function formatGunCounter(value: number | string): string {
  * Parse gun counter from Italian format (e.g., "1.234,567" -> 1234.567)
  */
 export function parseGunCounter(value: number | string | null | undefined): number {
-  if (value == null || value === '') {return 0;}
-  if (typeof value === 'number') {return Number.isFinite(value) ? value : 0;}
+  if (value == null || value === '') {
+    return 0;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
 
-  const cleaned = value.toString()
-    .replace(/[.\s]/g, '')   // Remove thousand separators (dots or spaces)
-    .replace(',', '.');       // Replace comma with dot
+  const cleaned = value
+    .toString()
+    .replace(/[.\s]/g, '') // Remove thousand separators (dots or spaces)
+    .replace(',', '.'); // Replace comma with dot
 
   const num = parseFloat(cleaned);
   return Number.isFinite(num) ? num : 0;
@@ -108,11 +119,17 @@ export function parseGunCounter(value: number | string | null | undefined): numb
  * Parse a number flexibly from various formats
  */
 export function parseNumberFlexible(value: number | string | null | undefined): number {
-  if (value == null || value === '') {return 0;}
-  if (typeof value === 'number') {return Number.isFinite(value) ? value : 0;}
+  if (value == null || value === '') {
+    return 0;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (!trimmed) {return 0;}
+    if (!trimmed) {
+      return 0;
+    }
     if (trimmed.includes(',')) {
       const normalized = trimmed.replace(/\./g, '').replace(',', '.');
       const num = Number(normalized);
@@ -128,11 +145,13 @@ export function parseNumberFlexible(value: number | string | null | undefined): 
  * Creates a URL-safe slug from text
  */
 export function slugifyLabel(text: string | null | undefined): string {
-  return (text || '')
-    .toString()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '') || 'chiusura';
+  return (
+    (text || '')
+      .toString()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'chiusura'
+  );
 }
 
 /**
@@ -140,7 +159,9 @@ export function slugifyLabel(text: string | null | undefined): string {
  */
 export function base64ToArrayBuffer(base64: string | null | undefined): ArrayBuffer | null {
   const cleaned = (base64 || '').replace(/\s+/g, '');
-  if (!cleaned) {return null;}
+  if (!cleaned) {
+    return null;
+  }
   const binary = atob(cleaned);
   const len = binary.length;
   const bytes = new Uint8Array(len);
@@ -186,10 +207,14 @@ export function debounce<T extends (...args: unknown[]) => void>(
  * Formats a date value to Italian format
  */
 export function formatDate(value: string | Date | null | undefined): string {
-  if (!value) {return '';}
+  if (!value) {
+    return '';
+  }
   try {
     const date = new Date(value);
-    if (isNaN(date.getTime())) {return String(value);}
+    if (isNaN(date.getTime())) {
+      return String(value);
+    }
     return new Intl.DateTimeFormat('it-IT').format(date);
   } catch (err) {
     logger.warn('formatDate', 'Impossibile formattare la data', err);
@@ -201,10 +226,16 @@ export function formatDate(value: string | Date | null | undefined): string {
  * Gets ISO date string (YYYY-MM-DD) from a date
  */
 export function getISODate(date: string | Date | null | undefined): string {
-  if (!date) {return '';}
+  if (!date) {
+    return '';
+  }
   const d = new Date(date);
-  if (isNaN(d.getTime())) {return '';}
-  const isoString = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  if (isNaN(d.getTime())) {
+    return '';
+  }
+  const isoString = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString()
+    .split('T')[0];
   return isoString || '';
 }
 
@@ -224,7 +255,9 @@ export function throttle<T extends (...args: unknown[]) => void>(
     if (!inThrottle) {
       func.apply(this, args);
       inThrottle = true;
-      setTimeout(() => { inThrottle = false; }, limit);
+      setTimeout(() => {
+        inThrottle = false;
+      }, limit);
     }
   };
 }
@@ -233,12 +266,12 @@ export function throttle<T extends (...args: unknown[]) => void>(
  * Rate Limiter interface
  */
 export interface RateLimiter {
-    /** Check if action is allowed */
-    check(): boolean;
-    /** Reset the counter */
-    reset(): void;
-    /** Get remaining time before next slot */
-    getRemainingTime(): number;
+  /** Check if action is allowed */
+  check(): boolean;
+  /** Reset the counter */
+  reset(): void;
+  /** Get remaining time before next slot */
+  getRemainingTime(): number;
 }
 
 /**
@@ -272,10 +305,14 @@ export function createRateLimiter(maxCalls: number = 5, windowMs: number = 60000
     },
 
     getRemainingTime(): number {
-      if (calls.length === 0) {return 0;}
+      if (calls.length === 0) {
+        return 0;
+      }
       const oldest = calls[0];
-      if (oldest === undefined) {return 0;}
-      const remaining = (oldest + windowMs) - Date.now();
+      if (oldest === undefined) {
+        return 0;
+      }
+      const remaining = oldest + windowMs - Date.now();
       return Math.max(0, remaining);
     }
   };

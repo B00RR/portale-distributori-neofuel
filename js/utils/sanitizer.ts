@@ -1,7 +1,7 @@
 /**
  * Advanced HTML Sanitization Utilities
  * OWASP Compliant - XSS Prevention
- * 
+ *
  * @module sanitizer
  * @security CRITICAL - All functions in this module handle untrusted input
  */
@@ -11,7 +11,7 @@ import { logger } from '../core/logger.js';
 /**
  * Sanitizes HTML by escaping all special characters
  * Use this for any user-generated content before injecting into innerHTML
- * 
+ *
  * @param html - Raw HTML string (potentially unsafe)
  * @returns Sanitized HTML with all special characters escaped
  * @example
@@ -27,7 +27,7 @@ export function sanitizeHtml(html: string): string {
 /**
  * Safe wrapper for innerHTML with automatic escaping
  * Use this instead of direct innerHTML assignment
- * 
+ *
  * @param element - Target DOM element
  * @param content - Content to set (will be escaped if allowHtml is false)
  * @param allowHtml - If true, allows HTML (but still escaped). If false, uses textContent
@@ -79,7 +79,7 @@ export function setSafeHTML(element: HTMLElement | null, html: string): void {
 /**
  * Validates and sanitizes localStorage data
  * Prevents JSON injection and data corruption
- * 
+ *
  * @param key - localStorage key
  * @param defaultValue - Default value if key doesn't exist or is invalid
  * @returns Parsed and validated data or defaultValue
@@ -115,7 +115,7 @@ export function getSafeLocalStorage<T = unknown>(
 
 /**
  * Safely sets localStorage data with JSON serialization
- * 
+ *
  * @param key - localStorage key
  * @param value - Value to store (will be JSON stringified)
  * @returns true if successful, false otherwise
@@ -133,7 +133,7 @@ export function setSafeLocalStorage<T>(key: string, value: T): boolean {
 
 /**
  * Validates URL to prevent javascript: and data: protocol attacks
- * 
+ *
  * @param url - URL to validate
  * @returns true if URL is safe (http/https), false otherwise
  */
@@ -148,27 +148,30 @@ export function isSafeUrl(url: string): boolean {
   if (
     // eslint-disable-next-line no-script-url -- il literale serve a rilevare e bloccare il protocollo pericoloso
     trimmedUrl.startsWith('javascript:') ||
-        trimmedUrl.startsWith('data:') ||
-        trimmedUrl.startsWith('vbscript:') ||
-        trimmedUrl.startsWith('file:')
+    trimmedUrl.startsWith('data:') ||
+    trimmedUrl.startsWith('vbscript:') ||
+    trimmedUrl.startsWith('file:')
   ) {
-    logger.warn('sanitizer', `Bloccato protocollo URL pericoloso: ${trimmedUrl.substring(0, 20)}...`);
+    logger.warn(
+      'sanitizer',
+      `Bloccato protocollo URL pericoloso: ${trimmedUrl.substring(0, 20)}...`
+    );
     return false;
   }
 
   // Allow only http/https or relative URLs
   return (
     trimmedUrl.startsWith('http://') ||
-        trimmedUrl.startsWith('https://') ||
-        trimmedUrl.startsWith('/') ||
-        trimmedUrl.startsWith('#') ||
-        trimmedUrl.startsWith('?')
+    trimmedUrl.startsWith('https://') ||
+    trimmedUrl.startsWith('/') ||
+    trimmedUrl.startsWith('#') ||
+    trimmedUrl.startsWith('?')
   );
 }
 
 /**
  * Creates a safe link element with XSS protection
- * 
+ *
  * @param url - URL for the link
  * @param text - Link text (will be escaped)
  * @param newTab - If true, opens in new tab with rel="noopener noreferrer"
@@ -198,7 +201,7 @@ export function createSafeLink(
 /**
  * Sanitizes filename for safe file operations
  * Prevents directory traversal attacks
- * 
+ *
  * @param filename - Filename to sanitize
  * @returns Safe filename with dangerous characters removed
  */
