@@ -70,7 +70,7 @@
     "split.js": "^1.6.5",
     "vite-plugin-pwa": "^1.2.0",
     "workbox-window": "^7.4.0",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "xlsx-populate": "^1.21.0",
     "zod": "^4.3.5"
   }

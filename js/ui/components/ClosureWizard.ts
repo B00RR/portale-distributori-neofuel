@@ -71,8 +71,11 @@ export class ClosureWizard extends BaseComponent {
   @state() private islands: Island[] = [];
   @state() private openingCounters: Record<number, number> = {};
   @state() private finalCounters: Record<number, number> = {};
-  @state() private prezzi: { prezzo_benzina?: number; prezzo_gasolio?: number } | null = null;
-  @state() private stationConfig: { allow_partial_closure?: boolean } | null = null;
+  @state() private prezzi: {
+    prezzo_benzina?: number | null;
+    prezzo_gasolio?: number | null;
+  } | null = null;
+  @state() private stationConfig: { allow_partial_closure?: boolean | null } | null = null;
 
   // Data from Step 2
   @state() private selfCashIn: string = '';

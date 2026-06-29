@@ -9,11 +9,17 @@ import { handleError } from '../shared/error-handler.js';
 import { formatNumberIt } from '../utils/utils.js';
 
 interface TankRow {
+  id: number;
   name: string;
   fuel_type: string;
-  liters?: number;
   station_id?: number;
   fuel_stations?: { station_name?: string };
+}
+
+interface TankReadingRow {
+  tank_id: number | null;
+  liters: number | null;
+  created_at: string | null;
 }
 
 interface ShiftRow {
@@ -38,9 +44,7 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
   try {
     const [rules, tanksRes, shiftsRes] = await Promise.all([
       BusinessLogicManager.loadRules(),
-      supabase
-        .from('tanks')
-        .select('name, fuel_type, liters, station_id, fuel_stations(station_name)'),
+      supabase.from('tanks').select('id, name, fuel_type, station_id, fuel_stations(station_name)'),
       supabase
         .from('shifts')
         .select('id, created_at, status, station_id, fuel_stations(station_name)')
@@ -86,9 +90,33 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
     }
 
     // 1. Check Fuel Reserves
+    // The `tanks` table has no `liters` column; current liters come from the
+    // most recent `tank_readings` row per tank (same source as the dashboard).
+    const latestLitersByTank: Record<number, number> = {};
+    const tankRows = (tanksRes.data || []) as TankRow[];
+    if (tankRows.length > 0) {
+      const tankIds = tankRows.map(t => t.id);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const { data: readings } = await supabase
+        .from('tank_readings')
+        .select('tank_id, liters, created_at')
+        .in('tank_id', tankIds)
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: false });
+      for (const r of (readings || []) as TankReadingRow[]) {
+        if (r.tank_id === null) {
+          continue;
+        }
+        if (!(r.tank_id in latestLitersByTank)) {
+          latestLitersByTank[r.tank_id] = r.liters || 0;
+        }
+      }
+    }
+
     if (tanksRes.data) {
-      (tanksRes.data as TankRow[]).forEach(t => {
-        const liters = t.liters || 0;
+      tankRows.forEach(t => {
+        const liters = latestLitersByTank[t.id] || 0;
         if (liters < rules.fuel_reserve_alert_liters) {
           const stationName = t.fuel_stations?.station_name || 'Stazione #' + String(t.station_id);
           alerts.push(

@@ -1,5 +1,6 @@
 import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
+import { DEFAULT_BUSINESS_RULES } from '../core/business-rules-schema.js';
 import { logger } from '../core/logger.js';
 import type { SortableConstructor, ChartConstructor } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
@@ -122,7 +123,7 @@ export async function showDashboard(
         // 6. Business Rules
         BusinessLogicManager.loadRules().catch(err => {
           logger.warn('dashboard', 'Failed to load rules, using defaults', err);
-          return {};
+          return DEFAULT_BUSINESS_RULES;
         })
       ]);
 
@@ -216,7 +217,7 @@ export async function showDashboard(
 
     if (Array.isArray(todayClosures)) {
       todayClosures.forEach(item => {
-        const closingData = item?.closing_data || {};
+        const closingData = (item?.closing_data || {}) as Record<string, unknown>;
         // Sales
         vendutoDataValue += Number(closingData.ricavo_teorico || 0);
         // Liters
