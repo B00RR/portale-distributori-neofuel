@@ -112,6 +112,11 @@ export function showErrorMessage(
 
 // ========== MODAL FUNCTIONS ==========
 
+// Element focused before the modal opened; focus is restored to it on close.
+let lastFocusedBeforeModal: HTMLElement | null = null;
+
+const MODAL_FOCUSABLES = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 /**
  * Open reusable modal
  */
@@ -121,6 +126,10 @@ export function openModal(title: string = ''): void {
     modal = document.createElement('div');
     modal.id = 'app-modal';
     modal.className = 'modal-overlay';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'modal-title');
+    modal.setAttribute('tabindex', '-1');
     // Static internal markup — no user input
     modal.innerHTML = `
             <div class="modal-content">
@@ -145,6 +154,37 @@ export function openModal(title: string = ''): void {
     if (closeBtn) {
       closeBtn.addEventListener('click', closeModal);
     }
+
+    // Escape closes the dialog; Tab is trapped within it.
+    const modalEl = modal;
+    modalEl.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        return;
+      }
+      if (e.key !== 'Tab') {
+        return;
+      }
+      const focusables = Array.from(modalEl.querySelectorAll<HTMLElement>(MODAL_FOCUSABLES)).filter(
+        el => !el.hasAttribute('disabled')
+      );
+      if (focusables.length === 0) {
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) {
+        return;
+      }
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
   }
 
   const titleEl = modal.querySelector('#modal-title');
@@ -157,7 +197,10 @@ export function openModal(title: string = ''): void {
     bodyEl.innerHTML = '';
   } // Clear previous content
 
+  lastFocusedBeforeModal = document.activeElement as HTMLElement | null;
   modal.style.display = 'flex';
+  const firstFocusable = modal.querySelector<HTMLElement>(MODAL_FOCUSABLES);
+  (firstFocusable ?? modal).focus();
 }
 
 /**
@@ -171,6 +214,10 @@ export function closeModal(): void {
     if (bodyEl) {
       bodyEl.innerHTML = '';
     } // Clean to avoid duplicate IDs or pending listeners
+    if (lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === 'function') {
+      lastFocusedBeforeModal.focus();
+    }
+    lastFocusedBeforeModal = null;
   }
 }
 
