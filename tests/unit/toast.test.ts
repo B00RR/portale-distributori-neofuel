@@ -108,4 +108,18 @@ describe('Toast Module', () => {
         const toast = document.querySelector('.toast-custom');
         expect(toast?.innerHTML).toContain('fa-info-circle');
     });
+
+    it('should expose the container as a polite live region', () => {
+        Toast.show('ok', 'success');
+        const container = document.getElementById('toast-container');
+        expect(container?.getAttribute('role')).toBe('status');
+        expect(container?.getAttribute('aria-live')).toBe('polite');
+    });
+
+    it('should mark error toasts as assertive alerts', () => {
+        Toast.show('boom', 'error');
+        const toast = document.querySelector('.toast-error');
+        expect(toast?.getAttribute('role')).toBe('alert');
+        expect(toast?.getAttribute('aria-live')).toBe('assertive');
+    });
 });

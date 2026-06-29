@@ -101,6 +101,42 @@ describe('UI Module', () => {
             expect(body.innerHTML).toBe('');
         });
 
+        it('openModal should expose dialog semantics', () => {
+            openModal('Accessible');
+            const modal = document.getElementById('app-modal');
+            expect(modal?.getAttribute('role')).toBe('dialog');
+            expect(modal?.getAttribute('aria-modal')).toBe('true');
+            expect(modal?.getAttribute('aria-labelledby')).toBe('modal-title');
+        });
+
+        it('openModal should move focus into the dialog', () => {
+            openModal('Focus');
+            const modal = document.getElementById('app-modal') as HTMLElement;
+            expect(modal.contains(document.activeElement)).toBe(true);
+        });
+
+        it('Escape keydown should close the modal', () => {
+            openModal('Escapable');
+            const modal = document.getElementById('app-modal') as HTMLElement;
+            modal.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+            );
+            expect(modal.style.display).toBe('none');
+        });
+
+        it('closeModal should restore focus to the triggering element', () => {
+            const trigger = document.createElement('button');
+            trigger.id = 'modal-trigger';
+            document.body.appendChild(trigger);
+            trigger.focus();
+
+            openModal('Restorable');
+            closeModal();
+
+            expect(document.activeElement).toBe(trigger);
+            trigger.remove();
+        });
+
         it('openConfirmModal should resolve true on OK', async () => {
             const promise = openConfirmModal('Are you sure?');
 

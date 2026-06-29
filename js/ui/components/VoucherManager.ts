@@ -94,7 +94,7 @@ export class VoucherManager extends BaseComponent {
         transition: all 0.2s;
         font-size: 1.1rem;
         font-weight: 600;
-        color: var(--text-primary, #1e293b);
+        color: var(--text-main, #1e293b);
       }
 
       .action-btn:hover {

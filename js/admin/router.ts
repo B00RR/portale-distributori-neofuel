@@ -104,6 +104,14 @@ class AdminRouter {
     }
 
     await this.loadTab(tab, content, headerActions, filter);
+
+    // Move focus to the freshly rendered region so keyboard/screen-reader users
+    // are taken to the new content instead of being left on the sidebar.
+    if (!content.hasAttribute('aria-label')) {
+      content.setAttribute('aria-label', 'Contenuto principale');
+    }
+    content.setAttribute('tabindex', '-1');
+    content.focus();
   }
 
   /**
