@@ -72,5 +72,8 @@
     "workbox-window": "^7.4.0",
     "xlsx-populate": "^1.21.0",
     "zod": "^4.3.5"
+  },
+  "overrides": {
+    "fast-uri": "4.0.1"
   }
 }
