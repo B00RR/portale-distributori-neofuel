@@ -298,7 +298,7 @@ input {
   margin-bottom: 20px;
   padding: 14px 16px;
   border-radius: 12px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--border-color);
   font-size: 1.05em;
   background: #ffffff;
   color: #2d3748;
@@ -413,7 +413,7 @@ button:active {
 }
 
 #login-form button[type="submit"]:hover {
-  background: linear-gradient(135deg, var(--primary-hover) 0%, #123561 100%);
+  background: linear-gradient(135deg, var(--primary-hover) 0%, var(--bg-sidebar-hover) 100%);
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
@@ -684,7 +684,7 @@ button:active {
 }
 
 .segmented-option input:checked+.segmented-label {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 95%);
+  background: linear-gradient(135deg, var(--info-color) 0%, var(--border-focus) 95%);
   color: #ffffff;
   border-color: transparent;
   box-shadow: 0 10px 28px rgba(37, 99, 235, 0.28);
@@ -717,7 +717,7 @@ button:active {
 
 .form-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--info-color);
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
   background: #ffffff;
 }
@@ -735,7 +735,7 @@ button:active {
 }
 
 .input-with-prefix:focus-within {
-  border-color: #3b82f6;
+  border-color: var(--info-color);
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
   background: #ffffff;
 }
@@ -745,7 +745,7 @@ button:active {
   align-items: center;
   font-weight: 700;
   font-size: 1.15em;
-  color: #2563eb;
+  color: var(--border-focus);
   line-height: 1;
 }
 
@@ -857,7 +857,7 @@ button:active {
 
 .pistola-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--info-color);
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
   background: #ffffff;
 }
@@ -901,7 +901,7 @@ button:active {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #2563eb;
+  color: var(--border-focus);
 }
 
 .summary-box__row {
@@ -1017,7 +1017,7 @@ button:active {
 }
 
 .menu-button.info {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, var(--info-color) 0%, var(--border-focus) 100%);
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
 }
 
@@ -1060,7 +1060,7 @@ button:active {
 .form-group textarea {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--border-color);
   border-radius: 10px;
   font-size: 1em;
   transition: all 0.3s ease;
@@ -1153,7 +1153,7 @@ button:active {
   .closure-layout {
     padding: 20px;
     border-radius: 18px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-color);
   }
 
   .closure-layout h2 {
@@ -1795,7 +1795,7 @@ button:active {
 }
 
 .chip:hover {
-  background: #f8fafc;
+  background: var(--text-light);
   border-color: #cbd5e1;
 }
 
@@ -1860,7 +1860,7 @@ button:active {
 .pagination-controls .menu-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #e2e8f0;
+  background: var(--border-color);
   color: #a0aec0;
   box-shadow: none;
 }
@@ -2037,7 +2037,7 @@ button:active {
 }
 
 .tank-meta {
-  color: #64748b;
+  color: var(--secondary-color);
   font-size: 0.85rem;
   margin-left: 12px;
 }
@@ -2069,13 +2069,13 @@ button:active {
 
 .tank-link-note {
   font-size: 0.78rem;
-  color: #475569;
+  color: var(--secondary-hover);
   margin-top: 6px;
 }
 
 .tank-link-panel {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--text-light);
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 10px 12px;
   margin-top: 8px;
@@ -2090,7 +2090,7 @@ button:active {
 
 .tank-link-info {
   font-size: 0.8rem;
-  color: #475569;
+  color: var(--secondary-hover);
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -2109,8 +2109,8 @@ button:active {
 }
 
 .badge-muted {
-  background-color: #e2e8f0;
-  color: #475569;
+  background-color: var(--border-color);
+  color: var(--secondary-hover);
   border: 1px solid #cbd5f5;
 }
 
@@ -2175,7 +2175,7 @@ button:active {
 }
 
 .admin-table tr:hover td {
-  background: #f8fafc;
+  background: var(--text-light);
 }
 
 /* Action Buttons in Table */
@@ -2401,7 +2401,7 @@ button:active {
   align-items: center;
   justify-content: center;
   background: #f4f6fb;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color);
   border-radius: 999px;
   font-size: 1.1rem;
   color: var(--text-secondary);
@@ -3356,7 +3356,7 @@ button:active {
 
 .status-badge.status-open {
   background: #ffffff;
-  color: #10b981;
+  color: var(--success-color);
   font-weight: 800;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   animation: pulse-green 2s infinite;
@@ -3540,7 +3540,7 @@ button:active {
   padding: 14px 16px;
   border-radius: var(--radius-sm);
   border: 2px dashed var(--border-color);
-  background: #f8fafc;
+  background: var(--text-light);
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-main);
@@ -3835,7 +3835,7 @@ button:active {
   display: flex;
   align-items: center;
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   height: 36px;
   /* FORCE HEIGHT MATCHING BUTTONS */
@@ -3853,7 +3853,7 @@ button:active {
 }
 
 .filter-icon {
-  color: #64748b;
+  color: var(--secondary-color);
   margin-right: 8px;
   font-size: 0.9rem;
 }
@@ -4026,7 +4026,7 @@ button:active {
 
 /* Toast Types */
 .toast-success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
   color: white;
   border-left: 4px solid #047857;
 }
@@ -4044,7 +4044,7 @@ button:active {
 }
 
 .toast-info {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, var(--info-color) 0%, var(--border-focus) 100%);
   color: white;
   border-left: 4px solid #1d4ed8;
 }
@@ -4190,7 +4190,7 @@ button:active {
 
 .kpi-config-item.hidden {
   opacity: 0.6;
-  background: #f8fafc;
+  background: var(--text-light);
   border-style: dashed;
 }
 
@@ -4347,7 +4347,7 @@ button:active {
 /* Sortable Classes */
 .kpi-item-ghost {
   opacity: 0.4;
-  background: #e2e8f0;
+  background: var(--border-color);
 }
 
 .kpi-item-chosen {
@@ -4495,7 +4495,7 @@ button:active {
 }
 
 .chip:hover {
-  background: #f8fafc;
+  background: var(--text-light);
   border-color: #cbd5e1;
 }
 
@@ -4563,7 +4563,7 @@ button:active {
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary, var(--secondary-color));
   margin-top: 2px;
 }
 
