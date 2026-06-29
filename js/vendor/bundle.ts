@@ -11,9 +11,9 @@ import * as JSZip from 'jszip';
 import Sortable from 'sortablejs';
 import * as Split from 'split.js';
 import * as XLSX from 'xlsx';
-import * as XlsxPopulate from 'xlsx-populate';
+import 'xlsx-populate/browser/xlsx-populate.js';
 
-import type { ChartConstructor, SortableConstructor } from '../types.js';
+import type { ChartConstructor, SortableConstructor, XlsxPopulateStatic } from '../types.js';
 
 declare global {
   interface Window {
@@ -24,7 +24,7 @@ declare global {
     Sortable: SortableConstructor;
     Split: typeof Split;
     XLSX: typeof XLSX;
-    XlsxPopulate: typeof XlsxPopulate;
+    XlsxPopulate: XlsxPopulateStatic;
   }
 }
 
@@ -34,5 +34,4 @@ window.JSZip = JSZip;
 window.Sortable = Sortable as unknown as SortableConstructor;
 window.Split = Split;
 window.XLSX = XLSX;
-window.XlsxPopulate = XlsxPopulate;
 window.Html5Qrcode = Html5Qrcode;

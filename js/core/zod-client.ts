@@ -1,3 +1,3 @@
-// @ts-expect-error import da URL CDN non risolvibile staticamente da TypeScript
-import { z } from 'https://cdn.jsdelivr.net/npm/zod@3.22.4/+esm';
+import { z } from 'zod';
+
 export { z };
