@@ -248,10 +248,7 @@ export interface CustomWindow extends Window {
     requestPasswordReset: (email: string) => Promise<unknown>;
     openPaymentModal: unknown;
     showNotificheAdmin: unknown;
-    Html5Qrcode: Html5QrcodeConstructor;
     plausible: PlausibleFn;
-    XlsxPopulate: XlsxPopulateStatic;
-    JSZip: JSZipConstructor;
     calculationEngine: unknown;
     refreshUiIcons?: () => void;
 }
