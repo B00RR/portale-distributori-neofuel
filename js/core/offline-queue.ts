@@ -18,6 +18,16 @@ export interface QueuedAction {
     retryCount: number;
 }
 
+type DeduplicablePayload = Record<string, unknown> & {
+    operation?: unknown;
+    method?: unknown;
+    action?: unknown;
+    entityType?: unknown;
+    entityId?: unknown;
+    entity_type?: unknown;
+    entity_id?: unknown;
+};
+
 type ActionExecutor = (action: QueuedAction) => Promise<boolean>;
 
 // ========== CONSTANTS ==========
@@ -31,6 +41,28 @@ const MAX_RETRIES = 3;
 
 let db: IDBDatabase | null = null;
 const executors: Map<string, ActionExecutor> = new Map();
+
+function normalizeDedupeValue(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) {return value.trim();}
+  if (typeof value === 'number' && Number.isFinite(value)) {return String(value);}
+  return null;
+}
+
+function getUpdateDedupeKey(type: QueuedAction['type'], payload: Record<string, unknown>): string | null {
+  const candidate = payload as DeduplicablePayload;
+  const operation = normalizeDedupeValue(candidate.operation ?? candidate.method ?? candidate.action)?.toLowerCase();
+  if (operation !== 'update' && operation !== 'upsert') {return null;}
+
+  const entityType = normalizeDedupeValue(candidate.entityType ?? candidate.entity_type);
+  const entityId = normalizeDedupeValue(candidate.entityId ?? candidate.entity_id);
+
+  if (!entityType || !entityId) {return null;}
+  return `${type}:${entityType}:${entityId}`;
+}
+
+function findDuplicateUpdateAction(actions: QueuedAction[], dedupeKey: string): QueuedAction | null {
+  return actions.find(action => getUpdateDedupeKey(action.type, action.payload) === dedupeKey) ?? null;
+}
 
 // ========== INITIALIZATION ==========
 
@@ -88,16 +120,59 @@ export async function queueAction(
   return new Promise((resolve, reject) => {
     const transaction = database.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
-    const request = store.add(action);
+    const dedupeKey = getUpdateDedupeKey(type, payload);
 
-    request.onsuccess = () => {
-      Toast.show('Azione salvata. Verrà sincronizzata quando online.', 'info');
-      resolve(action.id);
+    const addAction = (): void => {
+      const request = store.add(action);
+
+      request.onsuccess = () => {
+        Toast.show('Azione salvata. Verrà sincronizzata quando online.', 'info');
+        resolve(action.id);
+      };
+
+      request.onerror = () => {
+        logger.error('offlineQueue', 'Failed to queue action:', request.error);
+        reject(request.error);
+      };
     };
 
-    request.onerror = () => {
-      logger.error('offlineQueue', 'Failed to queue action:', request.error);
-      reject(request.error);
+    if (!dedupeKey) {
+      addAction();
+      return;
+    }
+
+    const existingRequest = store.getAll();
+
+    existingRequest.onsuccess = () => {
+      const duplicate = findDuplicateUpdateAction(existingRequest.result || [], dedupeKey);
+
+      if (!duplicate) {
+        addAction();
+        return;
+      }
+
+      const mergedAction: QueuedAction = {
+        ...duplicate,
+        payload,
+        retryCount: 0
+      };
+
+      const updateRequest = store.put(mergedAction);
+
+      updateRequest.onsuccess = () => {
+        Toast.show('Azione offline aggiornata. Verrà sincronizzata quando online.', 'info');
+        resolve(mergedAction.id);
+      };
+
+      updateRequest.onerror = () => {
+        logger.error('offlineQueue', 'Failed to update queued action:', updateRequest.error);
+        reject(updateRequest.error);
+      };
+    };
+
+    existingRequest.onerror = () => {
+      logger.error('offlineQueue', 'Failed to inspect queue for duplicates:', existingRequest.error);
+      reject(existingRequest.error);
     };
   });
 }

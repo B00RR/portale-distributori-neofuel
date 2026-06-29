@@ -131,4 +131,48 @@ describe('Offline Queue Module', () => {
         expect(pending).toHaveLength(1);
         expect(consoleErrorSpy.mock.calls.length + consoleWarnSpy.mock.calls.length).toBeGreaterThan(0);
     });
+
+    it('deduplicates pending update actions for the same entity (#107)', async () => {
+        const firstId = await offlineQueue.queueAction('generic', {
+            operation: 'update',
+            entityType: 'invoice',
+            entityId: '123',
+            changes: { status: 'draft', note: 'first' }
+        });
+        const secondId = await offlineQueue.queueAction('generic', {
+            operation: 'update',
+            entityType: 'invoice',
+            entityId: '123',
+            changes: { status: 'paid' }
+        });
+
+        const pending = await offlineQueue.getPendingActions();
+
+        expect(secondId).toBe(firstId);
+        expect(pending).toHaveLength(1);
+        expect(pending[0].payload).toMatchObject({
+            operation: 'update',
+            entityType: 'invoice',
+            entityId: '123',
+            changes: { status: 'paid' }
+        });
+        expect(pending[0].retryCount).toBe(0);
+    });
+
+    it('does not deduplicate creates without update semantics (#107)', async () => {
+        await offlineQueue.queueAction('movement_create', {
+            operation: 'create',
+            entityType: 'movement',
+            entityId: '123',
+            amount: 10
+        });
+        await offlineQueue.queueAction('movement_create', {
+            operation: 'create',
+            entityType: 'movement',
+            entityId: '123',
+            amount: 20
+        });
+
+        expect(await offlineQueue.getPendingActions()).toHaveLength(2);
+    });
 });
