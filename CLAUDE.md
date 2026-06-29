@@ -55,6 +55,12 @@ npm run lint        # ESLint with max-warnings 0
 **PWA**  
 - Configured via `vite-plugin-pwa` and `workbox-window`; allows offline access to cached routes and assets.
 
+**UI building: Lit only for complex operator widgets; imperative elsewhere**  
+- `js/ui/components/` holds Lit web components reserved for the few complex, stateful operator flows: `ClosureWizard`, `VoucherManager`, `ShiftOpener` (all extend `BaseComponent`). Add a new Lit component only for comparably complex, self-contained, stateful UI.
+- Everything else — admin pages, operator menus, dialogs, notifications — is built imperatively with `document.createElement` + `textContent`. Reuse the shared helpers in `js/ui/ui.ts` (loaders, `openModal`, `openConfirmModal`, `showPromptModal`, `showErrorMessage`) and `js/ui/toast.ts` rather than rolling new ones.
+- All dynamic HTML must pass through `setSafeHTML()` / `escapeHtml()` from `js/utils/sanitizer.ts`.
+- Do NOT reintroduce a generic presentational component library (card/table/form/alert wrappers) without a concrete consumer — a prior one was unused and was removed.
+
 ## Conventions
 
 - **TypeScript strict mode** — no `any`, no implicit `unknown`.
