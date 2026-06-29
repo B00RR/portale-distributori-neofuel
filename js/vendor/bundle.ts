@@ -13,23 +13,25 @@ import * as Split from 'split.js';
 import * as XLSX from 'xlsx';
 import * as XlsxPopulate from 'xlsx-populate';
 
+import type { ChartConstructor, SortableConstructor } from '../types.js';
+
 declare global {
   interface Window {
-    Chart: typeof Chart;
+    Chart: ChartConstructor;
     Html5Qrcode: typeof Html5Qrcode;
     jsPDF: typeof jsPDF;
     JSZip: typeof JSZip;
-    Sortable: typeof Sortable;
+    Sortable: SortableConstructor;
     Split: typeof Split;
     XLSX: typeof XLSX;
     XlsxPopulate: typeof XlsxPopulate;
   }
 }
 
-window.Chart = Chart;
+window.Chart = Chart as unknown as ChartConstructor;
 window.jsPDF = jsPDF;
 window.JSZip = JSZip;
-window.Sortable = Sortable;
+window.Sortable = Sortable as unknown as SortableConstructor;
 window.Split = Split;
 window.XLSX = XLSX;
 window.XlsxPopulate = XlsxPopulate;
