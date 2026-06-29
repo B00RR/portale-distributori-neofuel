@@ -26,9 +26,15 @@ function createEl<K extends keyof HTMLElementTagNameMap>(
   } = {}
 ): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
-  if (options.id) {el.id = options.id;}
-  if (options.classes) {el.classList.add(...options.classes.filter(Boolean));}
-  if (options.text !== undefined) {el.textContent = options.text;}
+  if (options.id) {
+    el.id = options.id;
+  }
+  if (options.classes) {
+    el.classList.add(...options.classes.filter(Boolean));
+  }
+  if (options.text !== undefined) {
+    el.textContent = options.text;
+  }
   if (options.attrs) {
     Object.entries(options.attrs).forEach(([key, value]) => {
       el.setAttribute(key, value);
@@ -56,39 +62,39 @@ type InvoiceStatus = 'pending' | 'completed' | 'emessa' | 'annullata';
 type PaymentMethod = 'contanti' | 'pos' | 'bonifico' | string;
 
 interface FuelStation {
-    station_name: string;
+  station_name: string;
 }
 
 interface User {
-    full_name?: string;
-    username?: string;
+  full_name?: string;
+  username?: string;
 }
 
 interface BillingCustomer {
-    id: number;
-    nome: string;
-    partita_iva?: string;
-    telefono?: string;
+  id: number;
+  nome: string;
+  partita_iva?: string;
+  telefono?: string;
 }
 
 interface Invoice {
-    id: number;
-    created_at: string;
-    amount: number;
-    payment_method: PaymentMethod;
-    product_category: string;
-    status: InvoiceStatus;
-    notes?: string;
-    station_id: number;
-    cliente_id?: number | null;
-    customer_name?: string; // Fallback legacy name
+  id: number;
+  created_at: string;
+  amount: number;
+  payment_method: PaymentMethod;
+  product_category: string;
+  status: InvoiceStatus;
+  notes?: string;
+  station_id: number;
+  cliente_id?: number | null;
+  customer_name?: string; // Fallback legacy name
 
-    // Joins
-    fuel_stations?: FuelStation;
-    users?: User;
+  // Joins
+  fuel_stations?: FuelStation;
+  users?: User;
 
-    // Manually joined
-    clienti_fatturazione?: BillingCustomer;
+  // Manually joined
+  clienti_fatturazione?: BillingCustomer;
 }
 
 // --- MAIN FUNCTION ---
@@ -105,8 +111,7 @@ export async function showFattureTab(
   }
 
   try {
-    let query = supabase.from('invoices')
-      .select(`
+    let query = supabase.from('invoices').select(`
                 *,
                 fuel_stations(station_name),
                 users(full_name, username)
@@ -119,7 +124,9 @@ export async function showFattureTab(
     query = query.order('created_at', { ascending: false });
 
     const { data: rawInvoices, error } = await query;
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     const invoices = rawInvoices as Invoice[];
 
@@ -164,7 +171,6 @@ export async function showFattureTab(
     }
 
     renderInvoicesTable(container, invoices);
-
   } catch (err) {
     handleError(err, 'Caricamento Fatture', container);
   }
@@ -309,12 +315,11 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
 
 async function toggleInvoiceStatus(id: number, newStatus: InvoiceStatus): Promise<void> {
   try {
-    const { error } = await supabase
-      .from('invoices')
-      .update({ status: newStatus })
-      .eq('id', id);
+    const { error } = await supabase.from('invoices').update({ status: newStatus }).eq('id', id);
 
-    if (error) {throw error;}
+    if (error) {
+      throw error;
+    }
 
     Toast.show('Stato fattura aggiornato', 'success');
 
@@ -323,8 +328,9 @@ async function toggleInvoiceStatus(id: number, newStatus: InvoiceStatus): Promis
     // A simple way is to dispatch a custom event or click the tab again.
     // Or better: just locate the tab button and click it to refresh.
     const activeTab = document.querySelector('.nav-btn.active') as HTMLElement | null;
-    if (activeTab) {activeTab.click();}
-
+    if (activeTab) {
+      activeTab.click();
+    }
   } catch (err) {
     logger.error('toggleInvoiceStatus', err);
     Toast.show('Errore aggiornamento stato', 'error');

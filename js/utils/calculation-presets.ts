@@ -5,8 +5,8 @@ import { logger } from '../core/logger.js';
 import { calculationEngine, CALCULATION_SCOPES } from './calculation-engine.js';
 
 interface PresetState {
-    functionsRegistered: boolean;
-    syncPromise: Promise<void> | null;
+  functionsRegistered: boolean;
+  syncPromise: Promise<void> | null;
 }
 
 const presetState: PresetState = {
@@ -16,14 +16,14 @@ const presetState: PresetState = {
 
 /** Narrow an unknown value to a property bag, defaulting to an empty record. */
 function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
 
 interface CalculationPreset {
-    scope: string;
-    name: string;
-    description: string;
-    dsl: Json;
+  scope: string;
+  name: string;
+  description: string;
+  dsl: Json;
 }
 
 const CALCULATION_PRESETS: CalculationPreset[] = [
@@ -80,20 +80,26 @@ function round(value: number | string, precision: number = 2): number {
 }
 
 function registerPresetFunctions(): void {
-  if (presetState.functionsRegistered) { return; }
+  if (presetState.functionsRegistered) {
+    return;
+  }
   presetState.functionsRegistered = true;
 
   calculationEngine.registerFunction('dashboard_kpi_venduto', (args = {}, ctx = {}) => {
     const source = { ...asRecord(ctx), ...args };
     const manual = Number(source.salesEuro ?? source.manualValue ?? source.value ?? 0);
-    if (Number.isFinite(manual) && manual !== 0) { return manual; }
+    if (Number.isFinite(manual) && manual !== 0) {
+      return manual;
+    }
 
     const litersB = Number(source.totalLitriBenzina ?? 0);
     const litersG = Number(source.totalLitriGasolio ?? 0);
     const priceB = Number(source.prezzoBenzina ?? 0);
     const priceG = Number(source.prezzoGasolio ?? 0);
     const computed = litersB * priceB + litersG * priceG;
-    if (computed > 0) { return round(computed); }
+    if (computed > 0) {
+      return round(computed);
+    }
 
     const fallback = Number(source.fallback ?? 0);
     return round(fallback);
@@ -101,7 +107,9 @@ function registerPresetFunctions(): void {
 
   calculationEngine.registerFunction('closure_movimenti_summary', (args = {}, ctx = {}) => {
     const rawMovimenti = asRecord(ctx).movimenti ?? args.movimenti;
-    const movimenti: Record<string, unknown>[] = Array.isArray(rawMovimenti) ? rawMovimenti.map(asRecord) : [];
+    const movimenti: Record<string, unknown>[] = Array.isArray(rawMovimenti)
+      ? rawMovimenti.map(asRecord)
+      : [];
     const normalize = (value: unknown): number => Number(value) || 0;
     const toLower = (value: unknown): string => String(value || '').toLowerCase();
 
@@ -115,7 +123,12 @@ function registerPresetFunctions(): void {
 
     const vouchers = sumBy(m => {
       const descr = toLower(m.descrizione);
-      return m.tipo === 'voucher' || m.tipo === 'punti' || descr.includes('voucher') || descr.includes('punti');
+      return (
+        m.tipo === 'voucher' ||
+        m.tipo === 'punti' ||
+        descr.includes('voucher') ||
+        descr.includes('punti')
+      );
     });
 
     const refunds = sumBy(m => {
@@ -167,15 +180,16 @@ function registerPresetFunctions(): void {
     const tolerance = Number(source.tolerance ?? 5);
 
     const deltaSelf = selfCashIn - selfCashOut;
-    const expectedCash = carburante
-            - totalPosOperatore
-            - totalUtaOperatore
-            - selfPos
-            - credits
-            - vouchers
-            + deltaSelf
-            - refunds
-            + extraCash;
+    const expectedCash =
+      carburante -
+      totalPosOperatore -
+      totalUtaOperatore -
+      selfPos -
+      credits -
+      vouchers +
+      deltaSelf -
+      refunds +
+      extraCash;
 
     const roundedExpected = round(expectedCash);
     const cashDiff = round(cashReal - roundedExpected);
@@ -192,11 +206,12 @@ function registerPresetFunctions(): void {
 
 async function syncCalculationPreset(preset: CalculationPreset): Promise<void> {
   const existingModule = await safeSupabaseQuery<{ id: string; active_version_id: string | null }>(
-    async () => await supabase
-      .from('calculation_modules')
-      .select('id, active_version_id')
-      .eq('scope', preset.scope)
-      .maybeSingle(),
+    async () =>
+      await supabase
+        .from('calculation_modules')
+        .select('id, active_version_id')
+        .eq('scope', preset.scope)
+        .maybeSingle(),
     'Errore caricamento modulo calcoli'
   );
 
@@ -204,16 +219,19 @@ async function syncCalculationPreset(preset: CalculationPreset): Promise<void> {
 
   if (!moduleId) {
     const insertResult = await safeSupabaseQuery<{ id: string }>(
-      async () => await supabase
-        .from('calculation_modules')
-        .insert([{
-          name: preset.name,
-          scope: preset.scope,
-          description: preset.description,
-          created_by: null
-        }])
-        .select('id')
-        .single(),
+      async () =>
+        await supabase
+          .from('calculation_modules')
+          .insert([
+            {
+              name: preset.name,
+              scope: preset.scope,
+              description: preset.description,
+              created_by: null
+            }
+          ])
+          .select('id')
+          .single(),
       'Errore creazione modulo calcoli'
     );
     moduleId = insertResult.data?.id;
@@ -224,39 +242,44 @@ async function syncCalculationPreset(preset: CalculationPreset): Promise<void> {
   }
 
   const existingPublished = await safeSupabaseQuery<{ id: string }>(
-    async () => await supabase
-      .from('calculation_versions')
-      .select('id')
-      .eq('module_id', moduleId)
-      .eq('status', 'published')
-      .order('version', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    async () =>
+      await supabase
+        .from('calculation_versions')
+        .select('id')
+        .eq('module_id', moduleId)
+        .eq('status', 'published')
+        .order('version', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     'Errore ricerca versioni calcoli'
   );
 
   if (!existingPublished?.data?.id) {
     const versionResult = await safeSupabaseQuery<{ id: string }>(
-      async () => await supabase
-        .from('calculation_versions')
-        .insert([{
-          module_id: moduleId,
-          version: 1,
-          status: 'published',
-          dsl: preset.dsl,
-          notes: 'Preset automatico',
-          published_at: new Date().toISOString()
-        }])
-        .select('id')
-        .single(),
+      async () =>
+        await supabase
+          .from('calculation_versions')
+          .insert([
+            {
+              module_id: moduleId,
+              version: 1,
+              status: 'published',
+              dsl: preset.dsl,
+              notes: 'Preset automatico',
+              published_at: new Date().toISOString()
+            }
+          ])
+          .select('id')
+          .single(),
       'Errore creazione versione calcoli'
     );
 
     await safeSupabaseQuery(
-      async () => await supabase
-        .from('calculation_modules')
-        .update({ active_version_id: versionResult.data?.id ?? null })
-        .eq('id', moduleId),
+      async () =>
+        await supabase
+          .from('calculation_modules')
+          .update({ active_version_id: versionResult.data?.id ?? null })
+          .eq('id', moduleId),
       'Errore aggiornamento modulo attivo'
     );
   }
@@ -279,7 +302,7 @@ export function initializeCalculationPresets(): void {
 export async function ensureCalculationPresetsSynced(): Promise<void> {
   registerPresetFunctions();
   if (!presetState.syncPromise) {
-    presetState.syncPromise = syncAllPresets().catch((err) => {
+    presetState.syncPromise = syncAllPresets().catch(err => {
       logger.warn('calcPresets', 'Impossibile sincronizzare i preset del motore di calcolo:', err);
     });
   }

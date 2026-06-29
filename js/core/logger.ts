@@ -9,8 +9,8 @@
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 interface LoggerConfig {
-    isProduction: boolean;
-    serviceName: string;
+  isProduction: boolean;
+  serviceName: string;
 }
 
 const config: LoggerConfig = {
@@ -74,9 +74,7 @@ function log(level: LogLevel, context: string, message: string, errorId?: string
 
   const timestamp = new Date().toISOString();
   const prefix = `[${config.serviceName}][${context}]`;
-  const logMessage = errorId
-    ? `${prefix} ${message} (ID: ${errorId})`
-    : `${prefix} ${message}`;
+  const logMessage = errorId ? `${prefix} ${message} (ID: ${errorId})` : `${prefix} ${message}`;
 
   switch (level) {
     case 'error':
@@ -97,21 +95,29 @@ function log(level: LogLevel, context: string, message: string, errorId?: string
 }
 
 function formatArgs(args: unknown[]): string {
-  return args.map(arg => {
-    if (arg instanceof Error) { return safeErrorString(arg); }
-    if (typeof arg === 'string') { return maskSensitive(arg); }
-    if (typeof arg === 'number' || typeof arg === 'boolean') { return String(arg); }
-    return '[Object]';
-  }).join(' ');
+  return args
+    .map(arg => {
+      if (arg instanceof Error) {
+        return safeErrorString(arg);
+      }
+      if (typeof arg === 'string') {
+        return maskSensitive(arg);
+      }
+      if (typeof arg === 'number' || typeof arg === 'boolean') {
+        return String(arg);
+      }
+      return '[Object]';
+    })
+    .join(' ');
 }
 
 // ========== PUBLIC API ==========
 
 export const logger = {
   /**
-     * Log an error safely (no full objects, masked sensitive data)
-     * Returns an error ID for user-facing messages
-     */
+   * Log an error safely (no full objects, masked sensitive data)
+   * Returns an error ID for user-facing messages
+   */
   error(context: string, ...args: unknown[]): string {
     const errorId = generateErrorId();
     const safeMessage = formatArgs(args);
@@ -120,29 +126,29 @@ export const logger = {
   },
 
   /**
-     * Log a warning
-     */
+   * Log a warning
+   */
   warn(context: string, ...args: unknown[]): void {
     log('warn', context, formatArgs(args));
   },
 
   /**
-     * Log info (non-sensitive operational info)
-     */
+   * Log info (non-sensitive operational info)
+   */
   info(context: string, ...args: unknown[]): void {
     log('info', context, formatArgs(args));
   },
 
   /**
-     * Log debug (development only)
-     */
+   * Log debug (development only)
+   */
   debug(context: string, ...args: unknown[]): void {
     log('debug', context, formatArgs(args));
   },
 
   /**
-     * Get a user-friendly error message
-     */
+   * Get a user-friendly error message
+   */
   getUserMessage(errorId: string): string {
     return `Si è verificato un errore. Riferimento: ${errorId}`;
   }

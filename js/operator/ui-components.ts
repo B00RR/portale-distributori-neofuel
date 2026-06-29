@@ -113,12 +113,15 @@ export function createPistolaCard(
       </div>
       <div class="form-group ${readonly ? 'readonly-field' : ''}">
         <label>Contatore ${closingCounter !== null ? 'Apertura' : 'Iniziale'} (litri)</label>
-        ${readonly
-    ? `<div class="readonly-value">${formatLitri(openingCounter)}</div>`
-    : `<input type="number" value="${openingCounter}" class="big-input" disabled>`
-}
+        ${
+          readonly
+            ? `<div class="readonly-value">${formatLitri(openingCounter)}</div>`
+            : `<input type="number" value="${openingCounter}" class="big-input" disabled>`
+        }
       </div>
-      ${closingCounter !== null ? `
+      ${
+        closingCounter !== null
+          ? `
         <div class="form-group">
           <label>Contatore Chiusura</label>
           <input 
@@ -131,7 +134,9 @@ export function createPistolaCard(
             required
           >
         </div>
-      ` : ''}
+      `
+          : ''
+      }
     </div>
   `;
 }
@@ -149,12 +154,16 @@ export function createSummaryBox(title: string, rows: SummaryRow[]): string {
   return `
     <div class="summary-box">
       <h4>${escapeHtml(title)}</h4>
-      ${rows.map(row => `
+      ${rows
+        .map(
+          row => `
         <div class="summary-row ${row.class || ''}">
           <span>${escapeHtml(row.label)}</span>
           <strong>${row.value}</strong>
         </div>
-      `).join('')}
+      `
+        )
+        .join('')}
     </div>
   `;
 }
@@ -183,11 +192,15 @@ export function createDivider(): string {
 /**
  * Attacca event listener per pulsante "Torna al Menu"
  */
-export function attachBackButtonListener(buttonId: string = 'btn-back-menu', container: HTMLElement): void {
+export function attachBackButtonListener(
+  buttonId: string = 'btn-back-menu',
+  container: HTMLElement
+): void {
   const button = document.getElementById(buttonId);
   if (button) {
     button.addEventListener('click', () => {
-      container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+      container.innerHTML =
+        '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
     });
   }
 }
@@ -199,7 +212,8 @@ export function attachCancelButtonListener(buttonId: string, container: HTMLElem
   const button = document.getElementById(buttonId);
   if (button) {
     button.addEventListener('click', () => {
-      container.innerHTML = '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+      container.innerHTML =
+        '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
     });
   }
 }

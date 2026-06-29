@@ -7,7 +7,13 @@ import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
-import { showLoadingMessage, openModal, closeModal, openConfirmModal, setButtonLoading } from '../ui/ui.js';
+import {
+  showLoadingMessage,
+  openModal,
+  closeModal,
+  openConfirmModal,
+  setButtonLoading
+} from '../ui/ui.js';
 
 import { showIslandsModal } from './islands.js';
 import { showPrezziAdminModal } from './prices.js';
@@ -16,22 +22,25 @@ import { showTanksAdminModal } from './tanks.js';
 // --- INTERFACES ---
 
 interface FuelStation {
-    station_id: number;
-    station_name: string;
-    location: string;
-    allow_partial_closure: boolean;
-    created_at?: string;
+  station_id: number;
+  station_name: string;
+  location: string;
+  allow_partial_closure: boolean;
+  created_at?: string;
 }
 
 interface CustomWindow extends Window {
-    refreshUiIcons?: () => void;
+  refreshUiIcons?: () => void;
 }
 
 declare const window: CustomWindow;
 
 // --- MAIN FUNCTION ---
 
-export async function showStationsTab(container: HTMLElement, actionsContainer: HTMLElement | null): Promise<void> {
+export async function showStationsTab(
+  container: HTMLElement,
+  actionsContainer: HTMLElement | null
+): Promise<void> {
   showLoadingMessage(container);
 
   if (actionsContainer) {
@@ -45,15 +54,21 @@ export async function showStationsTab(container: HTMLElement, actionsContainer: 
   }
 
   try {
-    const rawStations = await Cache.getOrFetch(CACHE_KEYS.STATIONS, async () => {
-      const { data, error } = await supabase
-        .from('fuel_stations')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const rawStations = await Cache.getOrFetch(
+      CACHE_KEYS.STATIONS,
+      async () => {
+        const { data, error } = await supabase
+          .from('fuel_stations')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) { throw error; }
-      return data;
-    }, 10 * 60 * 1000); // Cache for 10 minutes
+        if (error) {
+          throw error;
+        }
+        return data;
+      },
+      10 * 60 * 1000
+    ); // Cache for 10 minutes
 
     const stations = rawStations as FuelStation[];
 
@@ -128,34 +143,43 @@ export async function showStationsTab(container: HTMLElement, actionsContainer: 
     container.querySelectorAll('.edit-station').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) { openStationModal(parseInt(id, 10)); }
+        if (id) {
+          openStationModal(parseInt(id, 10));
+        }
       });
     });
     container.querySelectorAll('.prices-station').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) { showPrezziAdminModal(id); }
+        if (id) {
+          showPrezziAdminModal(id);
+        }
       });
     });
     container.querySelectorAll('.islands-station').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) { showIslandsModal(parseInt(id, 10)); }
+        if (id) {
+          showIslandsModal(parseInt(id, 10));
+        }
       });
     });
     container.querySelectorAll('.tanks-station').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) { showTanksAdminModal(id); }
+        if (id) {
+          showTanksAdminModal(id);
+        }
       });
     });
     container.querySelectorAll('.delete-station').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) { deleteStation(parseInt(id, 10)); }
+        if (id) {
+          deleteStation(parseInt(id, 10));
+        }
       });
     });
-
   } catch (err) {
     logger.error('showStationsTab', err);
     handleError(err as Error, 'showStationsTab', container);
@@ -166,11 +190,17 @@ export async function openStationModal(stationId: number | null = null): Promise
   const isEdit = !!stationId;
   openModal(isEdit ? 'Modifica Distributore' : 'Nuovo Distributore');
   const target = document.getElementById('modal-body');
-  if (!target) { return; }
+  if (!target) {
+    return;
+  }
 
   let station: Partial<FuelStation> = {};
   if (stationId) {
-    const { data, error } = await supabase.from('fuel_stations').select('*').eq('station_id', stationId).single();
+    const { data, error } = await supabase
+      .from('fuel_stations')
+      .select('*')
+      .eq('station_id', stationId)
+      .single();
     if (!error && data) {
       station = data as FuelStation;
     }
@@ -227,7 +257,8 @@ export async function openStationModal(stationId: number | null = null): Promise
   partialLabel.appendChild(partialSpan);
   const partialSmall = document.createElement('small');
   partialSmall.style.cssText = 'color: #666; margin-top: 5px; display: block;';
-  partialSmall.textContent = 'Se disabilitato, gli operatori di questo distributore potranno effettuare solo chiusure finali.';
+  partialSmall.textContent =
+    'Se disabilitato, gli operatori di questo distributore potranno effettuare solo chiusure finali.';
   partialGroup.appendChild(partialLabel);
   partialGroup.appendChild(partialSmall);
 
@@ -242,7 +273,7 @@ export async function openStationModal(stationId: number | null = null): Promise
   form.appendChild(submitBtn);
   target.appendChild(form);
 
-  form.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const formData = new FormData(form);
     const payload = {
@@ -254,7 +285,9 @@ export async function openStationModal(stationId: number | null = null): Promise
     try {
       setButtonLoading(submitBtn, true, 'Salvataggio...');
       if (isEdit && stationId) {
-        await safeSupabaseQuery(() => supabase.from('fuel_stations').update(payload).eq('station_id', stationId));
+        await safeSupabaseQuery(() =>
+          supabase.from('fuel_stations').update(payload).eq('station_id', stationId)
+        );
       } else {
         await safeSupabaseQuery(() => supabase.from('fuel_stations').insert([payload]));
       }
@@ -273,7 +306,6 @@ export async function openStationModal(stationId: number | null = null): Promise
         const headerActions = document.getElementById('header-actions');
         showStationsTab(adminContent, headerActions);
       }
-
     } catch (err) {
       logger.error('openStationModal submit', err);
       Toast.show('Errore salvataggio: ' + (err as Error).message, 'error');
@@ -284,9 +316,13 @@ export async function openStationModal(stationId: number | null = null): Promise
 }
 
 export async function deleteStation(stationId: number): Promise<void> {
-  if (!await openConfirmModal('Sei sicuro di voler eliminare questo distributore?')) { return; }
+  if (!(await openConfirmModal('Sei sicuro di voler eliminare questo distributore?'))) {
+    return;
+  }
   try {
-    await safeSupabaseQuery(() => supabase.from('fuel_stations').delete().eq('station_id', stationId));
+    await safeSupabaseQuery(() =>
+      supabase.from('fuel_stations').delete().eq('station_id', stationId)
+    );
 
     // Invalidate cache
     Cache.invalidate(CACHE_KEYS.STATIONS);

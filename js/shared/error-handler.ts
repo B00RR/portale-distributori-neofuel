@@ -16,9 +16,9 @@ export type ErrorCode = 'PGRST116' | 'NETWORK_ERROR' | 'AUTH_ERROR' | 'VALIDATIO
 export type ToastType = 'error' | 'warning' | 'info' | 'success';
 
 export interface ErrorDetails {
-    code?: ErrorCode;
-    message?: string;
-    originalError?: unknown;
+  code?: ErrorCode;
+  message?: string;
+  originalError?: unknown;
 }
 
 // ========== CUSTOM ERROR CLASS ==========
@@ -70,14 +70,16 @@ export function handleError(
     type = 'warning';
   } else if (
     errorObj?.message?.toLowerCase().includes('network') ||
-        errorObj?.message?.toLowerCase().includes('fetch')
+    errorObj?.message?.toLowerCase().includes('fetch')
   ) {
     userMessage = 'Errore di connessione. Controlla la tua rete.';
   } else if (error instanceof AppError) {
     userMessage = error.message;
   } else if (errorObj?.message) {
     // SECURITY: Don't expose raw database error messages to users
-    userMessage = isDevelopment ? errorObj.message : 'Si è verificato un errore. Contatta il supporto.';
+    userMessage = isDevelopment
+      ? errorObj.message
+      : 'Si è verificato un errore. Contatta il supporto.';
   }
 
   // Show toast
@@ -90,7 +92,9 @@ export function handleError(
 
   // Render in page if requested
   if (renderTarget && renderTarget instanceof HTMLElement) {
-    setSafeHTML(renderTarget, `
+    setSafeHTML(
+      renderTarget,
+      `
             <div class="error-state" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
                 <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: var(--danger-color, #dc3545); margin-bottom: 1rem;"></i>
                 <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">${escapeHtml(userMessage)}</p>
@@ -98,10 +102,9 @@ export function handleError(
                     <i class="fas fa-sync-alt"></i> Ricarica Pagina
                 </button>
             </div>
-        `);
+        `
+    );
   }
 }
-
-
 
 // Helper escapeHtml rimosso in favore di import centralizzato da ../utils/utils.js

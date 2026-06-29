@@ -1,7 +1,7 @@
 /**
  * CardBox Component  
  * Container riusabile con header e footer opzionali
- * 
+ *
  * @example
  * <card-box title="Statistiche">
  *   <p slot="body">Contenuto principale</p>
@@ -17,7 +17,8 @@ import { BaseComponent } from './BaseComponent.js';
 export class CardBox extends BaseComponent {
   @property({ type: String }) override title: string = '';
   @property({ type: String }) subtitle: string = '';
-  @property({ type: String }) variant: 'default' | 'primary' | 'success' | 'warning' | 'danger' = 'default';
+  @property({ type: String }) variant: 'default' | 'primary' | 'success' | 'warning' | 'danger' =
+    'default';
 
   static override styles: CSSResultGroup = [
     BaseComponent.styles,
@@ -108,26 +109,36 @@ export class CardBox extends BaseComponent {
   override render(): TemplateResult {
     return html`
       <div class="card ${this.variant}">
-        ${this.title || this._hasHeaderSlot() ? html`
-          <div class="card-header">
-            ${this.title ? html`
-              <h3>${this.title}</h3>
-              ${this.subtitle ? html`<div class="subtitle">${this.subtitle}</div>` : ''}
-            ` : html`
-              <slot name="header"></slot>
-            `}
-          </div>
-        ` : ''}
+        ${
+          this.title || this._hasHeaderSlot()
+            ? html`
+                <div class="card-header">
+                  ${
+                    this.title
+                      ? html`
+                    <h3>${this.title}</h3>
+                    ${this.subtitle ? html`<div class="subtitle">${this.subtitle}</div>` : ''}
+                  `
+                      : html` <slot name="header"></slot> `
+                  }
+                </div>
+              `
+            : ''
+        }
 
         <div class="card-body">
           <slot></slot>
         </div>
 
-        ${this._hasFooterSlot() ? html`
-          <div class="card-footer">
-            <slot name="footer"></slot>
-          </div>
-        ` : ''}
+        ${
+          this._hasFooterSlot()
+            ? html`
+                <div class="card-footer">
+                  <slot name="footer"></slot>
+                </div>
+              `
+            : ''
+        }
       </div>
     `;
   }

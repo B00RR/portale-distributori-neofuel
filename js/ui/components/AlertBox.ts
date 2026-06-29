@@ -1,7 +1,7 @@
 /**
  * AlertBox Component
  * Box di alert/notifica riusabile
- * 
+ *
  * @example
  * <alert-box type="success" dismissible>
  *   <strong>Successo!</strong> Operazione completata.
@@ -92,7 +92,9 @@ export class AlertBox extends BaseComponent {
   }
 
   override render(): TemplateResult {
-    if (!this.visible) { return html``; }
+    if (!this.visible) {
+      return html``;
+    }
 
     const defaultIcons = new Map<string, string>([
       ['info', 'fa-info-circle'],
@@ -109,11 +111,20 @@ export class AlertBox extends BaseComponent {
         <div class="alert-content">
           <slot></slot>
         </div>
-        ${this.dismissible ? html`
-          <button class="alert-close" @click="${this._handleDismiss}" type="button" aria-label="Close">
-            <i class="fas fa-times"></i>
-          </button>
-        ` : ''}
+        ${
+          this.dismissible
+            ? html`
+                <button
+                  class="alert-close"
+                  @click="${this._handleDismiss}"
+                  type="button"
+                  aria-label="Close"
+                >
+                  <i class="fas fa-times"></i>
+                </button>
+              `
+            : ''
+        }
       </div>
     `;
   }

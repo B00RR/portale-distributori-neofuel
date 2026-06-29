@@ -2,9 +2,9 @@
  * ============================================================================
  * ADMIN DASHBOARD CONFIGURATION MODULE
  * ============================================================================
- * 
+ *
  * Provides visual configuration interface for customizing dashboard KPI layout
- * 
+ *
  * @module admin-dashboard-config
  */
 
@@ -24,35 +24,35 @@ import { escapeHtml, getErrorMessage } from '../utils/utils.js';
 export type CardSize = '1x1' | '1x2' | '2x1' | '2x2';
 
 export interface KPIMetadata {
-    id: string;
-    title: string;
-    icon: string;
-    description: string;
-    defaultSize: CardSize;
-    defaultVisible: boolean;
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  defaultSize: CardSize;
+  defaultVisible: boolean;
 }
 
 export interface KPIConfigItem {
-    id: string;
-    visible: boolean;
-    order: number;
-    size: CardSize;
-    position: {
-        row: number;
-        col: number;
-    };
+  id: string;
+  visible: boolean;
+  order: number;
+  size: CardSize;
+  position: {
+    row: number;
+    col: number;
+  };
 }
 
 export interface DashboardConfig {
-    kpiLayout: KPIConfigItem[];
-    gridColumns: number;
+  kpiLayout: KPIConfigItem[];
+  gridColumns: number;
 }
 
 export interface CardSizeDefinition {
-    value: CardSize;
-    label: string;
-    cols: number;
-    rows: number;
+  value: CardSize;
+  label: string;
+  cols: number;
+  rows: number;
 }
 
 // ============================================================================
@@ -144,11 +144,17 @@ export const CARD_SIZES: CardSizeDefinition[] = [
  */
 async function getCurrentUserId(): Promise<string | number | null> {
   // Priority: Supabase Auth UUID (required for user_dashboard_config table which uses uuid type)
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user?.id) { return session.user.id; }
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+  if (session?.user?.id) {
+    return session.user.id;
+  }
 
   // Fallback to internal ID (though this might cause type errors if table expects uuid)
-  if (loggedUser?.user_id) { return loggedUser.user_id; }
+  if (loggedUser?.user_id) {
+    return loggedUser.user_id;
+  }
 
   return null;
 }
@@ -168,10 +174,17 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
   // Validate if userId is a valid UUID (simple regex check)
   // The table user_dashboard_config requires a UUID type for user_id.
   // If the legacy admin user has an integer ID (e.g. 1 or 11), the query will fail with 400.
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(userId));
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    String(userId)
+  );
 
   if (!isUUID) {
-    logger.warn('dashboardConfig', 'User ID is not a UUID (User:', userId, '). Using default config.');
+    logger.warn(
+      'dashboardConfig',
+      'User ID is not a UUID (User:',
+      userId,
+      '). Using default config.'
+    );
     return getDefaultConfig();
   }
 
@@ -195,14 +208,16 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
     }
 
     // Type guard: kpi_layout should be an array, default to empty if not
-    let layout = Array.isArray(data.kpi_layout) ? (data.kpi_layout as unknown as KPIConfigItem[]) : [];
+    let layout = Array.isArray(data.kpi_layout)
+      ? (data.kpi_layout as unknown as KPIConfigItem[])
+      : [];
 
     // SYNC: Add any new items from KPI_CATALOG that are missing in the stored layout
-    const storedIds = new Set(layout.map((k) => k.id));
+    const storedIds = new Set(layout.map(k => k.id));
     const missingItems = Object.values(KPI_CATALOG).filter(cat => !storedIds.has(cat.id));
 
     if (missingItems.length > 0) {
-      const nextOrder = layout.length > 0 ? Math.max(...layout.map((k) => k.order)) + 1 : 0;
+      const nextOrder = layout.length > 0 ? Math.max(...layout.map(k => k.order)) + 1 : 0;
       const newItems = missingItems.map((meta, idx) => ({
         id: meta.id,
         visible: meta.defaultVisible,
@@ -237,18 +252,21 @@ export async function saveDashboardConfig(config: DashboardConfig): Promise<bool
 
   try {
     // Cast kpiLayout to Json type for Supabase (safe since it's JSON-serializable)
-    const { error } = await supabase
-      .from('user_dashboard_config')
-      .upsert({
+    const { error } = await supabase.from('user_dashboard_config').upsert(
+      {
         user_id: String(userId),
         kpi_layout: config.kpiLayout as unknown as Json,
         grid_columns: config.gridColumns,
         updated_at: new Date().toISOString()
-      }, {
+      },
+      {
         onConflict: 'user_id'
-      });
+      }
+    );
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     Toast.show('Configurazione dashboard salvata!', 'success');
     return true;
@@ -273,18 +291,21 @@ export async function resetDashboardConfig(): Promise<boolean> {
   try {
     const defaultConfig = getDefaultConfig();
     // Cast kpiLayout to Json type for Supabase (safe since it's JSON-serializable)
-    const { error } = await supabase
-      .from('user_dashboard_config')
-      .upsert({
+    const { error } = await supabase.from('user_dashboard_config').upsert(
+      {
         user_id: String(userId),
         kpi_layout: defaultConfig.kpiLayout as unknown as Json,
         grid_columns: defaultConfig.gridColumns,
         updated_at: new Date().toISOString()
-      }, {
+      },
+      {
         onConflict: 'user_id'
-      });
+      }
+    );
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     Toast.show('Configurazione ripristinata ai valori predefiniti', 'success');
     return true;
@@ -300,18 +321,18 @@ export async function resetDashboardConfig(): Promise<boolean> {
  */
 async function ensureDefaultConfig(): Promise<void> {
   const userId = await getCurrentUserId();
-  if (!userId) { return; }
+  if (!userId) {
+    return;
+  }
 
   try {
     const defaultConfig = getDefaultConfig();
     // Cast kpiLayout to Json type for Supabase (safe since it's JSON-serializable)
-    await supabase
-      .from('user_dashboard_config')
-      .insert({
-        user_id: String(userId),
-        kpi_layout: defaultConfig.kpiLayout as unknown as Json,
-        grid_columns: defaultConfig.gridColumns
-      });
+    await supabase.from('user_dashboard_config').insert({
+      user_id: String(userId),
+      kpi_layout: defaultConfig.kpiLayout as unknown as Json,
+      grid_columns: defaultConfig.gridColumns
+    });
   } catch (err: unknown) {
     // Ignore duplicate key errors
     const e = err as { message?: string; code?: string };
@@ -363,18 +384,25 @@ export async function renderConfigPanel(container: HTMLElement): Promise<void> {
     return;
   }
 
-  setSafeHTML(container, '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento configurazione...</div>');
+  setSafeHTML(
+    container,
+    '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento configurazione...</div>'
+  );
 
   try {
     const config = await loadDashboardConfig();
 
-    setSafeHTML(container, `
+    setSafeHTML(
+      container,
+      `
       <div class="dashboard-config-panel">
         <div class="config-section">
           <h4><i class="fas fa-th"></i> Layout Griglia</h4>
           <p class="section-hint">Seleziona il numero di colonne per la griglia delle KPI</p>
           <div class="grid-columns-selector">
-            ${[2, 3, 4, 5, 6].map(cols => `
+            ${[2, 3, 4, 5, 6]
+              .map(
+                cols => `
               <button 
                 class="grid-col-btn ${config.gridColumns === cols ? 'active' : ''}" 
                 data-columns="${cols}"
@@ -382,7 +410,9 @@ export async function renderConfigPanel(container: HTMLElement): Promise<void> {
                 <i class="fas fa-th"></i>
                 <span>${cols} ${cols === 1 ? 'colonna' : 'colonne'}</span>
               </button>
-            `).join('')}
+            `
+              )
+              .join('')}
           </div>
         </div>
 
@@ -405,17 +435,20 @@ export async function renderConfigPanel(container: HTMLElement): Promise<void> {
           </button>
         </div>
       </div>
-    `);
+    `
+    );
 
     initializeConfigHandlers(config, container);
-
   } catch (err: unknown) {
-    setSafeHTML(container, `
+    setSafeHTML(
+      container,
+      `
       <div class="error-message">
         <i class="fas fa-exclamation-circle"></i>
         <p>Errore caricamento configurazione: ${escapeHtml(getErrorMessage(err))}</p>
       </div>
-    `);
+    `
+    );
   }
 }
 
@@ -427,7 +460,9 @@ function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
     .sort((a, b) => a.order - b.order)
     .map(kpi => {
       const kpiMeta = KPI_CATALOG[kpi.id];
-      if (!kpiMeta) { return ''; }
+      if (!kpiMeta) {
+        return '';
+      }
 
       return `
         <div class="kpi-config-item ${!kpi.visible ? 'hidden' : ''}" data-kpi-id="${kpi.id}">
@@ -460,20 +495,23 @@ function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
                 <span class="size-label">${kpi.size}</span>
               </button>
               <div class="size-dropdown-menu">
-                ${CARD_SIZES.map(size => `
+                ${CARD_SIZES.map(
+                  size => `
                   <button 
                     class="size-option ${size.value === kpi.size ? 'active' : ''}" 
                     data-size="${size.value}"
                   >
                     <span>${size.label}</span>
                   </button>
-                `).join('')}
+                `
+                ).join('')}
               </div>
             </div>
           </div>
         </div>
       `;
-    }).join('');
+    })
+    .join('');
 }
 
 /**
@@ -482,7 +520,8 @@ function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
 function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTMLElement): void {
   const currentConfig: DashboardConfig = JSON.parse(JSON.stringify(initialConfig)); // Deep clone
 
-  const $$ = (selector: string): NodeListOf<Element> => container ? container.querySelectorAll(selector) : document.querySelectorAll(selector);
+  const $$ = (selector: string): NodeListOf<Element> =>
+    container ? container.querySelectorAll(selector) : document.querySelectorAll(selector);
 
   // Grid columns selector
   $$('.grid-col-btn').forEach(btn => {
@@ -540,7 +579,9 @@ function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTM
 
         // Update UI
         const sizeLabel = item.querySelector('.size-label');
-        if (sizeLabel) {sizeLabel.textContent = newSize;}
+        if (sizeLabel) {
+          sizeLabel.textContent = newSize;
+        }
 
         // Update active state
         item.querySelectorAll('.size-option').forEach(o => o.classList.remove('active'));
@@ -549,7 +590,9 @@ function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTM
 
       // Close dropdown
       const menu = btn.closest('.size-dropdown-menu');
-      if (menu) {menu.classList.remove('show');}
+      if (menu) {
+        menu.classList.remove('show');
+      }
     });
   });
 
@@ -581,7 +624,9 @@ function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTM
   const resetBtn = container.querySelector('#btn-config-reset');
   if (resetBtn) {
     resetBtn.addEventListener('click', async () => {
-      const confirmed = await openConfirmModal('Sei sicuro di voler ripristinare la configurazione predefinita? Tutte le personalizzazioni andranno perse.');
+      const confirmed = await openConfirmModal(
+        'Sei sicuro di voler ripristinare la configurazione predefinita? Tutte le personalizzazioni andranno perse.'
+      );
       if (confirmed) {
         const success = await resetDashboardConfig();
         if (success) {
@@ -598,8 +643,12 @@ function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTM
  * Initialize SortableJS for drag-and-drop reordering
  */
 function initializeSortable(config: DashboardConfig, container: HTMLElement): void {
-  const list = container ? container.querySelector<HTMLElement>('#kpi-config-list') : document.getElementById('kpi-config-list');
-  if (!list) { return; }
+  const list = container
+    ? container.querySelector<HTMLElement>('#kpi-config-list')
+    : document.getElementById('kpi-config-list');
+  if (!list) {
+    return;
+  }
 
   // Check if Sortable library is available
   const customWindow = window as unknown as CustomWindow;
@@ -624,8 +673,12 @@ function initializeSortable(config: DashboardConfig, container: HTMLElement): vo
  * Update configuration order based on DOM elements
  */
 function updateKpiOrder(config: DashboardConfig, container: HTMLElement): void {
-  const list = container ? container.querySelector<HTMLElement>('#kpi-config-list') : document.getElementById('kpi-config-list');
-  if (!list) { return; }
+  const list = container
+    ? container.querySelector<HTMLElement>('#kpi-config-list')
+    : document.getElementById('kpi-config-list');
+  if (!list) {
+    return;
+  }
 
   const items = Array.from(list.children) as HTMLElement[];
 

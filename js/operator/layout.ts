@@ -16,13 +16,13 @@ import { OperatorView } from './router.js';
 // ========== TYPE DEFINITIONS ==========
 
 export interface OperatorHandlers {
-    onNavigate: (view: OperatorView) => void;
-    onOpening: (stationId: string, userId: string) => void;
-    onClosure: (stationId: string, userId: string) => void;
+  onNavigate: (view: OperatorView) => void;
+  onOpening: (stationId: string, userId: string) => void;
+  onClosure: (stationId: string, userId: string) => void;
 }
 
 interface ExtendedUser extends User {
-    assignedStations?: Array<{ id: string }>;
+  assignedStations?: Array<{ id: string }>;
 }
 
 // ========== FUNCTIONS ==========
@@ -30,7 +30,10 @@ interface ExtendedUser extends User {
 /**
  * Render the operator shell layout
  */
-export async function renderOperatorShell(container: HTMLElement, handlers: OperatorHandlers): Promise<void> {
+export async function renderOperatorShell(
+  container: HTMLElement,
+  handlers: OperatorHandlers
+): Promise<void> {
   const user = store.getUser() as ExtendedUser | null;
   const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
 
@@ -125,7 +128,9 @@ async function updateStationBadge(stationId: string | number): Promise<void> {
   try {
     const name = await getStationName(stationId);
     const badge = document.getElementById('station-badge');
-    if (badge) {badge.textContent = name;}
+    if (badge) {
+      badge.textContent = name;
+    }
   } catch (err) {
     logger.error('operatorLayout', 'Error updating station badge:', err);
   }
@@ -158,14 +163,22 @@ export async function updateTurnoButton(
   }
 
   if (opening) {
-    if (turnoIcon) {turnoIcon.className = 'fas fa-door-closed';}
-    if (turnoText) {turnoText.textContent = 'Chiusura';}
+    if (turnoIcon) {
+      turnoIcon.className = 'fas fa-door-closed';
+    }
+    if (turnoText) {
+      turnoText.textContent = 'Chiusura';
+    }
 
     // Remove old listeners by using onclick property (safest simple way)
     btnTurno.onclick = () => handlers.onClosure(String(stationId), String(userId));
 
     if (badge) {
-      const hasPartial = opening.closing_data !== null && typeof opening.closing_data === 'object' && 'closure_stage' in opening.closing_data && (opening.closing_data as Record<string, unknown>).closure_stage === 'partial';
+      const hasPartial =
+        opening.closing_data !== null &&
+        typeof opening.closing_data === 'object' &&
+        'closure_stage' in opening.closing_data &&
+        (opening.closing_data as Record<string, unknown>).closure_stage === 'partial';
       const text = hasPartial ? 'Parziale' : 'Aperto';
       badge.textContent = text;
       badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
@@ -174,8 +187,12 @@ export async function updateTurnoButton(
       badge.style.display = 'inline-block';
     }
   } else {
-    if (turnoIcon) {turnoIcon.className = 'fas fa-door-open';}
-    if (turnoText) {turnoText.textContent = 'Apertura';}
+    if (turnoIcon) {
+      turnoIcon.className = 'fas fa-door-open';
+    }
+    if (turnoText) {
+      turnoText.textContent = 'Apertura';
+    }
 
     btnTurno.onclick = () => handlers.onOpening(String(stationId), String(userId));
 

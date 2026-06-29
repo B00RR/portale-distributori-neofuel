@@ -11,11 +11,16 @@ import '../ui/components/ClosureWizard.js';
  * @param stationId The station identifier.
  * @param userId The operator identifier.
  */
-export async function startClosureWizard(stationId: number | string, userId: string | number): Promise<void> {
+export async function startClosureWizard(
+  stationId: number | string,
+  userId: string | number
+): Promise<void> {
   try {
     openModal('Chiusura Turno');
     const modalBody = document.getElementById('modal-body');
-    if (!modalBody) {return;}
+    if (!modalBody) {
+      return;
+    }
 
     setSafeHTML(modalBody, ''); // Clear existing content
 
@@ -27,12 +32,14 @@ export async function startClosureWizard(stationId: number | string, userId: str
     wizard.addEventListener('cancel', () => closeModal());
 
     modalBody.appendChild(wizard);
-
   } catch (err: unknown) {
     logger.error('closure', '[Closure Wrapper] Error starting wizard:', err);
     const modalBody = document.getElementById('modal-body');
     if (modalBody) {
-      setSafeHTML(modalBody, `<p style="color: red; padding: 20px;">Errore: ${escapeHtml(getErrorMessage(err))}</p>`);
+      setSafeHTML(
+        modalBody,
+        `<p style="color: red; padding: 20px;">Errore: ${escapeHtml(getErrorMessage(err))}</p>`
+      );
     }
   }
 }

@@ -125,9 +125,11 @@ describe('Admin Notifications Module', () => {
 
     it('should display critical alert for low fuel even when there are other errors', async () => {
         const container = document.getElementById('notifications-container')!;
-        const lowFuelTank = { name: 'Tank A', fuel_type: 'Diesel', liters: 500, station_id: 1, fuel_stations: { station_name: 'Station 1' } };
+        const lowFuelTank = { id: 1, name: 'Tank A', fuel_type: 'Diesel', station_id: 1, fuel_stations: { station_name: 'Station 1' } };
 
         const tanksResult = { data: [lowFuelTank], error: null };
+        // Liters live in tank_readings, not tanks: 500 < 1000 threshold => critical
+        const readingsResult = { data: [{ tank_id: 1, liters: 500, created_at: new Date().toISOString() }], error: null };
         const shiftsResult = { data: null, error: { message: 'Shifts unavailable' } };
 
         mockSupabase.from.mockImplementation((table) => {
@@ -135,6 +137,17 @@ describe('Admin Notifications Module', () => {
                 return {
                     select: vi.fn(() => ({
                         eq: vi.fn().mockResolvedValue(shiftsResult)
+                    }))
+                };
+            }
+            if (table === 'tank_readings') {
+                return {
+                    select: vi.fn(() => ({
+                        in: vi.fn(() => ({
+                            gte: vi.fn(() => ({
+                                order: vi.fn().mockResolvedValue(readingsResult)
+                            }))
+                        }))
                     }))
                 };
             }
@@ -153,9 +166,11 @@ describe('Admin Notifications Module', () => {
 
     it('should display critical alert for low fuel reserve', async () => {
         const container = document.getElementById('notifications-container')!;
-        const lowFuelTank = { name: 'Benzina Premium', fuel_type: 'Petrol', liters: 500, station_id: 1, fuel_stations: { station_name: 'Station 1' } };
+        const lowFuelTank = { id: 1, name: 'Benzina Premium', fuel_type: 'Petrol', station_id: 1, fuel_stations: { station_name: 'Station 1' } };
 
         const tanksResult = { data: [lowFuelTank], error: null };
+        // Liters live in tank_readings, not tanks: 500 < 1000 threshold => critical
+        const readingsResult = { data: [{ tank_id: 1, liters: 500, created_at: new Date().toISOString() }], error: null };
         const shiftsResult = { data: [], error: null };
 
         mockSupabase.from.mockImplementation((table) => {
@@ -163,6 +178,17 @@ describe('Admin Notifications Module', () => {
                 return {
                     select: vi.fn(() => ({
                         eq: vi.fn().mockResolvedValue(shiftsResult)
+                    }))
+                };
+            }
+            if (table === 'tank_readings') {
+                return {
+                    select: vi.fn(() => ({
+                        in: vi.fn(() => ({
+                            gte: vi.fn(() => ({
+                                order: vi.fn().mockResolvedValue(readingsResult)
+                            }))
+                        }))
                     }))
                 };
             }
@@ -182,9 +208,11 @@ describe('Admin Notifications Module', () => {
 
     it('should show "all clear" when no alerts and no errors', async () => {
         const container = document.getElementById('notifications-container')!;
-        const normalFuelTank = { name: 'Tank A', fuel_type: 'Diesel', liters: 2000, station_id: 1, fuel_stations: { station_name: 'Station 1' } };
+        const normalFuelTank = { id: 1, name: 'Tank A', fuel_type: 'Diesel', station_id: 1, fuel_stations: { station_name: 'Station 1' } };
 
         const tanksResult = { data: [normalFuelTank], error: null };
+        // Liters live in tank_readings, not tanks: 2000 > 1000 threshold => no alert
+        const readingsResult = { data: [{ tank_id: 1, liters: 2000, created_at: new Date().toISOString() }], error: null };
         const shiftsResult = { data: [], error: null };
 
         mockSupabase.from.mockImplementation((table) => {
@@ -192,6 +220,17 @@ describe('Admin Notifications Module', () => {
                 return {
                     select: vi.fn(() => ({
                         eq: vi.fn().mockResolvedValue(shiftsResult)
+                    }))
+                };
+            }
+            if (table === 'tank_readings') {
+                return {
+                    select: vi.fn(() => ({
+                        in: vi.fn(() => ({
+                            gte: vi.fn(() => ({
+                                order: vi.fn().mockResolvedValue(readingsResult)
+                            }))
+                        }))
                     }))
                 };
             }

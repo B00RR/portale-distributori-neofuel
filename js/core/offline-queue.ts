@@ -11,21 +11,21 @@ import { logger } from './logger.js';
 // ========== TYPES ==========
 
 export interface QueuedAction {
-    id: string;
-    type: 'voucher_redeem' | 'shift_close' | 'movement_create' | 'generic';
-    payload: Record<string, unknown>;
-    createdAt: string;
-    retryCount: number;
+  id: string;
+  type: 'voucher_redeem' | 'shift_close' | 'movement_create' | 'generic';
+  payload: Record<string, unknown>;
+  createdAt: string;
+  retryCount: number;
 }
 
 type DeduplicablePayload = Record<string, unknown> & {
-    operation?: unknown;
-    method?: unknown;
-    action?: unknown;
-    entityType?: unknown;
-    entityId?: unknown;
-    entity_type?: unknown;
-    entity_id?: unknown;
+  operation?: unknown;
+  method?: unknown;
+  action?: unknown;
+  entityType?: unknown;
+  entityId?: unknown;
+  entity_type?: unknown;
+  entity_id?: unknown;
 };
 
 type ActionExecutor = (action: QueuedAction) => Promise<boolean>;
@@ -43,25 +43,43 @@ let db: IDBDatabase | null = null;
 const executors: Map<string, ActionExecutor> = new Map();
 
 function normalizeDedupeValue(value: unknown): string | null {
-  if (typeof value === 'string' && value.trim()) {return value.trim();}
-  if (typeof value === 'number' && Number.isFinite(value)) {return String(value);}
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
   return null;
 }
 
-function getUpdateDedupeKey(type: QueuedAction['type'], payload: Record<string, unknown>): string | null {
+function getUpdateDedupeKey(
+  type: QueuedAction['type'],
+  payload: Record<string, unknown>
+): string | null {
   const candidate = payload as DeduplicablePayload;
-  const operation = normalizeDedupeValue(candidate.operation ?? candidate.method ?? candidate.action)?.toLowerCase();
-  if (operation !== 'update' && operation !== 'upsert') {return null;}
+  const operation = normalizeDedupeValue(
+    candidate.operation ?? candidate.method ?? candidate.action
+  )?.toLowerCase();
+  if (operation !== 'update' && operation !== 'upsert') {
+    return null;
+  }
 
   const entityType = normalizeDedupeValue(candidate.entityType ?? candidate.entity_type);
   const entityId = normalizeDedupeValue(candidate.entityId ?? candidate.entity_id);
 
-  if (!entityType || !entityId) {return null;}
+  if (!entityType || !entityId) {
+    return null;
+  }
   return `${type}:${entityType}:${entityId}`;
 }
 
-function findDuplicateUpdateAction(actions: QueuedAction[], dedupeKey: string): QueuedAction | null {
-  return actions.find(action => getUpdateDedupeKey(action.type, action.payload) === dedupeKey) ?? null;
+function findDuplicateUpdateAction(
+  actions: QueuedAction[],
+  dedupeKey: string
+): QueuedAction | null {
+  return (
+    actions.find(action => getUpdateDedupeKey(action.type, action.payload) === dedupeKey) ?? null
+  );
 }
 
 // ========== INITIALIZATION ==========
@@ -83,7 +101,7 @@ export async function initOfflineQueue(): Promise<void> {
       resolve();
     };
 
-    request.onupgradeneeded = (event) => {
+    request.onupgradeneeded = event => {
       const database = (event.target as IDBOpenDBRequest).result;
       if (!database.objectStoreNames.contains(STORE_NAME)) {
         database.createObjectStore(STORE_NAME, { keyPath: 'id' });
@@ -171,7 +189,11 @@ export async function queueAction(
     };
 
     existingRequest.onerror = () => {
-      logger.error('offlineQueue', 'Failed to inspect queue for duplicates:', existingRequest.error);
+      logger.error(
+        'offlineQueue',
+        'Failed to inspect queue for duplicates:',
+        existingRequest.error
+      );
       reject(existingRequest.error);
     };
   });
@@ -208,7 +230,9 @@ export async function getPendingActions(): Promise<QueuedAction[]> {
  * Remove an action from the queue
  */
 export async function removeAction(id: string): Promise<void> {
-  if (!db) {return;}
+  if (!db) {
+    return;
+  }
   const database = db;
 
   return new Promise((resolve, reject) => {
@@ -230,7 +254,9 @@ export async function removeAction(id: string): Promise<void> {
  * Update retry count for an action
  */
 async function incrementRetry(action: QueuedAction): Promise<void> {
-  if (!db) {return;}
+  if (!db) {
+    return;
+  }
   const database = db;
 
   action.retryCount++;
@@ -306,9 +332,11 @@ export async function syncPendingActions(): Promise<{ success: number; failed: n
     Toast.show(`${success} azioni sincronizzate con successo!`, 'success');
 
     // Dispatch custom event to notify other parts of the app
-    window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-      detail: { success, failed }
-    }));
+    window.dispatchEvent(
+      new CustomEvent('offline-sync-complete', {
+        detail: { success, failed }
+      })
+    );
   }
 
   if (failed > 0) {

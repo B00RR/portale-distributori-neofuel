@@ -10,20 +10,23 @@ import 'jspdf-autotable'; // patches jsPDF prototype
 import * as JSZip from 'jszip';
 import Sortable from 'sortablejs';
 import * as Split from 'split.js';
-import * as XLSX from 'xlsx';
 import 'xlsx-populate/browser/xlsx-populate.js';
 
-import type { ChartConstructor, SortableConstructor, XlsxPopulateStatic } from '../types.js';
+import type {
+  ChartConstructor,
+  Html5QrcodeConstructor,
+  SortableConstructor,
+  XlsxPopulateStatic
+} from '../types.js';
 
 declare global {
   interface Window {
     Chart: ChartConstructor;
-    Html5Qrcode: typeof Html5Qrcode;
+    Html5Qrcode: Html5QrcodeConstructor;
     jsPDF: typeof jsPDF;
     JSZip: typeof JSZip;
     Sortable: SortableConstructor;
     Split: typeof Split;
-    XLSX: typeof XLSX;
     XlsxPopulate: XlsxPopulateStatic;
   }
 }
@@ -33,5 +36,4 @@ window.jsPDF = jsPDF;
 window.JSZip = JSZip;
 window.Sortable = Sortable as unknown as SortableConstructor;
 window.Split = Split;
-window.XLSX = XLSX;
-window.Html5Qrcode = Html5Qrcode;
+window.Html5Qrcode = Html5Qrcode as unknown as Html5QrcodeConstructor;

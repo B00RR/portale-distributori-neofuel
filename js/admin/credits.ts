@@ -3,28 +3,34 @@ import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { Validators, validateForm, formatErrorMessages } from '../shared/validators.js';
 import { Toast } from '../ui/toast.js';
-import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from '../ui/ui.js';
+import {
+  showLoadingMessage,
+  openModal,
+  closeModal,
+  setButtonLoading,
+  openConfirmModal
+} from '../ui/ui.js';
 import { formatEuro } from '../utils/utils.js';
 
 // --- INTERFACES ---
 
 interface CreditCustomer {
-    id: number;
-    cliente: string;
-    saldo: number;
-    station_id?: number | null;
-    updated_at?: string;
+  id: number;
+  cliente: string;
+  saldo: number;
+  station_id?: number | null;
+  updated_at?: string;
 
-    // Join
-    fuel_stations?: {
-        station_name: string;
-    };
+  // Join
+  fuel_stations?: {
+    station_name: string;
+  };
 }
 
 interface CreditsContext {
-    container: HTMLElement | null;
-    actions: HTMLElement | null;
-    stationId: number | null;
+  container: HTMLElement | null;
+  actions: HTMLElement | null;
+  stationId: number | null;
 }
 
 // --- STATE ---
@@ -54,26 +60,33 @@ export async function showCreditiOverview(
 
   try {
     // Determine cache key based on stationId
-    const cacheKey = stationId ? `${CACHE_KEYS.CUSTOMERS}_station_${stationId}` : CACHE_KEYS.CUSTOMERS;
+    const cacheKey = stationId
+      ? `${CACHE_KEYS.CUSTOMERS}_station_${stationId}`
+      : CACHE_KEYS.CUSTOMERS;
 
-    const rawCustomers = await Cache.getOrFetch(cacheKey, async () => {
-      let query = supabase.from('crediti_clienti')
-        .select(`
+    const rawCustomers = await Cache.getOrFetch(
+      cacheKey,
+      async () => {
+        let query = supabase.from('crediti_clienti').select(`
                   *,
                   fuel_stations(station_name)
               `);
 
-      if (stationId) {
-        query = query.eq('station_id', stationId);
-      }
+        if (stationId) {
+          query = query.eq('station_id', stationId);
+        }
 
-      query = query.order('cliente');
+        query = query.order('cliente');
 
-      const { data, error } = await query;
+        const { data, error } = await query;
 
-      if (error) { throw error; }
-      return data;
-    }, 10 * 60 * 1000); // Cache for 10 minutes
+        if (error) {
+          throw error;
+        }
+        return data;
+      },
+      10 * 60 * 1000
+    ); // Cache for 10 minutes
 
     const customers = rawCustomers as CreditCustomer[];
 
@@ -151,16 +164,19 @@ export async function showCreditiOverview(
     container.querySelectorAll('.edit-customer').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) {openCustomerModal(parseInt(id, 10));}
+        if (id) {
+          openCustomerModal(parseInt(id, 10));
+        }
       });
     });
     container.querySelectorAll('.delete-customer').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) {deleteCustomer(parseInt(id, 10));}
+        if (id) {
+          deleteCustomer(parseInt(id, 10));
+        }
       });
     });
-
   } catch (err) {
     handleError(err, 'showCreditiOverview', container);
   }
@@ -172,13 +188,21 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
   const isEdit = !!customerId;
   openModal(isEdit ? 'Modifica Cliente' : 'Nuovo Cliente');
   const target = document.getElementById('modal-body');
-  if (!target) {return;}
+  if (!target) {
+    return;
+  }
 
   let customer: Partial<CreditCustomer> = {};
   if (customerId) {
     try {
-      const { data, error } = await supabase.from('crediti_clienti').select('*').eq('id', customerId).single();
-      if (error) {throw error;}
+      const { data, error } = await supabase
+        .from('crediti_clienti')
+        .select('*')
+        .eq('id', customerId)
+        .single();
+      if (error) {
+        throw error;
+      }
       customer = data as CreditCustomer;
     } catch (err) {
       logger.error('openCustomerModal', err);
@@ -226,7 +250,7 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
   target.appendChild(form);
 
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(form);
       const cliente = fd.get('cliente') as string;
@@ -234,10 +258,13 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
       const saldo = saldoStr ? parseFloat(saldoStr as string) : 0;
       const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
 
-      const errors = validateForm({ cliente, saldo }, {
-        cliente: [Validators.required],
-        saldo: [Validators.number]
-      });
+      const errors = validateForm(
+        { cliente, saldo },
+        {
+          cliente: [Validators.required],
+          saldo: [Validators.number]
+        }
+      );
       if (errors) {
         Toast.show('Errore validazione: ' + formatErrorMessages(errors), 'error');
         return;
@@ -246,15 +273,21 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
       try {
         setButtonLoading(submitBtn, true, 'Salvataggio...');
         if (isEdit && customerId) {
-          await safeSupabaseQuery(() => supabase.from('crediti_clienti').update({ cliente }).eq('id', customerId));
+          await safeSupabaseQuery(() =>
+            supabase.from('crediti_clienti').update({ cliente }).eq('id', customerId)
+          );
         } else {
           // Opzionale: gestire station_id se necessario
-          await safeSupabaseQuery(() => supabase.from('crediti_clienti').insert([{
-            cliente,
-            saldo,
-            importo: saldo, // Initial saldo recorded as importo (required field)
-            created_at: new Date().toISOString()
-          }]));
+          await safeSupabaseQuery(() =>
+            supabase.from('crediti_clienti').insert([
+              {
+                cliente,
+                saldo,
+                importo: saldo, // Initial saldo recorded as importo (required field)
+                created_at: new Date().toISOString()
+              }
+            ])
+          );
         }
         closeModal();
 
@@ -274,7 +307,9 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
 }
 
 async function deleteCustomer(customerId: number): Promise<void> {
-  if (!await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.')) { return; }
+  if (!(await openConfirmModal('Sei sicuro? Verranno eliminati anche i movimenti associati.'))) {
+    return;
+  }
   try {
     await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
 

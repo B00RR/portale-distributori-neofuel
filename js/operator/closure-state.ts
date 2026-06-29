@@ -4,27 +4,27 @@
 import { MovimentoCassa, Pistola, Shift } from '../types.js';
 
 export interface ClosureState {
-    step: number;
-    data: Record<string, unknown>;
+  step: number;
+  data: Record<string, unknown>;
 
-    // Dati del turno
-    activeOpening: Shift | null;
-    stationId: number | string | null;
-    userId: string | null;
+  // Dati del turno
+  activeOpening: Shift | null;
+  stationId: number | string | null;
+  userId: string | null;
 
-    // Dati caricati
-    pistole: Pistola[];
-    prezzi: Record<string, number> | null;
-    movimenti: MovimentoCassa[];
-    openingCounters: Record<number, number>;
-    allowPartialClosure: boolean;
-    tankLinks: Record<string, unknown>[];
+  // Dati caricati
+  pistole: Pistola[];
+  prezzi: Record<string, number> | null;
+  movimenti: MovimentoCassa[];
+  openingCounters: Record<number, number>;
+  allowPartialClosure: boolean;
+  tankLinks: Record<string, unknown>[];
 
-    // Contatori inseriti dall'utente
-    closureCounters: Record<number, number>;
+  // Contatori inseriti dall'utente
+  closureCounters: Record<number, number>;
 
-    // Calcoli
-    calculations: Record<string, unknown> | null;
+  // Calcoli
+  calculations: Record<string, unknown> | null;
 }
 
 /**
@@ -77,7 +77,11 @@ export function resetClosureState(): void {
 /**
  * Imposta i dati iniziali del wizard
  */
-export function initClosureState(stationId: number | string, userId: string, activeOpening: Shift): void {
+export function initClosureState(
+  stationId: number | string,
+  userId: string,
+  activeOpening: Shift
+): void {
   resetClosureState();
   closureState.stationId = stationId;
   closureState.userId = userId;

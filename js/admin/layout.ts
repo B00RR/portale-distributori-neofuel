@@ -75,17 +75,44 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
     { tab: 'dashboard', icon: 'fa-chart-line', label: 'Dashboard', visible: true },
     { tab: 'stations', icon: 'fa-gas-pump', label: 'Distributori', visible: isFullAdmin },
     { tab: 'operators', icon: 'fa-users-cog', label: 'Gestione Operatori', visible: isFullAdmin },
-    { tab: 'vouchers', icon: 'fa-ticket-alt', label: 'Gestione Voucher', visible: isFullAdmin || userRole === 'accounting' },
-    { tab: 'shifts', icon: 'fa-clock', label: 'Turni e Chiusure', visible: isFullAdmin || userRole === 'accounting' },
-    { tab: 'analytics', icon: 'fa-chart-pie', label: 'Analytics', visible: isFullAdmin || userRole === 'accounting' },
-    { tab: 'crediti', icon: 'fa-credit-card', label: 'Crediti', visible: isFullAdmin || userRole === 'accounting' },
-    { tab: 'invoices', icon: 'fa-file-invoice', label: 'Fatture', visible: isFullAdmin || userRole === 'billing' || userRole === 'accounting' },
+    {
+      tab: 'vouchers',
+      icon: 'fa-ticket-alt',
+      label: 'Gestione Voucher',
+      visible: isFullAdmin || userRole === 'accounting'
+    },
+    {
+      tab: 'shifts',
+      icon: 'fa-clock',
+      label: 'Turni e Chiusure',
+      visible: isFullAdmin || userRole === 'accounting'
+    },
+    {
+      tab: 'analytics',
+      icon: 'fa-chart-pie',
+      label: 'Analytics',
+      visible: isFullAdmin || userRole === 'accounting'
+    },
+    {
+      tab: 'crediti',
+      icon: 'fa-credit-card',
+      label: 'Crediti',
+      visible: isFullAdmin || userRole === 'accounting'
+    },
+    {
+      tab: 'invoices',
+      icon: 'fa-file-invoice',
+      label: 'Fatture',
+      visible: isFullAdmin || userRole === 'billing' || userRole === 'accounting'
+    },
     { tab: 'notifiche', icon: 'fa-bell', label: 'Notifiche', visible: true },
     { tab: 'settings', icon: 'fa-cog', label: 'Impostazioni', visible: isFullAdmin }
   ];
 
   navItems.forEach(item => {
-    if (!item.visible) { return; }
+    if (!item.visible) {
+      return;
+    }
     const btn = document.createElement('button');
     btn.className = 'nav-btn' + (item.tab === 'dashboard' ? ' active' : '');
     btn.dataset.tab = item.tab;
@@ -236,7 +263,9 @@ function attachMobileListeners(): void {
  */
 export function renderBreadcrumbs(tab: AdminTab, subPath: string = ''): void {
   const container = document.getElementById('breadcrumbs');
-  if (!container) {return;}
+  if (!container) {
+    return;
+  }
 
   container.innerHTML = '';
 
@@ -319,7 +348,9 @@ function attachLogoutListener(): void {
   const logoutBtn = document.getElementById('admin-logout');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      const confirmLogout = await openConfirmModal('Sei sicuro di voler uscire dal Portale Neofuel?');
+      const confirmLogout = await openConfirmModal(
+        'Sei sicuro di voler uscire dal Portale Neofuel?'
+      );
       if (confirmLogout) {
         await clearSession();
         await new Promise(resolve => setTimeout(resolve, 100));

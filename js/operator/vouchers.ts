@@ -10,7 +10,9 @@ export async function showVoucherMenu(stationId: number | string, userId: string
   openModal('Riscatto Voucher');
 
   const container = document.getElementById('modal-body');
-  if (!container) {return;}
+  if (!container) {
+    return;
+  }
 
   // Clear previous content
   container.innerHTML = '';
@@ -21,7 +23,7 @@ export async function showVoucherMenu(stationId: number | string, userId: string
   manager.setAttribute('userId', String(userId));
 
   // Listen for completion events to maybe close modal or refresh data
-  // Note: We use 'any' cast for custom event typing if needed, 
+  // Note: We use 'any' cast for custom event typing if needed,
   // or simply trust the event structure.
   manager.addEventListener('voucher-redeemed', ((_e: CustomEvent) => {
     // Optional: Refresh dashboard data if needed, or let user close modal manually

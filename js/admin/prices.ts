@@ -8,18 +8,24 @@ import { escapeHtml, escapeNumber } from '../utils/utils.js';
 // --- INTERFACES ---
 
 interface PriceRecord {
-    id: number;
-    station_id: number;
-    prezzo_benzina: number;
-    prezzo_gasolio: number;
-    prezzo_gpl?: number | null;
-    prezzo_metano?: number | null;
-    data_validita: string;
+  id: number;
+  station_id: number;
+  prezzo_benzina: number;
+  prezzo_gasolio: number;
+  prezzo_gpl?: number | null;
+  prezzo_metano?: number | null;
+  data_validita: string;
 }
 
 // --- HELPER FUNCTIONS ---
 
-function createRadioOption(name: string, value: string, checked: boolean, labelText: string, disabled = false): HTMLLabelElement {
+function createRadioOption(
+  name: string,
+  value: string,
+  checked: boolean,
+  labelText: string,
+  disabled = false
+): HTMLLabelElement {
   const label = document.createElement('label');
   label.className = 'validita-option';
   if (disabled) {
@@ -43,8 +49,13 @@ function createRadioOption(name: string, value: string, checked: boolean, labelT
 
 // --- MAIN FUNCTIONS ---
 
-export async function showPricesTab(container: HTMLElement, headerActions: HTMLElement | null): Promise<void> {
-  if (headerActions) { headerActions.innerHTML = ''; }
+export async function showPricesTab(
+  container: HTMLElement,
+  headerActions: HTMLElement | null
+): Promise<void> {
+  if (headerActions) {
+    headerActions.innerHTML = '';
+  }
   container.innerHTML = `
         <div class="content-box">
             <h3>Gestione Prezzi</h3>
@@ -58,7 +69,9 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
   const stationName = await getStationName(stationId);
   openModal(`Modifica Prezzi - ${escapeHtml(stationName)}`);
   const target = document.getElementById('modal-body');
-  if (!target) {return;}
+  if (!target) {
+    return;
+  }
 
   try {
     const { data: current, error } = await supabase
@@ -69,7 +82,9 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
       .limit(1)
       .maybeSingle();
 
-    if (error) {throw error;}
+    if (error) {
+      throw error;
+    }
 
     const priceRecord = current as PriceRecord | null;
 
@@ -117,7 +132,13 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
     // "Dalla prossima chiusura" is disabled until backend support lands (see #67):
     // deferring validity to the next shift closure needs an RPC/DB change, so the
     // option is hidden behind a disabled state instead of silently applying "now".
-    const optionProssima = createRadioOption('validita', 'prossima', false, 'Dalla prossima chiusura (non ancora disponibile)', true);
+    const optionProssima = createRadioOption(
+      'validita',
+      'prossima',
+      false,
+      'Dalla prossima chiusura (non ancora disponibile)',
+      true
+    );
     validitaGrid.append(optionOra, optionProssima);
     fieldset.append(legend, validitaGrid);
 
@@ -129,7 +150,7 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
     form.append(benzinaGroup, gasolioGroup, fieldset, submitBtn);
     target.appendChild(form);
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(form);
 
@@ -144,7 +165,10 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
         // Business Logic Guardrail: Price Ceiling
         const rules = await BusinessLogicManager.loadRules();
         if (benzina > rules.max_price_limit || gasolio > rules.max_price_limit) {
-          Toast.show(`Il prezzo non può superare il tetto di sicurezza di €${rules.max_price_limit.toFixed(2)}`, 'warning');
+          Toast.show(
+            `Il prezzo non può superare il tetto di sicurezza di €${rules.max_price_limit.toFixed(2)}`,
+            'warning'
+          );
           return;
         }
         // Use server-side RPC function for secure price update
@@ -155,7 +179,9 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
           p_data_validita: dataValidita.toISOString()
         });
 
-        if (error) { throw error; }
+        if (error) {
+          throw error;
+        }
 
         closeModal();
         Toast.show('Prezzi aggiornati!', 'success');

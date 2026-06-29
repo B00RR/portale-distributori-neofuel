@@ -8,8 +8,12 @@ import { initAnalytics, trackLogin } from './core/analytics.js';
 import { supabase } from './core/api.js';
 import type { Json } from './core/api.js';
 import {
-  initLoginElements, loadSession, setLoggedUser, setOnLoginSuccess,
-  handlePasswordReset, requestPasswordReset
+  initLoginElements,
+  loadSession,
+  setLoggedUser,
+  setOnLoginSuccess,
+  handlePasswordReset,
+  requestPasswordReset
 } from './core/auth.js';
 import { LoggedUserData } from './core/auth.js';
 import { logger } from './core/logger.js';
@@ -30,7 +34,12 @@ interface RpcResult {
 }
 
 function isRpcResult(value: unknown): value is RpcResult {
-  return typeof value === 'object' && value !== null && 'success' in value && typeof value.success === 'boolean';
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'success' in value &&
+    typeof value.success === 'boolean'
+  );
 }
 
 function getRpcError(value: unknown): string | undefined {
@@ -95,7 +104,10 @@ async function initializeApp(): Promise<void> {
   // VERSION GUARD: Clear stale session data if version mismatch
   const storedVersion = localStorage.getItem('app_version');
   if (storedVersion !== APP_VERSION) {
-    logger.info('App', `Version mismatch: ${storedVersion} -> ${APP_VERSION}. Clearing Supabase cache.`);
+    logger.info(
+      'App',
+      `Version mismatch: ${storedVersion} -> ${APP_VERSION}. Clearing Supabase cache.`
+    );
     const keys = Object.keys(localStorage);
     for (const key of keys) {
       if (key.startsWith('sb-') || key.includes('supabase')) {
@@ -112,8 +124,12 @@ async function initializeApp(): Promise<void> {
     await initOfflineQueue();
 
     // Register executors for offline actions
-    registerExecutor('voucher_redeem', async (action) => {
-      const payload = action.payload as { voucherCode: string; stationId: string; operatorId: string };
+    registerExecutor('voucher_redeem', async action => {
+      const payload = action.payload as {
+        voucherCode: string;
+        stationId: string;
+        operatorId: string;
+      };
 
       // Ensure stationId is a number
       const stationIdNum = Number(payload.stationId);
@@ -134,7 +150,7 @@ async function initializeApp(): Promise<void> {
       return true;
     });
 
-    registerExecutor('shift_close', async (action) => {
+    registerExecutor('shift_close', async action => {
       const payload = action.payload as {
         shiftId: number;
         stationId: number;
@@ -174,7 +190,9 @@ async function initializeApp(): Promise<void> {
     // Track login event
     trackLogin(userForStore.role);
 
-    const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(userForStore.role);
+    const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(
+      userForStore.role
+    );
     if (isAdminRole) {
       showAdminArea();
     } else {
@@ -185,7 +203,11 @@ async function initializeApp(): Promise<void> {
         Toast.show('Errore identificativo utente', 'error');
         return;
       }
-      const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', dbUserId).maybeSingle();
+      const { data: us } = await supabase
+        .from('user_stations')
+        .select('station_id')
+        .eq('user_id', dbUserId)
+        .maybeSingle();
       const stId = us?.station_id ?? null;
 
       if (stId) {
@@ -199,7 +221,7 @@ async function initializeApp(): Promise<void> {
           Toast.show('Errore durante il caricamento del menu operatore', 'error');
         }
       } else {
-        Toast.show('Nessuna stazione assegnata all\'utente', 'error');
+        Toast.show("Nessuna stazione assegnata all'utente", 'error');
       }
     }
   });
@@ -249,7 +271,11 @@ async function initializeApp(): Promise<void> {
         logger.error('App', 'Invalid user_id from session:', loggedUser.user_id);
         Toast.show('Errore identificativo utente', 'error');
       } else {
-        const { data: us } = await supabase.from('user_stations').select('station_id').eq('user_id', dbUserId).maybeSingle();
+        const { data: us } = await supabase
+          .from('user_stations')
+          .select('station_id')
+          .eq('user_id', dbUserId)
+          .maybeSingle();
         const stId = us?.station_id ?? null;
 
         if (stId) {
@@ -262,7 +288,7 @@ async function initializeApp(): Promise<void> {
             Toast.show('Errore durante il ripristino della sessione', 'error');
           }
         } else {
-          Toast.show('Nessuna stazione assegnata all\'utente', 'error');
+          Toast.show("Nessuna stazione assegnata all'utente", 'error');
         }
       }
     }
@@ -284,7 +310,9 @@ let updateToastShown = false;
 
 const updateSW = registerSW({
   onNeedRefresh() {
-    if (updateToastShown) {return;}
+    if (updateToastShown) {
+      return;
+    }
     updateToastShown = true;
 
     Toast.show('Nuova versione disponibile!', 'info', 0, {
@@ -310,19 +338,25 @@ const updateSW = registerSW({
     });
   },
   onOfflineReady() {
-    Toast.show('App pronta per l\'uso offline', 'success');
+    Toast.show("App pronta per l'uso offline", 'success');
   },
   onRegistered(r: ServiceWorkerRegistration | undefined): void {
-    if (!r) {return;}
+    if (!r) {
+      return;
+    }
 
     // Poll for updates every 60 seconds (less aggressive)
     setInterval(() => {
-      r.update().catch(() => { /* ignore */ });
+      r.update().catch(() => {
+        /* ignore */
+      });
     }, 60 * 1000);
 
     // Immediate check when window gets focus
     window.addEventListener('focus', () => {
-      r.update().catch(() => { /* ignore */ });
+      r.update().catch(() => {
+        /* ignore */
+      });
     });
   }
 });

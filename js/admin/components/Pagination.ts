@@ -10,7 +10,9 @@ export class Pagination {
 
   public render(): void {
     const container = document.getElementById(this.containerId);
-    if (!container) { return; }
+    if (!container) {
+      return;
+    }
 
     const { page, pageSize, totalCount } = store.getPagination();
 
@@ -19,7 +21,7 @@ export class Pagination {
     const end = Math.min((page + 1) * pageSize, totalCount);
 
     const canPrev = page > 0;
-    const canNext = (page + 1) < totalPages;
+    const canNext = page + 1 < totalPages;
 
     container.innerHTML = '';
 
@@ -28,9 +30,7 @@ export class Pagination {
 
     const info = document.createElement('span');
     info.className = 'pagination-info';
-    info.textContent = totalCount > 0
-      ? `${start}-${end} di ${totalCount}`
-      : 'Nessun risultato';
+    info.textContent = totalCount > 0 ? `${start}-${end} di ${totalCount}` : 'Nessun risultato';
     bar.appendChild(info);
 
     const controls = document.createElement('div');
@@ -56,7 +56,9 @@ export class Pagination {
 
   private bindEvents(): void {
     const container = document.getElementById(this.containerId);
-    if (!container) { return; }
+    if (!container) {
+      return;
+    }
 
     const btnPrev = container.querySelector('.btn-prev') as HTMLButtonElement;
     const btnNext = container.querySelector('.btn-next') as HTMLButtonElement;

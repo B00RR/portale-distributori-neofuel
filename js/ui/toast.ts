@@ -8,22 +8,22 @@ import { logger } from '../core/logger.js';
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
 export interface ToastAction {
-    text: string;
-    onClick: () => void;
+  text: string;
+  onClick: () => void;
 }
 
 export interface ToastOptions {
-    action?: ToastAction;
+  action?: ToastAction;
 }
 
 export class Toast {
   /**
-     * Show a toast notification
-     * @param message - The message to display
-     * @param type - Type of toast: 'success', 'error', 'warning', 'info'
-     * @param duration - Duration in ms (default: 3000)
-     * @param options - Additional options (e.g. action button)
-     */
+   * Show a toast notification
+   * @param message - The message to display
+   * @param type - Type of toast: 'success', 'error', 'warning', 'info'
+   * @param duration - Duration in ms (default: 3000)
+   * @param options - Additional options (e.g. action button)
+   */
   static show(
     message: string,
     type: ToastType = 'info',
@@ -98,7 +98,9 @@ export class Toast {
   }
 
   static dismiss(toast: HTMLElement, container: HTMLElement): void {
-    if (!toast.classList.contains('show')) { return; }
+    if (!toast.classList.contains('show')) {
+      return;
+    }
 
     toast.classList.remove('show');
     setTimeout(() => {
@@ -113,8 +115,8 @@ export class Toast {
   }
 
   /**
-     * Get FontAwesome icon for type
-     */
+   * Get FontAwesome icon for type
+   */
   private static _getIcon(type: ToastType): string {
     const icons = new Map<ToastType, string>([
       ['success', 'check-circle'],

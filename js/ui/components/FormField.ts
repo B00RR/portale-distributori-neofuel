@@ -95,17 +95,13 @@ export class FormField extends BaseComponent {
   override render(): TemplateResult {
     return html`
       <div class="form-group">
-        ${this.label ? html`
-          <label class="${this.required ? 'required' : ''}">
-            ${this.label}
-          </label>
-        ` : ''}
-        
+        ${
+          this.label
+            ? html` <label class="${this.required ? 'required' : ''}"> ${this.label} </label> `
+            : ''
+        }
         ${this._renderInput()}
-        
-        ${this.error ? html`
-          <div class="error-message">${this.error}</div>
-        ` : ''}
+        ${this.error ? html` <div class="error-message">${this.error}</div> ` : ''}
       </div>
     `;
   }
@@ -127,14 +123,12 @@ export class FormField extends BaseComponent {
           >
             ${!this.required ? html`<option value="">Seleziona...</option>` : ''}
             ${this.options.map((opt: FormFieldOption | string) => {
-    const val = typeof opt === 'object' ? opt.value : opt;
-    const label = typeof opt === 'object' ? opt.label : opt;
-    return html`
-                <option value="${val}" ?selected="${this.value === val}">
-                  ${label}
-                </option>
+              const val = typeof opt === 'object' ? opt.value : opt;
+              const label = typeof opt === 'object' ? opt.label : opt;
+              return html`
+                <option value="${val}" ?selected="${this.value === val}">${label}</option>
               `;
-  })}
+            })}
           </select>
         `;
 
@@ -218,8 +212,12 @@ export class FormField extends BaseComponent {
 
   public getValue(): string | number | boolean {
     const input = this.shadowRoot?.querySelector('input, select, textarea');
-    if (!input) { return this.value; }
-    if ((input as HTMLInputElement).type === 'checkbox') { return (input as HTMLInputElement).checked; }
+    if (!input) {
+      return this.value;
+    }
+    if ((input as HTMLInputElement).type === 'checkbox') {
+      return (input as HTMLInputElement).checked;
+    }
     return (input as HTMLInputElement).value;
   }
 

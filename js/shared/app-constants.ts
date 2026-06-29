@@ -1,9 +1,9 @@
 /**
  * Application Constants
- * 
+ *
  * Enterprise-grade constants file containing all configuration values.
  * Following best practices: no magic numbers, centralized configuration.
- * 
+ *
  * @module constants
  */
 
@@ -17,7 +17,7 @@
  * @type {number}
  * @default 5.00
  */
-export const CASH_DISCREPANCY_TOLERANCE_EUR = 5.00;
+export const CASH_DISCREPANCY_TOLERANCE_EUR = 5.0;
 
 /**
  * Minimum tolerance for floating point comparisons in Euro calculations
@@ -217,8 +217,9 @@ export const MAX_ERROR_LOG_ENTRIES = 100;
  * @constant
  * @type {boolean}
  */
-export const IS_DEVELOPMENT = import.meta.env?.MODE === 'development' ||
-    (typeof window !== 'undefined' && window.location.hostname === 'localhost');
+export const IS_DEVELOPMENT =
+  import.meta.env?.MODE === 'development' ||
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost');
 
 /**
  * Environment check for production mode

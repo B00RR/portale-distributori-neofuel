@@ -1,5 +1,6 @@
 import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
+import { DEFAULT_BUSINESS_RULES } from '../core/business-rules-schema.js';
 import { logger } from '../core/logger.js';
 import type { SortableConstructor, ChartConstructor } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
@@ -7,33 +8,39 @@ import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engi
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
-import { fetchAnalyticsData, renderRevenueChart, renderVolumeChart, renderPaymentChart, renderFuelMixChart } from './dashboard-charts.js';
+import {
+  fetchAnalyticsData,
+  renderRevenueChart,
+  renderVolumeChart,
+  renderPaymentChart,
+  renderFuelMixChart
+} from './dashboard-charts.js';
 import { loadDashboardConfig, saveDashboardConfig } from './dashboard-config.js';
 import { renderKpiCards, KPIData } from './dashboard-helpers.js';
 
 // Global libraries types (assumed loaded via CDN or scripts)
 declare global {
-    interface Window {
-        Sortable: SortableConstructor;
-        Chart: ChartConstructor;
-        dashboardResizeTimeout: ReturnType<typeof setTimeout>;
-    }
+  interface Window {
+    Sortable: SortableConstructor;
+    Chart: ChartConstructor;
+    dashboardResizeTimeout: ReturnType<typeof setTimeout>;
+  }
 }
 
 // Row shapes used locally. The generated DB types don't reliably model these
 // joined queries (see CLAUDE.md: repo types can lag the live DB), so the query
 // results are asserted to these minimal shapes.
 interface DashboardTank {
-    id: number;
-    capacity?: number | null;
-    fuel_type?: string | null;
-    station_id?: number | null;
-    fuel_stations?: { station_name?: string | null } | null;
+  id: number;
+  capacity?: number | null;
+  fuel_type?: string | null;
+  station_id?: number | null;
+  fuel_stations?: { station_name?: string | null } | null;
 }
 interface TankReading {
-    tank_id: number | null;
-    liters?: number | null;
-    created_at: string;
+  tank_id: number | null;
+  liters?: number | null;
+  created_at: string;
 }
 
 // ------------------------------------------------------------------
@@ -59,54 +66,66 @@ export async function showDashboard(
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    const [
-      stationsRes,
-      operatorsRes,
-      closuresRes,
-      tanksRes,
-      todayClosuresRes,
-      businessRules
-    ] = await Promise.all([
-      // 1. Stations Count
-      numericStationId
-        ? supabase.from('fuel_stations').select('*', { count: 'exact', head: true }).eq('station_id', numericStationId)
-        : supabase.from('fuel_stations').select('*', { count: 'exact', head: true }),
+    const [stationsRes, operatorsRes, closuresRes, tanksRes, todayClosuresRes, businessRules] =
+      await Promise.all([
+        // 1. Stations Count
+        numericStationId
+          ? supabase
+              .from('fuel_stations')
+              .select('*', { count: 'exact', head: true })
+              .eq('station_id', numericStationId)
+          : supabase.from('fuel_stations').select('*', { count: 'exact', head: true }),
 
-      // 2. Operators Count
-      numericStationId
-        ? supabase.from('user_stations').select('*', { count: 'exact', head: true }).eq('station_id', numericStationId)
-        : supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'operator'),
+        // 2. Operators Count
+        numericStationId
+          ? supabase
+              .from('user_stations')
+              .select('*', { count: 'exact', head: true })
+              .eq('station_id', numericStationId)
+          : supabase
+              .from('users')
+              .select('*', { count: 'exact', head: true })
+              .eq('role', 'operator'),
 
-      // 3. Closures Count
-      numericStationId
-        ? supabase.from('shifts').select('*', { count: 'exact', head: true }).eq('station_id', numericStationId)
-        : supabase.from('shifts').select('*', { count: 'exact', head: true }),
+        // 3. Closures Count
+        numericStationId
+          ? supabase
+              .from('shifts')
+              .select('*', { count: 'exact', head: true })
+              .eq('station_id', numericStationId)
+          : supabase.from('shifts').select('*', { count: 'exact', head: true }),
 
-      // 4. Tanks List
-      (async () => {
-        let q = supabase.from('tanks').select('id, name, fuel_type, capacity, station_id, fuel_stations(station_name)');
-        if (numericStationId) { q = q.eq('station_id', numericStationId); }
-        return q.order('name');
-      })(),
+        // 4. Tanks List
+        (async () => {
+          let q = supabase
+            .from('tanks')
+            .select('id, name, fuel_type, capacity, station_id, fuel_stations(station_name)');
+          if (numericStationId) {
+            q = q.eq('station_id', numericStationId);
+          }
+          return q.order('name');
+        })(),
 
-      // 5. Today's Closures (for Sales & Liters)
-      (async () => {
-        let q = supabase
-          .from('shifts')
-          .select('closing_data')
-          .gte('closed_at', startOfDay.toISOString())
-          .lte('closed_at', endOfDay.toISOString())
-          .eq('status', 'closed');
-        if (numericStationId) { q = q.eq('station_id', numericStationId); }
-        return q;
-      })(),
+        // 5. Today's Closures (for Sales & Liters)
+        (async () => {
+          let q = supabase
+            .from('shifts')
+            .select('closing_data')
+            .gte('closed_at', startOfDay.toISOString())
+            .lte('closed_at', endOfDay.toISOString())
+            .eq('status', 'closed');
+          if (numericStationId) {
+            q = q.eq('station_id', numericStationId);
+          }
+          return q;
+        })(),
 
-      // 6. Business Rules
-      BusinessLogicManager.loadRules().catch(err => {
-        logger.warn('dashboard', 'Failed to load rules, using defaults', err);
-        return {};
-      })
-    ]);
+        // 6. Business Rules
+        BusinessLogicManager.loadRules().catch(err => {
+          logger.warn('dashboard', 'Failed to load rules, using defaults', err);
+          return DEFAULT_BUSINESS_RULES;
+        })
+      ]);
 
     // EXTRACT RESULTS
     const stationsCount = stationsRes.count || 0;
@@ -116,14 +135,16 @@ export async function showDashboard(
     const todayClosures = todayClosuresRes.data || [];
 
     // RACE CONDITION CHECK (Early)
-    if (checkActiveFn && !checkActiveFn()) { return; }
+    if (checkActiveFn && !checkActiveFn()) {
+      return;
+    }
 
     // ------------------------------------------------------------------
     // PROCESS TANKS (Parallel Readings Fetch)
     // ------------------------------------------------------------------
     let tanksHtmlRows = '';
     if (tanks.length > 0) {
-      const tankIds = tanks.map((t) => t.id);
+      const tankIds = tanks.map(t => t.id);
 
       // Fetch last 7 days of readings for these tanks to limit data size.
       const sevenDaysAgo = new Date();
@@ -138,13 +159,15 @@ export async function showDashboard(
 
       const latestByTank: Record<number, TankReading> = {};
       for (const r of (tankReadings || []) as TankReading[]) {
-        if (r.tank_id === null) { continue; }
+        if (r.tank_id === null) {
+          continue;
+        }
         if (!latestByTank[r.tank_id]) {
           latestByTank[r.tank_id] = r;
         }
       }
 
-      tanks.forEach((t) => {
+      tanks.forEach(t => {
         const latest = latestByTank[t.id];
         const liters = latest?.liters ?? 0;
         const capacity = t.capacity || 0;
@@ -181,7 +204,8 @@ export async function showDashboard(
         `;
       });
     } else {
-      tanksHtmlRows = '<tr><td colspan="4">Nessuna cisterna configurata o trovata per questo filtro.</td></tr>';
+      tanksHtmlRows =
+        '<tr><td colspan="4">Nessuna cisterna configurata o trovata per questo filtro.</td></tr>';
     }
 
     // ------------------------------------------------------------------
@@ -192,8 +216,8 @@ export async function showDashboard(
     let totalLitriGasolio = 0;
 
     if (Array.isArray(todayClosures)) {
-      todayClosures.forEach((item) => {
-        const closingData = item?.closing_data || {};
+      todayClosures.forEach(item => {
+        const closingData = (item?.closing_data || {}) as Record<string, unknown>;
         // Sales
         vendutoDataValue += Number(closingData.ricavo_teorico || 0);
         // Liters
@@ -215,21 +239,29 @@ export async function showDashboard(
 
     try {
       const [kpiVendutoRes, kpiErogatoRes] = await Promise.all([
-        calculationEngine.run(CALCULATION_SCOPES.KPI_VENDUTO, {
-          stationsCount,
-          operatorsCount,
-          closuresCount,
-          salesEuro: vendutoDataValue,
-          fallback: vendutoDataValue,
-          timestamp: Date.now()
-        }, { forceRefresh: false }),
+        calculationEngine.run(
+          CALCULATION_SCOPES.KPI_VENDUTO,
+          {
+            stationsCount,
+            operatorsCount,
+            closuresCount,
+            salesEuro: vendutoDataValue,
+            fallback: vendutoDataValue,
+            timestamp: Date.now()
+          },
+          { forceRefresh: false }
+        ),
 
-        calculationEngine.run(CALCULATION_SCOPES.KPI_EROGATO, {
-          erogatoData: erogatoKpiDataInput,
-          totalLitriBenzina,
-          totalLitriGasolio,
-          fallback: erogatoKpiDataInput
-        }, { forceRefresh: false })
+        calculationEngine.run(
+          CALCULATION_SCOPES.KPI_EROGATO,
+          {
+            erogatoData: erogatoKpiDataInput,
+            totalLitriBenzina,
+            totalLitriGasolio,
+            fallback: erogatoKpiDataInput
+          },
+          { forceRefresh: false }
+        )
       ]);
 
       // Assign Venduto
@@ -253,7 +285,6 @@ export async function showDashboard(
           totale: litriBenzina + litriGasolio
         };
       }
-
     } catch (calcErr) {
       logger.warn('dashboard', 'Errore calcoli KPI (usando fallback):', calcErr);
     }
@@ -283,18 +314,19 @@ export async function showDashboard(
       }
     };
 
-
-
     // ... (imports remain)
 
     // Render KPI cards dynamically (Now includes charts placeholders)
     const kpiHtml = renderKpiCards(dashboardConfig, kpiData);
 
     // RACE CONDITION CHECK: Stop if user switched tab
-    if (checkActiveFn && !checkActiveFn()) { return; }
+    if (checkActiveFn && !checkActiveFn()) {
+      return;
+    }
 
-
-    setSafeHTML(container, `
+    setSafeHTML(
+      container,
+      `
       <section id="dashboard-kpi-grid" class="dashboard-grid" style="grid-template-columns: repeat(${dashboardConfig.gridColumns || 4}, 1fr);">
         ${kpiHtml}
       </section>
@@ -321,23 +353,38 @@ export async function showDashboard(
           </div>
         </article>
       </section>
-    `);
+    `
+    );
 
     // ------------------------------------------------------------------
     // RENDER ANALYTICS CHARTS (If present in grid)
     // ------------------------------------------------------------------
     const visibleKpis = dashboardConfig.kpiLayout.filter(k => k.visible !== false).map(k => k.id);
-    const hasCharts = visibleKpis.some(id => ['andamento_ricavi', 'volume_erogato', 'metodi_pagamento', 'mix_carburanti'].includes(id));
+    const hasCharts = visibleKpis.some(id =>
+      ['andamento_ricavi', 'volume_erogato', 'metodi_pagamento', 'mix_carburanti'].includes(id)
+    );
 
     if (hasCharts) {
       // Fetch only if needed
-      fetchAnalyticsData(numericStationId).then(analyticsData => {
-        if (visibleKpis.includes('andamento_ricavi')) {renderRevenueChart(analyticsData, 'chart-andamento_ricavi');}
-        if (visibleKpis.includes('volume_erogato')) {renderVolumeChart(analyticsData, 'chart-volume_erogato');}
-        if (visibleKpis.includes('metodi_pagamento')) {renderPaymentChart(analyticsData, 'chart-metodi_pagamento');}
-        if (visibleKpis.includes('mix_carburanti')) {renderFuelMixChart(analyticsData, 'chart-mix_carburanti');}
-        return analyticsData;
-      }).catch(err => logger.error('dashboard', 'Errore nel rendering dei grafici analytics:', err));
+      fetchAnalyticsData(numericStationId)
+        .then(analyticsData => {
+          if (visibleKpis.includes('andamento_ricavi')) {
+            renderRevenueChart(analyticsData, 'chart-andamento_ricavi');
+          }
+          if (visibleKpis.includes('volume_erogato')) {
+            renderVolumeChart(analyticsData, 'chart-volume_erogato');
+          }
+          if (visibleKpis.includes('metodi_pagamento')) {
+            renderPaymentChart(analyticsData, 'chart-metodi_pagamento');
+          }
+          if (visibleKpis.includes('mix_carburanti')) {
+            renderFuelMixChart(analyticsData, 'chart-mix_carburanti');
+          }
+          return analyticsData;
+        })
+        .catch(err =>
+          logger.error('dashboard', 'Errore nel rendering dei grafici analytics:', err)
+        );
     }
 
     // Initialize Sortable for dashboard grid
@@ -347,7 +394,9 @@ export async function showDashboard(
         animation: 200,
         ghostClass: 'kpi-card-ghost',
         onEnd: async function () {
-          const newOrderIds = Array.from(gridEl.children).map(el => (el as HTMLElement).dataset.kpiId);
+          const newOrderIds = Array.from(gridEl.children).map(
+            el => (el as HTMLElement).dataset.kpiId
+          );
 
           // Get all items in current config
           const allItems = [...dashboardConfig.kpiLayout];
@@ -401,7 +450,9 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
     .gte('closed_at', startDate.toISOString())
     .eq('status', 'closed');
 
-  if (numericStationId) { closuresQuery = closuresQuery.eq('station_id', numericStationId); }
+  if (numericStationId) {
+    closuresQuery = closuresQuery.eq('station_id', numericStationId);
+  }
 
   closuresQuery = closuresQuery.order('closed_at', { ascending: true });
 
@@ -409,37 +460,53 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
 
   // Recupera tutti i distributori (o solo quello filtrato)
   const allStations = numericStationId
-    ? await Cache.getOrFetch(`${CACHE_KEYS.STATIONS}_filtered_${numericStationId}`, async () => {
-      const { data, error } = await supabase
-        .from('fuel_stations')
-        .select('station_id, station_name')
-        .eq('station_id', numericStationId)
-        .order('station_name');
-      if (error) { throw error; }
-      return data;
-    }, 10 * 60 * 1000)
-    : await Cache.getOrFetch(CACHE_KEYS.STATIONS, async () => {
-      const { data, error } = await supabase
-        .from('fuel_stations')
-        .select('station_id, station_name')
-        .order('station_name');
-      if (error) { throw error; }
-      return data;
-    }, 10 * 60 * 1000);
+    ? await Cache.getOrFetch(
+        `${CACHE_KEYS.STATIONS}_filtered_${numericStationId}`,
+        async () => {
+          const { data, error } = await supabase
+            .from('fuel_stations')
+            .select('station_id, station_name')
+            .eq('station_id', numericStationId)
+            .order('station_name');
+          if (error) {
+            throw error;
+          }
+          return data;
+        },
+        10 * 60 * 1000
+      )
+    : await Cache.getOrFetch(
+        CACHE_KEYS.STATIONS,
+        async () => {
+          const { data, error } = await supabase
+            .from('fuel_stations')
+            .select('station_id, station_name')
+            .order('station_name');
+          if (error) {
+            throw error;
+          }
+          return data;
+        },
+        10 * 60 * 1000
+      );
 
   // Raggruppa vendite per data e distributore
   const salesByDateAndStation = new Map<string, Map<number, number>>();
   const allDates = new Set<string>();
 
   if (closuresData) {
-    closuresData.forEach((closure) => {
-      if (!closure.closed_at || !closure.closing_data) { return; }
+    closuresData.forEach(closure => {
+      if (!closure.closed_at || !closure.closing_data) {
+        return;
+      }
 
       const day = new Date(closure.closed_at).toISOString().substring(0, 10);
       allDates.add(day);
 
       const sId = Number(closure.station_id);
-      const ricavo = Number((closure.closing_data as Record<string, unknown> | null)?.ricavo_teorico || 0);
+      const ricavo = Number(
+        (closure.closing_data as Record<string, unknown> | null)?.ricavo_teorico || 0
+      );
 
       let dayMap = salesByDateAndStation.get(day);
       if (!dayMap) {
@@ -455,8 +522,16 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
 
   // Colori per le linee (puoi aggiungere più colori se hai molti distributori)
   const colors = [
-    '#8DC63F', '#10b981', '#3b82f6', '#f59e0b', '#ef4444',
-    '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'
+    '#8DC63F',
+    '#10b981',
+    '#3b82f6',
+    '#f59e0b',
+    '#ef4444',
+    '#8b5cf6',
+    '#ec4899',
+    '#06b6d4',
+    '#84cc16',
+    '#f97316'
   ];
 
   // Crea un dataset per ogni distributore
@@ -492,7 +567,9 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
     new window.Chart(ctx, {
       type: 'line',
       data: {
-        labels: sortedDates.map(d => new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })),
+        labels: sortedDates.map(d =>
+          new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
+        ),
         datasets: datasets
       },
       options: {
@@ -536,13 +613,14 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
   }
 }
 
-
 // ------------------------------------------------------------------
 // DRAG & DROP FOR PANELS (Replaces Split.js)
 // ------------------------------------------------------------------
 function initDashboardPanelsDrag(): void {
   const container = document.getElementById('dashboard-container');
-  if (!container || !window.Sortable) { return; }
+  if (!container || !window.Sortable) {
+    return;
+  }
 
   // 1. Initialize Sortable (Drag & Drop)
   new window.Sortable(container, {
@@ -558,7 +636,9 @@ function initDashboardPanelsDrag(): void {
   // Use ResizeObserver to save size changes
   const resizeObserver = new ResizeObserver(() => {
     // Debounce saving
-    if (window.dashboardResizeTimeout) { clearTimeout(window.dashboardResizeTimeout); }
+    if (window.dashboardResizeTimeout) {
+      clearTimeout(window.dashboardResizeTimeout);
+    }
     window.dashboardResizeTimeout = setTimeout(() => {
       saveDashboardState();
     }, 500);
@@ -573,7 +653,9 @@ function initDashboardPanelsDrag(): void {
 
 function saveDashboardState(): void {
   const container = document.getElementById('dashboard-container');
-  if (!container) { return; }
+  if (!container) {
+    return;
+  }
 
   const state = Array.from(container.children).map(el => ({
     id: el.id,
@@ -598,8 +680,12 @@ function restoreDashboardState(): void {
         container.appendChild(el); // Appending moves to end -> restore order
 
         // Restore Size
-        if (item.width) { el.style.width = item.width; }
-        if (item.height) { el.style.height = item.height; }
+        if (item.width) {
+          el.style.width = item.width;
+        }
+        if (item.height) {
+          el.style.height = item.height;
+        }
         // If native resize was used, it sets inline width/height.
         // We might need to reset flex if it conflicts.
         if (item.width || item.height) {

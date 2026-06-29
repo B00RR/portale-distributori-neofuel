@@ -1,44 +1,56 @@
 import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
-import { showLoadingMessage, openModal, closeModal, setButtonLoading, openConfirmModal } from '../ui/ui.js';
+import {
+  showLoadingMessage,
+  openModal,
+  closeModal,
+  setButtonLoading,
+  openConfirmModal
+} from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
 
 // --- INTERFACES ---
 
 interface FuelStationNested {
-    station_name: string;
+  station_name: string;
 }
 
 interface UserStation {
-    station_id: number;
-    fuel_stations?: FuelStationNested;
+  station_id: number;
+  fuel_stations?: FuelStationNested;
 }
 
 interface User {
-    user_id: string;
-    full_name: string;
-    email: string;
-    role: 'admin' | 'super_admin' | 'operator' | 'accounting' | 'billing';
-    created_at: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  role: 'admin' | 'super_admin' | 'operator' | 'accounting' | 'billing';
+  created_at: string;
 
-    // Joins
-    user_stations?: UserStation | UserStation[]; // Can be array or single depending on query
+  // Joins
+  user_stations?: UserStation | UserStation[]; // Can be array or single depending on query
 }
 
 interface FuelStation {
-    station_id: number;
-    station_name: string;
+  station_id: number;
+  station_name: string;
 }
 
 // --- MAIN FUNCTION ---
 
-export async function showOperatorsTab(container: HTMLElement, actionsContainer: HTMLElement | null): Promise<void> {
+export async function showOperatorsTab(
+  container: HTMLElement,
+  actionsContainer: HTMLElement | null
+): Promise<void> {
   showLoadingMessage(container);
 
   if (actionsContainer) {
-    setSafeHTML(actionsContainer, '<button class="action-btn primary" id="add-operator-btn"><i class="fas fa-plus"></i> Nuovo Operatore</button>');
+    setSafeHTML(
+      actionsContainer,
+      '<button class="action-btn primary" id="add-operator-btn"><i class="fas fa-plus"></i> Nuovo Operatore</button>'
+    );
     const addBtn = document.getElementById('add-operator-btn');
     if (addBtn) {
       addBtn.addEventListener('click', () => openOperatorModal());
@@ -48,16 +60,20 @@ export async function showOperatorsTab(container: HTMLElement, actionsContainer:
   try {
     const { data: rawUsers, error } = await supabase
       .from('users')
-      .select(`
+      .select(
+        `
                 *,
                 user_stations (
                     station_id,
                     fuel_stations ( station_name )
                 )
-            `)
+            `
+      )
       .order('created_at', { ascending: false });
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     const users = rawUsers as unknown as User[];
 
@@ -93,11 +109,11 @@ export async function showOperatorsTab(container: HTMLElement, actionsContainer:
       const stationName = firstLink?.fuel_stations?.station_name || '-';
 
       const roleLabels: Record<string, string> = {
-        'admin': 'Admin',
-        'super_admin': 'Super Admin',
-        'operator': 'Operatore',
-        'accounting': 'Contabilità',
-        'billing': 'Fatturazione'
+        admin: 'Admin',
+        super_admin: 'Super Admin',
+        operator: 'Operatore',
+        accounting: 'Contabilità',
+        billing: 'Fatturazione'
       };
       const roleLabel = roleLabels[u.role] || u.role || 'Operatore';
 
@@ -123,29 +139,40 @@ export async function showOperatorsTab(container: HTMLElement, actionsContainer:
     container.querySelectorAll('.edit-operator').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) {openOperatorModal(id);}
+        if (id) {
+          openOperatorModal(id);
+        }
       });
     });
     container.querySelectorAll('.assign-station').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) {openAssignStationModal(id);}
+        if (id) {
+          openAssignStationModal(id);
+        }
       });
     });
     container.querySelectorAll('.delete-operator').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id;
-        if (id) {deleteUser(id, container, actionsContainer);}
+        if (id) {
+          deleteUser(id, container, actionsContainer);
+        }
       });
     });
-
   } catch (err) {
     handleError(err, 'showOperatorsTab', container);
   }
 }
 
-export async function deleteUser(userId: string, container: HTMLElement, actionsContainer: HTMLElement | null): Promise<void> {
-  const confirmed = await openConfirmModal('Sei sicuro di voler eliminare questo operatore? Questa azione è irreversibile e rimuoverà tutte le sue assegnazioni.');
+export async function deleteUser(
+  userId: string,
+  container: HTMLElement,
+  actionsContainer: HTMLElement | null
+): Promise<void> {
+  const confirmed = await openConfirmModal(
+    'Sei sicuro di voler eliminare questo operatore? Questa azione è irreversibile e rimuoverà tutte le sue assegnazioni.'
+  );
   if (!confirmed) {
     return;
   }
@@ -156,13 +183,15 @@ export async function deleteUser(userId: string, container: HTMLElement, actions
       p_user_id: userId
     });
 
-    if (error) { throw error; }
+    if (error) {
+      throw error;
+    }
 
     Toast.show('Operatore eliminato con successo!', 'success');
     showOperatorsTab(container, actionsContainer); // Reload the list
   } catch (err) {
     handleError(err, 'deleteUser');
-    Toast.show('Errore durante l\'eliminazione dell\'operatore.', 'error');
+    Toast.show("Errore durante l'eliminazione dell'operatore.", 'error');
   }
 }
 
@@ -170,15 +199,23 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
   const isEdit = !!userId;
   openModal(isEdit ? 'Modifica Operatore' : 'Nuovo Operatore');
   const target = document.getElementById('modal-body');
-  if (!target) {return;}
+  if (!target) {
+    return;
+  }
 
   let user: Partial<User> = {};
   if (userId) {
-    const { data } = await supabase.from('users').select('*').eq('user_id', Number(userId)).single();
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .eq('user_id', Number(userId))
+      .single();
     user = (data as User | null) ?? {};
   }
 
-  setSafeHTML(target, `
+  setSafeHTML(
+    target,
+    `
     <form id="operator-form">
       <div class="form-group">
         <label>Nome Completo</label>
@@ -188,11 +225,15 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
         <label>Email</label>
         <input type="email" name="email" value="${escapeHtml(user.email || '')}" required ${isEdit ? 'readonly' : ''}>
       </div>
-      ${!isEdit ? `
+      ${
+        !isEdit
+          ? `
       <div class="form-group">
         <label>Password</label>
         <input type="password" name="password" required minlength="6">
-      </div>` : ''}
+      </div>`
+          : ''
+      }
       <div class="form-group">
         <label>Ruolo</label>
         <select name="role" class="form-control" required>
@@ -204,11 +245,12 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
       </div>
       <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Utente'}</button>
     </form>
-  `);
+  `
+  );
 
   const form = document.getElementById('operator-form') as HTMLFormElement;
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(form); // Use FormData to get values
       const email = fd.get('email')?.toString();
@@ -240,18 +282,30 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
       try {
         setButtonLoading(submitBtn, true, 'Salvataggio...');
         if (isEdit && userId) {
-          await safeSupabaseQuery(() => supabase.from('users').update({
-            full_name: validation.data.full_name,
-            role: validation.data.role
-          }).eq('user_id', Number(userId)));
+          await safeSupabaseQuery(() =>
+            supabase
+              .from('users')
+              .update({
+                full_name: validation.data.full_name,
+                role: validation.data.role
+              })
+              .eq('user_id', Number(userId))
+          );
         } else {
           // Usa la Edge Function per creare l'utente senza perdere la sessione Admin
-          const { data: fnData, error: fnError } = await supabase.functions.invoke('admin_create_user_v2', {
-            body: validation.data // Already validated by Zod
-          });
+          const { data: fnData, error: fnError } = await supabase.functions.invoke(
+            'admin_create_user_v2',
+            {
+              body: validation.data // Already validated by Zod
+            }
+          );
 
-          if (fnError) { throw fnError; }
-          if (fnData?.error) { throw new Error(fnData.error); }
+          if (fnError) {
+            throw fnError;
+          }
+          if (fnData?.error) {
+            throw new Error(fnData.error);
+          }
 
           Toast.show('Utente creato con successo (email pre-confermata)!', 'success');
         }
@@ -267,7 +321,6 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
           const headerActions = document.getElementById('header-actions');
           showOperatorsTab(adminContent, headerActions);
         }
-
       } catch (err) {
         handleError(err, 'admin_action');
       } finally {
@@ -280,14 +333,22 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
 export async function openAssignStationModal(userId: string): Promise<void> {
   openModal('Assegna Stazione');
   const target = document.getElementById('modal-body');
-  if (!target) {return;}
+  if (!target) {
+    return;
+  }
 
   const [stationsData, currentRes] = await Promise.all([
-    Cache.getOrFetch(CACHE_KEYS.STATIONS, async () => {
-      const { data, error } = await supabase.from('fuel_stations').select('*');
-      if (error) { throw error; }
-      return data;
-    }, 10 * 60 * 1000),
+    Cache.getOrFetch(
+      CACHE_KEYS.STATIONS,
+      async () => {
+        const { data, error } = await supabase.from('fuel_stations').select('*');
+        if (error) {
+          throw error;
+        }
+        return data;
+      },
+      10 * 60 * 1000
+    ),
     supabase.from('user_stations').select('station_id').eq('user_id', Number(userId)).maybeSingle()
   ]);
 
@@ -310,7 +371,7 @@ export async function openAssignStationModal(userId: string): Promise<void> {
 
   const form = document.getElementById('assign-station-form') as HTMLFormElement;
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const stationSelect = form.elements.namedItem('station_id') as HTMLSelectElement;
       const stationId = stationSelect.value;
@@ -326,7 +387,9 @@ export async function openAssignStationModal(userId: string): Promise<void> {
         }
         const { error } = await supabase.rpc('admin_assign_station', rpcArgs);
 
-        if (error) { throw error; }
+        if (error) {
+          throw error;
+        }
 
         closeModal();
         Toast.show('Assegnazione salvata', 'success');
@@ -344,4 +407,3 @@ export async function openAssignStationModal(userId: string): Promise<void> {
     });
   }
 }
-

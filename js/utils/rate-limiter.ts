@@ -8,8 +8,8 @@
 import { logger } from '../core/logger.js';
 
 interface RateLimitEntry {
-    count: number;
-    resetTime: number;
+  count: number;
+  resetTime: number;
 }
 
 const rateLimitStore: Map<string, RateLimitEntry> = new Map();
@@ -26,7 +26,9 @@ export function isRateLimited(
   maxAttempts: number = 5,
   windowMs: number = 60000 // 1 minute default
 ): boolean {
-  if (maxAttempts <= 0) {return true;}
+  if (maxAttempts <= 0) {
+    return true;
+  }
 
   const now = Date.now();
   const entry = rateLimitStore.get(key);
@@ -63,10 +65,7 @@ export function resetRateLimit(key: string): void {
 /**
  * Get remaining attempts before rate limit
  */
-export function getRemainingAttempts(
-  key: string,
-  maxAttempts: number = 5
-): number {
+export function getRemainingAttempts(key: string, maxAttempts: number = 5): number {
   const entry = rateLimitStore.get(key);
   if (!entry || Date.now() > entry.resetTime) {
     return maxAttempts;

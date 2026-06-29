@@ -114,24 +114,26 @@ export class DataTable extends BaseComponent {
       <table>
         <thead>
           <tr>
-            ${this.columns.map(col => html`
-              <th 
-                class="${col.sortable ? 'sortable' : ''} ${this.sortColumn === col.key ? 'sorted' : ''}"
-                @click="${col.sortable ? () => this._handleSort(col.key) : null}">
-                ${col.label}
-                ${col.sortable ? this._renderSortIcon(col.key) : ''}
-              </th>
-            `)}
+            ${this.columns.map(
+              col => html`
+                <th
+                  class="${col.sortable ? 'sortable' : ''} ${this.sortColumn === col.key ? 'sorted' : ''}"
+                  @click="${col.sortable ? () => this._handleSort(col.key) : null}"
+                >
+                  ${col.label} ${col.sortable ? this._renderSortIcon(col.key) : ''}
+                </th>
+              `
+            )}
           </tr>
         </thead>
         <tbody>
-          ${this._getSortedData().map(row => html`
-            <tr @click="${() => this._handleRowClick(row)}">
-              ${this.columns.map(col => html`
-                <td>${this._renderCell(row, col)}</td>
-              `)}
-            </tr>
-          `)}
+          ${this._getSortedData().map(
+            row => html`
+              <tr @click="${() => this._handleRowClick(row)}">
+                ${this.columns.map(col => html` <td>${this._renderCell(row, col)}</td> `)}
+              </tr>
+            `
+          )}
         </tbody>
       </table>
     `;
@@ -146,7 +148,10 @@ export class DataTable extends BaseComponent {
       : html`<i class="fas fa-sort-down sort-icon"></i>`;
   }
 
-  private _renderCell(row: Record<string, unknown>, column: DataTableColumn): TemplateResult | string {
+  private _renderCell(
+    row: Record<string, unknown>,
+    column: DataTableColumn
+  ): TemplateResult | string {
     if (column.render) {
       return column.render(row);
     }
@@ -169,15 +174,23 @@ export class DataTable extends BaseComponent {
   }
 
   private _getSortedData(): Record<string, unknown>[] {
-    if (!this.sortColumn) { return this.data; }
+    if (!this.sortColumn) {
+      return this.data;
+    }
 
     return [...this.data].sort((a, b) => {
       const aVal = a[this.sortColumn];
       const bVal = b[this.sortColumn];
 
-      if (aVal === bVal) { return 0; }
-      if (aVal === null || aVal === undefined) { return 1; }
-      if (bVal === null || bVal === undefined) { return -1; }
+      if (aVal === bVal) {
+        return 0;
+      }
+      if (aVal === null || aVal === undefined) {
+        return 1;
+      }
+      if (bVal === null || bVal === undefined) {
+        return -1;
+      }
 
       const comparison = aVal < bVal ? -1 : 1;
       return this.sortDirection === 'asc' ? comparison : -comparison;

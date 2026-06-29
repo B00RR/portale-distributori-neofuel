@@ -15,7 +15,9 @@ export class FilterBar {
 
   public render(): void {
     const container = document.getElementById(this.containerId);
-    if (!container) { return; }
+    if (!container) {
+      return;
+    }
 
     const currentFilters = store.getFilters();
     const activeChip = currentFilters.rangeLabel || 'all';
@@ -91,7 +93,9 @@ export class FilterBar {
 
   private bindEvents(): void {
     const container = document.getElementById(this.containerId);
-    if (!container) { return; }
+    if (!container) {
+      return;
+    }
 
     // Station Select
     const stationSelect = container.querySelector('#station-filter-select') as HTMLSelectElement;
@@ -109,7 +113,9 @@ export class FilterBar {
     container.querySelectorAll('.chip[data-value]').forEach(btn => {
       btn.addEventListener('click', () => {
         const value = (btn as HTMLElement).dataset.value;
-        if (value) { this.handleChipClick(value); }
+        if (value) {
+          this.handleChipClick(value);
+        }
       });
     });
 
@@ -148,7 +154,9 @@ export class FilterBar {
       case 'week': {
         // Inizio settimana (Lunedì)
         const day = today.getDay() || 7; // Dom=0 -> 7
-        if (day !== 1) { today.setHours(-24 * (day - 1)); }
+        if (day !== 1) {
+          today.setHours(-24 * (day - 1));
+        }
         from = today.toISOString().split('T')[0] ?? null;
         to = null; // Fine al futuro
         break;
@@ -176,7 +184,9 @@ export class FilterBar {
   private openDateModal(): void {
     openModal('Filtri Personalizzati');
     const target = document.getElementById('modal-body');
-    if (!target) { return; }
+    if (!target) {
+      return;
+    }
     const current = store.getFilters();
 
     target.innerHTML = '';

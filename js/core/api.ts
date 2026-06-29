@@ -9,33 +9,37 @@ import type { Database } from '../../supabase/database.types.js';
 import { Toast } from '../ui/toast.js';
 import { Cache, CACHE_KEYS } from '../utils/cache.js';
 
-
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 import { logger } from './logger.js';
 import { queueAction, type QueuedAction } from './offline-queue.js';
 
 // ========== TYPE DEFINITIONS ==========
 
-export type Json = Database['public']['Functions']['submit_shift_closure']['Args']['p_closing_data'];
+export type Json =
+  Database['public']['Functions']['submit_shift_closure']['Args']['p_closing_data'];
 
 export type AppSupabaseClient = SupabaseClient<Database>;
 
 export interface SupabaseQueryResult<T = unknown> {
-    data: T | null;
-    error: PostgrestError | null;
-    offline?: boolean;
+  data: T | null;
+  error: PostgrestError | null;
+  offline?: boolean;
 }
 
 interface PostgrestErrorExt extends PostgrestError {
-    status?: number;
-    statusCode?: number;
+  status?: number;
+  statusCode?: number;
 }
 
-export type QueryFunction<T = unknown> = () => PromiseLike<{ data: T | null; error: PostgrestError | null; offline?: boolean }>;
+export type QueryFunction<T = unknown> = () => PromiseLike<{
+  data: T | null;
+  error: PostgrestError | null;
+  offline?: boolean;
+}>;
 
 export interface OfflineQueueRequest {
-    type: QueuedAction['type'];
-    payload: Record<string, unknown>;
+  type: QueuedAction['type'];
+  payload: Record<string, unknown>;
 }
 
 // ========== SUPABASE CLIENT ==========
@@ -46,7 +50,8 @@ declare global {
 }
 
 const globalSupabase = globalThis.__supabaseClient;
-export const supabase: AppSupabaseClient = globalSupabase || createClient<Database>(SUPABASE_URL, SUPABASE_KEY);
+export const supabase: AppSupabaseClient =
+  globalSupabase || createClient<Database>(SUPABASE_URL, SUPABASE_KEY);
 if (!globalThis.__supabaseClient) {
   globalThis.__supabaseClient = supabase;
 }
@@ -98,17 +103,14 @@ function isOfflineNetworkError(error: PostgrestErrorExt): boolean {
 }
 
 function isOfflineThrownError(err: unknown): boolean {
-  return (
-    !navigator.onLine ||
-    (err instanceof Error && err.message.toLowerCase().includes('fetch'))
-  );
+  return !navigator.onLine || (err instanceof Error && err.message.toLowerCase().includes('fetch'));
 }
 
 async function queueStructuredOfflineAction(action: OfflineQueueRequest): Promise<void> {
   await queueAction(action.type, action.payload);
 
   Toast.show(
-    'Connessione assente. L\'operazione e\' stata salvata localmente e verra\' sincronizzata appena possibile.',
+    "Connessione assente. L'operazione e' stata salvata localmente e verra' sincronizzata appena possibile.",
     'warning'
   );
 }
@@ -125,21 +127,28 @@ const getStationName = async (stationId: string | number): Promise<string> => {
 
   const cacheKey = `${CACHE_KEYS.STATION_PREFIX}${numericId}`;
 
-  return Cache.getOrFetch(cacheKey, async () => {
-    try {
-      const { data: st } = await supabase
-        .from('fuel_stations')
-        .select('station_name')
-        .eq('station_id', numericId)
-        .maybeSingle();
-      const station = st as { station_name?: string } | null;
-      return station?.station_name || `#${numericId}`;
-    } catch (err) {
-      logger.warn('api.getStationName', 'Error loading station name');
-      logger.debug('api.getStationName', logger.getUserMessage(logger.error('api.getStationName', err)));
-      return `#${numericId}`;
-    }
-  }, 10 * 60 * 1000); // Cache for 10 minutes
+  return Cache.getOrFetch(
+    cacheKey,
+    async () => {
+      try {
+        const { data: st } = await supabase
+          .from('fuel_stations')
+          .select('station_name')
+          .eq('station_id', numericId)
+          .maybeSingle();
+        const station = st as { station_name?: string } | null;
+        return station?.station_name || `#${numericId}`;
+      } catch (err) {
+        logger.warn('api.getStationName', 'Error loading station name');
+        logger.debug(
+          'api.getStationName',
+          logger.getUserMessage(logger.error('api.getStationName', err))
+        );
+        return `#${numericId}`;
+      }
+    },
+    10 * 60 * 1000
+  ); // Cache for 10 minutes
 };
 
 export { Cache, CACHE_KEYS, getStationName };

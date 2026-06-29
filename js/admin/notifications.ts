@@ -9,11 +9,17 @@ import { handleError } from '../shared/error-handler.js';
 import { formatNumberIt } from '../utils/utils.js';
 
 interface TankRow {
+  id: number;
   name: string;
   fuel_type: string;
-  liters?: number;
   station_id?: number;
   fuel_stations?: { station_name?: string };
+}
+
+interface TankReadingRow {
+  tank_id: number | null;
+  liters: number | null;
+  created_at: string | null;
 }
 
 interface ShiftRow {
@@ -38,8 +44,11 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
   try {
     const [rules, tanksRes, shiftsRes] = await Promise.all([
       BusinessLogicManager.loadRules(),
-      supabase.from('tanks').select('name, fuel_type, liters, station_id, fuel_stations(station_name)'),
-      supabase.from('shifts').select('id, created_at, status, station_id, fuel_stations(station_name)').eq('status', 'open')
+      supabase.from('tanks').select('id, name, fuel_type, station_id, fuel_stations(station_name)'),
+      supabase
+        .from('shifts')
+        .select('id, created_at, status, station_id, fuel_stations(station_name)')
+        .eq('status', 'open')
     ]);
 
     // Check if notifications are globally enabled
@@ -68,19 +77,56 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
 
     // Check for query errors
     if (tanksRes.error) {
-      errors.push('Impossibile caricare i dati dei serbatoi: ' + (tanksRes.error.message || 'Errore sconosciuto'));
+      errors.push(
+        'Impossibile caricare i dati dei serbatoi: ' +
+          (tanksRes.error.message || 'Errore sconosciuto')
+      );
     }
     if (shiftsRes.error) {
-      errors.push('Impossibile caricare i dati dei turni: ' + (shiftsRes.error.message || 'Errore sconosciuto'));
+      errors.push(
+        'Impossibile caricare i dati dei turni: ' +
+          (shiftsRes.error.message || 'Errore sconosciuto')
+      );
     }
 
     // 1. Check Fuel Reserves
+    // The `tanks` table has no `liters` column; current liters come from the
+    // most recent `tank_readings` row per tank (same source as the dashboard).
+    const latestLitersByTank: Record<number, number> = {};
+    const tankRows = (tanksRes.data || []) as TankRow[];
+    if (tankRows.length > 0) {
+      const tankIds = tankRows.map(t => t.id);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const { data: readings } = await supabase
+        .from('tank_readings')
+        .select('tank_id, liters, created_at')
+        .in('tank_id', tankIds)
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: false });
+      for (const r of (readings || []) as TankReadingRow[]) {
+        if (r.tank_id === null) {
+          continue;
+        }
+        if (!(r.tank_id in latestLitersByTank)) {
+          latestLitersByTank[r.tank_id] = r.liters || 0;
+        }
+      }
+    }
+
     if (tanksRes.data) {
-      (tanksRes.data as TankRow[]).forEach((t) => {
-        const liters = t.liters || 0;
+      tankRows.forEach(t => {
+        const liters = latestLitersByTank[t.id] || 0;
         if (liters < rules.fuel_reserve_alert_liters) {
           const stationName = t.fuel_stations?.station_name || 'Stazione #' + String(t.station_id);
-          alerts.push(createAlertCard('critical', 'fa-gas-pump', 'Scorta Critica: ' + t.name + ' (' + t.fuel_type + ')', 'Presso ' + stationName + ': Rimangono solo ' + formatNumberIt(liters) + ' litri.'));
+          alerts.push(
+            createAlertCard(
+              'critical',
+              'fa-gas-pump',
+              'Scorta Critica: ' + t.name + ' (' + t.fuel_type + ')',
+              'Presso ' + stationName + ': Rimangono solo ' + formatNumberIt(liters) + ' litri.'
+            )
+          );
         }
       });
     }
@@ -88,12 +134,25 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
     // 2. Check Stale Shifts
     if (shiftsRes.data) {
       const now = new Date().getTime();
-      (shiftsRes.data as ShiftRow[]).forEach((s) => {
+      (shiftsRes.data as ShiftRow[]).forEach(s => {
         const createdAt = new Date(s.created_at).getTime();
         const hoursOpen = (now - createdAt) / (1000 * 60 * 60);
         if (hoursOpen > rules.force_close_hours_threshold) {
           const stationName = s.fuel_stations?.station_name || 'Stazione #' + String(s.station_id);
-          alerts.push(createAlertCard('warning', 'fa-clock', 'Turno Aperto da troppo tempo', 'ID #' + String(s.id) + ' presso ' + stationName + ' è aperto da ' + hoursOpen.toFixed(1) + ' ore.'));
+          alerts.push(
+            createAlertCard(
+              'warning',
+              'fa-clock',
+              'Turno Aperto da troppo tempo',
+              'ID #' +
+                String(s.id) +
+                ' presso ' +
+                stationName +
+                ' è aperto da ' +
+                hoursOpen.toFixed(1) +
+                ' ore.'
+            )
+          );
         }
       });
     }
@@ -110,7 +169,9 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
       list.appendChild(title);
 
       errors.forEach(errorMsg => {
-        list.appendChild(createAlertCard('critical', 'fa-exclamation-triangle', 'Errore di Caricamento', errorMsg));
+        list.appendChild(
+          createAlertCard('critical', 'fa-exclamation-triangle', 'Errore di Caricamento', errorMsg)
+        );
       });
 
       alerts.forEach(alert => list.appendChild(alert));

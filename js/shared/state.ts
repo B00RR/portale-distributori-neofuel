@@ -6,50 +6,50 @@
 // ========== TYPE DEFINITIONS ==========
 
 export interface User {
-    id?: string;
-    user_id: string;
-    email: string;
-    role: 'admin' | 'operator' | 'super_admin' | 'accounting' | 'full_admin' | 'billing';
-    station_id?: string | number | null;
+  id?: string;
+  user_id: string;
+  email: string;
+  role: 'admin' | 'operator' | 'super_admin' | 'accounting' | 'full_admin' | 'billing';
+  station_id?: string | number | null;
+  full_name?: string;
+  assignedStations?: { id: number | string; name?: string }[];
+  user_metadata?: {
     full_name?: string;
-    assignedStations?: { id: number | string; name?: string }[];
-    user_metadata?: {
-        full_name?: string;
-        station_id?: string;
-        role?: string;
-    };
+    station_id?: string;
+    role?: string;
+  };
 }
 
 export interface Station {
-    id?: number | string;
-    station_id: number;
-    name?: string;
-    station_name: string;
-    location?: string;
-    address?: string;
+  id?: number | string;
+  station_id: number;
+  name?: string;
+  station_name: string;
+  location?: string;
+  address?: string;
 }
 
 export interface Filters {
-    dateFrom: string | null;
-    dateTo: string | null;
-    searchQuery: string;
-    rangeLabel: 'today' | 'week' | 'month' | 'custom' | 'all';
+  dateFrom: string | null;
+  dateTo: string | null;
+  searchQuery: string;
+  rangeLabel: 'today' | 'week' | 'month' | 'custom' | 'all';
 }
 
 export interface Pagination {
-    page: number;
-    pageSize: number;
-    totalCount: number;
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }
 
 export interface AppState {
-    user: User | null;
-    stations: Station[];
-    stationFilter: string | null;
-    filters: Filters;
-    pagination: Pagination;
-    loading: boolean;
-    error: string | null;
+  user: User | null;
+  stations: Station[];
+  stationFilter: string | null;
+  filters: Filters;
+  pagination: Pagination;
+  loading: boolean;
+  error: string | null;
 }
 
 export type StateKey = keyof AppState;
@@ -84,39 +84,39 @@ class Store {
   }
 
   /**
-     * Get a snapshot of the current state
-     */
+   * Get a snapshot of the current state
+   */
   getState(): AppState {
     return { ...this.state };
   }
 
   /**
-     * Set the logged-in user
-     */
+   * Set the logged-in user
+   */
   setUser(user: User | null): void {
     this.state.user = user;
     this.notify('user', user);
   }
 
   /**
-     * Set the list of available fuel stations
-     */
+   * Set the list of available fuel stations
+   */
   setStations(stations: Station[]): void {
     this.state.stations = stations;
     this.notify('stations', stations);
   }
 
   /**
-     * Update the global station filter
-     */
+   * Update the global station filter
+   */
   setStationFilter(stationId: string | number | null): void {
     this.state.stationFilter = stationId === null ? null : String(stationId);
     this.notify('stationFilter', this.state.stationFilter);
   }
 
   /**
-     * Update complex filters
-     */
+   * Update complex filters
+   */
   setFilters(newFilters: Partial<Filters>): void {
     this.state.filters = { ...this.state.filters, ...newFilters };
     // Reset page on filter change
@@ -126,33 +126,33 @@ class Store {
   }
 
   /**
-     * Update pagination
-     */
+   * Update pagination
+   */
   setPagination(newPagination: Partial<Pagination>): void {
     this.state.pagination = { ...this.state.pagination, ...newPagination };
     this.notify('pagination', this.state.pagination);
   }
 
   /**
-     * Set loading state
-     */
+   * Set loading state
+   */
   setLoading(loading: boolean): void {
     this.state.loading = loading;
     this.notify('loading', loading);
   }
 
   /**
-     * Set error state
-     */
+   * Set error state
+   */
   setError(error: string | null): void {
     this.state.error = error;
     this.notify('error', error);
   }
 
   /**
-     * Subscribe to state changes
-     * @returns unsubscribe function
-     */
+   * Subscribe to state changes
+   * @returns unsubscribe function
+   */
   subscribe(callback: StateChangeCallback): () => void {
     this.listeners.add(callback);
     return () => {
@@ -161,8 +161,8 @@ class Store {
   }
 
   /**
-     * Notify all listeners of a change
-     */
+   * Notify all listeners of a change
+   */
   private notify(key: StateKey, value: unknown): void {
     this.listeners.forEach(listener => listener(key, value));
   }
