@@ -56,8 +56,8 @@ export async function showCreditsMenu(stationId: number | string, userId: string
     setSafeHTML(
       modalBody,
       `
-            <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
-                <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
+            <div style="background: rgba(255, 65, 54, 0.1); color: var(--danger-color); padding:30px; border-radius:12px; border:2px solid rgba(255, 65, 54, 0.3); text-align:center; margin: 20px;">
+                <h2 style="margin:0 0 15px 0; color: var(--danger-color);"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
                 <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter gestire i crediti.</p>
                 <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
             </div>
@@ -101,7 +101,7 @@ export async function showCreditsMenu(stationId: number | string, userId: string
             .credit-option-card {
                 flex: 1;
                 background: white;
-                border: 2px solid #e2e8f0;
+                border: 2px solid var(--border-color);
                 border-radius: 12px;
                 padding: 20px;
                 text-align: center;
@@ -114,7 +114,7 @@ export async function showCreditsMenu(stationId: number | string, userId: string
                 max-width: 250px;
             }
             .credit-option-card:hover {
-                border-color: #3b82f6;
+                border-color: var(--info-color);
                 transform: translateY(-2px);
                 box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             }
@@ -129,21 +129,21 @@ export async function showCreditsMenu(stationId: number | string, userId: string
                 margin-bottom: 5px;
             }
             .icon-wrapper.new-credit {
-                background: #eff6ff;
-                color: #3b82f6;
+                background: rgba(59, 130, 246, 0.1);
+                color: var(--info-color);
             }
             .icon-wrapper.payment {
-                background: #f0fdf4;
-                color: #22c55e;
+                background: rgba(16, 185, 129, 0.1);
+                color: var(--success-color);
             }
             .credit-option-card h3 {
                 margin: 0;
-                color: #1e293b;
+                color: var(--text-main);
                 font-size: 1.1rem;
             }
             .credit-option-card p {
                 margin: 0;
-                color: #64748b;
+                color: var(--secondary-color);
                 font-size: 0.9rem;
             }
         </style>
@@ -223,7 +223,7 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
                     left: 0;
                     right: 0;
                     background: white;
-                    border: 1px solid #cbd5e1;
+                    border: 1px solid var(--border-color);
                     border-radius: 0 0 8px 8px;
                     max-height: 200px;
                     overflow-y: auto;
@@ -233,10 +233,10 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
                 .suggestion-item {
                     padding: 10px;
                     cursor: pointer;
-                    border-bottom: 1px solid #f1f5f9;
+                    border-bottom: 1px solid var(--border-color);
                 }
                 .suggestion-item:hover {
-                    background: #f8fafc;
+                    background: var(--bg-body);
                 }
             </style>
         </div>
@@ -490,7 +490,7 @@ async function showPaymentSelection(stationId: number | string, userId: string):
       if (!debtors || debtors.length === 0) {
         setSafeHTML(
           listContainer,
-          '<p style="text-align:center; color:#64748b; padding:20px;">Nessun credito aperto trovato.</p>'
+          '<p style="text-align:center; color: var(--secondary-color); padding:20px;">Nessun credito aperto trovato.</p>'
         );
         return;
       }
@@ -500,14 +500,14 @@ async function showPaymentSelection(stationId: number | string, userId: string):
         debtors
           .map(
             d => `
-                <div class="result-item" data-id="${d.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; cursor: pointer;">
+                <div class="result-item" data-id="${d.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--border-color); cursor: pointer;">
                     <div>
                         <div style="font-weight: bold; font-size: 1.1rem;">${escapeHtml(d.cliente)}</div>
-                        <div style="font-size: 0.85rem; color: #64748b;">Ultimo agg: ${new Date(d.updated_at || d.created_at || '').toLocaleDateString()}</div>
+                        <div style="font-size: 0.85rem; color: var(--secondary-color);">Ultimo agg: ${new Date(d.updated_at || d.created_at || '').toLocaleDateString()}</div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-weight: bold; color: #ef4444; font-size: 1.2rem;">${formatEuro(d.saldo)}</div>
-                        <div style="font-size: 0.8rem; color: #3b82f6;">Paga <i class="fas fa-chevron-right"></i></div>
+                        <div style="font-weight: bold; color: var(--danger-color); font-size: 1.2rem;">${formatEuro(d.saldo)}</div>
+                        <div style="font-size: 0.8rem; color: var(--info-color);">Paga <i class="fas fa-chevron-right"></i></div>
                     </div>
                 </div>
             `
@@ -556,9 +556,9 @@ function showPaymentModal(
   setSafeHTML(
     modalBody,
     `
-        <div style="background: #fff1f2; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #fecdd3;">
-            <div style="font-size: 0.9rem; color: #9f1239;">Debito Attuale</div>
-            <div style="font-size: 2rem; font-weight: 700; color: #e11d48;">${formatEuro(customer.saldo)}</div>
+        <div style="background: rgba(255, 65, 54, 0.08); padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid rgba(255, 65, 54, 0.2);">
+            <div style="font-size: 0.9rem; color: var(--danger-color);">Debito Attuale</div>
+            <div style="font-size: 2rem; font-weight: 700; color: var(--danger-color);">${formatEuro(customer.saldo)}</div>
         </div>
 
         <form id="payment-form">
@@ -579,11 +579,11 @@ function showPaymentModal(
                 </select>
             </div>
 
-            <div id="cash-info" class="info-box" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
+            <div id="cash-info" class="info-box" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--success-color); padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
                 <i class="fas fa-check-circle"></i> Questo importo verrà <strong>aggiunto</strong> al totale contanti della giornata.
             </div>
             
-            <div id="pos-info" class="info-box" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
+            <div id="pos-info" class="info-box" style="display: none; background: var(--bg-body); border: 1px solid var(--border-color); color: var(--secondary-hover); padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
                 <i class="fas fa-info-circle"></i> Questo pagamento non influisce sui contanti in cassa.
             </div>
 

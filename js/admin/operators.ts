@@ -126,7 +126,7 @@ export async function showOperatorsTab(
           <td>
             <button class="icon-btn edit-operator" data-id="${u.user_id}" title="Modifica" aria-label="Modifica"><i class="fas fa-edit"></i></button>
             <button class="icon-btn assign-station" data-id="${u.user_id}" title="Assegna Stazione" aria-label="Assegna Stazione"><i class="fas fa-map-marker-alt"></i></button>
-            <button class="icon-btn delete-operator" data-id="${u.user_id}" title="Elimina" aria-label="Elimina" style="color: #ff4d4d;"><i class="fas fa-trash-alt"></i></button>
+            <button class="icon-btn delete-operator" data-id="${u.user_id}" title="Elimina" aria-label="Elimina" style="color: var(--danger-color);"><i class="fas fa-trash-alt"></i></button>
           </td>
         </tr>
       `;

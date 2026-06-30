@@ -520,18 +520,18 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
   // Ordina le date
   const sortedDates = Array.from(allDates).sort();
 
-  // Colori per le linee (puoi aggiungere più colori se hai molti distributori)
+  // Colori per le linee (allineati alla palette Neofuel + colori di estensione per dati multipli)
   const colors = [
-    '#8DC63F',
-    '#10b981',
-    '#3b82f6',
-    '#f59e0b',
-    '#ef4444',
-    '#8b5cf6',
-    '#ec4899',
-    '#06b6d4',
-    '#84cc16',
-    '#f97316'
+    '#8DC63F', // accent-color (verde lime)
+    '#10b981', // success-color
+    '#3b82f6', // info-color
+    '#FFA500', // warning-color
+    '#FF4136', // danger-color
+    '#8b5cf6', // viola (estensione dati)
+    '#ec4899', // rosa (estensione dati)
+    '#06b6d4', // ciano (estensione dati)
+    '#84cc16', // lime (estensione dati)
+    '#f97316'  // arancio (estensione dati)
   ];
 
   // Crea un dataset per ogni distributore

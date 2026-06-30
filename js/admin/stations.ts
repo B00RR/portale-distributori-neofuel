@@ -256,7 +256,7 @@ export async function openStationModal(stationId: number | null = null): Promise
   partialLabel.appendChild(partialCheck);
   partialLabel.appendChild(partialSpan);
   const partialSmall = document.createElement('small');
-  partialSmall.style.cssText = 'color: #666; margin-top: 5px; display: block;';
+  partialSmall.style.cssText = 'color: var(--text-secondary); margin-top: 5px; display: block;';
   partialSmall.textContent =
     'Se disabilitato, gli operatori di questo distributore potranno effettuare solo chiusure finali.';
   partialGroup.appendChild(partialLabel);

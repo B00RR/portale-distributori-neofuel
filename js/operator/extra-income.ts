@@ -92,7 +92,7 @@ function renderExtraIncomeForm(
             </div>
 
             <div class="form-group">
-            <label>Descrizione / Note <span id="required-indicator" style="display: none; color: #ef4444;">*</span></label>
+            <label>Descrizione / Note <span id="required-indicator" style="display: none; color: var(--danger-color);">*</span></label>
             <textarea name="description" id="description-field" rows="3" class="big-input" placeholder="Dettagli vendita..."></textarea>
             </div>
 

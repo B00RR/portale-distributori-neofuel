@@ -3274,7 +3274,7 @@ button:active {
   display: inline-block;
   padding: 4px 12px;
   background: var(--primary-color);
-  color: white;
+  color: var(--bg-surface);
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -3316,14 +3316,14 @@ button:active {
   gap: 12px;
   padding: 18px 24px;
   background: linear-gradient(135deg, var(--border-focus) 0%, var(--primary-hover) 100%);
-  color: white;
+  color: var(--text-light);
   border: none;
   border-radius: 14px;
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--shadow-md);
   min-height: 60px;
 }
 
@@ -3333,7 +3333,7 @@ button:active {
 
 .op-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 
 .op-card:active {
@@ -3393,7 +3393,7 @@ button:active {
 }
 
 .content-box {
-  background: white;
+  background: var(--bg-surface);
   padding: 24px;
   border-radius: 16px;
   box-shadow: var(--shadow-md);
@@ -3511,7 +3511,7 @@ button:active {
   border-radius: var(--radius-sm);
   font-size: 1.1rem;
   font-weight: 500;
-  background: white;
+  background: var(--bg-surface);
   transition: all 0.2s ease;
   box-sizing: border-box;
 }
@@ -3587,8 +3587,8 @@ button:active {
   .pistola-card {
     padding: 16px;
     border-radius: 12px;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-sm);
   }
 
   .big-input {
@@ -3682,7 +3682,7 @@ button:active {
   gap: 12px;
   padding: 18px 24px;
   background: var(--primary-color);
-  color: white;
+  color: var(--text-light);
   border: none;
   border-radius: var(--radius-md);
   font-size: 1.1rem;
@@ -3740,9 +3740,9 @@ button:active {
   align-items: center;
   gap: 12px;
   padding: 14px 24px 14px 40px;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--bg-surface);
   color: var(--border-focus);
-  border: 2px solid rgba(102, 126, 234, 0.2);
+  border: 2px solid rgba(59, 130, 246, 0.2);
   border-radius: 12px;
   font-size: 1rem;
   font-weight: 600;
@@ -3759,10 +3759,10 @@ button:active {
 
 .op-submenu-item:hover {
   background: var(--border-focus);
-  color: white;
+  color: var(--text-light);
   border-color: var(--border-focus);
   transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
 }
 
 .op-submenu-item:active {
@@ -3812,7 +3812,7 @@ button:active {
 
 .op-submenu-item:hover {
   background: var(--primary-color);
-  color: white;
+  color: var(--text-light);
   border-color: var(--primary-color);
   transform: translateX(4px);
   box-shadow: var(--shadow-md);
@@ -3834,7 +3834,7 @@ button:active {
 .global-filter-wrapper {
   display: flex;
   align-items: center;
-  background: white;
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   height: 36px;
@@ -3842,14 +3842,14 @@ button:active {
   padding: 0 12px;
   margin-right: 0;
   /* Remove margin as container handles gap */
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
   box-sizing: border-box;
 }
 
 .global-filter-wrapper:hover {
   border-color: var(--text-secondary);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .filter-icon {
@@ -4027,25 +4027,25 @@ button:active {
 /* Toast Types */
 .toast-success {
   background: linear-gradient(135deg, var(--success-color) 0%, var(--success-color) 100%);
-  color: white;
+  color: var(--text-light);
   border-left: 4px solid var(--success-color);
 }
 
 .toast-error {
   background: linear-gradient(135deg, var(--danger-color) 0%, var(--danger-color) 100%);
-  color: white;
+  color: var(--text-light);
   border-left: 4px solid var(--danger-color);
 }
 
 .toast-warning {
   background: linear-gradient(135deg, var(--warning-color) 0%, var(--warning-color) 100%);
-  color: white;
+  color: var(--text-light);
   border-left: 4px solid var(--warning-color);
 }
 
 .toast-info {
   background: linear-gradient(135deg, var(--info-color) 0%, var(--border-focus) 100%);
-  color: white;
+  color: var(--text-light);
   border-left: 4px solid var(--border-focus);
 }
 
@@ -4176,7 +4176,7 @@ button:active {
   align-items: center;
   gap: 16px;
   padding: 12px 16px;
-  background: white;
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
@@ -4258,7 +4258,7 @@ button:active {
   padding: 0 8px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
-  background: white;
+  background: var(--bg-surface);
   color: var(--text-secondary);
   cursor: pointer;
   display: flex;
@@ -4275,7 +4275,7 @@ button:active {
 
 .kpi-control-btn.active {
   background: var(--primary-color);
-  color: white;
+  color: var(--text-light);
   border-color: var(--primary-color);
 }
 
@@ -4293,7 +4293,7 @@ button:active {
   top: 100%;
   right: 0;
   margin-top: 8px;
-  background: white;
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
@@ -4381,7 +4381,7 @@ button:active {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(244, 246, 248, 0.95);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -4529,7 +4529,7 @@ button:active {
 /* Confirmation Modal Buttons */
 .menu-button.btn-danger {
   background: var(--danger-color) !important;
-  color: white;
+  color: var(--text-light);
   border: none;
 }
 
@@ -4541,7 +4541,7 @@ button:active {
 
 .menu-button.btn-success {
   background: var(--success-color) !important;
-  color: white;
+  color: var(--text-light);
   border: none;
 }
 

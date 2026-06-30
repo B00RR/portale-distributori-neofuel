@@ -36,8 +36,8 @@ export async function showInvoiceMenu(stationId: number | string, userId: string
       setSafeHTML(
         modalBody,
         `
-                <div style="background:#fee2e2; color:#b91c1c; padding:30px; border-radius:12px; border:2px solid #fecaca; text-align:center; margin: 20px;">
-                    <h2 style="margin:0 0 15px 0; color:#b91c1c;"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
+                <div style="background: rgba(255, 65, 54, 0.1); color: var(--danger-color); padding:30px; border-radius:12px; border:2px solid rgba(255, 65, 54, 0.3); text-align:center; margin: 20px;">
+                    <h2 style="margin:0 0 15px 0; color: var(--danger-color);"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
                     <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter registrare richieste di fattura.</p>
                     <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
                 </div>
@@ -78,7 +78,7 @@ function renderCustomerChoice(
     `
       <div class="content-box">
         <p class="section-subtitle">Seleziona il tipo di cliente</p>
-        <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 20px;">
+        <div class="info-box" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); color: var(--info-color); padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 20px;">
             <i class="fas fa-info-circle"></i> Questa operazione <strong>NON</strong> influisce sui totali di cassa o sul venduto. Serve solo come promemoria per l'amministrazione.
         </div>
 
@@ -126,7 +126,7 @@ function renderNewCustomerForm(
     `
       <div class="content-box">
         <p class="section-subtitle">Nuovo Cliente</p>
-        <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
+        <div class="info-box" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); color: var(--info-color); padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
             <i class="fas fa-info-circle"></i> Questa operazione <strong>NON</strong> influisce sui totali di cassa o sul venduto. Serve solo come promemoria per l'amministrazione.
         </div>
 
@@ -269,7 +269,7 @@ function renderExistingCustomerForm(
     `
       <div class="content-box">
         <p class="section-subtitle">Cliente Esistente</p>
-        <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
+        <div class="info-box" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); color: var(--info-color); padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
             <i class="fas fa-info-circle"></i> Questa operazione <strong>NON</strong> influisce sui totali di cassa o sul venduto. Serve solo come promemoria per l'amministrazione.
         </div>
 
@@ -278,7 +278,7 @@ function renderExistingCustomerForm(
                 <label>Ragione Sociale / Nome Cliente</label>
                 <div style="position: relative;">
                     <input type="text" id="customer-search" name="customer_name" class="big-input" required placeholder="Inizia a digitare il nome del cliente..." autocomplete="off">
-                    <div id="customer-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 4px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+                    <div id="customer-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; margin-top: 4px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
                 </div>
                 <input type="hidden" id="selected-customer-id" name="customer_id">
             </div>
@@ -332,13 +332,13 @@ function renderExistingCustomerForm(
             customers
               .map(
                 c => `
-                        <div class="suggestion-item" data-id="${c.id}" data-name="${escapeHtml(c.nome || c.telefono || 'Cliente')}" style="padding: 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s;"
-                             onmouseover="this.style.background='#f8fafc'" 
-                             onmouseout="this.style.background='white'">
+                        <div class="suggestion-item" data-id="${c.id}" data-name="${escapeHtml(c.nome || c.telefono || 'Cliente')}" style="padding: 12px; cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background 0.2s;"
+                             onmouseover="this.style.background='var(--bg-body)'" 
+                             onmouseout="this.style.background='var(--bg-surface)'">
                             <div style="font-weight: 600;">${escapeHtml(c.nome || c.telefono || 'Cliente')}</div>
-                            ${c.partita_iva ? `<div style="font-size: 0.85rem; color: #64748b;">P.IVA: ${escapeHtml(c.partita_iva)}</div>` : ''}
-                            ${c.telefono ? `<div style="font-size: 0.85rem; color: #64748b;">Tel: ${escapeHtml(c.telefono)}</div>` : ''}
-                            ${c.targa ? `<div style="font-size: 0.85rem; color: #64748b;">Targa: ${escapeHtml(c.targa)}</div>` : ''}
+                            ${c.partita_iva ? `<div style="font-size: 0.85rem; color: var(--secondary-color);">P.IVA: ${escapeHtml(c.partita_iva)}</div>` : ''}
+                            ${c.telefono ? `<div style="font-size: 0.85rem; color: var(--secondary-color);">Tel: ${escapeHtml(c.telefono)}</div>` : ''}
+                            ${c.targa ? `<div style="font-size: 0.85rem; color: var(--secondary-color);">Targa: ${escapeHtml(c.targa)}</div>` : ''}
                         </div>
                     `
               )
@@ -360,7 +360,7 @@ function renderExistingCustomerForm(
         } else {
           setSafeHTML(
             suggestionsDiv,
-            '<div style="padding: 12px; color: #64748b; text-align: center;">Nessun cliente trovato</div>'
+            '<div style="padding: 12px; color: var(--secondary-color); text-align: center;">Nessun cliente trovato</div>'
           );
           suggestionsDiv.style.display = 'block';
         }
@@ -438,7 +438,7 @@ function renderInvoiceForm(
     `
       <div class="content-box">
         <p class="section-subtitle">Richiesta Fattura - ${escapeHtml(customerName)}</p>
-        <div class="info-box" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
+        <div class="info-box" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); color: var(--info-color); padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
             <i class="fas fa-info-circle"></i> Questa operazione <strong>NON</strong> influisce sui totali di cassa o sul venduto. Serve solo come promemoria per l'amministrazione.
         </div>
 

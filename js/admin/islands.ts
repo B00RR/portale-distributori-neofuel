@@ -160,10 +160,10 @@ export async function showIslandsModal(stationId: number | string): Promise<void
           const card = createEl('div', {
             classes: ['island-card'],
             style: {
-              background: '#f9fafb',
+              background: 'var(--bg-body)',
               padding: '15px',
               borderRadius: '8px',
-              border: '1px solid #e5e7eb'
+              border: '1px solid var(--border-color)'
             }
           });
 
@@ -188,7 +188,7 @@ export async function showIslandsModal(stationId: number | string): Promise<void
                 classes: ['icon-btn', 'delete-island'],
                 dataset: { id: String(island.island_id) },
                 attrs: { title: 'Elimina' },
-                style: { color: '#ef4444' },
+                style: { color: 'var(--danger-color)' },
                 children: [createIcon('fas fa-trash')]
               })
             ]
