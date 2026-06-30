@@ -352,12 +352,12 @@ function renderVolumeChart(data: AnalyticsResult): void {
         {
           label: 'Benzina (L)',
           data: data.daily.map(d => d.liters_benzina),
-          backgroundColor: '#22c55e'
+          backgroundColor: '#10b981'
         },
         {
           label: 'Gasolio (L)',
           data: data.daily.map(d => d.liters_gasolio),
-          backgroundColor: '#1f2937' // Dark gray/black for diesel
+          backgroundColor: '#333333' // Dark gray/black for diesel
         }
       ]
     },
@@ -394,7 +394,7 @@ function renderPaymentChart(data: AnalyticsResult): void {
       datasets: [
         {
           data: [data.totals.contanti, data.totals.pos, data.totals.crediti, data.totals.voucher],
-          backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899']
+          backgroundColor: ['#10b981', '#3b82f6', '#FFA500', '#ec4899']
         }
       ]
     },
@@ -426,7 +426,7 @@ function renderFuelMixChart(data: AnalyticsResult): void {
       datasets: [
         {
           data: [data.totals.benzina, data.totals.gasolio],
-          backgroundColor: ['#22c55e', '#1f2937']
+          backgroundColor: ['#10b981', '#333333']
         }
       ]
     },

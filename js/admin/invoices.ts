@@ -218,17 +218,17 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
     let statusBadge: HTMLElement;
     if (inv.status === 'pending') {
       statusBadge = createEl('span', {
-        style: { ...statusBadgeStyle, background: '#fef3c7', color: '#92400e' },
+        style: { ...statusBadgeStyle, background: 'rgba(255, 165, 0, 0.1)', color: 'var(--warning-color)' },
         text: 'In Attesa'
       });
     } else if (inv.status === 'completed' || inv.status === 'emessa') {
       statusBadge = createEl('span', {
-        style: { ...statusBadgeStyle, background: '#d1fae5', color: '#065f46' },
+        style: { ...statusBadgeStyle, background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success-color)' },
         text: 'Emessa'
       });
     } else {
       statusBadge = createEl('span', {
-        style: { ...statusBadgeStyle, background: '#fee2e2', color: '#991b1b' },
+        style: { ...statusBadgeStyle, background: 'rgba(255, 65, 54, 0.1)', color: 'var(--danger-color)' },
         text: 'Annullata'
       });
     }
@@ -243,17 +243,17 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
     let paymentMethodCell: HTMLElement;
     if (inv.payment_method === 'contanti') {
       paymentMethodCell = createEl('span', {
-        style: { ...paymentBadgeStyle, background: '#dbeafe', color: '#1e40af' },
+        style: { ...paymentBadgeStyle, background: 'rgba(59, 130, 246, 0.1)', color: 'var(--info-color)' },
         text: 'Contanti'
       });
     } else if (inv.payment_method === 'pos') {
       paymentMethodCell = createEl('span', {
-        style: { ...paymentBadgeStyle, background: '#fef3c7', color: '#92400e' },
+        style: { ...paymentBadgeStyle, background: 'rgba(255, 165, 0, 0.1)', color: 'var(--warning-color)' },
         text: 'POS'
       });
     } else if (inv.payment_method === 'bonifico') {
       paymentMethodCell = createEl('span', {
-        style: { ...paymentBadgeStyle, background: '#e0e7ff', color: '#3730a3' },
+        style: { ...paymentBadgeStyle, background: 'rgba(59, 130, 246, 0.1)', color: 'var(--info-color)' },
         text: 'Bonifico'
       });
     } else {

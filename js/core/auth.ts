@@ -630,17 +630,17 @@ export function showOTPResetForm(): void {
 
   const mainContent = document.getElementById('main-content') || document.body;
   mainContent.innerHTML = `
-        <div id="otp-reset-container" style="max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <div id="otp-reset-container" style="max-width: 400px; margin: 50px auto; padding: 20px; background: var(--bg-surface); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <h2 style="text-align: center; margin-bottom: 20px;">Reimposta Password</h2>
-            <p style="text-align: center; color: #666; margin-bottom: 20px;">Inserisci il codice a 6 cifre ricevuto via email</p>
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 20px;">Inserisci il codice a 6 cifre ricevuto via email</p>
             <form id="otp-reset-form">
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label for="otp-code">Codice OTP</label>
                     <input type="text" id="otp-code" name="otp-code" required maxlength="6" pattern="[0-9]{6}"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 24px; letter-spacing: 8px;"
+                        style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center; font-size: 24px; letter-spacing: 8px;"
                         placeholder="000000" autocomplete="off" />
                 </div>
-                <div id="otp-reset-error" style="color: red; margin-bottom: 15px; text-align: center; min-height: 20px;"></div>
+                <div id="otp-reset-error" style="color: var(--danger-color); margin-bottom: 15px; text-align: center; min-height: 20px;"></div>
                 <button type="submit" class="menu-button success" style="width: 100%; margin-top: 10px;">Verifica Codice</button>
                 <button type="button" id="back-to-login-otp" class="menu-button secondary" style="width: 100%; margin-top: 12px;">Torna al Login</button>
             </form>
@@ -744,9 +744,9 @@ export function showResetPasswordForm(): void {
 
   const mainContent = document.getElementById('main-content') || document.body;
   mainContent.innerHTML = `
-        <div id="reset-password-container" style="max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <div id="reset-password-container" style="max-width: 400px; margin: 50px auto; padding: 20px; background: var(--bg-surface); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <h2 style="text-align: center; margin-bottom: 20px;">Reimposta Password</h2>
-            <p style="text-align: center; color: #666; margin-bottom: 20px;">Inserisci la tua nuova password</p>
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 20px;">Inserisci la tua nuova password</p>
             <form id="reset-password-form">
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label for="new-password">Nuova Password</label>
@@ -762,7 +762,7 @@ export function showResetPasswordForm(): void {
                         <button type="button" id="toggle-confirm-password" title="Mostra password" aria-label="Mostra password"><i class="fas fa-eye" id="confirm-password-icon"></i></button>
                     </div>
                 </div>
-                <div id="reset-password-error" style="color: red; margin-bottom: 15px; text-align: center; min-height: 20px;"></div>
+                <div id="reset-password-error" style="color: var(--danger-color); margin-bottom: 15px; text-align: center; min-height: 20px;"></div>
                 <button type="submit" class="menu-button success" style="width: 100%; margin-top: 10px;">Aggiorna Password</button>
             </form>
         </div>

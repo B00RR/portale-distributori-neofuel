@@ -38,7 +38,7 @@ export async function startClosureWizard(
     if (modalBody) {
       setSafeHTML(
         modalBody,
-        `<p style="color: red; padding: 20px;">Errore: ${escapeHtml(getErrorMessage(err))}</p>`
+        `<p style="color: var(--danger-color); padding: 20px;">Errore: ${escapeHtml(getErrorMessage(err))}</p>`
       );
     }
   }

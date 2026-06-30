@@ -152,7 +152,7 @@ async function renderGuns(
         style: {
           textAlign: 'center',
           padding: '40px',
-          color: '#6b7280'
+          color: 'var(--text-secondary)'
         },
         children: [
           createIcon('fas fa-gas-pump'),
@@ -185,8 +185,8 @@ async function renderGuns(
     }
 
     const fuelColors: Record<string, string> = {
-      benzina: '#22c55e',
-      gasolio: '#eab308'
+      benzina: 'var(--success-color)',
+      gasolio: 'var(--warning-color)'
     };
 
     const wrapper = createEl('div', {
@@ -206,7 +206,7 @@ async function renderGuns(
       const currentCounter = latestVal !== undefined ? latestVal : gun.numero_litri;
 
       const counter = formatGunCounter(currentCounter);
-      const color = fuelColors[gun.tipo_carburante] || '#6b7280';
+      const color = fuelColors[gun.tipo_carburante] || 'var(--text-secondary)';
 
       const card = createEl('div', {
         classes: ['gun-card'],
@@ -231,7 +231,7 @@ async function renderGuns(
           createEl('div', {
             children: [
               createEl('h3', {
-                style: { margin: '0 0 8px 0', fontSize: '1.25rem', color: '#1f2937' },
+                style: { margin: '0 0 8px 0', fontSize: '1.25rem', color: 'var(--text-main)' },
                 children: [
                   createIcon('fas fa-gas-pump'),
                   document.createTextNode(` ${escapeHtml(gun.nome)}`)
@@ -253,7 +253,7 @@ async function renderGuns(
                     text: gun.tipo_carburante
                   }),
                   createEl('span', {
-                    style: { color: '#6b7280', fontSize: '0.875rem' },
+                    style: { color: 'var(--text-secondary)', fontSize: '0.875rem' },
                     text: `ID: ${gun.id}`
                   })
                 ]
@@ -287,7 +287,7 @@ async function renderGuns(
 
       const counterBox = createEl('div', {
         style: {
-          background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)',
           padding: '15px',
           borderRadius: '8px',
           marginBottom: '12px'
@@ -296,7 +296,7 @@ async function renderGuns(
           createEl('div', {
             style: {
               fontSize: '0.875rem',
-              color: '#0369a1',
+              color: 'var(--info-color)',
               marginBottom: '5px',
               fontWeight: '500'
             },
@@ -306,7 +306,7 @@ async function renderGuns(
             ]
           }),
           createEl('div', {
-            style: { fontSize: '1.75rem', fontWeight: '700', color: '#0c4a6e' },
+            style: { fontSize: '1.75rem', fontWeight: '700', color: 'var(--primary-color)' },
             children: [
               document.createTextNode(`${counter} `),
               createEl('span', { style: { fontSize: '1rem', fontWeight: '400' }, text: 'L' })
@@ -371,7 +371,7 @@ async function renderGuns(
   } catch (err) {
     target.innerHTML = '';
     const errorDiv = createEl('div', {
-      style: { color: '#dc2626', padding: '20px', textAlign: 'center' },
+      style: { color: 'var(--danger-color)', padding: '20px', textAlign: 'center' },
       children: [
         createIcon('fas fa-exclamation-triangle'),
         document.createTextNode(` Errore: ${escapeHtml((err as Error).message)}`)
@@ -550,19 +550,19 @@ async function showCounterEditModal(
 
   const currentBox = createEl('div', {
     style: {
-      background: '#f0f9ff',
+      background: 'rgba(59, 130, 246, 0.05)',
       padding: '15px',
       borderRadius: '8px',
       marginBottom: '20px',
-      borderLeft: '4px solid #0284c7'
+      borderLeft: '4px solid var(--info-color)'
     },
     children: [
       createEl('div', {
-        style: { fontSize: '0.875rem', color: '#0369a1', marginBottom: '5px' },
+        style: { fontSize: '0.875rem', color: 'var(--info-color)', marginBottom: '5px' },
         text: 'Numeratore Attuale'
       }),
       createEl('div', {
-        style: { fontSize: '1.5rem', fontWeight: '700', color: '#0c4a6e' },
+        style: { fontSize: '1.5rem', fontWeight: '700', color: 'var(--primary-color)' },
         text: `${counterFormatted} L`
       })
     ]
@@ -590,15 +590,15 @@ async function showCounterEditModal(
 
   const warningBox = createEl('div', {
     style: {
-      background: '#fef3c7',
+      background: 'rgba(255, 165, 0, 0.1)',
       padding: '12px',
       borderRadius: '6px',
       marginBottom: '15px',
-      borderLeft: '3px solid #f59e0b'
+      borderLeft: '3px solid var(--warning-color)'
     },
     children: [
       createEl('div', {
-        style: { fontSize: '0.875rem', color: '#92400e' },
+        style: { fontSize: '0.875rem', color: 'var(--warning-color)' },
         children: [
           createIcon('fas fa-exclamation-triangle'),
           document.createTextNode(' '),

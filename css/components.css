@@ -59,7 +59,7 @@ button:disabled,
 
 .menu-button.outline:hover {
     background: var(--primary-color);
-    color: white;
+    color: var(--bg-surface);
 }
 
 /* Button with loading spinner */
@@ -385,10 +385,10 @@ textarea:focus {
 
 /* Voucher card preview */
 .voucher-card-preview {
-    background: white;
+    background: var(--bg-surface);
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
     text-align: center;
 }
 

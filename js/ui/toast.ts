@@ -73,7 +73,7 @@ export class Toast {
       btn.style.padding = '4px 10px';
       btn.style.background = 'rgba(255,255,255,0.2)';
       btn.style.border = '1px solid rgba(255,255,255,0.4)';
-      btn.style.color = 'white';
+      btn.style.color = 'var(--text-light)';
       btn.style.borderRadius = '4px';
       btn.style.cursor = 'pointer';
       btn.style.fontWeight = '600';

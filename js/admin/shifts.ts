@@ -234,7 +234,7 @@ export async function showChiusureTab(
                   <td>
                     <button class="icon-btn view-closure" data-id="${c.id}" title="Dettagli" aria-label="Dettagli"><i class="fas fa-eye"></i></button>
                     <button class="icon-btn export-closure" data-id="${c.id}" title="Export" aria-label="Export"><i class="fas fa-file-export"></i></button>
-                    <button class="icon-btn delete-closure" data-id="${c.id}" title="Elimina" aria-label="Elimina" style="color: #dc2626;"><i class="fas fa-trash-alt"></i></button>
+                    <button class="icon-btn delete-closure" data-id="${c.id}" title="Elimina" aria-label="Elimina" style="color: var(--danger-color);"><i class="fas fa-trash-alt"></i></button>
                   </td>
                 </tr>
               `;
@@ -355,7 +355,7 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
                 <span>Contanti:</span>
                 <div style="text-align: right;">
                     <div>Erogati: <b>${formatEuro(banconoteErogate)}</b></div>
-                    <div style="font-size: 0.85em; color: #64748b;">Incassati: <b>${formatEuro(banconoteIncassate)}</b></div>
+                    <div style="font-size: 0.85em; color: var(--secondary-color);">Incassati: <b>${formatEuro(banconoteIncassate)}</b></div>
                 </div>
             </div>`;
     }

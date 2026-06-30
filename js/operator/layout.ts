@@ -277,22 +277,22 @@ function injectStyles(): void {
   style.innerHTML = `
       .result-item {
         display: flex; justify-content: space-between; align-items: center;
-        padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;
+        padding: 10px; border-bottom: 1px solid var(--border-color); cursor: pointer;
       }
-      .result-item:hover { background: #f9f9f9; }
+      .result-item:hover { background: var(--bg-body); }
       .customer-header {
-        background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;
-        border-left: 4px solid #0284c7;
+        background: rgba(59, 130, 246, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px;
+        border-left: 4px solid var(--info-color);
       }
-      .balance-display { font-size: 1.2em; color: #0284c7; margin-top: 5px; }
+      .balance-display { font-size: 1.2em; color: var(--info-color); margin-top: 5px; }
       .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
       .tab-btn {
-        flex: 1; padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer;
+        flex: 1; padding: 10px; border: 1px solid var(--border-color); background: var(--bg-surface); border-radius: 6px; cursor: pointer;
       }
-      .tab-btn.active { background: #0284c7; color: white; border-color: #0284c7; }
-      .voucher-amount { font-size: 2em; font-weight: bold; color: #10b981; margin: 10px 0; }
+      .tab-btn.active { background: var(--info-color); color: var(--text-light); border-color: var(--info-color); }
+      .voucher-amount { font-size: 2em; font-weight: bold; color: var(--success-color); margin: 10px 0; }
       .sync-badge {
-        background: #f59e0b; color: white; font-size: 0.75em; padding: 2px 6px;
+        background: var(--warning-color); color: var(--text-light); font-size: 0.75em; padding: 2px 6px;
         border-radius: 10px; margin-left: 5px; display: none;
       }
       .sync-badge.active { display: inline-block; animation: pulse 2s infinite; }

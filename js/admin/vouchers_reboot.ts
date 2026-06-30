@@ -115,7 +115,7 @@ export async function showVoucherAdminTab(
                     <!-- Buttons injected dynamically to handle active state -->
                 </div>
                 
-                <div id="voucher-content" class="tab-content" style="background: #fff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
+                <div id="voucher-content" class="tab-content" style="background: var(--bg-surface); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border-color); max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
                     <!-- Content injected here -->
                 </div>
             </div>
@@ -244,8 +244,8 @@ function renderGenerator(container: HTMLElement): void {
                 <!-- Row 1: Metrics -->
                 <div class="form-field">
                     <label style="font-weight: 600; margin-bottom: 10px; display: block; color: var(--text-main); font-size: 1.05rem;">Valore (€)</label>
-                    <div class="input-with-prefix" style="display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: #f8fafc; transition: border 0.2s;">
-                        <span class="input-prefix" style="padding: 16px 20px; background: #e2e8f0; color: #64748b; font-weight: 600; font-size: 1.1rem;">€</span>
+                    <div class="input-with-prefix" style="display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: var(--bg-body); transition: border 0.2s;">
+                        <span class="input-prefix" style="padding: 16px 20px; background: var(--border-color); color: var(--secondary-color); font-weight: 600; font-size: 1.1rem;">€</span>
                         <input type="number" name="amount" step="0.50" min="0.50" required placeholder="0.00" style="border: none; padding: 16px; width: 100%; outline: none; font-size: 1.2rem; background: transparent;">
                     </div>
                 </div>
@@ -257,7 +257,7 @@ function renderGenerator(container: HTMLElement): void {
 
                 <div class="form-field">
                     <label style="font-weight: 600; margin-bottom: 10px; display: block; color: var(--text-main); font-size: 1.05rem;">Scadenza</label>
-                    <input type="date" name="expiration_date" class="form-input" value="${nextYearStr}" min="${today}" style="width: 100%; padding: 18px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 1.3rem; color: #334155;">
+                    <input type="date" name="expiration_date" class="form-input" value="${nextYearStr}" min="${today}" style="width: 100%; padding: 18px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 1.3rem; color: var(--text-main);">
                 </div>
 
                 <!-- Row 2: Customer (Full Width) -->
@@ -461,25 +461,25 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                     height: 12px;
                 }
                 .voucher-scroll-wrapper::-webkit-scrollbar-track {
-                    background: #f1f5f9;
+                    background: var(--bg-body);
                     border-radius: 6px;
                 }
                 .voucher-scroll-wrapper::-webkit-scrollbar-thumb {
-                    background-color: #cbd5e1;
+                    background-color: var(--border-color);
                     border-radius: 6px;
-                    border: 3px solid #f1f5f9;
+                    border: 3px solid var(--bg-body);
                 }
                 .voucher-scroll-wrapper::-webkit-scrollbar-thumb:hover {
-                    background-color: #94a3b8;
+                    background-color: var(--text-secondary);
                 }
 
                 .voucher-list-container {
-                    background: white;
+                    background: var(--bg-surface);
                     border-radius: 12px;
                     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
                     overflow: hidden;
                     margin-top: 20px;
-                    border: 1px solid #e2e8f0;
+                    border: 1px solid var(--border-color);
                     max-width: 100%;
                     width: 100%;
                     /* CSS VARIABLES FOR COLUMN WIDTHS */
@@ -507,10 +507,10 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                     display: grid;
                     /* Revised Columns: Use variables */
                     grid-template-columns: var(--col-1) var(--col-2) var(--col-3) var(--col-4) var(--col-5) var(--col-6) var(--col-7);
-                    background: #f8fafc;
-                    border-bottom: 2px solid #e2e8f0;
+                    background: var(--bg-body);
+                    border-bottom: 2px solid var(--border-color);
                     font-weight: 600;
-                    color: #475569;
+                    color: var(--secondary-hover);
                     font-size: 0.8rem;
                     text-transform: uppercase;
                     letter-spacing: 0.05em;
@@ -519,7 +519,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                     padding: 12px 16px; /* Tighter padding */
                     display: flex;
                     align-items: center;
-                    border-right: 1px solid #e2e8f0; /* Simulate vertical borders */
+                    border-right: 1px solid var(--border-color); /* Simulate vertical borders */
                     white-space: nowrap;
                     position: relative; /* For resizer */
                 }
@@ -535,7 +535,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                     z-index: 10;
                 }
                 .resizer:hover, .resizing {
-                    background: #3b82f6; /* Blue highlight on hover/drag */
+                    background: var(--info-color); /* Blue highlight on hover/drag */
                 }
                 .voucher-header-cell:last-child {
                     border-right: none;
@@ -543,20 +543,20 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                 .voucher-grid-row {
                     display: grid;
                      grid-template-columns: var(--col-1) var(--col-2) var(--col-3) var(--col-4) var(--col-5) var(--col-6) var(--col-7);
-                    border-bottom: 1px solid #f1f5f9;
+                    border-bottom: 1px solid var(--border-color);
                     transition: background-color 0.15s;
                     align-items: center; /* Vertically center by default */
                 }
                 .voucher-grid-row:hover {
-                    background-color: #f1f5f9;
+                    background-color: var(--bg-body);
                 }
                 .voucher-cell {
                     padding: 12px 12px; /* Reduced padding */
                     display: flex;
                     align-items: center;
-                    color: #334155;
+                    color: var(--text-main);
                     font-size: 0.9rem; /* Slightly smaller font */
-                    border-right: 1px dashed #f1f5f9; /* Subtle vertical guide */
+                    border-right: 1px dashed var(--border-color); /* Subtle vertical guide */
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
@@ -575,7 +575,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                 }
                 .voucher-cell strong {
                     font-weight: 600;
-                    color: #0f172a;
+                    color: var(--text-main);
                 }
                 
                 /* Action buttons hover effects */
@@ -672,30 +672,30 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                             return `
                             <div class="voucher-grid-row">
                                 <div class="voucher-cell">
-                                    <div style="color: #334155; font-weight: 500;">${escapeHtml(b.customer_name || '-')}</div>
+                                    <div style="color: var(--text-main); font-weight: 500;">${escapeHtml(b.customer_name || '-')}</div>
                                 </div>
                                 <div class="voucher-cell">
                                     <div style="width:100%">
                                         <div style="font-weight: 500;">${lottoStr}</div>
-                                        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">ID: ${b.id.substring(0, 8)}...</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">ID: ${b.id.substring(0, 8)}...</div>
                                     </div>
                                 </div>
                                 <div class="voucher-cell">
                                     <div style="width:100%">
                                         <div style="font-weight: 600;">${formatEuro(stats.totalAmount)}</div>
-                                        <div style="font-size: 0.8em; color: ${residualAmount > 0 ? '#10b981' : '#94a3b8'};">Res: ${formatEuro(residualAmount)}</div>
+                                        <div style="font-size: 0.8em; color: ${residualAmount > 0 ? 'var(--success-color)' : 'var(--text-secondary)'};">Res: ${formatEuro(residualAmount)}</div>
                                     </div>
                                 </div>
                                 <div class="voucher-cell center">
-                                    <span style="color: #3b82f6; font-weight: 600; font-size: 1.1em;">${stats.activeCount}</span>
-                                    <span style="color: #cbd5e1; margin: 0 4px;">/</span>
-                                    <span style="color: #64748b;">${stats.redeemedCount}</span>
+                                    <span style="color: var(--info-color); font-weight: 600; font-size: 1.1em;">${stats.activeCount}</span>
+                                    <span style="color: var(--border-color); margin: 0 4px;">/</span>
+                                    <span style="color: var(--secondary-color);">${stats.redeemedCount}</span>
                                 </div>
                                 <div class="voucher-cell center">
                                     <span class="badge ${statusClass}">${statusLabel}</span>
                                 </div>
                                 <div class="voucher-cell">
-                                    <div style="color: #475569;">${b.expiration_date ? new Date(b.expiration_date).toLocaleDateString() : 'Illimitata'}</div>
+                                    <div style="color: var(--secondary-hover);">${b.expiration_date ? new Date(b.expiration_date).toLocaleDateString() : 'Illimitata'}</div>
                                 </div>
                                 <div class="voucher-cell center" style="flex-shrink: 0; min-width: 150px;">
                                     <div style="display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center;">
@@ -725,7 +725,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
       container,
       `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 1rem;">
-                <h3 style="margin: 0; font-size: 1.25rem; color: #0f172a;">Gestione Voucher</h3>
+                <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-main);">Gestione Voucher</h3>
                 <button id="refresh-dashboard-btn" class="menu-button primary" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; font-size: 0.95rem;">
                     <i class="fas fa-sync-alt"></i> Aggiorna
                 </button>
@@ -969,14 +969,14 @@ async function showBatchDetails(batchId: string): Promise<void> {
       `
             <div style="padding: 10px;">
                 <h3 style="margin-bottom: 20px;">${escapeHtml(batch?.description || 'Dettaglio Lotto')}</h3>
-                <div class="table-responsive" style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px;">
                     <table class="admin-table" style="width: 100%; border-collapse: collapse;">
-                        <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 1;">
+                        <thead style="position: sticky; top: 0; background: var(--bg-body); z-index: 1;">
                             <tr>
-                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; text-align: left;">S/N</th>
-                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; text-align: left;">Codice</th>
-                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; text-align: center;">Stato</th>
-                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; text-align: left;">Data Riscatto</th>
+                                <th style="padding: 12px; border-bottom: 2px solid var(--border-color); text-align: left;">S/N</th>
+                                <th style="padding: 12px; border-bottom: 2px solid var(--border-color); text-align: left;">Codice</th>
+                                <th style="padding: 12px; border-bottom: 2px solid var(--border-color); text-align: center;">Stato</th>
+                                <th style="padding: 12px; border-bottom: 2px solid var(--border-color); text-align: left;">Data Riscatto</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -984,7 +984,7 @@ async function showBatchDetails(batchId: string): Promise<void> {
                               .map(v => {
                                 const isRedeemed = v.status === 'redeemed';
                                 return `
-                                    <tr style="background: ${isRedeemed ? '#f1f5f9' : 'white'}; border-bottom: 1px solid #f1f5f9;">
+                                    <tr style="background: ${isRedeemed ? 'var(--bg-body)' : 'var(--bg-surface)'}; border-bottom: 1px solid var(--border-color);">
                                         <td style="padding: 12px; font-weight: 500;">#${v.serial_number}</td>
                                         <td style="padding: 12px; font-family: monospace; font-size: 1.1em;">${escapeHtml(v.code)}</td>
                                         <td style="padding: 12px; text-align: center;">
@@ -994,7 +994,7 @@ async function showBatchDetails(batchId: string): Promise<void> {
                                                 : '<span class="badge badge-success">Attivo</span>'
                                             }
                                         </td>
-                                        <td style="padding: 12px; color: #64748b; font-size: 0.9rem;">
+                                        <td style="padding: 12px; color: var(--secondary-color); font-size: 0.9rem;">
                                             ${v.redeemed_at ? formatDate(v.redeemed_at) : '-'}
                                         </td>
                                     </tr>
@@ -1094,7 +1094,7 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
     // Show error in popup
     setSafeHTML(
       printWindow.document.body,
-      `<h3 style="color:red">Errore: ${escapeHtml(getErrorMessage(err))}</h3>`
+      `<h3 style="color: var(--danger-color)">Errore: ${escapeHtml(getErrorMessage(err))}</h3>`
     );
   }
 }
@@ -1165,7 +1165,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                         
                         <!-- QR Code Image directly embedded -->
                         <div class="qr-code">
-                            ${qrSrc ? `<img src="${qrSrc}" alt="QR Code" style="width:100%;height:100%;">` : '<span style="color:red;font-size:10px">QR Error</span>'}
+                            ${qrSrc ? `<img src="${qrSrc}" alt="QR Code" style="width:100%;height:100%;">` : '<span style="color: var(--danger-color); font-size:10px">QR Error</span>'}
                         </div>
                         
                         <div class="voucher-expiry">${date}</div>
@@ -1197,7 +1197,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
 
                         body {
                             font-family: 'Inter', sans-serif;
-                            background: #f3f4f6;
+                            background: var(--bg-body);
                             margin: 0;
                             padding: 20px;
                         }
@@ -1206,7 +1206,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                         .page {
                             width: 210mm;
                             height: 297mm;
-                            background: white;
+                            background: var(--bg-surface);
                             margin: 0 auto 20px;
                             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
                             padding: 0; 
