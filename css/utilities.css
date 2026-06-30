@@ -182,7 +182,7 @@
 
 /* UI Specific */
 .admin-layout-body {
-    background-color: #f0f2f5;
+    background-color: var(--bg-body);
     /* o altro colore admin */
 
 }
