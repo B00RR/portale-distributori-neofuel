@@ -827,7 +827,8 @@ export class ClosureWizard extends BaseComponent {
         });
         Toast.show('Chiusura salvata. Verrà sincronizzata quando online.', 'success');
         setTimeout(() => window.location.reload(), 2000);
-      } catch {
+      } catch (err) {
+        logger.error('ClosureWizard', 'Impossibile salvare la chiusura offline', err);
         Toast.show('Impossibile salvare la chiusura offline', 'error');
         this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
       }

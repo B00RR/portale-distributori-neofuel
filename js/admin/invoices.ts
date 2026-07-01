@@ -272,7 +272,8 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
         status: isEmitted ? 'pending' : 'completed'
       },
       attrs: {
-        title: isEmitted ? 'Segna come non emessa' : 'Segna come emessa'
+        title: isEmitted ? 'Segna come non emessa' : 'Segna come emessa',
+        'aria-label': isEmitted ? 'Segna come non emessa' : 'Segna come emessa'
       },
       children: [createIcon(isEmitted ? 'fas fa-undo' : 'fas fa-check')]
     });

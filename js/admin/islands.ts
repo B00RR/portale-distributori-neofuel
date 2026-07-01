@@ -187,7 +187,7 @@ export async function showIslandsModal(stationId: number | string): Promise<void
               createEl('button', {
                 classes: ['icon-btn', 'delete-island'],
                 dataset: { id: String(island.island_id) },
-                attrs: { title: 'Elimina' },
+                attrs: { title: 'Elimina', 'aria-label': 'Elimina' },
                 style: { color: 'var(--danger-color)' },
                 children: [createIcon('fas fa-trash')]
               })

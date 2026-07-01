@@ -208,6 +208,7 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
   notifBtn.className = 'header-icon-btn';
   notifBtn.type = 'button';
   notifBtn.title = 'Notifiche';
+  notifBtn.setAttribute('aria-label', 'Notifiche');
   notifBtn.innerHTML = '<i class="fas fa-bell"></i>';
   headerRight.appendChild(notifBtn);
   header.appendChild(headerRight);

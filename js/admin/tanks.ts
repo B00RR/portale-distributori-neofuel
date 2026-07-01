@@ -139,7 +139,7 @@ function renderTanksAdminContent(
 
       const deleteBtn = createEl('button', {
         classes: ['icon-btn', 'delete-tank'],
-        attrs: { title: 'Elimina' },
+        attrs: { title: 'Elimina', 'aria-label': 'Elimina' },
         dataset: { id: String(t.id) }
       });
       deleteBtn.appendChild(createIcon('fas fa-trash'));
@@ -278,7 +278,7 @@ function renderTanksAdminContent(
 
       const toggleBtn = createEl('button', {
         classes: ['icon-btn', 'tank-link-toggle'],
-        attrs: { title: 'Attiva/Disattiva' },
+        attrs: { title: 'Attiva/Disattiva', 'aria-label': 'Attiva/Disattiva' },
         dataset: { id: String(link.id), active: String(link.is_active) }
       });
       toggleBtn.appendChild(createIcon(link.is_active ? 'fas fa-toggle-on' : 'fas fa-toggle-off'));
@@ -286,7 +286,7 @@ function renderTanksAdminContent(
 
       const deleteLinkBtn = createEl('button', {
         classes: ['icon-btn', 'tank-link-delete'],
-        attrs: { title: 'Rimuovi Associazione' },
+        attrs: { title: 'Rimuovi Associazione', 'aria-label': 'Rimuovi Associazione' },
         dataset: { id: String(link.id) }
       });
       deleteLinkBtn.appendChild(createIcon('fas fa-trash'));

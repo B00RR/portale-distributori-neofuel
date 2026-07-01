@@ -266,13 +266,13 @@ async function renderGuns(
               createEl('button', {
                 classes: ['icon-btn', 'edit-gun'],
                 dataset: { id: String(gun.id) },
-                attrs: { title: 'Modifica Pistola' },
+                attrs: { title: 'Modifica Pistola', 'aria-label': 'Modifica Pistola' },
                 children: [createIcon('fas fa-edit')]
               }),
               createEl('button', {
                 classes: ['icon-btn', 'delete-gun'],
                 dataset: { id: String(gun.id) },
-                attrs: { title: 'Elimina Pistola' },
+                attrs: { title: 'Elimina Pistola', 'aria-label': 'Elimina Pistola' },
                 children: [createIcon('fas fa-trash')]
               })
             ]

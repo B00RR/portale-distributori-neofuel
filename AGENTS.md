@@ -3,11 +3,11 @@
 > **Read this BEFORE doing any work.** These rules are non-negotiable.
 > Violating them produces broken migrations, security regressions, and wasted review time.
 
-## 1. One issue per session, one PR per issue
+## 1. Branch and PR grouping rules
 
-- **NEVER** batch multiple GitHub issues into a single session/PR.
-- Each issue gets its own branch: `fix/<scope>-<issue-number>` (e.g. `fix/db-51-drop-password-hash`).
-- Each issue gets its own PR with a focused description.
+- **One issue per branch is the default**: each issue gets its own branch (`fix/<scope>-<issue-number>`) and its own PR when it is the only thing being fixed.
+- **When closing multiple related issues in the same session, group them under a single branch/PR** with a descriptive branch name (e.g. `fix/124-125-a11y-logging`). The PR description must list every issue being closed.
+- **NEVER** mix unrelated issues or migrations in one PR.
 - If an issue is too large for one PR, split it into sub-tasks and say so in the PR description.
 
 ## 2. SQL Migration Rules

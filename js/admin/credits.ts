@@ -142,6 +142,7 @@ export async function showCreditiOverview(
       editBtn.className = 'icon-btn edit-customer';
       editBtn.dataset.id = String(c.id);
       editBtn.title = 'Modifica';
+      editBtn.setAttribute('aria-label', 'Modifica');
       editBtn.innerHTML = '<i class="fas fa-edit"></i>';
       tdActions.appendChild(editBtn);
 
@@ -149,6 +150,7 @@ export async function showCreditiOverview(
       deleteBtn.className = 'icon-btn delete-customer';
       deleteBtn.dataset.id = String(c.id);
       deleteBtn.title = 'Elimina';
+      deleteBtn.setAttribute('aria-label', 'Elimina');
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
       tdActions.appendChild(deleteBtn);
 

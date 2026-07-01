@@ -121,6 +121,7 @@ export async function showStationsTab(
         btn.className = `icon-btn ${cls}`;
         btn.dataset.id = String(st.station_id);
         btn.title = title;
+        btn.setAttribute('aria-label', title);
         // eslint-disable-next-line no-unsanitized/property -- icon is static class from local whitelist
         btn.innerHTML = `<i class="fas ${icon}"></i>`;
         actionsTd.appendChild(btn);
