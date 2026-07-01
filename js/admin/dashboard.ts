@@ -531,7 +531,7 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
     '#ec4899', // rosa (estensione dati)
     '#06b6d4', // ciano (estensione dati)
     '#84cc16', // lime (estensione dati)
-    '#f97316'  // arancio (estensione dati)
+    '#f97316' // arancio (estensione dati)
   ];
 
   // Crea un dataset per ogni distributore
