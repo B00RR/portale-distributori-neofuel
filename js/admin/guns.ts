@@ -266,13 +266,13 @@ async function renderGuns(
               createEl('button', {
                 classes: ['icon-btn', 'edit-gun'],
                 dataset: { id: String(gun.id) },
-                attrs: { title: 'Modifica Pistola' },
+                attrs: { title: 'Modifica Pistola', 'aria-label': 'Modifica Pistola' },
                 children: [createIcon('fas fa-edit')]
               }),
               createEl('button', {
                 classes: ['icon-btn', 'delete-gun'],
                 dataset: { id: String(gun.id) },
-                attrs: { title: 'Elimina Pistola' },
+                attrs: { title: 'Elimina Pistola', 'aria-label': 'Elimina Pistola' },
                 children: [createIcon('fas fa-trash')]
               })
             ]
@@ -287,7 +287,8 @@ async function renderGuns(
 
       const counterBox = createEl('div', {
         style: {
-          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)',
+          background:
+            'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)',
           padding: '15px',
           borderRadius: '8px',
           marginBottom: '12px'

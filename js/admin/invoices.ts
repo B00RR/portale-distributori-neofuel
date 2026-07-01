@@ -218,17 +218,29 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
     let statusBadge: HTMLElement;
     if (inv.status === 'pending') {
       statusBadge = createEl('span', {
-        style: { ...statusBadgeStyle, background: 'rgba(255, 165, 0, 0.1)', color: 'var(--warning-color)' },
+        style: {
+          ...statusBadgeStyle,
+          background: 'rgba(255, 165, 0, 0.1)',
+          color: 'var(--warning-color)'
+        },
         text: 'In Attesa'
       });
     } else if (inv.status === 'completed' || inv.status === 'emessa') {
       statusBadge = createEl('span', {
-        style: { ...statusBadgeStyle, background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success-color)' },
+        style: {
+          ...statusBadgeStyle,
+          background: 'rgba(16, 185, 129, 0.1)',
+          color: 'var(--success-color)'
+        },
         text: 'Emessa'
       });
     } else {
       statusBadge = createEl('span', {
-        style: { ...statusBadgeStyle, background: 'rgba(255, 65, 54, 0.1)', color: 'var(--danger-color)' },
+        style: {
+          ...statusBadgeStyle,
+          background: 'rgba(255, 65, 54, 0.1)',
+          color: 'var(--danger-color)'
+        },
         text: 'Annullata'
       });
     }
@@ -243,17 +255,29 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
     let paymentMethodCell: HTMLElement;
     if (inv.payment_method === 'contanti') {
       paymentMethodCell = createEl('span', {
-        style: { ...paymentBadgeStyle, background: 'rgba(59, 130, 246, 0.1)', color: 'var(--info-color)' },
+        style: {
+          ...paymentBadgeStyle,
+          background: 'rgba(59, 130, 246, 0.1)',
+          color: 'var(--info-color)'
+        },
         text: 'Contanti'
       });
     } else if (inv.payment_method === 'pos') {
       paymentMethodCell = createEl('span', {
-        style: { ...paymentBadgeStyle, background: 'rgba(255, 165, 0, 0.1)', color: 'var(--warning-color)' },
+        style: {
+          ...paymentBadgeStyle,
+          background: 'rgba(255, 165, 0, 0.1)',
+          color: 'var(--warning-color)'
+        },
         text: 'POS'
       });
     } else if (inv.payment_method === 'bonifico') {
       paymentMethodCell = createEl('span', {
-        style: { ...paymentBadgeStyle, background: 'rgba(59, 130, 246, 0.1)', color: 'var(--info-color)' },
+        style: {
+          ...paymentBadgeStyle,
+          background: 'rgba(59, 130, 246, 0.1)',
+          color: 'var(--info-color)'
+        },
         text: 'Bonifico'
       });
     } else {
@@ -272,7 +296,8 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
         status: isEmitted ? 'pending' : 'completed'
       },
       attrs: {
-        title: isEmitted ? 'Segna come non emessa' : 'Segna come emessa'
+        title: isEmitted ? 'Segna come non emessa' : 'Segna come emessa',
+        'aria-label': isEmitted ? 'Segna come non emessa' : 'Segna come emessa'
       },
       children: [createIcon(isEmitted ? 'fas fa-undo' : 'fas fa-check')]
     });

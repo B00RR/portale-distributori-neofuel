@@ -417,7 +417,8 @@ export class VoucherManager extends BaseComponent {
         });
         this.mode = 'success';
         this.emit('voucher-redeemed', { voucher: this.activeVoucher, queued: true });
-      } catch {
+      } catch (err) {
+        logger.error('VoucherManager', "Impossibile salvare l'azione offline", err);
         this.errorMessage = "Impossibile salvare l'azione offline";
         this.mode = 'error';
       }
