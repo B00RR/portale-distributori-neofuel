@@ -156,8 +156,41 @@ export default defineConfig(({ mode }) => {
             assetsDir: 'assets',
             sourcemap: true,
             minify: 'terser',
-            chunkSizeWarningLimit: 500,
+            // 700 e non il default 500: l'unico chunk sopra i 500kB è vendor-xlsx
+            // (642kB), un singolo file UMD pre-minificato non splittabile che viene
+            // caricato lazy solo al primo export Excel — non pesa sullo startup.
+            chunkSizeWarningLimit: 700,
             cssCodeSplit: true,
+            rollupOptions: {
+                output: {
+                    // Issue #123: split dei vendor pesanti fuori dal chunk principale
+                    // così ogni libreria è cacheata indipendentemente dal browser/SW.
+                    manualChunks(id) {
+                        if (!id.includes('node_modules')) {
+                            return undefined;
+                        }
+                        if (id.includes('xlsx-populate')) {
+                            return 'vendor-xlsx';
+                        }
+                        if (id.includes('chart.js') || id.includes('@kurkle')) {
+                            return 'vendor-chartjs';
+                        }
+                        if (id.includes('jspdf')) {
+                            return 'vendor-pdf';
+                        }
+                        if (id.includes('html5-qrcode') || id.includes('qrcode')) {
+                            return 'vendor-qrcode';
+                        }
+                        if (id.includes('@supabase')) {
+                            return 'vendor-supabase';
+                        }
+                        if (id.includes('jszip') || id.includes('sortablejs') || id.includes('split.js')) {
+                            return 'vendor-misc';
+                        }
+                        return undefined;
+                    }
+                }
+            },
             terserOptions: {
                 compress: {
                     drop_console: true,

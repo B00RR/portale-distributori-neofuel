@@ -26,6 +26,17 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
 
+  // File di configurazione alla radice (vite.config.js, ecc.): girano in Node,
+  // servono i globals node per non incappare in no-undef su process/console.
+  {
+    files: ['*.config.js', '*.config.ts', 'config/**/*.{js,ts}'],
+    languageOptions: {
+      globals: {
+        ...globals.node
+      }
+    }
+  },
+
   {
     files: ['js/**/*.{js,ts}'],
     languageOptions: {

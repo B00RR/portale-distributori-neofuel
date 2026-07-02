@@ -524,9 +524,27 @@ function populateClosureSheet(sheet: XlsxSheet, templateData: ExportMetrics): vo
   setCell(`V${sRow + 1}`, summary.utaDkv || 0);
 }
 
+/**
+ * Carica xlsx-populate on demand: il bundle browser (~640kB) serve solo per
+ * l'export Excel e non deve pesare sullo startup dell'app (issue #123).
+ * Il file UMD si registra da solo su window.XlsxPopulate.
+ */
+async function ensureXlsxPopulate(): Promise<boolean> {
+  const customWindow = window as unknown as CustomWindow;
+  if (customWindow.XlsxPopulate) {
+    return true;
+  }
+  try {
+    await import('xlsx-populate/browser/xlsx-populate.js');
+  } catch (e) {
+    logger.error('exportUtils', 'Caricamento libreria Excel fallito:', e);
+  }
+  return Boolean(customWindow.XlsxPopulate);
+}
+
 export async function generateClosureExcel(templateData: ExportMetrics): Promise<void> {
   const customWindow = window as unknown as CustomWindow;
-  if (!customWindow.XlsxPopulate) {
+  if (!(await ensureXlsxPopulate())) {
     Toast.show('Libreria Excel non caricata', 'error');
     return;
   }
@@ -557,7 +575,7 @@ export async function generateClosureExcel(templateData: ExportMetrics): Promise
 
 export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): Promise<void> {
   const customWindow = window as unknown as CustomWindow;
-  if (!customWindow.XlsxPopulate) {
+  if (!(await ensureXlsxPopulate())) {
     Toast.show('Libreria Excel non caricata', 'error');
     return;
   }
