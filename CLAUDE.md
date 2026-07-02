@@ -70,20 +70,16 @@ npm run lint        # ESLint with max-warnings 0
 
 ## Known Traps for Agents
 
-1. **Two cache modules exist — use `js/utils/cache.ts`**  
-   - `js/utils/cache.ts` is the active cache layer (class `Cache`).
-   - `js/core/cache.ts` is unused and should not be imported.
-
-2. **Production Supabase differs from repo `sql/*.sql`**  
+1. **Production Supabase differs from repo `sql/*.sql`**  
    - RPC functions and RLS policies may differ between the live database and files in `sql/`.
    - Always verify the live database state before trusting a repo SQL file.
 
-3. **Supabase stubs in tests**  
+2. **Supabase stubs in tests**  
    - `config/vitest.config.ts` aliases `@supabase/supabase-js` and `zod` to test mocks.
    - Validation and Supabase calls are stubbed, so unit tests do not exercise true end-to-end behavior.
    - E2E tests (`e2e/`) are the source of truth for real integrations.
 
-4. **CI "Elite Quality Gate" is strict (zero-tolerance)**  
+3. **CI "Elite Quality Gate" is strict (zero-tolerance)**  
    - `lint` (eslint `--max-warnings 0`), `type-check`, `unit-tests`, `e2e-tests`, `security-scan` (npm audit `--audit-level=high` + Snyk), and `build-check` all hard-fail the gate.
    - No `continue-on-error` and no ratchet baselines: any new lint warning, prettier diff, type error, or high/critical vuln blocks the merge.
 

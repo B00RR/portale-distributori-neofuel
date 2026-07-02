@@ -10,7 +10,8 @@ import 'jspdf-autotable'; // patches jsPDF prototype
 import * as JSZip from 'jszip';
 import Sortable from 'sortablejs';
 import * as Split from 'split.js';
-import 'xlsx-populate/browser/xlsx-populate.js';
+// xlsx-populate (~640kB) is NOT imported here: it is lazy-loaded on first
+// Excel export by ensureXlsxPopulate() in js/utils/export_utils.ts (issue #123).
 
 import type {
   ChartConstructor,
