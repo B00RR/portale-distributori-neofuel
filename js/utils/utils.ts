@@ -317,3 +317,39 @@ export function createRateLimiter(maxCalls: number = 5, windowMs: number = 60000
     }
   };
 }
+
+/**
+ * Safely formats a date-time value to Italian locale, handling null/invalid inputs.
+ * Used for fields from DB that may be null on partial records.
+ * @param value - Date value (string, Date, or falsy)
+ * @param fallback - String to return if value is falsy or invalid (default: 'Data non disponibile')
+ * @returns Formatted string in locale 'it-IT' or fallback
+ * @example
+ * formatDateTimeSafe('2025-12-31T23:59:00Z') // => "31/12/2025, 23:59:00"
+ * formatDateTimeSafe(null) // => "Data non disponibile"
+ * formatDateTimeSafe('') // => "Data non disponibile"
+ * formatDateTimeSafe('invalid') // => "Data non disponibile"
+ */
+export function formatDateTimeSafe(value: unknown, fallback = 'Data non disponibile'): string {
+  if (!value) return fallback;
+  const d = new Date(value as string | Date);
+  return Number.isNaN(d.getTime()) ? fallback : d.toLocaleString('it-IT');
+}
+
+/**
+ * Safely formats a date value to Italian locale, handling null/invalid inputs.
+ * Used for fields from DB that may be null on partial records.
+ * @param value - Date value (string, Date, or falsy)
+ * @param fallback - String to return if value is falsy or invalid (default: '—')
+ * @returns Formatted string in locale 'it-IT' (date only) or fallback
+ * @example
+ * formatDateSafe('2025-12-31') // => "31/12/2025"
+ * formatDateSafe(null) // => "—"
+ * formatDateSafe('') // => "—"
+ * formatDateSafe('invalid') // => "—"
+ */
+export function formatDateSafe(value: unknown, fallback = '—'): string {
+  if (!value) return fallback;
+  const d = new Date(value as string | Date);
+  return Number.isNaN(d.getTime()) ? fallback : d.toLocaleDateString('it-IT');
+}

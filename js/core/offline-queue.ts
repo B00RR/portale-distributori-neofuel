@@ -41,6 +41,7 @@ const MAX_RETRIES = 3;
 
 let db: IDBDatabase | null = null;
 const executors: Map<string, ActionExecutor> = new Map();
+let syncInFlight: Promise<{ success: number; failed: number }> | null = null;
 
 function normalizeDedupeValue(value: unknown): string | null {
   if (typeof value === 'string' && value.trim()) {
@@ -284,8 +285,21 @@ export function registerExecutor(type: QueuedAction['type'], executor: ActionExe
 
 /**
  * Process all pending actions (called when back online)
+ * Re-entrancy guard: if sync is already in flight, returns the existing promise
  */
-export async function syncPendingActions(): Promise<{ success: number; failed: number }> {
+export function syncPendingActions(): Promise<{ success: number; failed: number }> {
+  if (syncInFlight) {
+    return syncInFlight;
+  }
+
+  syncInFlight = runSync().finally(() => {
+    syncInFlight = null;
+  });
+
+  return syncInFlight;
+}
+
+async function runSync(): Promise<{ success: number; failed: number }> {
   const pending = await getPendingActions();
 
   if (pending.length === 0) {
