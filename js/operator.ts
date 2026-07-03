@@ -4,7 +4,7 @@
  */
 
 import { logger } from './core/logger.js';
-import './operator/offline-financial-executors.js';
+import './operator/offline-financial-executors-v2.js';
 import { renderOperatorShell, OperatorHandlers } from './operator/layout.js';
 import { checkOpeningStatus } from './operator/opening.js';
 import { router, OperatorView } from './operator/router.js';
