@@ -47,6 +47,8 @@ interface TankReading {
 // DASHBOARD MAIN FUNCTION
 // ------------------------------------------------------------------
 
+let salesChart: { destroy: () => void } | null = null;
+
 export type CheckActiveFunction = () => boolean;
 
 export async function showDashboard(
@@ -564,7 +566,11 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
 
   const ctx = document.getElementById('sales-trend-chart') as HTMLCanvasElement;
   if (ctx) {
-    new window.Chart(ctx, {
+    if (salesChart) {
+      salesChart.destroy();
+      salesChart = null;
+    }
+    salesChart = new window.Chart(ctx, {
       type: 'line',
       data: {
         labels: sortedDates.map(d =>
