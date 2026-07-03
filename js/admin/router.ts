@@ -7,9 +7,9 @@ import { handleError } from '../shared/error-handler.js';
 import { store } from '../shared/state.js';
 import { showLoadingMessage } from '../ui/ui.js';
 
+import { showBusinessRulesSettings } from './business-rules-settings.js';
 import { showCreditiOverview as showCreditsTab } from './credits.js';
 import { showDashboard } from './dashboard.js';
-import { showSettingsTab } from './logic.js';
 import { showOperatorsTab } from './operators.js';
 import { showChiusureTab } from './shifts.js';
 import { showStationsTab } from './stations.js';
@@ -214,7 +214,10 @@ class AdminRouter {
         break;
 
       case 'settings':
-        showSettingsTab(content, headerActions);
+        if (headerActions) {
+          headerActions.innerHTML = '';
+        }
+        showBusinessRulesSettings(content);
         break;
 
       default:
