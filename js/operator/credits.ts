@@ -4,6 +4,7 @@
 // ==========================================
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import { isOffline, queueAction } from '../core/offline-queue.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
@@ -12,15 +13,19 @@ import { escapeHtml, formatEuro, formatDateSafe } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 
-// Local interface aligned with DB schema (crediti_clienti) to avoid stale/loose typings.
 interface CreditoCliente {
-  id: number;
-  station_id: number | null;
+  id: number | string;
+  station_id?: number | null;
   cliente: string;
-  importo: number;
+  importo?: number;
   saldo: number;
-  created_at: string | null;
-  updated_at: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+interface OfflineReplayOptions {
+  skipOfflineQueue?: boolean;
+  createdAt?: string;
 }
 
 function toNumericId(value: number | string): number {
@@ -34,120 +39,57 @@ function toNumericId(value: number | string): number {
   return value;
 }
 
-/**
- * Mostra il menu principale per la gestione crediti
- * Scelta tra "Nuovo Credito" e "Pagamento"
- * @param {number | string} stationId - ID della stazione
- * @param {string} userId - ID dell'operatore
- */
+function nowIso(options?: OfflineReplayOptions): string {
+  return options?.createdAt ?? new Date().toISOString();
+}
+
+function shouldQueue(options?: OfflineReplayOptions): boolean {
+  return !options?.skipOfflineQueue && isOffline();
+}
+
 export async function showCreditsMenu(stationId: number | string, userId: string): Promise<void> {
   openModal('Gestione Crediti');
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) {
     return;
   }
+
   setSafeHTML(
     modalBody,
     '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>'
   );
 
-  // Verifica apertura turno
   const activeOpening = await checkOpeningStatus(stationId);
   if (!activeOpening) {
     setSafeHTML(
       modalBody,
       `
-            <div style="background: rgba(255, 65, 54, 0.1); color: var(--danger-color); padding:30px; border-radius:12px; border:2px solid rgba(255, 65, 54, 0.3); text-align:center; margin: 20px;">
-                <h2 style="margin:0 0 15px 0; color: var(--danger-color);"><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
-                <p style="font-size:1.1em; margin:0 0 20px 0;">Devi aprire un turno prima di poter gestire i crediti.</p>
-                <button id="btn-close-warning" class="menu-button primary" style="width: auto; min-width: 150px;">Chiudi</button>
-            </div>
-        `
+        <div class="warning-box">
+          <h2><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
+          <p>Devi aprire un turno prima di poter gestire i crediti.</p>
+          <button id="btn-close-warning" class="menu-button primary">Chiudi</button>
+        </div>
+      `
     );
-
-    const closeBtn = document.getElementById('btn-close-warning');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => closeModal());
-    }
+    document.getElementById('btn-close-warning')?.addEventListener('click', () => closeModal());
     return;
   }
 
   setSafeHTML(
     modalBody,
     `
-        <div class="credits-menu-container">
-            <p class="section-subtitle" style="text-align: center; margin-bottom: 20px;">Seleziona un'operazione</p>
-            
-            <div class="credits-options" style="display: flex; gap: 20px; justify-content: center;">
-            <!-- Opzione 1: Nuovo Credito -->
-            <button id="btn-new-credit" class="credit-option-card">
-                <div class="icon-wrapper new-credit">
-                    <i class="fas fa-plus-circle"></i>
-                </div>
-                <h3>Nuovo Credito</h3>
-                <p>Erogazione senza incasso</p>
-            </button>
-
-            <!-- Opzione 2: Pagamento -->
-            <button id="btn-payment-credit" class="credit-option-card">
-                <div class="icon-wrapper payment">
-                    <i class="fas fa-hand-holding-usd"></i>
-                </div>
-                <h3>Pagamento</h3>
-                <p>Incasso su credito aperto</p>
-            </button>
+      <div class="credits-menu-container">
+        <p class="section-subtitle" style="text-align: center; margin-bottom: 20px;">Seleziona un'operazione</p>
+        <div class="credits-options" style="display: flex; gap: 20px; justify-content: center;">
+          <button id="btn-new-credit" class="credit-option-card menu-button primary">
+            <h3>Nuovo Credito</h3>
+            <p>Erogazione senza incasso</p>
+          </button>
+          <button id="btn-payment-credit" class="credit-option-card menu-button secondary">
+            <h3>Pagamento</h3>
+            <p>Incasso su credito aperto</p>
+          </button>
         </div>
-
-        <style>
-            .credit-option-card {
-                flex: 1;
-                background: white;
-                border: 2px solid var(--border-color);
-                border-radius: 12px;
-                padding: 20px;
-                text-align: center;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-                max-width: 250px;
-            }
-            .credit-option-card:hover {
-                border-color: var(--info-color);
-                transform: translateY(-2px);
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            }
-            .icon-wrapper {
-                width: 60px;
-                height: 60px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 24px;
-                margin-bottom: 5px;
-            }
-            .icon-wrapper.new-credit {
-                background: rgba(59, 130, 246, 0.1);
-                color: var(--info-color);
-            }
-            .icon-wrapper.payment {
-                background: rgba(16, 185, 129, 0.1);
-                color: var(--success-color);
-            }
-            .credit-option-card h3 {
-                margin: 0;
-                color: var(--text-main);
-                font-size: 1.1rem;
-            }
-            .credit-option-card p {
-                margin: 0;
-                color: var(--secondary-color);
-                font-size: 0.9rem;
-            }
-        </style>
       </div>
     `
   );
@@ -160,140 +102,58 @@ export async function showCreditsMenu(stationId: number | string, userId: string
     ?.addEventListener('click', () => showPaymentSelection(stationId, userId));
 }
 
-/**
- * 1. NUOVO CREDITO
- * L'operatore segna nome cliente e importo.
- * Viene sottratto dai contanti (erogazione senza incasso).
- */
 async function showNewCreditForm(stationId: number | string, userId: string): Promise<void> {
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) {
     return;
   }
+
   setSafeHTML(
     modalBody,
     `
-        <div class="content-box">
-            <h3><i class="fas fa-user-plus"></i> Nuovo Credito</h3>
-            <p class="section-subtitle">Registra un debito per un cliente</p>
-            
-            <form id="new-credit-form">
-                <div class="form-group">
-                    <label>Nome Cliente</label>
-                    <div style="position: relative;">
-                        <input type="text" id="customer-name" name="customer_name" class="big-input" required autocomplete="off" placeholder="Cerca o inserisci nuovo...">
-                        <div id="customer-suggestions" class="suggestions-list" style="display: none;"></div>
-                    </div>
-                </div>
-
-                    <div class="form-group">
-                    <label>Importo (€)</label>
-                    <input type="number" name="amount" step="0.01" min="0.01" class="big-input" required placeholder="0.00">
-                </div>
-
-                <div class="form-group">
-                    <label>Prodotto</label>
-                    <select name="product" class="big-input" required>
-                        <option value="Gasolio">Gasolio</option>
-                        <option value="Benzina">Benzina</option>
-                        <option value="AdBlue">AdBlue</option>
-                        <option value="Accessori">Accessori</option>
-                        <option value="Altro">Altro</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Note (Opzionale)</label>
-                    <textarea name="notes" rows="2" class="big-input" placeholder="Targa, dettagli..."></textarea>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="menu-button btn-danger" id="btn-back-credits">
-                        <i class="fas fa-arrow-left"></i> Annulla
-                    </button>
-                    <button type="submit" class="menu-button btn-success">
-                        Conferma Credito
-                    </button>
-                </div>
-            </form>
-            
-            <style>
-                .suggestions-list {
-                    position: absolute;
-                    top: 100%;
-                    left: 0;
-                    right: 0;
-                    background: white;
-                    border: 1px solid var(--border-color);
-                    border-radius: 0 0 8px 8px;
-                    max-height: 200px;
-                    overflow-y: auto;
-                    z-index: 10;
-                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                }
-                .suggestion-item {
-                    padding: 10px;
-                    cursor: pointer;
-                    border-bottom: 1px solid var(--border-color);
-                }
-                .suggestion-item:hover {
-                    background: var(--bg-body);
-                }
-            </style>
-        </div>
+      <div class="content-box">
+        <h3><i class="fas fa-user-plus"></i> Nuovo Credito</h3>
+        <p class="section-subtitle">Registra un debito per un cliente</p>
+        <form id="new-credit-form">
+          <div class="form-group"><label>Nome Cliente</label><input type="text" id="customer-name" name="customer_name" class="big-input" required autocomplete="off"></div>
+          <div class="form-group"><label>Importo (€)</label><input type="number" name="amount" step="0.01" min="0.01" class="big-input" required></div>
+          <div class="form-group"><label>Prodotto</label><select name="product" class="big-input" required><option value="Gasolio">Gasolio</option><option value="Benzina">Benzina</option><option value="AdBlue">AdBlue</option><option value="Accessori">Accessori</option><option value="Altro">Altro</option></select></div>
+          <div class="form-group"><label>Note (Opzionale)</label><textarea name="notes" rows="2" class="big-input"></textarea></div>
+          <div class="form-actions"><button type="button" class="menu-button btn-danger" id="btn-back-credits">Annulla</button><button type="submit" class="menu-button btn-success">Conferma Credito</button></div>
+        </form>
+      </div>
     `
   );
 
-  // Back button
   document
     .getElementById('btn-back-credits')
     ?.addEventListener('click', () => showCreditsMenu(stationId, userId));
 
-  // Customer Search Logic
-  const nameInput = document.getElementById('customer-name') as HTMLInputElement | null;
-  const suggestionsDiv = document.getElementById('customer-suggestions') as HTMLElement | null;
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-  if (nameInput && suggestionsDiv) {
-    nameInput.addEventListener('input', e => {
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-      }
-      const query = (e.target as HTMLInputElement).value;
-      if (query.length < 2) {
-        suggestionsDiv.style.display = 'none';
-        return;
-      }
-      debounceTimer = setTimeout(() => {
-        void searchCustomersForInput(query, stationId, suggestionsDiv, nameInput);
-      }, 300);
-    });
-  }
-
-  // Form Submit
   const form = document.getElementById('new-credit-form') as HTMLFormElement | null;
-  if (form) {
-    form.addEventListener('submit', async e => {
-      e.preventDefault();
-      const formData = new FormData(form);
-      const customerName = (formData.get('customer_name') as string)?.trim() || '';
-      const amount = parseFloat((formData.get('amount') as string) || '0');
-      const product = (formData.get('product') as string) || '';
-      const notes = (formData.get('notes') as string) || '';
+  form?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const customerName = (formData.get('customer_name') as string)?.trim() || '';
+    const amount = parseFloat((formData.get('amount') as string) || '0');
+    const product = (formData.get('product') as string) || '';
+    const notes = (formData.get('notes') as string) || '';
 
-      if (!customerName || amount <= 0) {
-        return;
-      }
+    if (!customerName || amount <= 0) {
+      return;
+    }
 
-      try {
-        await processNewCredit(stationId, userId, customerName, amount, product, notes);
-        closeModal();
-        showInfoModal('Credito registrato con successo!');
-      } catch (err) {
-        handleError(err, 'submitCredit');
-      }
-    });
-  }
+    try {
+      await processNewCredit(stationId, userId, customerName, amount, product, notes);
+      closeModal();
+      showInfoModal(
+        isOffline()
+          ? 'Credito salvato offline. Verrà sincronizzato quando la connessione torna disponibile.'
+          : 'Credito registrato con successo!'
+      );
+    } catch (err) {
+      handleError(err, 'submitCredit');
+    }
+  });
 }
 
 async function searchCustomersForInput(
@@ -314,16 +174,9 @@ async function searchCustomersForInput(
     if (customers && customers.length > 0) {
       setSafeHTML(
         suggestionsDiv,
-        customers
-          .map(
-            c => `
-                <div class="suggestion-item">${escapeHtml(c.cliente)}</div>
-            `
-          )
-          .join('')
+        customers.map(c => `<div class="suggestion-item">${escapeHtml(c.cliente)}</div>`).join('')
       );
       suggestionsDiv.style.display = 'block';
-
       suggestionsDiv.querySelectorAll('.suggestion-item').forEach(itemElement => {
         const item = itemElement as HTMLElement;
         item.addEventListener('click', () => {
@@ -345,12 +198,27 @@ export async function processNewCredit(
   customerName: string,
   amount: number,
   product: string,
-  notes: string
+  notes: string,
+  options?: OfflineReplayOptions
 ): Promise<void> {
   const numericStationId = toNumericId(stationId);
   const numericOperatorId = toNumericId(userId);
+  const createdAt = nowIso(options);
 
-  // 1. Trova o crea cliente
+  if (shouldQueue(options)) {
+    await queueAction('movement_create', {
+      kind: 'credit_create',
+      stationId: numericStationId,
+      operatorId: String(numericOperatorId),
+      customerName,
+      amount,
+      product,
+      notes,
+      createdAt
+    });
+    return;
+  }
+
   const { data: initialCustomer, error: fetchError } = await supabase
     .from('crediti_clienti')
     .select('*')
@@ -362,7 +230,7 @@ export async function processNewCredit(
     throw fetchError;
   }
 
-  let customer = initialCustomer;
+  let customer = initialCustomer as CreditoCliente | null;
 
   if (!customer) {
     const { data: newCustomer, error: createError } = await supabase
@@ -374,25 +242,23 @@ export async function processNewCredit(
     if (createError) {
       throw createError;
     }
-    customer = newCustomer;
+    customer = newCustomer as CreditoCliente;
   }
 
   if (!customer) {
     throw new Error('Impossibile creare il cliente');
   }
 
-  // 2. Aggiorna saldo (Aumenta debito)
   const newBalance = (customer.saldo || 0) + amount;
   const { error: updateError } = await supabase
     .from('crediti_clienti')
-    .update({ saldo: newBalance, updated_at: new Date().toISOString() })
+    .update({ saldo: newBalance, updated_at: createdAt })
     .eq('id', customer.id);
 
   if (updateError) {
     throw updateError;
   }
 
-  // 3. Registra movimento in crediti_movimenti
   const { error: moveError } = await supabase.from('crediti_movimenti').insert([
     {
       cliente_id: customer.id,
@@ -402,11 +268,10 @@ export async function processNewCredit(
       importo: amount,
       metodo: 'credito',
       note: `${product} - ${notes || ''}`,
-      created_at: new Date().toISOString()
+      created_at: createdAt
     }
   ]);
 
-  // 4. Registra anche in movimenti_cassa
   const { error: cashMoveError } = await supabase.from('movimenti_cassa').insert([
     {
       station_id: numericStationId,
@@ -414,7 +279,7 @@ export async function processNewCredit(
       tipo: 'credito',
       importo: amount,
       descrizione: `Credito: ${customerName} (${product}) ${notes ? '- ' + notes : ''}`,
-      created_at: new Date().toISOString()
+      created_at: createdAt
     }
   ]);
 
@@ -423,33 +288,21 @@ export async function processNewCredit(
   }
 }
 
-/**
- * 2. PAGAMENTO
- * Lista crediti aperti. Scelta cliente -> Pagamento (Parziale/Totale).
- * Metodi: Contanti (Somma a cassa), POS/Altro (Neutro).
- */
 async function showPaymentSelection(stationId: number | string, userId: string): Promise<void> {
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) {
     return;
   }
+
   setSafeHTML(
     modalBody,
     `
-        <div class="content-box">
-            <h3><i class="fas fa-list"></i> Crediti Aperti</h3>
-            <div class="form-group">
-                <input type="text" id="debtor-search" class="big-input" placeholder="Cerca cliente...">
-            </div>
-            <div id="debtors-list" class="results-list" style="max-height: 350px; overflow-y: auto;">
-                <div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Caricamento...</div>
-            </div>
-            <div style="margin-top: 15px;">
-                 <button type="button" class="menu-button secondary full-width" id="btn-back-credits-2">
-                    <i class="fas fa-arrow-left"></i> Indietro
-                </button>
-            </div>
-        </div>
+      <div class="content-box">
+        <h3><i class="fas fa-list"></i> Crediti Aperti</h3>
+        <input type="text" id="debtor-search" class="big-input" placeholder="Cerca cliente...">
+        <div id="debtors-list" class="results-list" style="max-height: 350px; overflow-y: auto;"><div class="loading-spinner">Caricamento...</div></div>
+        <button type="button" class="menu-button secondary full-width" id="btn-back-credits-2">Indietro</button>
+      </div>
     `
   );
 
@@ -459,12 +312,10 @@ async function showPaymentSelection(stationId: number | string, userId: string):
 
   const listContainer = document.getElementById('debtors-list') as HTMLElement | null;
   const searchInput = document.getElementById('debtor-search') as HTMLInputElement | null;
-
   if (!listContainer || !searchInput) {
     return;
   }
 
-  // Load debtors
   const loadDebtors = async (filter = ''): Promise<void> => {
     try {
       const numericStationId = toNumericId(stationId);
@@ -472,7 +323,7 @@ async function showPaymentSelection(stationId: number | string, userId: string):
         .from('crediti_clienti')
         .select('*')
         .eq('station_id', numericStationId)
-        .gt('saldo', 0.01) // Solo chi ha debito
+        .gt('saldo', 0.01)
         .order('cliente');
 
       if (filter) {
@@ -485,10 +336,7 @@ async function showPaymentSelection(stationId: number | string, userId: string):
       }
 
       if (!debtors || debtors.length === 0) {
-        setSafeHTML(
-          listContainer,
-          '<p style="text-align:center; color: var(--secondary-color); padding:20px;">Nessun credito aperto trovato.</p>'
-        );
+        setSafeHTML(listContainer, '<p style="text-align:center; padding:20px;">Nessun credito aperto trovato.</p>');
         return;
       }
 
@@ -497,49 +345,39 @@ async function showPaymentSelection(stationId: number | string, userId: string):
         debtors
           .map(
             d => `
-                <div class="result-item" data-id="${d.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--border-color); cursor: pointer;">
-                    <div>
-                        <div style="font-weight: bold; font-size: 1.1rem;">${escapeHtml(d.cliente)}</div>
-                        <div style="font-size: 0.85rem; color: var(--secondary-color);">Ultimo agg: ${formatDateSafe(d.updated_at || d.created_at)}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-weight: bold; color: var(--danger-color); font-size: 1.2rem;">${formatEuro(d.saldo)}</div>
-                        <div style="font-size: 0.8rem; color: var(--info-color);">Paga <i class="fas fa-chevron-right"></i></div>
-                    </div>
-                </div>
+              <div class="result-item" data-id="${d.id}" style="cursor:pointer; padding: 15px; border-bottom: 1px solid var(--border-color);">
+                <strong>${escapeHtml(d.cliente)}</strong>
+                <span style="float:right;">${formatEuro(d.saldo)}</span>
+                <div style="font-size: 0.85rem; color: var(--secondary-color);">Ultimo agg: ${formatDateSafe(d.updated_at || d.created_at)}</div>
+              </div>
             `
           )
           .join('')
       );
 
-      // Attach event listeners to items
       listContainer.querySelectorAll('.result-item').forEach(itemElement => {
         const item = itemElement as HTMLElement;
         item.addEventListener('click', () => {
           const id = item.dataset.id;
-          const debtor = debtors.find(x => x.id.toString() === id);
+          const debtor = (debtors as CreditoCliente[]).find(x => String(x.id) === id);
           if (debtor) {
             showPaymentModal(debtor, stationId, userId);
           }
         });
       });
     } catch (err) {
-      if (err instanceof Error) {
-        setSafeHTML(listContainer, `<p class="error-text">Errore: ${escapeHtml(err.message)}</p>`);
-      } else {
-        setSafeHTML(listContainer, '<p class="error-text">Errore imprevisto</p>');
-      }
+      const message = err instanceof Error ? escapeHtml(err.message) : 'Errore imprevisto';
+      setSafeHTML(listContainer, `<p class="error-text">Errore: ${message}</p>`);
     }
   };
 
-  loadDebtors();
-
+  await loadDebtors();
   searchInput.addEventListener('input', e => {
-    loadDebtors((e.target as HTMLInputElement).value);
+    void loadDebtors((e.target as HTMLInputElement).value);
   });
 }
 
-function showPaymentModal(
+export function showPaymentModal(
   customer: CreditoCliente,
   stationId: number | string,
   userId: string
@@ -553,129 +391,101 @@ function showPaymentModal(
   setSafeHTML(
     modalBody,
     `
-        <div style="background: rgba(255, 65, 54, 0.08); padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid rgba(255, 65, 54, 0.2);">
-            <div style="font-size: 0.9rem; color: var(--danger-color);">Debito Attuale</div>
-            <div style="font-size: 2rem; font-weight: 700; color: var(--danger-color);">${formatEuro(customer.saldo)}</div>
-        </div>
-
+      <div class="content-box">
+        <div style="font-size: 2rem; font-weight: 700; color: var(--danger-color);">${formatEuro(customer.saldo)}</div>
         <form id="payment-form">
-            <div class="form-group">
-                <label>Importo Pagamento (€)</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="number" name="amount" id="pay-amount" step="0.01" min="0.01" max="${customer.saldo + 0.01}" class="big-input" required value="${customer.saldo}" style="flex: 1;">
-                    <button type="button" id="btn-full-amount" class="menu-button secondary" style="padding: 12px 20px;">Tutto</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Metodo di Pagamento</label>
-                <select name="method" id="pay-method" class="big-input" required>
-                    <option value="contanti">Contanti</option>
-                    <option value="pos">POS</option>
-                    <option value="uta">UTA/DKV/Fine Mese</option>
-                </select>
-            </div>
-
-            <div id="cash-info" class="info-box" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--success-color); padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
-                <i class="fas fa-check-circle"></i> Questo importo verrà <strong>aggiunto</strong> al totale contanti della giornata.
-            </div>
-            
-            <div id="pos-info" class="info-box" style="display: none; background: var(--bg-body); border: 1px solid var(--border-color); color: var(--secondary-hover); padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px;">
-                <i class="fas fa-info-circle"></i> Questo pagamento non influisce sui contanti in cassa.
-            </div>
-
-            <div class="form-actions">
-                <button type="button" class="menu-button btn-danger" id="btn-cancel-pay">
-                    Annulla
-                </button>
-                <button type="submit" class="menu-button btn-success">
-                    Registra Pagamento
-                </button>
-            </div>
+          <div class="form-group"><label>Importo Pagamento (€)</label><div style="display:flex; gap:10px;"><input type="number" name="amount" id="pay-amount" step="0.01" min="0.01" max="${customer.saldo + 0.01}" class="big-input" required value="${customer.saldo}"><button type="button" id="btn-full-amount" class="menu-button secondary">Tutto</button></div></div>
+          <div class="form-group"><label>Metodo di Pagamento</label><select name="method" id="pay-method" class="big-input" required><option value="contanti">Contanti</option><option value="pos">POS</option><option value="uta">UTA/DKV/Fine Mese</option></select></div>
+          <div class="form-actions"><button type="button" class="menu-button btn-danger" id="btn-cancel-pay">Annulla</button><button type="submit" class="menu-button btn-success">Registra Pagamento</button></div>
         </form>
+      </div>
     `
   );
 
-  // Toggle Info based on method
-  const methodSelect = document.getElementById('pay-method') as HTMLSelectElement | null;
-  const cashInfo = document.getElementById('cash-info') as HTMLElement | null;
-  const posInfo = document.getElementById('pos-info') as HTMLElement | null;
-
-  if (methodSelect && cashInfo && posInfo) {
-    methodSelect.addEventListener('change', () => {
-      if (methodSelect.value === 'contanti') {
-        cashInfo.style.display = 'block';
-        posInfo.style.display = 'none';
-      } else {
-        cashInfo.style.display = 'none';
-        posInfo.style.display = 'block';
-      }
-    });
-  }
-
-  // Full Amount Button
   document.getElementById('btn-full-amount')?.addEventListener('click', () => {
     const payAmountInput = document.getElementById('pay-amount') as HTMLInputElement | null;
     if (payAmountInput) {
-      payAmountInput.value = customer.saldo.toString();
+      payAmountInput.value = String(customer.saldo);
     }
   });
 
   document.getElementById('btn-cancel-pay')?.addEventListener('click', () => {
-    showPaymentSelection(stationId, userId);
+    void showPaymentSelection(stationId, userId);
   });
 
-  // Submit
   const form = document.getElementById('payment-form') as HTMLFormElement | null;
-  if (form) {
-    form.addEventListener('submit', async e => {
-      e.preventDefault();
-      const formData = new FormData(form);
-      const amount = parseFloat((formData.get('amount') as string) || '0');
-      const method = (formData.get('method') as string) || '';
+  form?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const amount = parseFloat((formData.get('amount') as string) || '0');
+    const method = (formData.get('method') as string) || '';
 
-      if (amount <= 0) {
-        return;
-      }
-      if (amount > customer.saldo + 0.01) {
-        Toast.show("L'importo non può superare il debito!", 'warning');
-        return;
-      }
+    if (amount <= 0) {
+      return;
+    }
+    if (amount > customer.saldo + 0.01) {
+      Toast.show("L'importo non può superare il debito!", 'warning');
+      return;
+    }
 
-      try {
-        await processPayment(stationId, userId, customer, amount, method);
-        closeModal();
-        showInfoModal('Pagamento registrato con successo!');
-      } catch (err: unknown) {
-        handleError(err, 'processPayment');
-      }
-    });
-  }
+    try {
+      await processPayment(stationId, userId, customer, amount, method);
+      closeModal();
+      showInfoModal(
+        isOffline()
+          ? 'Pagamento salvato offline. Verrà sincronizzato quando la connessione torna disponibile.'
+          : 'Pagamento registrato con successo!'
+      );
+    } catch (err: unknown) {
+      handleError(err, 'processPayment');
+    }
+  });
 }
 
 export async function processPayment(
   stationId: number | string,
   userId: string,
-  customer: CreditoCliente,
+  customer: Partial<CreditoCliente>,
   amount: number,
-  method: string
+  method: string,
+  options?: OfflineReplayOptions
 ): Promise<void> {
+  if (!customer.id || !customer.cliente || typeof customer.saldo !== 'number') {
+    throw new Error('Cliente credito non valido');
+  }
+
   const numericStationId = toNumericId(stationId);
   const numericOperatorId = toNumericId(userId);
+  const createdAt = nowIso(options);
 
-  // 1. Aggiorna saldo (Diminuisce debito)
+  if (shouldQueue(options)) {
+    await queueAction('movement_create', {
+      kind: 'credit_payment',
+      stationId: numericStationId,
+      operatorId: String(numericOperatorId),
+      customer: {
+        id: customer.id,
+        cliente: customer.cliente,
+        saldo: customer.saldo
+      },
+      amount,
+      method,
+      createdAt
+    });
+    return;
+  }
+
   const newBalance = Math.max(0, (customer.saldo || 0) - amount);
   const { error: updateError } = await supabase
     .from('crediti_clienti')
-    .update({ saldo: newBalance, updated_at: new Date().toISOString() })
+    .update({ saldo: newBalance, updated_at: createdAt })
     .eq('id', customer.id);
 
   if (updateError) {
     throw updateError;
   }
 
-  // 2. Registra movimento in crediti_movimenti
-  let movementType = 'incasso'; // Default contanti
+  let movementType = 'incasso';
   if (method === 'pos') {
     movementType = 'incasso_pos';
   }
@@ -691,11 +501,10 @@ export async function processPayment(
       tipo: movementType,
       importo: amount,
       metodo: method,
-      created_at: new Date().toISOString()
+      created_at: createdAt
     }
   ]);
 
-  // 3. Registra in movimenti_cassa
   const { error: cashMoveError } = await supabase.from('movimenti_cassa').insert([
     {
       station_id: numericStationId,
@@ -703,7 +512,7 @@ export async function processPayment(
       tipo: movementType,
       importo: amount,
       descrizione: `Pagamento Credito: ${customer.cliente} (${method})`,
-      created_at: new Date().toISOString()
+      created_at: createdAt
     }
   ]);
 
