@@ -1,8 +1,8 @@
 import { supabase } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { getErrorMessage } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
@@ -138,7 +138,7 @@ function renderOutflowForm(
         closeModal();
         showInfoModal(`Uscita di € ${amount.toFixed(2)} registrata correttamente.`);
       } catch (err: unknown) {
-        Toast.show('Errore salvataggio: ' + getErrorMessage(err), 'error');
+        handleError(err, 'showOutflowMenu_submit');
       }
     });
   }

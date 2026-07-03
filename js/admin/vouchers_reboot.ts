@@ -1,5 +1,6 @@
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import {
   showLoadingMessage,
@@ -202,8 +203,7 @@ async function loadCustomers(): Promise<void> {
     }
     voucherState.customers = (data as Customer[]) || [];
   } catch (err) {
-    logger.error('vouchers', 'Error loading customers:', err);
-    Toast.show('Errore caricamento clienti', 'error');
+    handleError(err, 'loadCustomers');
   }
 }
 
@@ -357,12 +357,11 @@ async function handleGeneration(e: Event): Promise<void> {
     updateTabButtons();
     renderActiveTab();
   } catch (err: unknown) {
-    logger.error('vouchers', err);
     const content = document.getElementById('voucher-content');
     if (content) {
       renderGenerator(content);
     } // Reset UI
-    Toast.show('Errore Generazione: ' + getErrorMessage(err), 'error');
+    handleError(err, 'generateBatch');
   }
 }
 
@@ -836,8 +835,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
           await renderDashboard(container);
           Toast.show('Dashboard aggiornata', 'success');
         } catch (error) {
-          Toast.show("Errore durante l'aggiornamento", 'error');
-          logger.error('vouchers', error);
+          handleError(error, 'refreshDashboard');
         } finally {
           if (icon) {
             icon.classList.remove('fa-spin');
@@ -1038,8 +1036,7 @@ async function handleDeleteBatch(batchId: string): Promise<void> {
     Toast.show('Lotto eliminato correttamente.', 'success');
     renderActiveTab();
   } catch (err: unknown) {
-    logger.error('vouchers', err);
-    Toast.show('Errore eliminazione: ' + getErrorMessage(err), 'error');
+    handleError(err, 'deleteBatch');
   }
 }
 
@@ -1085,8 +1082,7 @@ export async function openPrintView(batchId: string | undefined): Promise<void> 
     // 4. Update Window Content
     await generatePrintHtmlCSS(printWindow, vouchers as Voucher[]);
   } catch (err: unknown) {
-    logger.error('vouchers', err);
-    Toast.show('Errore recupero voucher: ' + getErrorMessage(err), 'error');
+    handleError(err, 'openPrintView');
     if (container) {
       renderDashboard(container);
     } // Reset UI

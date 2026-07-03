@@ -1,8 +1,8 @@
 import { supabase } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { getErrorMessage } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
@@ -170,7 +170,7 @@ function renderExtraIncomeForm(
         closeModal();
         showInfoModal(`Incasso di € ${amount.toFixed(2)} registrato correttamente.`);
       } catch (err: unknown) {
-        Toast.show('Errore salvataggio: ' + getErrorMessage(err), 'error');
+        handleError(err, 'showExtraIncomeMenu_submit');
       }
     });
   }

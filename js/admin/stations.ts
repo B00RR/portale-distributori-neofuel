@@ -6,7 +6,6 @@
 import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
-import { Toast } from '../ui/toast.js';
 import {
   showLoadingMessage,
   openModal,
@@ -308,8 +307,7 @@ export async function openStationModal(stationId: number | null = null): Promise
         showStationsTab(adminContent, headerActions);
       }
     } catch (err) {
-      logger.error('openStationModal submit', err);
-      Toast.show('Errore salvataggio: ' + (err as Error).message, 'error');
+      handleError(err, 'openStationModal_submit');
     } finally {
       setButtonLoading(submitBtn, false);
     }
@@ -338,7 +336,6 @@ export async function deleteStation(stationId: number): Promise<void> {
       showStationsTab(adminContent, headerActions);
     }
   } catch (err) {
-    logger.error('deleteStation', err);
-    Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
+    handleError(err, 'deleteStation');
   }
 }

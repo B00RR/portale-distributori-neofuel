@@ -4,11 +4,12 @@
 // ==========================================
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import { handleError } from '../shared/error-handler.js';
 import { Customer } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, getErrorMessage } from '../utils/utils.js';
+import { escapeHtml } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
@@ -250,7 +251,7 @@ function renderNewCustomerForm(
         // Procedi con il form della fattura
         renderInvoiceForm(container, stationId, userId, clienteId, nome || telefono || 'Cliente');
       } catch (err: unknown) {
-        Toast.show('Errore salvataggio cliente: ' + getErrorMessage(err), 'error');
+        handleError(err, 'saveCustomer');
       }
     });
   }
@@ -404,8 +405,7 @@ function renderExistingCustomerForm(
           .single();
 
         if (error) {
-          Toast.show('Errore recupero cliente: ' + error.message, 'error');
-          return;
+          throw error;
         }
 
         // Procedi con il form della fattura
@@ -417,7 +417,7 @@ function renderExistingCustomerForm(
           (customer as Customer).nome || (customer as Customer).telefono || 'Cliente'
         );
       } catch (err: unknown) {
-        Toast.show('Errore recupero cliente: ' + getErrorMessage(err), 'error');
+        handleError(err, 'fetchCustomer');
       }
     });
   }
@@ -569,7 +569,7 @@ function renderInvoiceForm(
         closeModal();
         showInfoModal(`Richiesta fattura per ${customerName} inviata correttamente.`);
       } catch (err: unknown) {
-        Toast.show('Errore salvataggio: ' + getErrorMessage(err), 'error');
+        handleError(err, 'saveInvoice');
       }
     });
   }

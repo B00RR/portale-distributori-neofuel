@@ -4,10 +4,11 @@
 // ==========================================
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro, formatDateSafe, getErrorMessage } from '../utils/utils.js';
+import { escapeHtml, formatEuro, formatDateSafe } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 
@@ -289,11 +290,7 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
         closeModal();
         showInfoModal('Credito registrato con successo!');
       } catch (err) {
-        if (err instanceof Error) {
-          Toast.show('Errore: ' + err.message, 'error');
-        } else {
-          Toast.show('Errore imprevisto', 'error');
-        }
+        handleError(err, 'submitCredit');
       }
     });
   }
@@ -650,7 +647,7 @@ function showPaymentModal(
         closeModal();
         showInfoModal('Pagamento registrato con successo!');
       } catch (err: unknown) {
-        Toast.show('Errore: ' + getErrorMessage(err), 'error');
+        handleError(err, 'processPayment');
       }
     });
   }

@@ -12,7 +12,7 @@ import {
   computeExportSummaryMetrics
 } from '../utils/export_utils.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro, getErrorMessage } from '../utils/utils.js';
+import { escapeHtml, formatEuro } from '../utils/utils.js';
 
 import { FilterBar } from './components/FilterBar.js';
 import { Pagination } from './components/Pagination.js';
@@ -443,8 +443,7 @@ export async function openExportModal(closureId: string | number): Promise<void>
     const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id);
     await generateClosureExcel(metrics);
   } catch (err: unknown) {
-    Toast.show('Errore export: ' + getErrorMessage(err), 'error');
-    logger.error('shifts', 'Errore export:', err);
+    handleError(err, 'openExportModal');
   }
 }
 
@@ -604,8 +603,7 @@ export async function openBulkExportModal(): Promise<void> {
         });
         closeModal();
       } catch (err: unknown) {
-        logger.error('shifts', err);
-        Toast.show('Errore durante export multiplo: ' + getErrorMessage(err), 'error');
+        handleError(err, 'openBulkExportModal');
       } finally {
         if (loadingDiv) {
           loadingDiv.classList.add('hidden');

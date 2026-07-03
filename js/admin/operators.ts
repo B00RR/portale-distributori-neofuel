@@ -191,7 +191,6 @@ export async function deleteUser(
     showOperatorsTab(container, actionsContainer); // Reload the list
   } catch (err) {
     handleError(err, 'deleteUser');
-    Toast.show("Errore durante l'eliminazione dell'operatore.", 'error');
   }
 }
 
