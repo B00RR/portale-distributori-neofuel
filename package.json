@@ -23,7 +23,8 @@
     "format:check": "prettier --check \"js/**/*.{js,ts,json}\"",
     "audit": "npm audit --production",
     "audit:fix": "npm audit fix",
-    "secure": "npm run lint:security && npm run audit && npm run type-check"
+    "secure": "npm run lint:security && npm run audit && npm run type-check",
+    "test:e2e:live": "E2E_SUPABASE_MODE=live playwright test -c config/playwright.config.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
