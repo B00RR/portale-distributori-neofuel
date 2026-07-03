@@ -11,6 +11,20 @@
  * primo e le route specifiche (users / user_stations) lo sovrascrivono.
  */
 
+const E2E_ENV = globalThis.process?.env || {};
+const isLiveSupabaseE2E = () => E2E_ENV.E2E_SUPABASE_MODE === 'live';
+
+const TEST_CREDENTIALS = {
+  admin: {
+    email: E2E_ENV.TEST_ADMIN_EMAIL || 'e2e-admin@neofuel.test',
+    password: E2E_ENV.TEST_ADMIN_PASSWORD || E2E_ENV.TEST_USER_PASS || 'password-e2e-admin'
+  },
+  operator: {
+    email: E2E_ENV.TEST_OPERATOR_EMAIL || 'e2e-operator@neofuel.test',
+    password: E2E_ENV.TEST_OPERATOR_PASSWORD || E2E_ENV.TEST_USER_PASS || 'password-e2e-operator'
+  }
+};
+
 const AUTH_USER = {
   id: '00000000-0000-0000-0000-000000000001',
   aud: 'authenticated',
@@ -48,6 +62,10 @@ const json = (route, status, payload) =>
  * Usato dai test "credenziali non valide".
  */
 export async function mockSupabaseAuthFailure(page) {
+  if (isLiveSupabaseE2E()) {
+    return;
+  }
+
   await page.route(/\/auth\/v1\/token/, route =>
     json(route, 400, {
       error: 'invalid_grant',
@@ -64,6 +82,10 @@ export async function mockSupabaseAuthFailure(page) {
  * @param {{ role?: 'admin'|'operator' }} opts
  */
 export async function mockSupabaseSession(page, { role = 'admin' } = {}) {
+  if (isLiveSupabaseE2E()) {
+    return;
+  }
+
   // Catch-all REST: registrato per primo (priorita' piu' bassa).
   // Per le query .single()/.maybeSingle() (header Accept object+json)
   // restituisce `null`; per le liste restituisce `[]`.
@@ -93,16 +115,12 @@ export async function mockSupabaseSession(page, { role = 'admin' } = {}) {
       full_name: 'Utente E2E',
       role,
       station_id: 1,
-      user_stations: [
-        { station_id: 1, fuel_stations: { station_name: 'Stazione E2E' } }
-      ]
+      user_stations: [{ station_id: 1, fuel_stations: { station_name: 'Stazione E2E' } }]
     })
   );
 
   // user_stations (app.ts percorso operatore -> .maybeSingle()): oggetto singolo.
-  await page.route(/\/rest\/v1\/user_stations/, route =>
-    json(route, 200, { station_id: 1 })
-  );
+  await page.route(/\/rest\/v1\/user_stations/, route => json(route, 200, { station_id: 1 }));
 }
 
 /**
@@ -111,7 +129,8 @@ export async function mockSupabaseSession(page, { role = 'admin' } = {}) {
 export async function login(page, { role = 'admin' } = {}) {
   const query = role === 'operator' ? '/?test_role=operator' : '/';
   await page.goto(query);
-  await page.fill('#email', 'e2e@neofuel.test');
-  await page.fill('#password', 'password-e2e');
+  const credentials = TEST_CREDENTIALS[role] || TEST_CREDENTIALS.admin;
+  await page.fill('#email', credentials.email);
+  await page.fill('#password', credentials.password);
   await page.click('button[type="submit"]');
 }
