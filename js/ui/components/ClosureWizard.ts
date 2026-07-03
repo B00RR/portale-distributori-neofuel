@@ -8,7 +8,7 @@ import { type BusinessRules, DEFAULT_BUSINESS_RULES } from '../../core/business-
 import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { Pistola, Island, Shift } from '../../types.js';
-import { formatEuro, getErrorMessage } from '../../utils/utils.js';
+import { formatEuro, formatDateTimeSafe, getErrorMessage } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
 
 import { BaseComponent } from './BaseComponent.js';
@@ -426,7 +426,7 @@ export class ClosureWizard extends BaseComponent {
       <div class="section-title">Step 1: Configurazione & Contatori</div>
       <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">
         Turno aperto il:
-        <strong>${new Date(this.activeOpening?.opened_at || '').toLocaleString('it-IT')}</strong>
+        <strong>${formatDateTimeSafe(this.activeOpening?.opened_at)}</strong>
       </p>
 
       ${

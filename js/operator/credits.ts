@@ -7,7 +7,7 @@ import { logger } from '../core/logger.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro, getErrorMessage } from '../utils/utils.js';
+import { escapeHtml, formatEuro, formatDateSafe, getErrorMessage } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 
@@ -503,7 +503,7 @@ async function showPaymentSelection(stationId: number | string, userId: string):
                 <div class="result-item" data-id="${d.id}" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--border-color); cursor: pointer;">
                     <div>
                         <div style="font-weight: bold; font-size: 1.1rem;">${escapeHtml(d.cliente)}</div>
-                        <div style="font-size: 0.85rem; color: var(--secondary-color);">Ultimo agg: ${new Date(d.updated_at || d.created_at || '').toLocaleDateString()}</div>
+                        <div style="font-size: 0.85rem; color: var(--secondary-color);">Ultimo agg: ${formatDateSafe(d.updated_at || d.created_at)}</div>
                     </div>
                     <div style="text-align: right;">
                         <div style="font-weight: bold; color: var(--danger-color); font-size: 1.2rem;">${formatEuro(d.saldo)}</div>

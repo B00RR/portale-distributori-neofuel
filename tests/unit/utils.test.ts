@@ -12,7 +12,9 @@ import {
     formatDate,
     getISODate,
     throttle,
-    createRateLimiter
+    createRateLimiter,
+    formatDateTimeSafe,
+    formatDateSafe
 } from '../../js/utils/utils.js';
 
 describe('Utils Module', () => {
@@ -130,6 +132,78 @@ describe('Utils Module', () => {
             // This might depend on local timezone of runner, mock Date if needed
             // But simpler:
             expect(getISODate('2023-01-31T12:00:00')).toContain('2023-01-31');
+        });
+    });
+
+    describe('Safe Date Formatters', () => {
+        it('formatDateTimeSafe should format valid dates with time', () => {
+            const result = formatDateTimeSafe('2025-12-31T12:00:00Z');
+            // Should not equal default fallback
+            expect(result).not.toBe('Data non disponibile');
+            // Timezone-agnostic: assert it produced an it-IT date+time string
+            // (date part with '/' separators and a time part with ':').
+            expect(result).toMatch(/\d{2}\/\d{2}\/\d{4}/);
+            expect(result).toMatch(/\d{2}:\d{2}/);
+        });
+
+        it('formatDateTimeSafe should return fallback for null/undefined', () => {
+            expect(formatDateTimeSafe(null)).toBe('Data non disponibile');
+            expect(formatDateTimeSafe(undefined)).toBe('Data non disponibile');
+        });
+
+        it('formatDateTimeSafe should return fallback for empty string', () => {
+            expect(formatDateTimeSafe('')).toBe('Data non disponibile');
+        });
+
+        it('formatDateTimeSafe should return fallback for invalid date string', () => {
+            expect(formatDateTimeSafe('invalid-date')).toBe('Data non disponibile');
+        });
+
+        it('formatDateTimeSafe should accept custom fallback', () => {
+            const customFallback = 'N/A';
+            expect(formatDateTimeSafe(null, customFallback)).toBe(customFallback);
+            expect(formatDateTimeSafe('invalid', customFallback)).toBe(customFallback);
+        });
+
+        it('formatDateSafe should format valid dates without time', () => {
+            const result = formatDateSafe('2025-12-31');
+            // Should not equal default fallback
+            expect(result).not.toBe('—');
+            // Should include date info
+            expect(result).toMatch(/31|2025/);
+        });
+
+        it('formatDateSafe should return fallback for null/undefined', () => {
+            expect(formatDateSafe(null)).toBe('—');
+            expect(formatDateSafe(undefined)).toBe('—');
+        });
+
+        it('formatDateSafe should return fallback for empty string', () => {
+            expect(formatDateSafe('')).toBe('—');
+        });
+
+        it('formatDateSafe should return fallback for invalid date string', () => {
+            expect(formatDateSafe('invalid-date')).toBe('—');
+        });
+
+        it('formatDateSafe should accept custom fallback', () => {
+            const customFallback = 'N/A';
+            expect(formatDateSafe(null, customFallback)).toBe(customFallback);
+            expect(formatDateSafe('invalid', customFallback)).toBe(customFallback);
+        });
+
+        it('formatDateSafe should handle Date objects', () => {
+            const date = new Date('2025-06-15');
+            const result = formatDateSafe(date);
+            expect(result).not.toBe('—');
+            expect(result).toMatch(/15|2025|6/);
+        });
+
+        it('formatDateTimeSafe should handle Date objects', () => {
+            const date = new Date('2025-06-15T14:30:00Z');
+            const result = formatDateTimeSafe(date);
+            expect(result).not.toBe('Data non disponibile');
+            expect(result).toMatch(/15|2025|14|30|6/);
         });
     });
 

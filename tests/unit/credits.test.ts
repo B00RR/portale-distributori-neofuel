@@ -26,7 +26,8 @@ const { mockSupabase, mockToast, mockUI, mockUtils, mockOpening } = vi.hoisted((
     },
     mockUtils: {
         escapeHtml: vi.fn((str) => str),
-        formatEuro: vi.fn((val) => `€${val.toFixed(2)}`)
+        formatEuro: vi.fn((val) => `€${val.toFixed(2)}`),
+        formatDateSafe: vi.fn((val) => (val ? String(val) : '—'))
     },
     mockOpening: {
         checkOpeningStatus: vi.fn()
