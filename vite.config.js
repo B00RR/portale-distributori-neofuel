@@ -156,18 +156,11 @@ export default defineConfig(({ mode }) => {
             assetsDir: 'assets',
             sourcemap: true,
             minify: 'terser',
-            // 700 e non il default 500: l'unico chunk sopra i 500kB è vendor-xlsx
-            // (642kB), un singolo file UMD pre-minificato non splittabile che viene
-            // caricato lazy solo al primo export Excel — non pesa sullo startup.
-            chunkSizeWarningLimit: 700,
+            // 1000 e non il default 500: il chunk Excel viene caricato lazy solo
+            // al primo export e non pesa sullo startup dell'app.
+            chunkSizeWarningLimit: 1000,
             cssCodeSplit: true,
             rollupOptions: {
-                onwarn(warning, warn) {
-                    if (warning.code === 'EVAL' && warning.id && warning.id.includes('xlsx-populate')) {
-                        return; // workaround temporaneo #140 — rimuovere quando #122 sostituisce la libreria
-                    }
-                    warn(warning);
-                },
                 output: {
                     // Issue #123: split dei vendor pesanti fuori dal chunk principale
                     // così ogni libreria è cacheata indipendentemente dal browser/SW.
@@ -175,8 +168,8 @@ export default defineConfig(({ mode }) => {
                         if (!id.includes('node_modules')) {
                             return undefined;
                         }
-                        if (id.includes('xlsx-populate')) {
-                            return 'vendor-xlsx';
+                        if (id.includes('exceljs')) {
+                            return 'vendor-excel';
                         }
                         if (id.includes('chart.js') || id.includes('@kurkle')) {
                             return 'vendor-chartjs';
