@@ -1,5 +1,4 @@
 import { supabase } from '../core/api.js';
-import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { createEl, createIcon } from '../ui/dom-helpers.js';
 import { Toast } from '../ui/toast.js';
@@ -307,7 +306,6 @@ async function toggleInvoiceStatus(id: number, newStatus: InvoiceStatus): Promis
       activeTab.click();
     }
   } catch (err) {
-    logger.error('toggleInvoiceStatus', err);
-    Toast.show('Errore aggiornamento stato', 'error');
+    handleError(err, 'toggleInvoiceStatus');
   }
 }

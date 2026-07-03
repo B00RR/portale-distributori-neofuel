@@ -7,6 +7,7 @@ import { logger } from './core/logger.js';
 import { renderOperatorShell, OperatorHandlers } from './operator/layout.js';
 import { checkOpeningStatus } from './operator/opening.js';
 import { router, OperatorView } from './operator/router.js';
+import { setSelectedOperatorStation } from './operator/station-context.js';
 import { store } from './shared/state.js';
 
 /**
@@ -20,14 +21,14 @@ export async function showOperatorMenu(_userId: string, stationId: string | numb
     return;
   }
 
+  const selectedStationId = setSelectedOperatorStation(stationId) ?? String(stationId);
+
   // Ensure state is updated (if not already set by app.js)
   const user = store.getUser();
-  if (user && stationId) {
-    // FORCE update of station_id to ensure it matches the one passed by app.js (authoritative from DB)
-    const newStationId = typeof stationId === 'string' ? parseInt(stationId) : stationId;
-    if (user.station_id !== newStationId) {
-      user.station_id = newStationId;
-      store.setUser(user);
+  if (user && selectedStationId) {
+    // FORCE update of station_id to ensure it matches the selected operator context.
+    if (String(user.station_id) !== selectedStationId) {
+      store.setUser({ ...user, station_id: selectedStationId });
     }
   }
 
@@ -35,7 +36,10 @@ export async function showOperatorMenu(_userId: string, stationId: string | numb
   const handlers: OperatorHandlers = {
     onNavigate: (view: OperatorView) => router.navigateTo(view),
     onOpening: (_stationId: string, _userId: string) => router.navigateTo('apertura'),
-    onClosure: (_stationId: string, _userId: string) => router.navigateTo('chiusura')
+    onClosure: (_stationId: string, _userId: string) => router.navigateTo('chiusura'),
+    onStationChange: nextStationId => {
+      void showOperatorMenu(_userId, nextStationId);
+    }
   };
 
   // Render the operator shell
@@ -45,7 +49,7 @@ export async function showOperatorMenu(_userId: string, stationId: string | numb
   // If a shift is open -> go to Closure wizard (or stay in dashboard, but Closure is safer default)
   // If closed -> go to Opening
   try {
-    const opening = await checkOpeningStatus(stationId);
+    const opening = await checkOpeningStatus(selectedStationId);
 
     if (opening) {
       // Optional: We could just show the menu (default) or go to specific page

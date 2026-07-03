@@ -1,7 +1,89 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { mockStore, mockGetStationName, mockGetPendingCount, mockCheckOpeningStatus } = vi.hoisted(
+  () => ({
+    mockStore: {
+      getUser: vi.fn(),
+      setUser: vi.fn()
+    },
+    mockGetStationName: vi.fn(),
+    mockGetPendingCount: vi.fn(),
+    mockCheckOpeningStatus: vi.fn()
+  })
+);
+
+vi.mock('../../js/shared/state.js', () => ({ store: mockStore }));
+vi.mock('../../js/core/api.js', () => ({ getStationName: mockGetStationName }));
+vi.mock('../../js/core/auth.js', () => ({ clearSession: vi.fn() }));
+vi.mock('../../js/core/logger.js', () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() }
+}));
+vi.mock('../../js/core/offline-queue.js', () => ({ getPendingCount: mockGetPendingCount }));
+vi.mock('../../js/ui/ui.js', () => ({ openConfirmModal: vi.fn() }));
+vi.mock('../../js/operator/opening.js', () => ({ checkOpeningStatus: mockCheckOpeningStatus }));
+
+import { renderOperatorShell } from '../../js/operator/layout.js';
 
 describe('Operator Layout Module', () => {
-    it('should import without errors', () => {
-        expect(true).toBe(true);
+  const handlers = {
+    onNavigate: vi.fn(),
+    onOpening: vi.fn(),
+    onClosure: vi.fn(),
+    onStationChange: vi.fn()
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    document.body.innerHTML = '<main id="main-content"></main>';
+    mockGetStationName.mockResolvedValue('Roma');
+    mockGetPendingCount.mockResolvedValue(0);
+    mockCheckOpeningStatus.mockResolvedValue(null);
+    localStorage.clear();
+  });
+
+  it('does not render a station selector for one assigned station', async () => {
+    mockStore.getUser.mockReturnValue({
+      id: 'auth-user',
+      user_id: '10',
+      email: 'op@test.com',
+      role: 'operator',
+      station_id: '1',
+      assignedStations: [{ id: 1, name: 'Roma' }]
     });
+    const container = document.getElementById('main-content') as HTMLElement;
+
+    await renderOperatorShell(container, handlers);
+
+    expect(container.querySelector('#operator-station-select')).toBeNull();
+  });
+
+  it('renders a station selector for multiple stations and persists changes', async () => {
+    const user = {
+      id: 'auth-user',
+      user_id: '10',
+      email: 'op@test.com',
+      role: 'operator' as const,
+      station_id: '1',
+      assignedStations: [
+        { id: 1, name: 'Roma' },
+        { id: 2, name: 'Milano' }
+      ]
+    };
+    mockStore.getUser.mockReturnValue(user);
+    const container = document.getElementById('main-content') as HTMLElement;
+
+    await renderOperatorShell(container, handlers);
+
+    const selector = container.querySelector('#operator-station-select') as HTMLSelectElement;
+    expect(selector).toBeInstanceOf(HTMLSelectElement);
+    expect(selector.value).toBe('1');
+    expect([...selector.options].map(option => option.textContent)).toEqual(['Roma', 'Milano']);
+
+    selector.value = '2';
+    selector.dispatchEvent(new Event('change'));
+
+    expect(mockStore.setUser).toHaveBeenCalledWith({ ...user, station_id: '2' });
+    expect(localStorage.getItem('operator_selected_station')).toBe('2');
+    expect(handlers.onStationChange).toHaveBeenCalledWith('2');
+  });
 });

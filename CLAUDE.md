@@ -67,6 +67,7 @@ npm run lint        # ESLint with max-warnings 0
 - **Lit components** — use `@lit/reactive-element` for component state.
 - **HTML sanitization required** — all dynamic HTML must pass through `setSafeHTML()` or `escapeHtml()` from `js/utils/sanitizer.ts`. XSS security enforced.
 - **Conventional commits** — commit messages follow the format: `type(scope): message` (e.g., `feat: add fuel tracking`, `fix(auth): handle token expiry`).
+- **Error Handling** — in `catch` blocks, use `handleError(err, context, target?)` from `js/shared/error-handler.ts` (safe logging and user notification). `Toast.show` directly is reserved only for non-error flow messages.
 
 ## Known Traps for Agents
 

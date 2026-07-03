@@ -1,5 +1,6 @@
 import { supabase, safeSupabaseQuery } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import { handleError } from '../shared/error-handler.js';
 import { createEl, createIcon } from '../ui/dom-helpers.js';
 import { Toast } from '../ui/toast.js';
 import {
@@ -475,7 +476,7 @@ async function openGunForm(
         closeModal();
         showGunsModal(islandId, islandName, stationId);
       } catch (err) {
-        Toast.show('Errore: ' + (err as Error).message, 'error');
+        handleError(err, 'saveGun');
       }
     });
   }
@@ -710,7 +711,7 @@ async function showCounterEditModal(
         closeModal();
         showGunsModal(islandId, islandName, stationId);
       } catch (err) {
-        Toast.show('Errore: ' + (err as Error).message, 'error');
+        handleError(err, 'updateCounter');
       }
     });
   }
@@ -737,6 +738,6 @@ async function deleteGun(
     showInfoModal('Pistola eliminata con successo!');
     showGunsModal(islandId, islandName, stationId);
   } catch (err) {
-    Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
+    handleError(err, 'deleteGun');
   }
 }

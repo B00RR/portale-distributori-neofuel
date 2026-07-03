@@ -13,6 +13,7 @@ import { showInvoiceMenu } from './invoices.js';
 import { showAperturaForm } from './opening.js';
 import { showOutflowMenu } from './outflows.js';
 import { showPrezziEditForm } from './prices.js';
+import { getSelectedOperatorStationId } from './station-context.js';
 import { showVoucherMenu } from './vouchers.js';
 
 // ========== TYPE DEFINITIONS ==========
@@ -38,7 +39,7 @@ class OperatorRouter {
    */
   async navigateTo(view: OperatorView): Promise<void> {
     const user = store.getUser() as ExtendedUser | null;
-    const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
+    const stationId = getSelectedOperatorStationId(user);
     const userId = user?.id || user?.user_id;
 
     if (!stationId || !userId) {

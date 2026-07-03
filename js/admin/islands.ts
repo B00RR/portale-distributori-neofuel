@@ -1,4 +1,5 @@
 import { supabase, safeSupabaseQuery, getStationName } from '../core/api.js';
+import { handleError } from '../shared/error-handler.js';
 import { createEl, createIcon } from '../ui/dom-helpers.js';
 import { Toast } from '../ui/toast.js';
 import {
@@ -302,7 +303,7 @@ async function openIslandForm(
         closeModal();
         showIslandsModal(stationId);
       } catch (err) {
-        Toast.show('Errore: ' + (err as Error).message, 'error');
+        handleError(err, 'saveIsland');
       }
     });
   }
@@ -330,6 +331,6 @@ async function deleteIsland(islandId: number, stationId: number | string): Promi
     showInfoModal('Isola eliminata con successo!');
     showIslandsModal(stationId);
   } catch (err) {
-    Toast.show('Errore eliminazione: ' + (err as Error).message, 'error');
+    handleError(err, 'deleteIsland');
   }
 }

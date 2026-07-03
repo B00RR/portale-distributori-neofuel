@@ -11,6 +11,7 @@
 import { supabase, type Json } from '../core/api.js';
 import { loggedUser } from '../core/auth.js';
 import { logger } from '../core/logger.js';
+import { handleError } from '../shared/error-handler.js';
 import type { CustomWindow } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, openConfirmModal } from '../ui/ui.js';
@@ -233,8 +234,7 @@ export async function loadDashboardConfig(): Promise<DashboardConfig> {
       gridColumns: data.grid_columns || 4
     };
   } catch (err: unknown) {
-    logger.error('dashboardConfig', 'Error loading:', err);
-    Toast.show('Errore caricamento configurazione dashboard', 'error');
+    handleError(err, 'loadDashboardConfig');
     return getDefaultConfig();
   }
 }
@@ -271,8 +271,7 @@ export async function saveDashboardConfig(config: DashboardConfig): Promise<bool
     Toast.show('Configurazione dashboard salvata!', 'success');
     return true;
   } catch (err: unknown) {
-    logger.error('dashboardConfig', 'Error saving:', err);
-    Toast.show('Errore salvataggio configurazione: ' + getErrorMessage(err), 'error');
+    handleError(err, 'saveDashboardConfig');
     return false;
   }
 }
@@ -310,8 +309,7 @@ export async function resetDashboardConfig(): Promise<boolean> {
     Toast.show('Configurazione ripristinata ai valori predefiniti', 'success');
     return true;
   } catch (err: unknown) {
-    logger.error('dashboardConfig', 'Error resetting:', err);
-    Toast.show('Errore ripristino configurazione: ' + getErrorMessage(err), 'error');
+    handleError(err, 'resetDashboardConfig');
     return false;
   }
 }
