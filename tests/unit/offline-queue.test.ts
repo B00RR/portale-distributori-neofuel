@@ -175,4 +175,22 @@ describe('Offline Queue Module', () => {
 
         expect(await offlineQueue.getPendingActions()).toHaveLength(2);
     });
+
+    it('does not execute the same action twice when sync is called concurrently', async () => {
+        const mockExecutor = vi.fn().mockResolvedValue(true);
+        offlineQueue.registerExecutor('generic', mockExecutor);
+
+        await offlineQueue.queueAction('generic', { testData: 'concurrency-test' });
+        await new Promise(r => setTimeout(r, 20));
+
+        const [resultA, resultB] = await Promise.all([
+            offlineQueue.syncPendingActions(),
+            offlineQueue.syncPendingActions()
+        ]);
+
+        expect(resultA.success).toBe(1);
+        expect(resultB.success).toBe(1);
+        expect(mockExecutor).toHaveBeenCalledTimes(1);
+        expect(await offlineQueue.getPendingActions()).toHaveLength(0);
+    });
 });
