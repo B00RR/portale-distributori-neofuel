@@ -119,8 +119,10 @@ export async function mockSupabaseSession(page, { role = 'admin' } = {}) {
     })
   );
 
-  // user_stations (app.ts percorso operatore -> .maybeSingle()): oggetto singolo.
-  await page.route(/\/rest\/v1\/user_stations/, route => json(route, 200, { station_id: 1 }));
+  // user_stations (app.ts percorso operatore -> .select()): lista assegnazioni.
+  await page.route(/\/rest\/v1\/user_stations/, route =>
+    json(route, 200, [{ station_id: 1, fuel_stations: { station_name: 'Stazione E2E' } }])
+  );
 }
 
 /**
