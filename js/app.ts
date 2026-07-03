@@ -18,6 +18,7 @@ import {
 import { LoggedUserData } from './core/auth.js';
 import { logger } from './core/logger.js';
 import { initOfflineQueue, setupAutoSync, registerExecutor } from './core/offline-queue.js';
+import { ensureSelectedOperatorStation } from './operator/station-context.js';
 import { showOperatorMenu } from './operator.js';
 import { store, User as StateUser } from './shared/state.js';
 import { CustomWindow } from './types.js';
@@ -84,7 +85,7 @@ function parseUserId(userId: string | number | undefined): number | undefined {
 }
 
 function mapLoggedUserToStoreUser(loggedUser: LoggedUserData): StateUser {
-  return {
+  const user: StateUser = {
     id: loggedUser.id,
     user_id: String(loggedUser.user_id),
     email: loggedUser.email,
@@ -92,6 +93,56 @@ function mapLoggedUserToStoreUser(loggedUser: LoggedUserData): StateUser {
     role: loggedUser.role,
     station_id: loggedUser.station_id ?? null
   };
+
+  if (loggedUser.assignedStations) {
+    user.assignedStations = loggedUser.assignedStations.map(station =>
+      station.name ? { id: station.id, name: station.name } : { id: station.id }
+    );
+  }
+
+  return user;
+}
+
+type AssignedStation = NonNullable<StateUser['assignedStations']>[number];
+
+function readStationNameFromRelation(relation: unknown): string | undefined {
+  const station = Array.isArray(relation) ? relation[0] : relation;
+  if (typeof station !== 'object' || station === null || !('station_name' in station)) {
+    return undefined;
+  }
+
+  const name = (station as { station_name?: unknown }).station_name;
+  return typeof name === 'string' ? name : undefined;
+}
+
+async function fetchAssignedStations(dbUserId: number): Promise<AssignedStation[]> {
+  const { data, error } = await supabase
+    .from('user_stations')
+    .select('station_id, fuel_stations(station_name)')
+    .eq('user_id', dbUserId);
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as Array<{ station_id: string | number; fuel_stations?: unknown }>).map(
+    row => {
+      const name = readStationNameFromRelation(row.fuel_stations);
+      return name ? { id: row.station_id, name } : { id: row.station_id };
+    }
+  );
+}
+
+async function buildOperatorUserContext(
+  userForStore: StateUser,
+  dbUserId: number
+): Promise<{ user: StateUser; stationId: string | null }> {
+  const assignedStations = await fetchAssignedStations(dbUserId);
+  return ensureSelectedOperatorStation({
+    ...userForStore,
+    station_id: userForStore.station_id ?? assignedStations[0]?.id ?? null,
+    assignedStations
+  });
 }
 
 // Espone funzioni globali per compatibilità
@@ -203,25 +254,28 @@ async function initializeApp(): Promise<void> {
         Toast.show('Errore identificativo utente', 'error');
         return;
       }
-      const { data: us } = await supabase
-        .from('user_stations')
-        .select('station_id')
-        .eq('user_id', dbUserId)
-        .maybeSingle();
-      const stId = us?.station_id ?? null;
+      try {
+        const { user: freshUser, stationId } = await buildOperatorUserContext(
+          userForStore,
+          dbUserId
+        );
 
-      if (stId) {
-        // Update the user object in store with the fresh station_id
-        const freshUser = { ...userForStore, station_id: stId };
+        if (!stationId) {
+          Toast.show("Nessuna stazione assegnata all'utente", 'error');
+          return;
+        }
+
+        // Update the user object in store with all assignments and selected station_id.
         store.setUser(freshUser);
         try {
-          await showOperatorMenu(String(userForStore.id), stId);
-        } catch (err) {
-          logger.error('App', 'Failed to show operator menu:', err);
+          await showOperatorMenu(String(userForStore.id), stationId);
+        } catch (menuError) {
+          logger.error('App', 'Failed to show operator menu:', menuError);
           Toast.show('Errore durante il caricamento del menu operatore', 'error');
         }
-      } else {
-        Toast.show("Nessuna stazione assegnata all'utente", 'error');
+      } catch (err) {
+        logger.error('App', 'Failed to load operator station assignments:', err);
+        Toast.show('Errore durante il caricamento delle stazioni operatore', 'error');
       }
     }
   });
@@ -271,24 +325,27 @@ async function initializeApp(): Promise<void> {
         logger.error('App', 'Invalid user_id from session:', loggedUser.user_id);
         Toast.show('Errore identificativo utente', 'error');
       } else {
-        const { data: us } = await supabase
-          .from('user_stations')
-          .select('station_id')
-          .eq('user_id', dbUserId)
-          .maybeSingle();
-        const stId = us?.station_id ?? null;
+        try {
+          const { user: freshUser, stationId } = await buildOperatorUserContext(
+            mapLoggedUserToStoreUser(loggedUser),
+            dbUserId
+          );
 
-        if (stId) {
-          const freshUser = mapLoggedUserToStoreUser({ ...loggedUser, station_id: stId });
+          if (!stationId) {
+            Toast.show("Nessuna stazione assegnata all'utente", 'error');
+            return;
+          }
+
           store.setUser(freshUser);
           try {
-            await showOperatorMenu(String(loggedUser.id), stId);
-          } catch (err) {
-            logger.error('App', 'Failed to restore operator menu:', err);
+            await showOperatorMenu(String(loggedUser.id), stationId);
+          } catch (menuError) {
+            logger.error('App', 'Failed to restore operator menu:', menuError);
             Toast.show('Errore durante il ripristino della sessione', 'error');
           }
-        } else {
-          Toast.show("Nessuna stazione assegnata all'utente", 'error');
+        } catch (err) {
+          logger.error('App', 'Failed to restore operator station assignments:', err);
+          Toast.show('Errore durante il caricamento delle stazioni operatore', 'error');
         }
       }
     }

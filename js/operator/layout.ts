@@ -12,6 +12,7 @@ import { openConfirmModal } from '../ui/ui.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { OperatorView } from './router.js';
+import { getSelectedOperatorStationId, setSelectedOperatorStation } from './station-context.js';
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -19,10 +20,11 @@ export interface OperatorHandlers {
   onNavigate: (view: OperatorView) => void;
   onOpening: (stationId: string, userId: string) => void;
   onClosure: (stationId: string, userId: string) => void;
+  onStationChange?: (stationId: string) => void;
 }
 
 interface ExtendedUser extends User {
-  assignedStations?: Array<{ id: string }>;
+  assignedStations?: Array<{ id: string | number; name?: string }>;
 }
 
 // ========== FUNCTIONS ==========
@@ -35,7 +37,7 @@ export async function renderOperatorShell(
   handlers: OperatorHandlers
 ): Promise<void> {
   const user = store.getUser() as ExtendedUser | null;
-  const stationId = user?.station_id || user?.assignedStations?.[0]?.id;
+  const stationId = getSelectedOperatorStationId(user);
 
   if (!document.getElementById('operator-custom-styles')) {
     injectStyles();
@@ -47,6 +49,7 @@ export async function renderOperatorShell(
                 <div class="header-left">
                     <img src="/assets/images/logo-svg.svg" alt="Neofuel" style="height: 40px; vertical-align: middle;">
                     <span class="station-badge" id="station-badge">Caricamento...</span>
+                    <span class="station-selector-slot" id="operator-station-selector-slot"></span>
                 </div>
                 <div class="header-right">
                     <span id="sync-indicator" class="sync-badge" title="Operazioni in attesa di sincronizzazione">
@@ -110,15 +113,65 @@ export async function renderOperatorShell(
 
   const userId = user?.id || user?.user_id;
 
+  renderStationSelector(user, stationId, userId ? String(userId) : null, handlers);
+
   if (stationId && userId) {
-    updateStationBadge(String(stationId));
-    updateTurnoButton(String(stationId), String(userId), handlers);
+    updateStationBadge(stationId);
+    updateTurnoButton(stationId, String(userId), handlers);
   }
 
   attachEventListeners(handlers);
   updateSyncBadge();
 
   document.addEventListener('sync-status-changed', updateSyncBadge);
+}
+
+function renderStationSelector(
+  user: ExtendedUser | null,
+  stationId: string | null,
+  userId: string | null,
+  handlers: OperatorHandlers
+): void {
+  const assignedStations = user?.assignedStations ?? [];
+  if (assignedStations.length <= 1 || !stationId || !userId) {
+    return;
+  }
+
+  const slot = document.getElementById('operator-station-selector-slot');
+  if (!slot) {
+    return;
+  }
+
+  const label = document.createElement('label');
+  label.className = 'operator-station-selector-label';
+  label.htmlFor = 'operator-station-select';
+  label.textContent = 'Stazione';
+
+  const select = document.createElement('select');
+  select.id = 'operator-station-select';
+  select.className = 'operator-station-select';
+  select.setAttribute('aria-label', 'Seleziona stazione operatore');
+
+  assignedStations.forEach(station => {
+    const option = document.createElement('option');
+    option.value = String(station.id);
+    option.textContent = station.name || `Stazione ${station.id}`;
+    option.selected = option.value === stationId;
+    select.appendChild(option);
+  });
+
+  select.addEventListener('change', () => {
+    const selectedStationId = setSelectedOperatorStation(select.value);
+    if (!selectedStationId) {
+      return;
+    }
+
+    updateStationBadge(selectedStationId);
+    updateTurnoButton(selectedStationId, userId, handlers);
+    handlers.onStationChange?.(selectedStationId);
+  });
+
+  slot.append(label, select);
 }
 
 /**
