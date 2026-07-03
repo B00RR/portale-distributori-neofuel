@@ -7,6 +7,10 @@ import { setSafeHTML } from '../utils/sanitizer.js';
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
 
+interface PersistOptions {
+  createdAt?: string;
+}
+
 /**
  * Mostra il menu per la gestione delle uscite di cassa
  * @param {number | string} stationId - ID della stazione
@@ -120,26 +124,36 @@ function renderOutflowForm(
       }
 
       try {
-        const { error } = await supabase.from('movimenti_cassa').insert([
-          {
-            station_id: Number(stationId),
-            operator_id: Number(userId),
-            tipo: 'uscita',
-            importo: amount,
-            descrizione: `[${type.toUpperCase()}] ${description}`,
-            created_at: new Date().toISOString()
-          }
-        ]);
-
-        if (error) {
-          throw error;
-        }
-
+        await processOutflow(stationId, userId, amount, type, description);
         closeModal();
         showInfoModal(`Uscita di € ${amount.toFixed(2)} registrata correttamente.`);
       } catch (err: unknown) {
         handleError(err, 'showOutflowMenu_submit');
       }
     });
+  }
+}
+
+export async function processOutflow(
+  stationId: number | string,
+  userId: string,
+  amount: number,
+  type: string,
+  description: string,
+  options?: PersistOptions
+): Promise<void> {
+  const { error } = await supabase.from('movimenti_cassa').insert([
+    {
+      station_id: Number(stationId),
+      operator_id: Number(userId),
+      tipo: 'uscita',
+      importo: amount,
+      descrizione: `[${type.toUpperCase()}] ${description}`,
+      created_at: options?.createdAt ?? new Date().toISOString()
+    }
+  ]);
+
+  if (error) {
+    throw error;
   }
 }
