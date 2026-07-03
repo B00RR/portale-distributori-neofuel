@@ -22,8 +22,8 @@ conditions, aggiorna la tua riga qui sotto a lavoro finito.
 | 032 | Idempotenza mutazioni offline via request-id | P2 | L | 029 (fatto) | bug | TODO | [#143](https://github.com/B00RR/portale-distributori-neofuel/issues/143) |
 | 033 | Test reali per export_utils (fine del test-teatro) | P1 | M | — | tests | DONE — [PR #159](https://github.com/B00RR/portale-distributori-neofuel/pull/159) | [#144](https://github.com/B00RR/portale-distributori-neofuel/issues/144) |
 | 034 | Test reali per calculation-engine | P1 | M | — | tests | DONE — [PR #162](https://github.com/B00RR/portale-distributori-neofuel/pull/162) | [#145](https://github.com/B00RR/portale-distributori-neofuel/issues/145) |
-| 035 | Rimuovere scaffold Storybook morto | P3 | S | — | tech-debt | TODO | [#146](https://github.com/B00RR/portale-distributori-neofuel/issues/146) |
-| 036 | Pulizia infra test (mock morti + marker) | P3 | S | — | tech-debt | TODO | [#147](https://github.com/B00RR/portale-distributori-neofuel/issues/147) |
+| 035 | Rimuovere scaffold Storybook morto | P3 | S | — | tech-debt | DONE — PR #163 | [#146](https://github.com/B00RR/portale-distributori-neofuel/issues/146) |
+| 036 | Pulizia infra test (mock morti + marker) | P3 | S | — | tech-debt | DONE — PR #163 | [#147](https://github.com/B00RR/portale-distributori-neofuel/issues/147) |
 | 037 | Igiene dipendenze (dotenv/@types-qrcode/Percy) | P3 | S | — | tech-debt | TODO | [#148](https://github.com/B00RR/portale-distributori-neofuel/issues/148) |
 | 038 | Allineare doc copertura al gate reale | P3 | S | — | docs | TODO | [#149](https://github.com/B00RR/portale-distributori-neofuel/issues/149) |
 | 039 | Estrarre createEl/createIcon in helper condiviso | P3 | M | — | tech-debt | TODO | [#150](https://github.com/B00RR/portale-distributori-neofuel/issues/150) |
