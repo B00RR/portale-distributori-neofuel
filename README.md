@@ -136,7 +136,7 @@ supabase/
 
 ## 🧪 Testing
 
-**Coverage attuale**: ~70% sui path critici
+**Coverage gate**: statements ≥ 45%, branches ≥ 34%, functions ≥ 43%, lines ≥ 47% (soglie attuali in `config/vitest.config.ts`); obiettivo a tendere ~70% sui path critici.
 
 ### Unit & Integration Tests
 ```bash
@@ -248,7 +248,7 @@ npm audit fix         # Fix automatico dipendenze
 **Before submitting:**
 - ✅ Run `npm test` (tutti i test devono passare)
 - ✅ Run `npm run test:e2e` (E2E tests devono passare)
-- ✅ Code coverage ≥ 70% su nuovi file
+- ✅ Code coverage gate ≥ 47% lines / 45% statements / 43% functions / 34% branches (soglie attuali); nuovi file idealmente ≥ 70% quando fattibile.
 - ✅ ESLint clean (`npm run lint`)
 
 ## 📊 Code Quality Metrics
@@ -256,7 +256,7 @@ npm audit fix         # Fix automatico dipendenze
 | Metrica | Score |
 |---------|-------|
 | **Overall Quality** | **9/10** ⭐ |
-| Test Coverage | 70%+ |
+| Test Coverage | Gate 47% lines / 70%+ target |
 | E2E Tests | 6 scenarios |
 | Lighthouse Score | 90+ |
 | Security Audit | 0 high/critical |
