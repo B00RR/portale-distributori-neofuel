@@ -1,60 +1,10 @@
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
+import { createEl, createIcon } from '../ui/dom-helpers.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage } from '../ui/ui.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
-
-// --- DOM HELPER ---
-
-function createIcon(className: string): HTMLElement {
-  const icon = document.createElement('i');
-  icon.className = className;
-  return icon;
-}
-
-function createEl<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  options: {
-    id?: string;
-    classes?: string[];
-    text?: string;
-    attrs?: Record<string, string>;
-    dataset?: Record<string, string>;
-    style?: Record<string, string>;
-    children?: (HTMLElement | Node)[];
-  } = {}
-): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
-  if (options.id) {
-    el.id = options.id;
-  }
-  if (options.classes) {
-    el.classList.add(...options.classes.filter(Boolean));
-  }
-  if (options.text !== undefined) {
-    el.textContent = options.text;
-  }
-  if (options.attrs) {
-    Object.entries(options.attrs).forEach(([key, value]) => {
-      el.setAttribute(key, value);
-    });
-  }
-  if (options.dataset) {
-    Object.entries(options.dataset).forEach(([key, value]) => {
-      el.setAttribute(`data-${key}`, value);
-    });
-  }
-  if (options.style) {
-    Object.entries(options.style).forEach(([key, value]) => {
-      el.style.setProperty(key, value);
-    });
-  }
-  if (options.children) {
-    options.children.forEach(child => el.appendChild(child));
-  }
-  return el;
-}
 
 // --- INTERFACES ---
 

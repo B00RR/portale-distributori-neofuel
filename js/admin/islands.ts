@@ -1,4 +1,5 @@
 import { supabase, safeSupabaseQuery, getStationName } from '../core/api.js';
+import { createEl, createIcon } from '../ui/dom-helpers.js';
 import { Toast } from '../ui/toast.js';
 import {
   openModal,
@@ -11,65 +12,6 @@ import {
 import { escapeHtml } from '../utils/utils.js';
 
 import { showGunsModal } from './guns.js';
-
-// --- DOM HELPERS ---
-
-function createIcon(className: string): HTMLElement {
-  const icon = document.createElement('i');
-  icon.className = className;
-  return icon;
-}
-
-function createEl<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  options: {
-    id?: string;
-    classes?: string[];
-    text?: string;
-    attrs?: Record<string, string>;
-    dataset?: Record<string, string>;
-    style?: Record<string, string>;
-    children?: (HTMLElement | Node)[];
-    type?: string;
-    value?: string;
-    required?: boolean;
-    placeholder?: string;
-    name?: string;
-  } = {}
-): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
-  if (options.id) {
-    el.id = options.id;
-  }
-  if (options.classes) {
-    el.classList.add(...options.classes.filter(Boolean));
-  }
-  if (options.text !== undefined) {
-    el.textContent = options.text;
-  }
-  if (options.attrs) {
-    Object.entries(options.attrs).forEach(([key, value]) => {
-      el.setAttribute(key, value);
-    });
-  }
-  if (options.dataset) {
-    Object.entries(options.dataset).forEach(([key, value]) => {
-      el.setAttribute(`data-${key}`, value);
-    });
-  }
-  if (options.style) {
-    Object.entries(options.style).forEach(([key, value]) => {
-      el.style.setProperty(key, value);
-    });
-  }
-  if (options.children) {
-    options.children.forEach(child => el.appendChild(child));
-  }
-  if (options.value !== undefined && (tag === 'input' || tag === 'textarea' || tag === 'select')) {
-    (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value = options.value;
-  }
-  return el;
-}
 
 // --- INTERFACES ---
 
