@@ -105,7 +105,12 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
 
       const cardBody = createEl('div', {
         classes: ['card-body'],
-        style: { flex: '1', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }
+        style: {
+          flex: '1',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between'
+        }
       });
 
       const desc = createEl('p', {
@@ -144,13 +149,16 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
       style: { display: 'flex', alignItems: 'center', gap: '10px' }
     });
     cashInputGroup.appendChild(cashInput);
-    cashInputGroup.appendChild(createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: '€' }));
+    cashInputGroup.appendChild(
+      createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: '€' })
+    );
 
     grid.appendChild(
       createSettingCard({
         key: 'cash_error_threshold',
         label: 'Tolleranza Errore Cassa',
-        description: 'Differenza massima accettata tra cassa attesa e contanti contati a chiusura turno.',
+        description:
+          'Differenza massima accettata tra cassa attesa e contanti contati a chiusura turno.',
         icon: 'fas fa-hand-holding-usd',
         inputElement: cashInputGroup
       })
@@ -174,7 +182,9 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
       style: { display: 'flex', alignItems: 'center', gap: '10px' }
     });
     priceInputGroup.appendChild(priceInput);
-    priceInputGroup.appendChild(createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: '€/L' }));
+    priceInputGroup.appendChild(
+      createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: '€/L' })
+    );
 
     grid.appendChild(
       createSettingCard({
@@ -204,7 +214,9 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
       style: { display: 'flex', alignItems: 'center', gap: '10px' }
     });
     reserveInputGroup.appendChild(reserveInput);
-    reserveInputGroup.appendChild(createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: 'L' }));
+    reserveInputGroup.appendChild(
+      createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: 'L' })
+    );
 
     grid.appendChild(
       createSettingCard({
@@ -234,13 +246,16 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
       style: { display: 'flex', alignItems: 'center', gap: '10px' }
     });
     closeHoursInputGroup.appendChild(closeHoursInput);
-    closeHoursInputGroup.appendChild(createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: 'ore' }));
+    closeHoursInputGroup.appendChild(
+      createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: 'ore' })
+    );
 
     grid.appendChild(
       createSettingCard({
         key: 'force_close_hours_threshold',
         label: 'Scadenza Turno Aperto',
-        description: 'Tempo massimo dopo il quale un turno rimasto aperto può essere forzato in chiusura.',
+        description:
+          'Tempo massimo dopo il quale un turno rimasto aperto può essere forzato in chiusura.',
         icon: 'fas fa-clock',
         inputElement: closeHoursInputGroup
       })
@@ -264,13 +279,16 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
       style: { display: 'flex', alignItems: 'center', gap: '10px' }
     });
     discrepancyInputGroup.appendChild(discrepancyInput);
-    discrepancyInputGroup.appendChild(createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: '€' }));
+    discrepancyInputGroup.appendChild(
+      createEl('span', { classes: ['text-secondary', 'font-weight-bold'], text: '€' })
+    );
 
     grid.appendChild(
       createSettingCard({
         key: 'critical_discrepancy_alert',
         label: 'Soglia Allarme Grave',
-        description: 'Invia una notifica prioritaria se la discrepanza di cassa supera questo valore.',
+        description:
+          'Invia una notifica prioritaria se la discrepanza di cassa supera questo valore.',
         icon: 'fas fa-exclamation-triangle',
         inputElement: discrepancyInputGroup
       })
@@ -291,7 +309,12 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
       style: { cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }
     });
     notificationsLabel.appendChild(notificationsCheckbox);
-    notificationsLabel.appendChild(createEl('span', { style: { fontSize: '0.9em', color: 'var(--text-secondary)' }, text: 'Abilitato' }));
+    notificationsLabel.appendChild(
+      createEl('span', {
+        style: { fontSize: '0.9em', color: 'var(--text-secondary)' },
+        text: 'Abilitato'
+      })
+    );
 
     grid.appendChild(
       createSettingCard({
@@ -450,7 +473,6 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
         setButtonLoading(submitBtn, false);
       }
     });
-
   } catch (err) {
     handleError(err, 'showBusinessRulesSettings', container);
   }
