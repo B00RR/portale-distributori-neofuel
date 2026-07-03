@@ -7,6 +7,10 @@ import { setSafeHTML } from '../utils/sanitizer.js';
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
 
+interface PersistOptions {
+  createdAt?: string;
+}
+
 /**
  * Mostra il menu per la gestione degli incassi extra (olio, AdBlue, ecc.)
  * @param {number | string} stationId - ID della stazione
@@ -127,13 +131,13 @@ function renderExtraIncomeForm(
     requiredIndicator.style.display = requiresDescription ? 'inline' : 'none';
 
     if (!requiresDescription) {
-      descriptionField.value = ''; // Clear if not required
+      descriptionField.value = '';
     }
   }
 
   if (productTypeSelect) {
     productTypeSelect.addEventListener('change', updateDescriptionRequired);
-    updateDescriptionRequired(); // Initialize on load
+    updateDescriptionRequired();
   }
 
   const form = document.getElementById('extra-income-form') as HTMLFormElement | null;
@@ -151,27 +155,36 @@ function renderExtraIncomeForm(
       }
 
       try {
-        // Salva in movimenti_cassa con tipo 'incasso'
-        const { error } = await supabase.from('movimenti_cassa').insert([
-          {
-            station_id: Number(stationId),
-            operator_id: Number(userId),
-            tipo: 'incasso', // Tipo per identificare gli incassi extra
-            importo: amount,
-            descrizione: `[${type.toUpperCase()}] ${description}`,
-            created_at: new Date().toISOString()
-          }
-        ]);
-
-        if (error) {
-          throw error;
-        }
-
+        await processExtraIncome(stationId, userId, amount, type, description);
         closeModal();
         showInfoModal(`Incasso di € ${amount.toFixed(2)} registrato correttamente.`);
       } catch (err: unknown) {
         handleError(err, 'showExtraIncomeMenu_submit');
       }
     });
+  }
+}
+
+export async function processExtraIncome(
+  stationId: number | string,
+  userId: string,
+  amount: number,
+  type: string,
+  description: string,
+  options?: PersistOptions
+): Promise<void> {
+  const { error } = await supabase.from('movimenti_cassa').insert([
+    {
+      station_id: Number(stationId),
+      operator_id: Number(userId),
+      tipo: 'incasso',
+      importo: amount,
+      descrizione: `[${type.toUpperCase()}] ${description}`,
+      created_at: options?.createdAt ?? new Date().toISOString()
+    }
+  ]);
+
+  if (error) {
+    throw error;
   }
 }
