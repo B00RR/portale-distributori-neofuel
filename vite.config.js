@@ -162,6 +162,12 @@ export default defineConfig(({ mode }) => {
             chunkSizeWarningLimit: 700,
             cssCodeSplit: true,
             rollupOptions: {
+                onwarn(warning, warn) {
+                    if (warning.code === 'EVAL' && warning.id && warning.id.includes('xlsx-populate')) {
+                        return; // workaround temporaneo #140 — rimuovere quando #122 sostituisce la libreria
+                    }
+                    warn(warning);
+                },
                 output: {
                     // Issue #123: split dei vendor pesanti fuori dal chunk principale
                     // così ogni libreria è cacheata indipendentemente dal browser/SW.
