@@ -5,7 +5,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
-import { CustomWindow, type XlsxSheet } from '../types.js';
 import { Toast } from '../ui/toast.js';
 
 /** Narrow an unknown value to a property bag, defaulting to an empty record. */
@@ -438,12 +437,187 @@ export async function fetchClosureExportData(
   return closure;
 }
 
-function populateClosureSheet(sheet: XlsxSheet, templateData: ExportMetrics): void {
-  const setCell = (addr: string, value: unknown): void => {
-    const cell = sheet.cell(addr);
-    if (cell) {
-      cell.value(value ?? '');
+interface XlsxTemplateArchive {
+  file(path: string): XlsxTemplateFile | null;
+  file(path: string, data: string | Blob): void;
+  generateAsync(options: { type: 'blob' }): Promise<Blob>;
+}
+
+interface XlsxTemplateFile {
+  async(type: 'string'): Promise<string>;
+}
+
+interface XlsxZipConstructor {
+  new (): XlsxTemplateArchive;
+  loadAsync(data: ArrayBuffer): Promise<XlsxTemplateArchive>;
+}
+
+interface XlsxSheetXml {
+  getCell(address: string): { value: unknown };
+  toXml(): string;
+}
+
+interface JsZipModuleLike {
+  default: XlsxZipConstructor;
+}
+
+const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const WORKSHEET_PATH = 'xl/worksheets/sheet1.xml';
+
+async function loadJsZip(): Promise<XlsxZipConstructor> {
+  const module = (await import('jszip')) as unknown as JsZipModuleLike;
+  return module.default;
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function columnNameToNumber(columnName: string): number {
+  return columnName.split('').reduce((acc, char) => acc * 26 + char.charCodeAt(0) - 64, 0);
+}
+
+function splitCellAddress(address: string): { column: string; row: number } {
+  const match = /^([A-Z]+)(\d+)$/.exec(address);
+  if (!match) {
+    throw new Error(`Indirizzo cella Excel non valido: ${address}`);
+  }
+  return { column: match[1] ?? 'A', row: Number(match[2] ?? 1) };
+}
+
+function renderCell(address: string, value: unknown, existingCell?: string): string {
+  const openTagMatch = existingCell?.match(/^<c\b([^>]*)>/);
+  let attrs = openTagMatch?.[1] ?? ` r="${address}"`;
+
+  if (!/\br=/.test(attrs)) {
+    attrs = ` r="${address}"${attrs}`;
+  }
+  attrs = attrs.replace(/\s+t="[^"]*"/g, '');
+
+  if (value === null || value === undefined || value === '') {
+    return `<c${attrs}/>`;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return `<c${attrs}><v>${value}</v></c>`;
+  }
+
+  return `<c${attrs} t="inlineStr"><is><t>${escapeXml(String(value))}</t></is></c>`;
+}
+
+function upsertCellXml(xml: string, address: string, value: unknown): string {
+  const { column, row } = splitCellAddress(address);
+  // eslint-disable-next-line security/detect-non-literal-regexp -- address is an internal fixed Excel cell reference
+  const cellPattern = new RegExp(
+    String.raw`<c\b(?=[^>]*\br="${address}")[\s\S]*?</c>|<c\b(?=[^>]*\br="${address}")[^>]*/>`,
+    'u'
+  );
+  const existing = xml.match(cellPattern)?.[0];
+  const cellXml = renderCell(address, value, existing);
+
+  if (existing) {
+    return xml.replace(cellPattern, cellXml);
+  }
+
+  // eslint-disable-next-line security/detect-non-literal-regexp -- row is parsed from an internal fixed Excel cell reference
+  const rowPattern = new RegExp(
+    String.raw`(<row\b(?=[^>]*\br="${row}")[^>]*>)([\s\S]*?)(</row>)`,
+    'u'
+  );
+  const rowMatch = xml.match(rowPattern);
+  if (!rowMatch) {
+    return xml.replace('</sheetData>', `<row r="${row}">${cellXml}</row></sheetData>`);
+  }
+
+  const before = rowMatch[1] ?? '';
+  const body = rowMatch[2] ?? '';
+  const after = rowMatch[3] ?? '';
+  const cellColumn = columnNameToNumber(column);
+  const existingCells = [
+    ...body.matchAll(
+      /<c\b(?=[^>]*\br="([A-Z]+)\d+")[\s\S]*?<\/c>|<c\b(?=[^>]*\br="([A-Z]+)\d+")[^>]*/gu
+    )
+  ];
+
+  let insertAt = body.length;
+  for (const match of existingCells) {
+    const existingColumn = match[1] ?? match[2];
+    if (existingColumn && columnNameToNumber(existingColumn) > cellColumn) {
+      insertAt = match.index ?? body.length;
+      break;
     }
+  }
+
+  const newBody = `${body.slice(0, insertAt)}${cellXml}${body.slice(insertAt)}`;
+  return xml.replace(rowPattern, `${before}${newBody}${after}`);
+}
+
+function createSheetXmlAdapter(initialXml: string): XlsxSheetXml {
+  let xml = initialXml;
+  return {
+    getCell(address: string) {
+      return {
+        set value(value: unknown) {
+          xml = upsertCellXml(xml, address, value);
+        },
+        get value() {
+          return undefined;
+        }
+      };
+    },
+    toXml() {
+      return xml;
+    }
+  };
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function createPopulatedClosureWorkbook(templateData: ExportMetrics): Promise<Blob> {
+  const templateBase64 = getClosureTemplateBase64();
+  if (!templateBase64) {
+    throw new Error('Template Excel mancante');
+  }
+
+  const buffer = base64ToArrayBuffer(templateBase64);
+  if (!buffer) {
+    throw new Error('Impossibile convertire il template base64 in ArrayBuffer');
+  }
+
+  const JSZip = await loadJsZip();
+  const workbook = await JSZip.loadAsync(buffer);
+  const worksheetFile = workbook.file(WORKSHEET_PATH);
+  if (!worksheetFile) {
+    throw new Error('Foglio Excel template non trovato');
+  }
+
+  const sheet = createSheetXmlAdapter(await worksheetFile.async('string'));
+  populateClosureSheet(sheet, templateData);
+  workbook.file(WORKSHEET_PATH, sheet.toXml());
+
+  const output = await workbook.generateAsync({ type: 'blob' });
+  if (output instanceof Blob) {
+    return output;
+  }
+  return new Blob([output], { type: EXCEL_MIME_TYPE });
+}
+
+function populateClosureSheet(sheet: XlsxSheetXml, templateData: ExportMetrics): void {
+  const setCell = (addr: string, value: unknown): void => {
+    sheet.getCell(addr).value = value ?? '';
   };
 
   const meta = templateData.meta || {};
@@ -524,49 +698,10 @@ function populateClosureSheet(sheet: XlsxSheet, templateData: ExportMetrics): vo
   setCell(`V${sRow + 1}`, summary.utaDkv || 0);
 }
 
-/**
- * Carica xlsx-populate on demand: il bundle browser (~640kB) serve solo per
- * l'export Excel e non deve pesare sullo startup dell'app (issue #123).
- * Il file UMD si registra da solo su window.XlsxPopulate.
- */
-async function ensureXlsxPopulate(): Promise<boolean> {
-  const customWindow = window as unknown as CustomWindow;
-  if (customWindow.XlsxPopulate) {
-    return true;
-  }
-  try {
-    await import('xlsx-populate/browser/xlsx-populate.js');
-  } catch (e) {
-    logger.error('exportUtils', 'Caricamento libreria Excel fallito:', e);
-  }
-  return Boolean(customWindow.XlsxPopulate);
-}
-
 export async function generateClosureExcel(templateData: ExportMetrics): Promise<void> {
-  const customWindow = window as unknown as CustomWindow;
-  if (!(await ensureXlsxPopulate())) {
-    Toast.show('Libreria Excel non caricata', 'error');
-    return;
-  }
-  const templateBase64 = getClosureTemplateBase64();
-  if (!templateBase64) {
-    Toast.show('Template Excel mancante', 'error');
-    return;
-  }
-
   try {
-    const wb = await customWindow.XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
-    const sheet = wb.sheet(0);
-    populateClosureSheet(sheet, templateData);
-
-    const blob = await wb.outputAsync();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `chiusura_${templateData.meta?.dateSlug || 'export'}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const blob = await createPopulatedClosureWorkbook(templateData);
+    downloadBlob(blob, `chiusura_${templateData.meta?.dateSlug || 'export'}.xlsx`);
   } catch (e) {
     logger.error('exportUtils', 'Excel generation error:', e);
     Toast.show('Errore generazione Excel', 'error');
@@ -574,72 +709,10 @@ export async function generateClosureExcel(templateData: ExportMetrics): Promise
 }
 
 export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): Promise<void> {
-  const customWindow = window as unknown as CustomWindow;
-  if (!(await ensureXlsxPopulate())) {
-    Toast.show('Libreria Excel non caricata', 'error');
-    return;
-  }
-  const templateBase64 = getClosureTemplateBase64();
-  if (!templateBase64) {
-    Toast.show('Template Excel mancante', 'error');
-    return;
-  }
-
   try {
-    Toast.show('Generazione Excel Unico in corso...', 'info');
-
-    const wb = await customWindow.XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
-    const templateSheet = wb.sheet(0);
-    templateSheet.name('Template');
-
-    if (typeof templateSheet.clone !== 'function') {
-      throw new Error('Funzione clone() non supportata dal browser.');
-    }
-
-    for (let i = 0; i < closuresData.length; i++) {
-      // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
-      const data = closuresData[i];
-      if (!data) {
-        continue;
-      }
-
-      const dateStr = data.meta?.dateSlug || `C${i + 1}`;
-      const sheetName = `${dateStr}_${i + 1}`.substring(0, 31);
-
-      const newSheet = templateSheet.clone();
-      newSheet.name(sheetName);
-      populateClosureSheet(newSheet, data);
-    }
-
-    templateSheet.delete();
-    if (wb.sheets().length > 0) {
-      wb.sheet(0).active(true);
-    }
-
-    const blob = await wb.outputAsync();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const today = new Date().toISOString().split('T')[0];
-    a.download = `chiusure_multi_${today}_completo.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    Toast.show('Export completato!', 'success');
-    return;
-  } catch (e) {
-    logger.warn('exportUtils', 'Clone failed, falling back to ZIP strategy:', e);
-    Toast.show('Export unico non supportato dal browser. Generazione ZIP...', 'warning');
-  }
-
-  if (!customWindow.JSZip) {
-    Toast.show('Libreria ZIP mancante, impossibile procedere.', 'error');
-    return;
-  }
-
-  try {
-    const zip = new customWindow.JSZip();
+    Toast.show('Generazione ZIP Excel in corso...', 'info');
+    const JSZip = await loadJsZip();
+    const zip = new JSZip();
 
     for (let i = 0; i < closuresData.length; i++) {
       // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
@@ -650,28 +723,17 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
 
       const dateStr = data.meta?.dateSlug || `C${i + 1}`;
       const fileName = `chiusura_${dateStr}_${i + 1}.xlsx`;
-
-      const wb = await customWindow.XlsxPopulate.fromDataAsync(base64ToArrayBuffer(templateBase64));
-      const sheet = wb.sheet(0);
-      populateClosureSheet(sheet, data);
-
-      const blob = await wb.outputAsync();
+      const blob = await createPopulatedClosureWorkbook(data);
       zip.file(fileName, blob);
     }
 
     const zipContent = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(zipContent);
-    const a = document.createElement('a');
-    a.href = url;
     const today = new Date().toISOString().split('T')[0];
-    a.download = `chiusure_multi_export_${today}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    downloadBlob(zipContent, `chiusure_multi_export_${today}.zip`);
 
     Toast.show('Download ZIP completato!', 'success');
   } catch (e) {
-    logger.error('exportUtils', 'ZIP Fallback error:', e);
+    logger.error('exportUtils', 'ZIP export error:', e);
     const message = e instanceof Error ? e.message : 'Errore sconosciuto';
     Toast.show('Errore fatale export: ' + message, 'error');
   }

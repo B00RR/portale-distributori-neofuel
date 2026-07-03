@@ -10,15 +10,10 @@ import 'jspdf-autotable'; // patches jsPDF prototype
 import * as JSZip from 'jszip';
 import Sortable from 'sortablejs';
 import * as Split from 'split.js';
-// xlsx-populate (~640kB) is NOT imported here: it is lazy-loaded on first
-// Excel export by ensureXlsxPopulate() in js/utils/export_utils.ts (issue #123).
+// Excel export edits the XLSX template ZIP directly with lazy-loaded JSZip in
+// js/utils/export_utils.ts; no eval-based spreadsheet vendor is imported here.
 
-import type {
-  ChartConstructor,
-  Html5QrcodeConstructor,
-  SortableConstructor,
-  XlsxPopulateStatic
-} from '../types.js';
+import type { ChartConstructor, Html5QrcodeConstructor, SortableConstructor } from '../types.js';
 
 declare global {
   interface Window {
@@ -28,7 +23,6 @@ declare global {
     JSZip: typeof JSZip;
     Sortable: SortableConstructor;
     Split: typeof Split;
-    XlsxPopulate: XlsxPopulateStatic;
   }
 }
 

@@ -47,7 +47,6 @@ export default tseslint.config(
         ...globals.node,
         jspdf: 'readonly',
         jsPDF: 'readonly',
-        XlsxPopulate: 'readonly',
         Chart: 'readonly',
         Split: 'readonly',
         Sortable: 'readonly',

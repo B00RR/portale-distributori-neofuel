@@ -191,25 +191,6 @@ export interface SortableConstructor {
   new (element: HTMLElement, options?: SortableOptions): unknown;
 }
 
-export interface XlsxCell {
-  value(value?: unknown): unknown;
-}
-export interface XlsxSheet {
-  cell(address: string): XlsxCell | undefined;
-  name(name?: string): unknown;
-  clone(): XlsxSheet;
-  delete(): void;
-  active(active?: boolean): unknown;
-}
-export interface XlsxWorkbook {
-  sheet(index: number): XlsxSheet;
-  sheets(): XlsxSheet[];
-  outputAsync(): Promise<Blob>;
-}
-export interface XlsxPopulateStatic {
-  fromDataAsync(data: ArrayBuffer | null): Promise<XlsxWorkbook>;
-}
-
 export interface JSZipInstance {
   file(name: string, data: Blob): void;
   generateAsync(options: { type: string }): Promise<Blob>;
