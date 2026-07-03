@@ -115,7 +115,7 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
         <h3><i class="fas fa-user-plus"></i> Nuovo Credito</h3>
         <p class="section-subtitle">Registra un debito per un cliente</p>
         <form id="new-credit-form">
-          <div class="form-group"><label>Nome Cliente</label><input type="text" id="customer-name" name="customer_name" class="big-input" required autocomplete="off"></div>
+          <div class="form-group"><label>Nome Cliente</label><div style="position: relative;"><input type="text" id="customer-name" name="customer_name" class="big-input" required autocomplete="off"><div id="customer-suggestions" class="suggestions-list" style="display: none;"></div></div></div>
           <div class="form-group"><label>Importo (€)</label><input type="number" name="amount" step="0.01" min="0.01" class="big-input" required></div>
           <div class="form-group"><label>Prodotto</label><select name="product" class="big-input" required><option value="Gasolio">Gasolio</option><option value="Benzina">Benzina</option><option value="AdBlue">AdBlue</option><option value="Accessori">Accessori</option><option value="Altro">Altro</option></select></div>
           <div class="form-group"><label>Note (Opzionale)</label><textarea name="notes" rows="2" class="big-input"></textarea></div>
@@ -128,6 +128,26 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
   document
     .getElementById('btn-back-credits')
     ?.addEventListener('click', () => showCreditsMenu(stationId, userId));
+
+  const nameInput = document.getElementById('customer-name') as HTMLInputElement | null;
+  const suggestionsDiv = document.getElementById('customer-suggestions') as HTMLElement | null;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  if (nameInput && suggestionsDiv) {
+    nameInput.addEventListener('input', e => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      const query = (e.target as HTMLInputElement).value;
+      if (query.length < 2) {
+        suggestionsDiv.style.display = 'none';
+        return;
+      }
+      debounceTimer = setTimeout(() => {
+        void searchCustomersForInput(query, stationId, suggestionsDiv, nameInput);
+      }, 300);
+    });
+  }
 
   const form = document.getElementById('new-credit-form') as HTMLFormElement | null;
   form?.addEventListener('submit', async e => {
