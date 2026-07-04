@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockSupabase, mockToast, mockUI, mockUIComponents, mockOpening } = vi.hoisted(() => ({
+const { mockSupabase, mockToast, mockUI, mockUIComponents, mockOpening, mockLogger } = vi.hoisted(() => ({
     mockSupabase: {
         from: vi.fn(() => ({
             insert: vi.fn(() => Promise.resolve({ error: null }))
@@ -18,10 +18,18 @@ const { mockSupabase, mockToast, mockUI, mockUIComponents, mockOpening } = vi.ho
     },
     mockOpening: {
         checkOpeningStatus: vi.fn()
+    },
+    mockLogger: {
+        error: vi.fn(() => 'ERR-TEST'),
+        warn: vi.fn(),
+        info: vi.fn(),
+        debug: vi.fn(),
+        getUserMessage: vi.fn((errorId: string) => `Si è verificato un errore. Riferimento: ${errorId}`)
     }
 }));
 
 vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
+vi.mock('../../js/core/logger.js', () => ({ logger: mockLogger }));
 vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
 vi.mock('../../js/ui/ui.js', () => mockUI);
 vi.mock('../../js/operator/ui-components.js', () => mockUIComponents);
