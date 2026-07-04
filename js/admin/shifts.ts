@@ -581,7 +581,7 @@ export async function openBulkExportModal(): Promise<void> {
 
       // Validation
       if (type === 'date_range' && (!dateFrom || !dateTo)) {
-        Toast.show('Seleziona entrambe le date.', 'error');
+        Toast.show('Seleziona entrambe le date.', 'warning');
         return;
       }
 

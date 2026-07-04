@@ -108,7 +108,7 @@ describe('Operator Outflows Module', () => {
             expect(mockToast.show).toHaveBeenCalledWith(expect.stringContaining('valido'), 'warning');
         });
 
-        it('should handle database errors', async () => {
+        it('should handle and log database errors', async () => {
             mockOpening.checkOpeningStatus.mockResolvedValue({ id: 1 });
             mockSupabase.from.mockReturnValue({
                 insert: vi.fn(() => Promise.resolve({ error: { message: 'Insert failed' } }))
@@ -128,6 +128,10 @@ describe('Operator Outflows Module', () => {
 
             await new Promise(resolve => setTimeout(resolve, 50));
 
+            expect(mockLogger.error).toHaveBeenCalledWith(
+                'showOutflowMenu_submit',
+                expect.objectContaining({ message: 'Insert failed' })
+            );
             expect(mockToast.show).toHaveBeenCalledWith(expect.stringContaining('Insert failed'), 'error');
         });
     });
