@@ -1,4 +1,5 @@
 import { supabase } from '../core/api.js';
+import { isOffline, queueAction } from '../core/offline-queue.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
@@ -7,11 +8,15 @@ import { setSafeHTML } from '../utils/sanitizer.js';
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
 
-/**
- * Mostra il menu per la gestione degli incassi extra (olio, AdBlue, ecc.)
- * @param {number | string} stationId - ID della stazione
- * @param {string} userId - ID dell'operatore
- */
+interface PersistOptions {
+  skipOfflineQueue?: boolean;
+  createdAt?: string;
+}
+
+function shouldQueue(options?: PersistOptions): boolean {
+  return !options?.skipOfflineQueue && isOffline();
+}
+
 export async function showExtraIncomeMenu(
   stationId: number | string,
   userId: string
@@ -27,7 +32,6 @@ export async function showExtraIncomeMenu(
   );
 
   try {
-    // Verifica apertura turno
     const activeOpening = await checkOpeningStatus(stationId);
     if (!activeOpening) {
       setSafeHTML(
@@ -41,10 +45,7 @@ export async function showExtraIncomeMenu(
             `
       );
 
-      const closeBtn = document.getElementById('btn-close-warning');
-      if (closeBtn) {
-        closeBtn.addEventListener('click', () => closeModal());
-      }
+      document.getElementById('btn-close-warning')?.addEventListener('click', () => closeModal());
       return;
     }
 
@@ -55,16 +56,10 @@ export async function showExtraIncomeMenu(
       createErrorMessage('Errore Caricamento', err) +
         '<div style="text-align: center; margin-top: 20px;"><button id="btn-close-err" class="menu-button primary">Chiudi</button></div>'
     );
-    const closeBtn = document.getElementById('btn-close-err');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => closeModal());
-    }
+    document.getElementById('btn-close-err')?.addEventListener('click', () => closeModal());
   }
 }
 
-/**
- * Renderizza il form per l'inserimento dell'incasso extra
- */
 function renderExtraIncomeForm(
   container: HTMLElement,
   stationId: number | string,
@@ -76,39 +71,17 @@ function renderExtraIncomeForm(
       <div class="content-box">
         <p class="section-subtitle">Registra una vendita extra carburante</p>
         <form id="extra-income-form">
-            <div class="form-group">
-            <label>Importo (€)</label>
-            <input type="number" name="amount" step="0.01" min="0.01" class="big-input" required placeholder="0.00">
-            </div>
-
-            <div class="form-group">
-            <label>Tipo di Prodotto</label>
-            <select name="type" id="product-type" class="big-input" required>
-                <option value="olio">Olio Motore</option>
-                <option value="adblue">AdBlue</option>
-                <option value="accessori">Accessori Auto</option>
-                <option value="altro_incasso">Altro</option>
-            </select>
-            </div>
-
-            <div class="form-group">
-            <label>Descrizione / Note <span id="required-indicator" style="display: none; color: var(--danger-color);">*</span></label>
-            <textarea name="description" id="description-field" rows="3" class="big-input" placeholder="Dettagli vendita..."></textarea>
-            </div>
-
+            <div class="form-group"><label>Importo (€)</label><input type="number" name="amount" step="0.01" min="0.01" class="big-input" required placeholder="0.00"></div>
+            <div class="form-group"><label>Tipo di Prodotto</label><select name="type" id="product-type" class="big-input" required><option value="olio">Olio Motore</option><option value="adblue">AdBlue</option><option value="accessori">Accessori Auto</option><option value="altro_incasso">Altro</option></select></div>
+            <div class="form-group"><label>Descrizione / Note <span id="required-indicator" style="display: none; color: var(--danger-color);">*</span></label><textarea name="description" id="description-field" rows="3" class="big-input" placeholder="Dettagli vendita..."></textarea></div>
             ${createFormActions({ confirmText: 'Registra Incasso', confirmClass: 'primary' })}
         </form>
       </div>
     `
   );
 
-  // Event Listeners
-  const cancelBtn = container.querySelector('#btn-cancel');
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', () => closeModal());
-  }
+  container.querySelector('#btn-cancel')?.addEventListener('click', () => closeModal());
 
-  // Dynamic required field based on product type
   const productTypeSelect = document.getElementById('product-type') as HTMLSelectElement | null;
   const descriptionField = document.getElementById(
     'description-field'
@@ -127,51 +100,75 @@ function renderExtraIncomeForm(
     requiredIndicator.style.display = requiresDescription ? 'inline' : 'none';
 
     if (!requiresDescription) {
-      descriptionField.value = ''; // Clear if not required
+      descriptionField.value = '';
     }
   }
 
-  if (productTypeSelect) {
-    productTypeSelect.addEventListener('change', updateDescriptionRequired);
-    updateDescriptionRequired(); // Initialize on load
-  }
+  productTypeSelect?.addEventListener('change', updateDescriptionRequired);
+  updateDescriptionRequired();
 
   const form = document.getElementById('extra-income-form') as HTMLFormElement | null;
-  if (form) {
-    form.addEventListener('submit', async e => {
-      e.preventDefault();
-      const formData = new FormData(form);
-      const amount = parseFloat((formData.get('amount') as string) || '0');
-      const type = (formData.get('type') as string) || '';
-      const description = (formData.get('description') as string) || '';
+  form?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const amount = parseFloat((formData.get('amount') as string) || '0');
+    const type = (formData.get('type') as string) || '';
+    const description = (formData.get('description') as string) || '';
 
-      if (!amount || amount <= 0) {
-        Toast.show('Inserire un importo valido.', 'warning');
-        return;
-      }
+    if (!amount || amount <= 0) {
+      Toast.show('Inserire un importo valido.', 'warning');
+      return;
+    }
 
-      try {
-        // Salva in movimenti_cassa con tipo 'incasso'
-        const { error } = await supabase.from('movimenti_cassa').insert([
-          {
-            station_id: Number(stationId),
-            operator_id: Number(userId),
-            tipo: 'incasso', // Tipo per identificare gli incassi extra
-            importo: amount,
-            descrizione: `[${type.toUpperCase()}] ${description}`,
-            created_at: new Date().toISOString()
-          }
-        ]);
+    try {
+      await processExtraIncome(stationId, userId, amount, type, description);
+      closeModal();
+      showInfoModal(
+        isOffline()
+          ? `Incasso di € ${amount.toFixed(2)} salvato offline.`
+          : `Incasso di € ${amount.toFixed(2)} registrato correttamente.`
+      );
+    } catch (err: unknown) {
+      handleError(err, 'showExtraIncomeMenu_submit');
+    }
+  });
+}
 
-        if (error) {
-          throw error;
-        }
+export async function processExtraIncome(
+  stationId: number | string,
+  userId: string,
+  amount: number,
+  type: string,
+  description: string,
+  options?: PersistOptions
+): Promise<void> {
+  const createdAt = options?.createdAt ?? new Date().toISOString();
 
-        closeModal();
-        showInfoModal(`Incasso di € ${amount.toFixed(2)} registrato correttamente.`);
-      } catch (err: unknown) {
-        handleError(err, 'showExtraIncomeMenu_submit');
-      }
+  if (shouldQueue(options)) {
+    await queueAction('movement_create', {
+      kind: 'extra_income_create',
+      stationId: Number(stationId),
+      operatorId: String(userId),
+      amount,
+      type,
+      description,
+      createdAt
     });
+    return;
+  }
+
+  const { error } = await supabase.from('movimenti_cassa').insert([
+    {
+      station_id: Number(stationId),
+      operator_id: Number(userId),
+      tipo: 'incasso',
+      importo: amount,
+      descrizione: `[${type.toUpperCase()}] ${description}`,
+      created_at: createdAt
+    }
+  ]);
+
+  if (error) {
+    throw error;
   }
 }
