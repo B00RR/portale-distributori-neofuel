@@ -11,7 +11,7 @@
 import { supabase, type Json } from '../core/api.js';
 import { loggedUser } from '../core/auth.js';
 import { logger } from '../core/logger.js';
-import { handleError } from '../shared/error-handler.js';
+import { AppError, handleError } from '../shared/error-handler.js';
 import type { CustomWindow } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, openConfirmModal } from '../ui/ui.js';
@@ -246,7 +246,7 @@ export async function saveDashboardConfig(config: DashboardConfig): Promise<bool
   const userId = await getCurrentUserId();
 
   if (!userId) {
-    Toast.show('Utente non autenticato', 'error');
+    handleError(new AppError('Utente non autenticato', 'AUTH_ERROR'), 'saveDashboardConfig');
     return false;
   }
 
@@ -283,7 +283,7 @@ export async function resetDashboardConfig(): Promise<boolean> {
   const userId = await getCurrentUserId();
 
   if (!userId) {
-    Toast.show('Utente non autenticato', 'error');
+    handleError(new AppError('Utente non autenticato', 'AUTH_ERROR'), 'resetDashboardConfig');
     return false;
   }
 

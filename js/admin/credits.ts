@@ -268,7 +268,7 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
         }
       );
       if (errors) {
-        Toast.show('Errore validazione: ' + formatErrorMessages(errors), 'error');
+        Toast.show('Errore validazione: ' + formatErrorMessages(errors), 'warning');
         return;
       }
 

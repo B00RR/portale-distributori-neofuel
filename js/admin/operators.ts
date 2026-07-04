@@ -274,7 +274,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
       }
 
       if (!validation.success) {
-        Toast.show('Dati non validi: ' + validation.error, 'error');
+        Toast.show('Dati non validi: ' + validation.error, 'warning');
         return;
       }
 
