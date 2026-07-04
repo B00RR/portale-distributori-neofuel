@@ -2,6 +2,7 @@
 // OPERATOR INVOICE REQUESTS
 // Gestione richieste fattura (Non fiscale / Non incide su cassa)
 // ==========================================
+import type { Database } from '../../supabase/database.types.js';
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { isOffline, queueAction } from '../core/offline-queue.js';
@@ -22,6 +23,8 @@ interface BillingCustomer {
   telefono?: string | null;
   targa?: string | null;
 }
+
+type BillingCustomerUpdate = Database['public']['Tables']['clienti_fatturazione']['Update'];
 
 interface PersistOptions {
   skipOfflineQueue?: boolean;
@@ -151,7 +154,13 @@ function renderNewCustomerForm(
 
     try {
       if (isOffline()) {
-        renderInvoiceForm(container, stationId, userId, null, nome || telefono || targa || 'Cliente offline');
+        renderInvoiceForm(
+          container,
+          stationId,
+          userId,
+          null,
+          nome || telefono || targa || 'Cliente offline'
+        );
         return;
       }
 
@@ -165,9 +174,8 @@ function renderNewCustomerForm(
 
       let clienteId: number;
       if (existingCustomer) {
-        const updateData: Partial<BillingCustomer> = {
-          updated_at: new Date().toISOString()
-        } as Partial<BillingCustomer>;
+        const updateData: BillingCustomerUpdate = {};
+
         if (nome) updateData.nome = nome;
         if (partitaIva) updateData.partita_iva = partitaIva;
         if (codiceUnivoco) updateData.codice_univoco_pec = codiceUnivoco;
@@ -225,7 +233,9 @@ function renderExistingCustomerForm(
 
   const searchInput = document.getElementById('customer-search') as HTMLInputElement | null;
   const suggestionsDiv = document.getElementById('customer-suggestions') as HTMLElement | null;
-  const customerIdInput = document.getElementById('selected-customer-id') as HTMLInputElement | null;
+  const customerIdInput = document.getElementById(
+    'selected-customer-id'
+  ) as HTMLInputElement | null;
   if (!searchInput || !suggestionsDiv || !customerIdInput) return;
 
   let searchTimeout: ReturnType<typeof setTimeout>;
@@ -248,7 +258,8 @@ function renderExistingCustomerForm(
           suggestionsDiv,
           (customers ?? [])
             .map(
-              c => `<div class="suggestion-item" data-id="${c.id}" data-name="${escapeHtml(c.nome || c.telefono || 'Cliente')}">${escapeHtml(c.nome || c.telefono || 'Cliente')}</div>`
+              c =>
+                `<div class="suggestion-item" data-id="${c.id}" data-name="${escapeHtml(c.nome || c.telefono || 'Cliente')}">${escapeHtml(c.nome || c.telefono || 'Cliente')}</div>`
             )
             .join('')
         );
@@ -344,7 +355,10 @@ function renderInvoiceForm(
     const notes = (formData.get('notes') as string)?.trim() || '';
 
     if (productCategory === 'altro' && !productNote) {
-      Toast.show("Selezionando 'Altro' è obbligatorio specificare il prodotto nella nota.", 'warning');
+      Toast.show(
+        "Selezionando 'Altro' è obbligatorio specificare il prodotto nella nota.",
+        'warning'
+      );
       return;
     }
     if (amount <= 0 || !paymentMethod || !productCategory) {
@@ -352,7 +366,10 @@ function renderInvoiceForm(
       return;
     }
 
-    const finalNotes = productCategory === 'altro' && productNote ? `${productNote}${notes ? '\n' + notes : ''}` : notes;
+    const finalNotes =
+      productCategory === 'altro' && productNote
+        ? `${productNote}${notes ? '\n' + notes : ''}`
+        : notes;
 
     try {
       await processInvoiceRequest(

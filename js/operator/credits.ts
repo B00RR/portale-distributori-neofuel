@@ -39,6 +39,15 @@ function toNumericId(value: number | string): number {
   return value;
 }
 
+function toCreditCustomerId(value: number | string): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  const parsed = parseInt(value, 10);
+  return Number.isNaN(parsed) ? (value as unknown as number) : parsed;
+}
+
 function nowIso(options?: OfflineReplayOptions): string {
   return options?.createdAt ?? new Date().toISOString();
 }
@@ -269,11 +278,12 @@ export async function processNewCredit(
     throw new Error('Impossibile creare il cliente');
   }
 
+  const customerId = toCreditCustomerId(customer.id);
   const newBalance = (customer.saldo || 0) + amount;
   const { error: updateError } = await supabase
     .from('crediti_clienti')
     .update({ saldo: newBalance, updated_at: createdAt })
-    .eq('id', customer.id);
+    .eq('id', customerId);
 
   if (updateError) {
     throw updateError;
@@ -281,7 +291,7 @@ export async function processNewCredit(
 
   const { error: moveError } = await supabase.from('crediti_movimenti').insert([
     {
-      cliente_id: customer.id,
+      cliente_id: customerId,
       station_id: numericStationId,
       operator_id: numericOperatorId,
       tipo: 'credito',
@@ -356,7 +366,10 @@ async function showPaymentSelection(stationId: number | string, userId: string):
       }
 
       if (!debtors || debtors.length === 0) {
-        setSafeHTML(listContainer, '<p style="text-align:center; padding:20px;">Nessun credito aperto trovato.</p>');
+        setSafeHTML(
+          listContainer,
+          '<p style="text-align:center; padding:20px;">Nessun credito aperto trovato.</p>'
+        );
         return;
       }
 
@@ -476,6 +489,7 @@ export async function processPayment(
 
   const numericStationId = toNumericId(stationId);
   const numericOperatorId = toNumericId(userId);
+  const customerId = toCreditCustomerId(customer.id);
   const createdAt = nowIso(options);
 
   if (shouldQueue(options)) {
@@ -484,7 +498,7 @@ export async function processPayment(
       stationId: numericStationId,
       operatorId: String(numericOperatorId),
       customer: {
-        id: customer.id,
+        id: customerId,
         cliente: customer.cliente,
         saldo: customer.saldo
       },
@@ -499,7 +513,7 @@ export async function processPayment(
   const { error: updateError } = await supabase
     .from('crediti_clienti')
     .update({ saldo: newBalance, updated_at: createdAt })
-    .eq('id', customer.id);
+    .eq('id', customerId);
 
   if (updateError) {
     throw updateError;
@@ -515,7 +529,7 @@ export async function processPayment(
 
   const { error: moveError } = await supabase.from('crediti_movimenti').insert([
     {
-      cliente_id: customer.id,
+      cliente_id: customerId,
       station_id: numericStationId,
       operator_id: numericOperatorId,
       tipo: movementType,

@@ -1,6 +1,6 @@
+import { logger } from '../core/logger.js';
 import { registerExecutor } from '../core/offline-queue.js';
 import type { QueuedAction } from '../core/offline-queue.js';
-import { logger } from '../core/logger.js';
 
 import { processNewCredit, processPayment } from './credits.js';
 import { processExtraIncome } from './extra-income.js';
@@ -16,14 +16,14 @@ type CreditPaymentCustomer = {
 };
 
 function readString(payload: Record<string, unknown>, key: string): string {
-  const value = payload[key];
+  const value = payload[key]; // eslint-disable-line security/detect-object-injection -- key is limited to known offline payload fields by callers.
   if (typeof value === 'string') return value;
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   throw new Error(`Payload offline non valido: ${key}`);
 }
 
 function readNumber(payload: Record<string, unknown>, key: string): number {
-  const value = payload[key];
+  const value = payload[key]; // eslint-disable-line security/detect-object-injection -- key is limited to known offline payload fields by callers.
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) {
     const parsed = Number(value);
@@ -118,7 +118,11 @@ async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
         );
         return true;
       default:
-        logger.warn('OfflineFinancialExecutors', 'Unsupported financial action kind:', payload.kind);
+        logger.warn(
+          'OfflineFinancialExecutors',
+          'Unsupported financial action kind:',
+          payload.kind
+        );
         return false;
     }
   } catch (err) {
