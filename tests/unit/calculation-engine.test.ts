@@ -23,8 +23,15 @@ describe('CalculationEngine', () => {
         });
 
         it('returns object literals without an op as-is', () => {
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
             const node = { value: 1 };
-            expect(engine.compile(node)({})).toEqual(node);
+
+            try {
+                expect(engine.compile(node)({})).toEqual(node);
+                expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Nodo DSL senza 'op'"));
+            } finally {
+                warnSpy.mockRestore();
+            }
         });
     });
 
