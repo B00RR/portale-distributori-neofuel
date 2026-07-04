@@ -4,6 +4,39 @@ import dotenv from 'dotenv';
 dotenv.config({ quiet: true });
 
 const isLiveSupabaseE2E = process.env.E2E_SUPABASE_MODE === 'live';
+const STUB_SUPABASE_URL = 'https://stub.supabase.co';
+const STUB_SUPABASE_ANON_KEY = 'stub-anon-key-for-tests';
+
+function isHttpUrl(value) {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function resolveSupabaseE2EEnv() {
+  if (isLiveSupabaseE2E) {
+    return {
+      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+      VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY
+    };
+  }
+
+  return {
+    VITE_SUPABASE_URL: isHttpUrl(process.env.VITE_SUPABASE_URL)
+      ? process.env.VITE_SUPABASE_URL
+      : STUB_SUPABASE_URL,
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || STUB_SUPABASE_ANON_KEY
+  };
+}
+
+const supabaseE2EEnv = resolveSupabaseE2EEnv();
 
 export default defineConfig({
   testDir: '../e2e',
@@ -73,13 +106,6 @@ export default defineConfig({
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
-    env: {
-      VITE_SUPABASE_URL: isLiveSupabaseE2E
-        ? process.env.VITE_SUPABASE_URL
-        : process.env.VITE_SUPABASE_URL || 'https://stub.supabase.co',
-      VITE_SUPABASE_ANON_KEY: isLiveSupabaseE2E
-        ? process.env.VITE_SUPABASE_ANON_KEY
-        : process.env.VITE_SUPABASE_ANON_KEY || 'stub-anon-key-for-tests'
-    }
+    env: supabaseE2EEnv
   }
 });
