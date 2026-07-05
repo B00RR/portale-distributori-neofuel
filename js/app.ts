@@ -18,6 +18,7 @@ import {
 import { LoggedUserData } from './core/auth.js';
 import { logger } from './core/logger.js';
 import { initOfflineQueue, setupAutoSync, registerExecutor } from './core/offline-queue.js';
+import './operator/offline-financial-executors-v2.js';
 import { ensureSelectedOperatorStation } from './operator/station-context.js';
 import { showOperatorMenu } from './operator.js';
 import { store, User as StateUser } from './shared/state.js';
