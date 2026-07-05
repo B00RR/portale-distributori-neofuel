@@ -1,4 +1,5 @@
 import { renderSettingsPanel } from '../ui/ui-settings-panel.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 interface LogicViewContext {
   container: HTMLElement | null;
@@ -19,15 +20,18 @@ export async function showSettingsTab(
 
   // Clear Actions Container (Remove "Nuovo Modulo" / "Ricarica Cache")
   if (actionsContainer) {
-    actionsContainer.innerHTML = '';
+    actionsContainer.replaceChildren();
   }
 
   // Render Settings Shell
-  container.innerHTML = `
+  setSafeHTML(
+    container,
+    `
     <section class="settings-shell" style="padding: 20px;">
       <div id="settings-content-wrapper"></div>
     </section>
-  `;
+  `
+  );
 
   const contentWrapper = container.querySelector('#settings-content-wrapper') as HTMLElement;
 

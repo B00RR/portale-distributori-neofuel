@@ -56,7 +56,7 @@ export async function showFattureTab(
   showLoadingMessage(container);
 
   if (_actionsContainer) {
-    _actionsContainer.innerHTML = '';
+    _actionsContainer.replaceChildren();
   }
 
   try {
@@ -114,7 +114,7 @@ export async function showFattureTab(
     if (!invoices || invoices.length === 0) {
       const p = document.createElement('p');
       p.textContent = 'Nessuna richiesta fattura trovata.';
-      container.innerHTML = '';
+      container.replaceChildren();
       container.appendChild(p);
       return;
     }
@@ -126,7 +126,7 @@ export async function showFattureTab(
 }
 
 function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void {
-  container.innerHTML = '';
+  container.replaceChildren();
 
   const wrapper = createEl('div', { classes: ['table-responsive'] });
   const table = createEl('table', { classes: ['admin-table'] });

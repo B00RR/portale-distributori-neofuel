@@ -7,6 +7,7 @@ import { clearSession } from '../core/auth.js';
 import { logger } from '../core/logger.js';
 import { store } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
 
 import { router, AdminTab } from './router.js';
@@ -51,7 +52,7 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
 
   logger.info('Layout', 'Rendering shell for role: ' + userRole + ' isFullAdmin: ' + isFullAdmin);
 
-  container.innerHTML = '';
+  container.replaceChildren();
 
   const adminContainer = document.createElement('div');
   adminContainer.className = 'admin-container';
@@ -128,7 +129,7 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
   logoutBtn.className = 'nav-btn logout-btn';
   logoutBtn.id = 'admin-logout';
   logoutBtn.dataset.testid = 'nav-logout';
-  logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Esci';
+  setSafeHTML(logoutBtn, '<i class="fas fa-sign-out-alt"></i> Esci');
   nav.appendChild(logoutBtn);
 
   sidebar.appendChild(nav);
@@ -138,7 +139,7 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
 
   const avatar = document.createElement('div');
   avatar.className = 'sidebar-footer-avatar';
-  avatar.innerHTML = '<i class="fas fa-user-shield"></i>';
+  setSafeHTML(avatar, '<i class="fas fa-user-shield"></i>');
   sidebarFooter.appendChild(avatar);
 
   const meta = document.createElement('div');
@@ -173,7 +174,7 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
   const toggle = document.createElement('button');
   toggle.id = 'sidebar-toggle';
   toggle.title = 'Menu';
-  toggle.innerHTML = '<i class="fas fa-bars"></i>';
+  setSafeHTML(toggle, '<i class="fas fa-bars"></i>');
   headerCenter.appendChild(toggle);
 
   const logo = document.createElement('img');
@@ -209,7 +210,7 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
   notifBtn.type = 'button';
   notifBtn.title = 'Notifiche';
   notifBtn.setAttribute('aria-label', 'Notifiche');
-  notifBtn.innerHTML = '<i class="fas fa-bell"></i>';
+  setSafeHTML(notifBtn, '<i class="fas fa-bell"></i>');
   headerRight.appendChild(notifBtn);
   header.appendChild(headerRight);
 
@@ -268,7 +269,7 @@ export function renderBreadcrumbs(tab: AdminTab, subPath: string = ''): void {
     return;
   }
 
-  container.innerHTML = '';
+  container.replaceChildren();
 
   const homeLink = document.createElement('a');
   homeLink.href = '#';

@@ -2,6 +2,7 @@ import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import type { CustomWindow, ChartInstance } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { formatEuro, formatLitri, getISODate } from '../utils/utils.js';
 
 // Hack: Cast window to 'any' to silence the editor error about 'Chart' missing
@@ -67,7 +68,9 @@ export async function showAnalyticsTab(
   let dateRange: DateRange = '30d';
 
   // Render Layout
-  container.innerHTML = `
+  setSafeHTML(
+    container,
+    `
         <div class="analytics-wrapper">
             <div class="analytics-controls card-box">
                 <div class="control-group">
@@ -114,7 +117,8 @@ export async function showAnalyticsTab(
                 </article>
             </div>
         </div>
-    `;
+    `
+  );
 
   // Initialize Charts
   await updateCharts(container, stationFilter, dateRange);

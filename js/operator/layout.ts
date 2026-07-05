@@ -9,6 +9,7 @@ import { logger } from '../core/logger.js';
 import { getPendingCount } from '../core/offline-queue.js';
 import { store, User } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { OperatorView } from './router.js';
@@ -43,7 +44,9 @@ export async function renderOperatorShell(
     injectStyles();
   }
 
-  container.innerHTML = `
+  setSafeHTML(
+    container,
+    `
         <div class="operator-container">
             <header class="operator-header">
                 <div class="header-left">
@@ -109,7 +112,8 @@ export async function renderOperatorShell(
                 </div>
             </div>
         </div>
-    `;
+    `
+  );
 
   const userId = user?.id || user?.user_id;
 
@@ -327,7 +331,9 @@ function attachEventListeners(handlers: OperatorHandlers): void {
 function injectStyles(): void {
   const style = document.createElement('style');
   style.id = 'operator-custom-styles';
-  style.innerHTML = `
+  setSafeHTML(
+    style,
+    `
       .result-item {
         display: flex; justify-content: space-between; align-items: center;
         padding: 10px; border-bottom: 1px solid var(--border-color); cursor: pointer;
@@ -354,6 +360,7 @@ function injectStyles(): void {
         50% { opacity: 0.5; }
         100% { opacity: 1; }
       }
-    `;
+    `
+  );
   document.head.appendChild(style);
 }

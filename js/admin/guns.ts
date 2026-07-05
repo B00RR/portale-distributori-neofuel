@@ -96,7 +96,7 @@ async function renderGuns(
       });
     }
 
-    target.innerHTML = '';
+    target.replaceChildren();
 
     if (!guns || guns.length === 0) {
       const emptyState = createEl('div', {
@@ -321,7 +321,7 @@ async function renderGuns(
       });
     });
   } catch (err) {
-    target.innerHTML = '';
+    target.replaceChildren();
     const errorDiv = createEl('div', {
       style: { color: 'var(--danger-color)', padding: '20px', textAlign: 'center' },
       children: [
@@ -357,7 +357,7 @@ async function openGunForm(
     gun = (data as Gun | null) || gun;
   }
 
-  target.innerHTML = '';
+  target.replaceChildren();
 
   const counterFormatted = formatGunCounter(gun.numero_litri || 0);
 
@@ -496,7 +496,7 @@ async function showCounterEditModal(
     return;
   }
 
-  target.innerHTML = '';
+  target.replaceChildren();
 
   const counterFormatted = formatGunCounter(Number(currentCounter));
 

@@ -13,6 +13,7 @@ import {
   openConfirmModal,
   setButtonLoading
 } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 import { showIslandsModal } from './islands.js';
 import { showPrezziAdminModal } from './prices.js';
@@ -43,11 +44,11 @@ export async function showStationsTab(
   showLoadingMessage(container);
 
   if (actionsContainer) {
-    actionsContainer.innerHTML = '';
+    actionsContainer.replaceChildren();
     const addBtn = document.createElement('button');
     addBtn.className = 'action-btn primary';
     addBtn.id = 'add-station-btn';
-    addBtn.innerHTML = '<i class="fas fa-plus"></i> Nuovo Distributore';
+    setSafeHTML(addBtn, '<i class="fas fa-plus"></i> Nuovo Distributore');
     addBtn.addEventListener('click', () => openStationModal());
     actionsContainer.appendChild(addBtn);
   }
@@ -72,11 +73,11 @@ export async function showStationsTab(
     const stations = rawStations as FuelStation[];
 
     if (!stations || stations.length === 0) {
-      container.innerHTML = '<p>Nessun distributore trovato.</p>';
+      setSafeHTML(container, '<p>Nessun distributore trovato.</p>');
       return;
     }
 
-    container.innerHTML = '';
+    container.replaceChildren();
     const wrapper = document.createElement('div');
     wrapper.className = 'table-responsive';
 
@@ -121,8 +122,7 @@ export async function showStationsTab(
         btn.dataset.id = String(st.station_id);
         btn.title = title;
         btn.setAttribute('aria-label', title);
-        // eslint-disable-next-line no-unsanitized/property -- icon is static class from local whitelist
-        btn.innerHTML = `<i class="fas ${icon}"></i>`;
+        setSafeHTML(btn, `<i class="fas ${icon}"></i>`);
         actionsTd.appendChild(btn);
       });
       tr.appendChild(actionsTd);
@@ -209,7 +209,7 @@ export async function openStationModal(stationId: number | null = null): Promise
   // Default: true allowed if not specified (legacy rows might be null)
   const allowPartialClosure = station.allow_partial_closure !== false;
 
-  target.innerHTML = '';
+  target.replaceChildren();
   const form = document.createElement('form');
   form.id = 'station-form';
 

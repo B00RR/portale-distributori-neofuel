@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import {
     sanitizeHtml,
     setInnerHTML,
@@ -309,5 +311,33 @@ describe('Sanitizer Module (Security)', () => {
                 expect(settings?.notifications).toBe(true);
             });
         });
+    });
+});
+
+function listTypeScriptFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+        const fullPath = join(dir, entry.name);
+        if (entry.isDirectory()) {
+            return listTypeScriptFiles(fullPath);
+        }
+        return entry.isFile() && entry.name.endsWith('.ts') ? [fullPath] : [];
+    });
+}
+
+describe('centralized HTML sink policy', () => {
+    it('keeps direct innerHTML assignments inside sanitizer.ts only', () => {
+        const jsRoot = join(process.cwd(), 'js');
+        const offenders = listTypeScriptFiles(jsRoot)
+            .filter(file => !file.endsWith(join('js', 'utils', 'sanitizer.ts')))
+            .flatMap(file => {
+                const rel = relative(process.cwd(), file).replace(/\\/g, '/');
+                return readFileSync(file, 'utf8')
+                    .split('\n')
+                    .map((line, index) => ({ rel, line: index + 1, text: line.trim() }))
+                    .filter(({ text }) => /\.innerHTML\s*=/.test(text))
+                    .map(({ rel, line, text }) => `${rel}:${line}: ${text}`);
+            });
+
+        expect(offenders).toEqual([]);
     });
 });

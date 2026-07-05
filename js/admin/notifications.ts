@@ -38,7 +38,7 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
   const loading = document.createElement('p');
   loading.className = 'loading-text';
   loading.textContent = 'Controllo notifiche e allerta di sistema...';
-  container.innerHTML = '';
+  container.replaceChildren();
   container.appendChild(loading);
 
   try {
@@ -53,7 +53,7 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
 
     // Check if notifications are globally enabled
     if (!rules.notifications_enabled) {
-      container.innerHTML = '';
+      container.replaceChildren();
       const empty = document.createElement('div');
       empty.className = 'empty-notifications';
 
@@ -157,7 +157,7 @@ export async function showNotificheAdmin(container: HTMLElement): Promise<void> 
       });
     }
 
-    container.innerHTML = '';
+    container.replaceChildren();
 
     // If there are errors, show them as critical alerts
     if (errors.length > 0) {

@@ -3,6 +3,7 @@
 // Componenti riutilizzabili per eliminare duplicazione codice
 // ==========================================
 import { Pistola } from '../types.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatLitri } from '../utils/utils.js';
 
 /**
@@ -199,8 +200,10 @@ export function attachBackButtonListener(
   const button = document.getElementById(buttonId);
   if (button) {
     button.addEventListener('click', () => {
-      container.innerHTML =
-        '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+      setSafeHTML(
+        container,
+        '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>'
+      );
     });
   }
 }
@@ -212,8 +215,10 @@ export function attachCancelButtonListener(buttonId: string, container: HTMLElem
   const button = document.getElementById(buttonId);
   if (button) {
     button.addEventListener('click', () => {
-      container.innerHTML =
-        '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>';
+      setSafeHTML(
+        container,
+        '<div class="welcome-message"><p>Seleziona un\'attività dal menu in alto.</p></div>'
+      );
     });
   }
 }

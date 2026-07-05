@@ -2,6 +2,7 @@ import { logger } from '../../core/logger.js';
 import { store } from '../../shared/state.js';
 import { Station } from '../../shared/state.js';
 import { openModal, closeModal } from '../../ui/ui.js';
+import { setSafeHTML } from '../../utils/sanitizer.js';
 
 /**
  * Componente riutilizzabile per la barra dei filtri (Ricerca, Date, ecc.)
@@ -32,7 +33,7 @@ export class FilterBar {
     const stations = store.getStations() || [];
     const currentStation = store.getFilter();
 
-    container.innerHTML = '';
+    container.replaceChildren();
 
     const bar = document.createElement('div');
     bar.className = 'filter-bar';
@@ -82,7 +83,7 @@ export class FilterBar {
     customBtn.className = 'chip ' + (activeChip === 'custom' ? 'active' : '');
     customBtn.id = 'btn-custom-range';
     customBtn.title = 'Date personalizzate';
-    customBtn.innerHTML = '<i class="fas fa-calendar-alt"></i>'; // safe static icon
+    setSafeHTML(customBtn, '<i class="fas fa-calendar-alt"></i>');
     chipContainer.appendChild(customBtn);
 
     bar.appendChild(chipContainer);
@@ -189,7 +190,7 @@ export class FilterBar {
     }
     const current = store.getFilters();
 
-    target.innerHTML = '';
+    target.replaceChildren();
 
     const form = document.createElement('form');
     form.id = 'filters-form';

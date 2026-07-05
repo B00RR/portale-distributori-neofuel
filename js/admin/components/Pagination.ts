@@ -1,5 +1,6 @@
 import { logger } from '../../core/logger.js';
 import { store } from '../../shared/state.js';
+import { setSafeHTML } from '../../utils/sanitizer.js';
 
 export class Pagination {
   private containerId: string;
@@ -23,7 +24,7 @@ export class Pagination {
     const canPrev = page > 0;
     const canNext = page + 1 < totalPages;
 
-    container.innerHTML = '';
+    container.replaceChildren();
 
     const bar = document.createElement('div');
     bar.className = 'pagination-bar';
@@ -38,13 +39,13 @@ export class Pagination {
 
     const prevBtn = document.createElement('button');
     prevBtn.className = 'menu-button secondary small btn-prev';
-    prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>'; // safe static icon
+    setSafeHTML(prevBtn, '<i class="fas fa-chevron-left"></i>');
     prevBtn.disabled = !canPrev;
     controls.appendChild(prevBtn);
 
     const nextBtn = document.createElement('button');
     nextBtn.className = 'menu-button secondary small btn-next';
-    nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>'; // safe static icon
+    setSafeHTML(nextBtn, '<i class="fas fa-chevron-right"></i>');
     nextBtn.disabled = !canNext;
     controls.appendChild(nextBtn);
 
