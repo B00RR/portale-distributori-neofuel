@@ -4,6 +4,7 @@ import { store } from '../shared/state.js';
 import { createEl, createIcon } from '../ui/dom-helpers.js';
 import { Toast } from '../ui/toast.js';
 import { setButtonLoading, showLoadingMessage } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 /**
  * Renders the business rules settings admin page.
@@ -23,13 +24,16 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
   const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
 
   if (!isFullAdmin) {
-    container.innerHTML = `
+    setSafeHTML(
+      container,
+      `
       <div class="error-container" style="text-align: center; padding: 60px 20px;">
         <i class="fas fa-lock error-icon" style="font-size: 4rem; color: var(--danger-color, #dc3545); margin-bottom: 20px;"></i>
         <h2 style="margin-bottom: 10px;">Accesso Negato</h2>
         <p style="color: var(--text-secondary);">Non disponi dei permessi necessari per visualizzare questa sezione.</p>
       </div>
-    `;
+    `
+    );
     return;
   }
 
@@ -38,7 +42,7 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
   try {
     const rules = await BusinessLogicManager.loadRules();
 
-    container.innerHTML = '';
+    container.replaceChildren();
 
     const settingsContainer = createEl('div', { classes: ['settings-shell'] });
     settingsContainer.style.padding = '20px';

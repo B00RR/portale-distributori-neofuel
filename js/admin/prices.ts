@@ -3,6 +3,7 @@ import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, escapeNumber } from '../utils/utils.js';
 
 // --- INTERFACES ---
@@ -54,15 +55,18 @@ export async function showPricesTab(
   headerActions: HTMLElement | null
 ): Promise<void> {
   if (headerActions) {
-    headerActions.innerHTML = '';
+    headerActions.replaceChildren();
   }
-  container.innerHTML = `
+  setSafeHTML(
+    container,
+    `
         <div class="content-box">
             <h3>Gestione Prezzi</h3>
             <p>Seleziona un distributore dalla sezione "Distributori" per modificarne i prezzi.</p>
             <button class="menu-button primary" onclick="document.querySelector('[data-tab=\\'stations\\']').click()">Vai a Distributori</button>
         </div>
-    `;
+    `
+  );
 }
 
 export async function showPrezziAdminModal(stationId: number | string): Promise<void> {

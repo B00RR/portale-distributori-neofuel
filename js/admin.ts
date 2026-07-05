@@ -79,7 +79,7 @@ export function showAdminArea(): void {
     }
 
     // Build filter DOM safely
-    filterWrapper.innerHTML = ''; // clear previous
+    filterWrapper.replaceChildren(); // clear previous
     const wrapper = document.createElement('div');
     wrapper.className = 'global-filter-wrapper';
 

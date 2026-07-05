@@ -11,6 +11,7 @@ import {
   showPromptModal
 } from '../ui/ui.js';
 import { isRateLimited, resetRateLimit, getRemainingAttempts } from '../utils/rate-limiter.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 import { supabase } from './api.js';
 import { logger } from './logger.js';
@@ -629,7 +630,9 @@ export function showOTPResetForm(): void {
   }
 
   const mainContent = document.getElementById('main-content') || document.body;
-  mainContent.innerHTML = `
+  setSafeHTML(
+    mainContent,
+    `
         <div id="otp-reset-container" style="max-width: 400px; margin: 50px auto; padding: 20px; background: var(--bg-surface); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <h2 style="text-align: center; margin-bottom: 20px;">Reimposta Password</h2>
             <p style="text-align: center; color: var(--text-secondary); margin-bottom: 20px;">Inserisci il codice a 6 cifre ricevuto via email</p>
@@ -645,7 +648,8 @@ export function showOTPResetForm(): void {
                 <button type="button" id="back-to-login-otp" class="menu-button secondary" style="width: 100%; margin-top: 12px;">Torna al Login</button>
             </form>
         </div>
-    `;
+    `
+  );
 
   const otpForm = document.getElementById('otp-reset-form') as HTMLFormElement;
   const otpInput = document.getElementById('otp-code') as HTMLInputElement;
@@ -743,7 +747,9 @@ export function showResetPasswordForm(): void {
   }
 
   const mainContent = document.getElementById('main-content') || document.body;
-  mainContent.innerHTML = `
+  setSafeHTML(
+    mainContent,
+    `
         <div id="reset-password-container" style="max-width: 400px; margin: 50px auto; padding: 20px; background: var(--bg-surface); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <h2 style="text-align: center; margin-bottom: 20px;">Reimposta Password</h2>
             <p style="text-align: center; color: var(--text-secondary); margin-bottom: 20px;">Inserisci la tua nuova password</p>
@@ -766,7 +772,8 @@ export function showResetPasswordForm(): void {
                 <button type="submit" class="menu-button success" style="width: 100%; margin-top: 10px;">Aggiorna Password</button>
             </form>
         </div>
-    `;
+    `
+  );
 
   const resetForm = document.getElementById('reset-password-form') as HTMLFormElement;
   const newPasswordInput = document.getElementById('new-password') as HTMLInputElement;

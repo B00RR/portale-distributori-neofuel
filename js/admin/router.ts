@@ -6,6 +6,7 @@
 import { handleError } from '../shared/error-handler.js';
 import { store } from '../shared/state.js';
 import { showLoadingMessage } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 
 import { showBusinessRulesSettings } from './business-rules-settings.js';
 import { showCreditiOverview as showCreditsTab } from './credits.js';
@@ -92,14 +93,17 @@ class AdminRouter {
     const filter = store.getFilter();
 
     if (!this.checkPermission(tab)) {
-      content.innerHTML = `
+      setSafeHTML(
+        content,
+        `
                 <div class="error-container">
                     <i class="fas fa-lock error-icon"></i>
                     <h2>Accesso Negato</h2>
                     <p>Non disponi dei permessi necessari per visualizzare questa sezione.</p>
                     <button class="menu-button primary" onclick="window.location.reload()">Torna alla Dashboard</button>
                 </div>
-            `;
+            `
+      );
       return;
     }
 
@@ -204,18 +208,21 @@ class AdminRouter {
         break;
 
       case 'notifiche':
-        content.innerHTML = `
+        setSafeHTML(
+          content,
+          `
                     <div class="content-box" style="text-align: center; padding: 60px 20px;">
                         <i class="fas fa-bell" style="font-size: 4rem; color: var(--secondary-color); margin-bottom: 20px;"></i>
                         <h2 style="margin-bottom: 10px;">Notifiche</h2>
                         <p style="color: var(--text-secondary);">Questa funzionalità sarà disponibile prossimamente.</p>
                     </div>
-                `;
+                `
+        );
         break;
 
       case 'settings':
         if (headerActions) {
-          headerActions.innerHTML = '';
+          headerActions.replaceChildren();
         }
         showBusinessRulesSettings(content);
         break;

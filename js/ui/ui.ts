@@ -1,9 +1,9 @@
+import { logger } from '../core/logger.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 /**
  * UI Helpers Module
  * Provides reusable UI functions: loaders, modals, confirmations, prompts
  */
-
-import { logger } from '../core/logger.js';
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -33,7 +33,7 @@ export function showLoadingMessage(content: HTMLElement | null): void {
   if (!content) {
     return;
   }
-  content.innerHTML = '';
+  content.replaceChildren();
   const container = document.createElement('div');
   container.className = 'loader-container';
 
@@ -57,7 +57,7 @@ export function showFullScreenLoader(): void {
     loader.className = 'loader-overlay-full';
     document.body.appendChild(loader);
   }
-  loader.innerHTML = '';
+  loader.replaceChildren();
 
   const img = document.createElement('img');
   img.src = '/assets/images/logo-svg.svg';
@@ -104,7 +104,7 @@ export function showErrorMessage(
     span.setAttribute('aria-live', 'assertive');
     span.textContent = errorMsg;
 
-    content.innerHTML = '';
+    content.replaceChildren();
     content.appendChild(span);
   }
   logger.error('showErrorMessage', error);
@@ -131,7 +131,9 @@ export function openModal(title: string = ''): void {
     modal.setAttribute('aria-labelledby', 'modal-title');
     modal.setAttribute('tabindex', '-1');
     // Static internal markup — no user input
-    modal.innerHTML = `
+    setSafeHTML(
+      modal,
+      `
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 id="modal-title"></h3>
@@ -139,7 +141,8 @@ export function openModal(title: string = ''): void {
                 </div>
                 <div id="modal-body" class="modal-body"></div>
             </div>
-        `;
+        `
+    );
     document.body.appendChild(modal);
 
     // Close when clicking outside
@@ -194,7 +197,7 @@ export function openModal(title: string = ''): void {
 
   const bodyEl = modal.querySelector('#modal-body');
   if (bodyEl) {
-    bodyEl.innerHTML = '';
+    bodyEl.replaceChildren();
   } // Clear previous content
 
   lastFocusedBeforeModal = document.activeElement as HTMLElement | null;
@@ -212,7 +215,7 @@ export function closeModal(): void {
     modal.style.display = 'none';
     const bodyEl = modal.querySelector('#modal-body');
     if (bodyEl) {
-      bodyEl.innerHTML = '';
+      bodyEl.replaceChildren();
     } // Clean to avoid duplicate IDs or pending listeners
     if (lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === 'function') {
       lastFocusedBeforeModal.focus();
@@ -231,7 +234,7 @@ export function showInfoModal(message: string, title: string = 'Informazione'): 
     return;
   }
 
-  target.innerHTML = '';
+  target.replaceChildren();
 
   const p = document.createElement('p');
   p.className = 'mb-3';
@@ -264,7 +267,7 @@ export function openConfirmModal(message: string): Promise<boolean> {
       return;
     }
 
-    target.innerHTML = '';
+    target.replaceChildren();
 
     const p = document.createElement('p');
     p.textContent = message;
@@ -322,7 +325,7 @@ export function showPromptModal(
       return;
     }
 
-    target.innerHTML = '';
+    target.replaceChildren();
 
     const p = document.createElement('p');
     p.className = 'mb-3';
@@ -402,7 +405,7 @@ export function setButtonLoading(
   if (isLoading) {
     btn.dataset.originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '';
+    btn.replaceChildren();
 
     const icon = document.createElement('i');
     icon.className = 'fas fa-spinner fa-spin';
@@ -411,8 +414,7 @@ export function setButtonLoading(
   } else {
     const original = btn.dataset.originalText;
     if (original) {
-      // eslint-disable-next-line no-unsanitized/property
-      btn.innerHTML = original;
+      setSafeHTML(btn, original);
     }
     btn.disabled = false;
   }

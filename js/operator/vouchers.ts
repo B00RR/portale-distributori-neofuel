@@ -15,7 +15,7 @@ export async function showVoucherMenu(stationId: number | string, userId: string
   }
 
   // Clear previous content
-  container.innerHTML = '';
+  container.replaceChildren();
 
   // Create and configure component
   const manager = document.createElement('voucher-manager');

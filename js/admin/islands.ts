@@ -66,7 +66,7 @@ export async function showIslandsModal(stationId: number | string): Promise<void
 
       const islands = rawIslands as IslandWithGuns[];
 
-      target.innerHTML = '';
+      target.replaceChildren();
 
       const wrapper = createEl('div', {
         classes: ['islands-list'],
@@ -231,7 +231,7 @@ async function openIslandForm(
     }
   }
 
-  target.innerHTML = '';
+  target.replaceChildren();
 
   const form = createEl('form', { id: 'island-form' });
 

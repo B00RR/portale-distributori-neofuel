@@ -10,6 +10,7 @@ import {
   setButtonLoading,
   openConfirmModal
 } from '../ui/ui.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 import { formatEuro } from '../utils/utils.js';
 
 // --- INTERFACES ---
@@ -49,11 +50,11 @@ export async function showCreditiOverview(
   showLoadingMessage(container);
 
   if (actionsContainer) {
-    actionsContainer.innerHTML = '';
+    actionsContainer.replaceChildren();
     const addBtn = document.createElement('button');
     addBtn.className = 'action-btn primary';
     addBtn.id = 'add-customer-btn';
-    addBtn.innerHTML = '<i class="fas fa-plus"></i> Nuovo Cliente';
+    setSafeHTML(addBtn, '<i class="fas fa-plus"></i> Nuovo Cliente');
     actionsContainer.appendChild(addBtn);
     addBtn.addEventListener('click', () => openCustomerModal());
   }
@@ -93,12 +94,12 @@ export async function showCreditiOverview(
     if (!customers || customers.length === 0) {
       const p = document.createElement('p');
       p.textContent = 'Nessun cliente trovato.';
-      container.innerHTML = '';
+      container.replaceChildren();
       container.appendChild(p);
       return;
     }
 
-    container.innerHTML = '';
+    container.replaceChildren();
     const tableResponsive = document.createElement('div');
     tableResponsive.className = 'table-responsive';
     const table = document.createElement('table');
@@ -143,7 +144,7 @@ export async function showCreditiOverview(
       editBtn.dataset.id = String(c.id);
       editBtn.title = 'Modifica';
       editBtn.setAttribute('aria-label', 'Modifica');
-      editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+      setSafeHTML(editBtn, '<i class="fas fa-edit"></i>');
       tdActions.appendChild(editBtn);
 
       const deleteBtn = document.createElement('button');
@@ -151,7 +152,7 @@ export async function showCreditiOverview(
       deleteBtn.dataset.id = String(c.id);
       deleteBtn.title = 'Elimina';
       deleteBtn.setAttribute('aria-label', 'Elimina');
-      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      setSafeHTML(deleteBtn, '<i class="fas fa-trash"></i>');
       tdActions.appendChild(deleteBtn);
 
       tr.appendChild(tdActions);
@@ -212,7 +213,7 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
     }
   }
 
-  target.innerHTML = '';
+  target.replaceChildren();
   const form = document.createElement('form');
   form.id = 'customer-form';
 
