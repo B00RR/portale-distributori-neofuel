@@ -90,6 +90,7 @@ export default defineConfig({
         alias: [
             { find: /.*\/core\/supabase-client$/, replacement: resolve(__dirname, '../tests/mocks/supabase-stub.ts') },
             { find: /.*\/core\/zod-client$/, replacement: resolve(__dirname, '../tests/mocks/zod-stub.ts') },
+            { find: 'virtual:pwa-register', replacement: resolve(__dirname, '../tests/mocks/pwa-register.ts') },
             { find: '@', replacement: resolve(__dirname, '../js') },
             { find: '@core', replacement: resolve(__dirname, '../js/core') },
             { find: '@utils', replacement: resolve(__dirname, '../js/utils') },

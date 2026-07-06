@@ -193,7 +193,8 @@ async function initializeApp(): Promise<void> {
       const { data: result, error } = await supabase.rpc('redeem_voucher_validated', {
         p_voucher_code: payload.voucherCode,
         p_station_id: stationIdNum,
-        p_operator_id: payload.operatorId
+        p_operator_id: payload.operatorId,
+        p_request_id: action.id
       });
       if (error || (result && isRpcResult(result) && !result.success)) {
         logger.error('OfflineQueue', 'Voucher redeem failed:', error || getRpcError(result));
@@ -218,7 +219,8 @@ async function initializeApp(): Promise<void> {
         p_closing_data: closingData,
         p_is_final: payload.isFinal,
         p_final_counters: finalCounters,
-        p_tank_usage: []
+        p_tank_usage: [],
+        p_request_id: action.id
       });
       if (error || (res && isRpcResult(res) && !res.success)) {
         logger.error('OfflineQueue', 'Shift close failed:', error || getRpcError(res));
