@@ -28,8 +28,8 @@ conditions, aggiorna la tua riga qui sotto a lavoro finito.
 | 038 | Allineare doc copertura al gate reale | P3 | S | — | docs | TODO | [#149](https://github.com/B00RR/portale-distributori-neofuel/issues/149) |
 | 039 | Estrarre createEl/createIcon in helper condiviso | P3 | M | — | tech-debt | TODO | [#150](https://github.com/B00RR/portale-distributori-neofuel/issues/150) |
 | 040 | Standardizzare error-handling su handleError | P3 | M | — | tech-debt | TODO | [#151](https://github.com/B00RR/portale-distributori-neofuel/issues/151) |
-| 041 | Hardening DB: revoca anon su fn interne + leaked-password | P2 | S | — | security | TODO | [#152](https://github.com/B00RR/portale-distributori-neofuel/issues/152) |
-| 042 | Consolidare policy RLS permissive + indici (advisor) | P3 | M | — | perf | TODO | [#153](https://github.com/B00RR/portale-distributori-neofuel/issues/153) |
+| 041 | Hardening DB: revoca anon su fn interne + leaked-password | P2 | S | — | security | DONE — migrazione #152 applicata live; PR da aprire dal branch `fix/152-153-db-security-perf` | [#152](https://github.com/B00RR/portale-distributori-neofuel/issues/152) |
+| 042 | Consolidare policy RLS permissive + indici (advisor) | P3 | M | — | perf | DONE — migrazione #153 applicata live; PR da aprire dal branch `fix/152-153-db-security-perf` | [#153](https://github.com/B00RR/portale-distributori-neofuel/issues/153) |
 | 043 | [DIR] Coda offline completa (crediti/uscite/extra/fatture) | P2 | L | 029, 032 | direction | DONE — [PR #179](https://github.com/B00RR/portale-distributori-neofuel/pull/179) | [#154](https://github.com/B00RR/portale-distributori-neofuel/issues/154) |
 | 044 | [DIR] UI admin per il motore business-rules | P3 | M | — | direction | TODO | [#155](https://github.com/B00RR/portale-distributori-neofuel/issues/155) |
 | 045 | [DIR] Selettore stazione per operatori multi-stazione | P3 | M | — | direction | TODO | [#156](https://github.com/B00RR/portale-distributori-neofuel/issues/156) |
