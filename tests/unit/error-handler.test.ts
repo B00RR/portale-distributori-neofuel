@@ -15,8 +15,8 @@ describe('Error Handler Module', () => {
     let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
-        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        consoleErrorSpy = vi.spyOn(console, 'error');
+        consoleWarnSpy = vi.spyOn(console, 'warn');
     });
 
     afterEach(() => {

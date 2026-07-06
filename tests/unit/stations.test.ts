@@ -99,8 +99,8 @@ describe('Stations Module', () => {
         document.body.appendChild(modalBody);
 
         vi.clearAllMocks();
-        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        consoleErrorSpy = vi.spyOn(console, 'error');
+        consoleWarnSpy = vi.spyOn(console, 'warn');
     });
 
     afterEach(() => {
