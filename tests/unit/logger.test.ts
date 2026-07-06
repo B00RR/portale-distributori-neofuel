@@ -9,10 +9,10 @@ describe('Logger Module', () => {
     let consoleDebugSpy: any;
 
     beforeEach(() => {
-        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
-        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
-        consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => { });
-        consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => { });
+        consoleErrorSpy = vi.spyOn(console, 'error');
+        consoleWarnSpy = vi.spyOn(console, 'warn');
+        consoleInfoSpy = vi.spyOn(console, 'info');
+        consoleDebugSpy = vi.spyOn(console, 'debug');
     });
 
     afterEach(() => {

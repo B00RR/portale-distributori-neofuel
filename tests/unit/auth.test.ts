@@ -66,8 +66,8 @@ describe('Auth Module', () => {
     beforeEach(async () => {
         vi.clearAllMocks();
         vi.resetModules(); // Restored for test isolation
-        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        consoleErrorSpy = vi.spyOn(console, 'error');
+        consoleWarnSpy = vi.spyOn(console, 'warn');
 
         // Setup DOM
         document.body.innerHTML = `
