@@ -3,6 +3,7 @@
  * Handles user authentication, login, logout, and password reset
  */
 
+import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import {
   showFullScreenLoader,
@@ -610,9 +611,8 @@ export async function requestPasswordReset(
 
     return { success: true };
   } catch (error: unknown) {
-    logger.error('auth', 'Errore durante la richiesta di reset password:', error);
+    handleError(error, 'authResetPassword');
     const message = error instanceof Error ? error.message : 'Errore sconosciuto';
-    Toast.show("Errore durante l'invio dell'email di reset password: " + message, 'error');
     return { success: false, error: message };
   }
 }

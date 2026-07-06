@@ -1,3 +1,4 @@
+import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 
 import { supabase } from './api.js';
@@ -99,9 +100,7 @@ export const BusinessLogicManager = {
       cachedRules = validated;
       Toast.show('Regole di business aggiornate con successo', 'success');
     } catch (err) {
-      logger.error('businessLogic', 'Save failed:', err);
-      const message = err instanceof Error ? err.message : 'Errore sconosciuto';
-      Toast.show('Errore nel salvataggio: ' + message, 'error');
+      handleError(err, 'businessLogicSaveRules');
       throw err;
     }
   }
