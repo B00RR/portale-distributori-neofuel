@@ -19,7 +19,7 @@ conditions, aggiorna la tua riga qui sotto a lavoro finito.
 
 | Plan | Titolo | Priorità | Effort | Dipende da | Categoria | Stato | Issue |
 |------|--------|----------|--------|------------|-----------|-------|-------|
-| 032 | Idempotenza mutazioni offline via request-id | P2 | L | 029 (fatto) | bug | BLOCKED — client + migrazione proposta in branch; attende conferma umana Fase B DB | [#143](https://github.com/B00RR/portale-distributori-neofuel/issues/143) |
+| 032 | Idempotenza mutazioni offline via request-id | P2 | L | 029 (fatto) | bug | DONE — client + migrazione DB live applicata; verificare CI su PR e chiudere #143 | [#143](https://github.com/B00RR/portale-distributori-neofuel/issues/143) |
 | 033 | Test reali per export_utils (fine del test-teatro) | P1 | M | — | tests | DONE — [PR #159](https://github.com/B00RR/portale-distributori-neofuel/pull/159) | [#144](https://github.com/B00RR/portale-distributori-neofuel/issues/144) |
 | 034 | Test reali per calculation-engine | P1 | M | — | tests | DONE — [PR #162](https://github.com/B00RR/portale-distributori-neofuel/pull/162) | [#145](https://github.com/B00RR/portale-distributori-neofuel/issues/145) |
 | 035 | Rimuovere scaffold Storybook morto | P3 | S | — | tech-debt | DONE — PR #163 | [#146](https://github.com/B00RR/portale-distributori-neofuel/issues/146) |
