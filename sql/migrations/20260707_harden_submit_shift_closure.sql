@@ -2,12 +2,11 @@
 -- Issue references: schema audit 2026-07-07
 -- Author: Hermes Agent
 -- Created: 2026-07-07
+-- Note: live DB does not have shift_closures table; closure data is stored on shifts.closing_data
 
 BEGIN;
 
--- Drop and recreate submit_shift_closure with extra validations.
--- This function is intentionally idempotent (p_request_id) and validates
--- that final counters are not lower than opening counters.
+DROP FUNCTION IF EXISTS public.submit_shift_closure(bigint, integer, jsonb, boolean, jsonb, jsonb, text);
 
 CREATE OR REPLACE FUNCTION public.submit_shift_closure(
     p_shift_id bigint,
@@ -30,7 +29,6 @@ DECLARE
     v_final numeric;
     v_opened numeric;
     v_result jsonb;
-    v_closure_id bigint;
 BEGIN
     -- Idempotency: if this request was already processed, return stored result.
     IF p_request_id IS NOT NULL THEN
@@ -92,40 +90,16 @@ BEGIN
         END LOOP;
     END IF;
 
-    -- Insert or update closure record
-    INSERT INTO shift_closures (
-        shift_id,
-        station_id,
-        closing_data,
-        is_final,
-        tank_usage,
-        created_at
-    )
-    VALUES (
-        p_shift_id,
-        p_station_id,
-        p_closing_data,
-        p_is_final,
-        p_tank_usage,
-        now()
-    )
-    ON CONFLICT (shift_id) DO UPDATE
-    SET
-        closing_data = EXCLUDED.closing_data,
-        is_final = EXCLUDED.is_final,
-        tank_usage = EXCLUDED.tank_usage,
-        updated_at = now()
-    RETURNING id INTO v_closure_id;
-
-    -- Mark shift as closed or partial
+    -- Mark shift as closed or partial and store closing data
     UPDATE shifts
     SET
+        closing_data = p_closing_data,
         status = CASE WHEN p_is_final THEN 'closed' ELSE 'partial' END,
         closed_at = CASE WHEN p_is_final THEN now() ELSE closed_at END,
         updated_at = now()
     WHERE id = p_shift_id;
 
-    v_result := jsonb_build_object('success', true, 'closure_id', v_closure_id);
+    v_result := jsonb_build_object('success', true, 'shift_id', p_shift_id);
 
     -- Record request idempotency if provided
     IF p_request_id IS NOT NULL THEN

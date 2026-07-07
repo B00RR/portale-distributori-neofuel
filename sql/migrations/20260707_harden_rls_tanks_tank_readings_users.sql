@@ -1,8 +1,8 @@
 -- Migration: harden RLS on tanks and tank_readings after FK/type fixes
 -- Issue references: schema audit 2026-07-07
--- Depends on: 20260707_fix_fk_type_mismatches_tank_readings_pistole.sql
 -- Author: Hermes Agent
 -- Created: 2026-07-07
+-- Note: tank_readings has no station_id column; station is resolved via tanks(tank_id).
 
 BEGIN;
 
@@ -29,9 +29,7 @@ CREATE POLICY "tanks_operators_select"
 
 -- ============================================================
 -- tank_readings: restrict to admins (manage) and operators (read)
--- scoped to stations assigned to the operator. We use the helper
--- current_user_station_ids() if available; otherwise fall back
--- to is_operator() for read.
+-- scoped to stations assigned to the operator via tanks.station_id.
 -- ============================================================
 
 DROP POLICY IF EXISTS "tank_readings_authenticated_all" ON public.tank_readings;
@@ -54,7 +52,13 @@ BEGIN
             ON public.tank_readings
             FOR SELECT
             TO authenticated
-            USING (station_id = ANY (current_user_station_ids()));
+            USING (
+                EXISTS (
+                    SELECT 1 FROM public.tanks t
+                    WHERE t.id = tank_readings.tank_id
+                      AND t.station_id = ANY (current_user_station_ids())
+                )
+            );
     ELSE
         CREATE POLICY "tank_readings_operators_select"
             ON public.tank_readings
