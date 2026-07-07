@@ -14,7 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      apertura_turno_pistole: {
+      apertura_turno_pistole_deprecated: {
         Row: {
           created_at: string | null
           id: number
@@ -48,7 +48,7 @@ export type Database = {
             foreignKeyName: "apertura_turno_pistole_turno_id_fkey"
             columns: ["turno_id"]
             isOneToOne: false
-            referencedRelation: "opening_shift"
+            referencedRelation: "opening_shift_deprecated"
             referencedColumns: ["id"]
           },
         ]
@@ -256,7 +256,7 @@ export type Database = {
           },
         ]
       }
-      chiusura_turno_pistole: {
+      chiusura_turno_pistole_deprecated: {
         Row: {
           created_at: string | null
           id: number
@@ -290,7 +290,7 @@ export type Database = {
             foreignKeyName: "chiusura_turno_pistole_turno_id_fkey"
             columns: ["turno_id"]
             isOneToOne: false
-            referencedRelation: "opening_shift"
+            referencedRelation: "opening_shift_deprecated"
             referencedColumns: ["id"]
           },
         ]
@@ -331,7 +331,7 @@ export type Database = {
         }
         Relationships: []
       }
-      closing_shift: {
+      closing_shift_deprecated: {
         Row: {
           cash_in_finale: number | null
           cash_out_finale: number | null
@@ -406,7 +406,7 @@ export type Database = {
             foreignKeyName: "closing_shift_turno_id_fkey"
             columns: ["turno_id"]
             isOneToOne: false
-            referencedRelation: "opening_shift"
+            referencedRelation: "opening_shift_deprecated"
             referencedColumns: ["id"]
           },
         ]
@@ -703,8 +703,8 @@ export type Database = {
           foto_url: string | null
           id: number
           importo: number
-          operator_id: number | null
-          station_id: number | null
+          operator_id: number
+          station_id: number
           tipo: string
         }
         Insert: {
@@ -713,8 +713,8 @@ export type Database = {
           foto_url?: string | null
           id?: number
           importo: number
-          operator_id?: number | null
-          station_id?: number | null
+          operator_id: number
+          station_id: number
           tipo: string
         }
         Update: {
@@ -723,8 +723,8 @@ export type Database = {
           foto_url?: string | null
           id?: number
           importo?: number
-          operator_id?: number | null
-          station_id?: number | null
+          operator_id?: number
+          station_id?: number
           tipo?: string
         }
         Relationships: [
@@ -785,7 +785,7 @@ export type Database = {
           },
         ]
       }
-      opening_shift: {
+      opening_shift_deprecated: {
         Row: {
           card_transactions: number | null
           cash_in: number | null
@@ -962,6 +962,24 @@ export type Database = {
           },
         ]
       }
+      processed_requests: {
+        Row: {
+          created_at: string
+          endpoint: string
+          request_id: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          request_id: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          request_id?: string
+        }
+        Relationships: []
+      }
       rate_limit_attempts: {
         Row: {
           attempts: number | null
@@ -1109,7 +1127,6 @@ export type Database = {
           ratio: number | null
           station_id: number
           tank_id: number
-          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
@@ -1122,7 +1139,6 @@ export type Database = {
           ratio?: number | null
           station_id: number
           tank_id: number
-          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
@@ -1259,7 +1275,7 @@ export type Database = {
             foreignKeyName: "tank_readings_shift_id_fkey"
             columns: ["shift_id"]
             isOneToOne: false
-            referencedRelation: "opening_shift"
+            referencedRelation: "opening_shift_deprecated"
             referencedColumns: ["id"]
           },
           {
@@ -1557,11 +1573,11 @@ export type Database = {
     }
     Functions: {
       admin_assign_station: {
-        Args: { p_station_id?: number; p_user_id: string }
+        Args: { p_station_id?: number; p_user_id: number }
         Returns: undefined
       }
       admin_delete_closure: { Args: { closure_id: number }; Returns: undefined }
-      admin_delete_user: { Args: { p_user_id: string }; Returns: undefined }
+      admin_delete_user: { Args: { p_user_id: number }; Returns: undefined }
       admin_update_price: {
         Args: {
           p_benzina: number
@@ -1599,6 +1615,7 @@ export type Database = {
       redeem_voucher_validated: {
         Args: {
           p_operator_id: string
+          p_request_id?: string
           p_station_id: number
           p_voucher_code: string
         }
@@ -1613,6 +1630,7 @@ export type Database = {
           p_closing_data: Json
           p_final_counters?: Json
           p_is_final: boolean
+          p_request_id?: string
           p_shift_id: number
           p_station_id: number
           p_tank_usage?: Json
