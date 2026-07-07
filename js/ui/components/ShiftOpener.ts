@@ -26,6 +26,22 @@ export class ShiftOpener extends BaseComponent {
   @state() private tanks: Tank[] = [];
   @state() private lastCounters: Record<number, number> = {};
 
+  private get numericStationId(): number {
+    const value = Number(this.stationId);
+    if (!Number.isFinite(value) || value <= 0) {
+      return NaN;
+    }
+    return value;
+  }
+
+  private get numericUserId(): number {
+    const value = Number(this.userId);
+    if (!Number.isFinite(value) || value <= 0) {
+      return NaN;
+    }
+    return value;
+  }
+
   static override styles: CSSResultGroup = [
     BaseComponent.styles,
     css`
@@ -165,6 +181,15 @@ export class ShiftOpener extends BaseComponent {
   }
 
   private async loadInitialData(): Promise<void> {
+    const stationId = this.numericStationId;
+    if (Number.isNaN(stationId)) {
+      this.state = {
+        mode: 'error',
+        errorMessage: 'ID stazione non valido. Ricarica la pagina o seleziona una stazione.'
+      };
+      return;
+    }
+
     this.state = { ...this.state, mode: 'loading' };
     try {
       // 1. Parallel fetch of core station data
@@ -172,9 +197,9 @@ export class ShiftOpener extends BaseComponent {
         supabase
           .from('islands')
           .select('island_id, nome, island_name')
-          .eq('station_id', Number(this.stationId))
+          .eq('station_id', stationId)
           .order('island_id'),
-        supabase.from('tanks').select('*').eq('station_id', Number(this.stationId)).order('name')
+        supabase.from('tanks').select('*').eq('station_id', stationId).order('name')
       ]);
 
       if (islandsRes.error) {
@@ -185,7 +210,7 @@ export class ShiftOpener extends BaseComponent {
         (i: { island_id?: number; nome?: string; island_name?: string }, idx: number) => ({
           island_id: i.island_id ?? idx + 1,
           nome: i.nome ?? i.island_name ?? `Isola ${idx + 1}`,
-          station_id: Number(this.stationId)
+          station_id: stationId
         })
       ) as unknown as Island[];
 
@@ -304,6 +329,12 @@ export class ShiftOpener extends BaseComponent {
 
     try {
       // 1. Create Shift record
+      const stationId = this.numericStationId;
+      const operatorId = this.numericUserId;
+      if (Number.isNaN(stationId) || Number.isNaN(operatorId)) {
+        throw new Error('ID stazione o operatore non valido.');
+      }
+
       const openingData = {
         cash_in: Number(formData.get('cash_in')) || 0,
         cash_out: Number(formData.get('cash_out')) || 0,
@@ -319,8 +350,8 @@ export class ShiftOpener extends BaseComponent {
         .from('shifts')
         .insert([
           {
-            station_id: Number(this.stationId),
-            operator_id: Number(this.userId),
+            station_id: stationId,
+            operator_id: operatorId,
             status: 'open',
             opened_at: new Date().toISOString(),
             opening_data: openingData

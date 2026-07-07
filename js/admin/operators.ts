@@ -23,7 +23,7 @@ interface UserStation {
 }
 
 interface User {
-  user_id: string;
+  user_id: number;
   full_name: string;
   email: string;
   role: 'admin' | 'super_admin' | 'operator' | 'accounting' | 'billing';
@@ -180,7 +180,7 @@ export async function deleteUser(
   try {
     // Use server-side RPC function for secure cascade delete
     const { error } = await supabase.rpc('admin_delete_user', {
-      p_user_id: userId
+      p_user_id: Number(userId)
     });
 
     if (error) {
@@ -380,7 +380,7 @@ export async function openAssignStationModal(userId: string): Promise<void> {
         setButtonLoading(submitBtn, true, 'Salvataggio...');
 
         // Use server-side RPC function for secure station assignment
-        const rpcArgs: { p_user_id: string; p_station_id?: number } = { p_user_id: userId };
+        const rpcArgs: { p_user_id: number; p_station_id?: number } = { p_user_id: Number(userId) };
         if (stationId) {
           rpcArgs.p_station_id = parseInt(stationId, 10);
         }

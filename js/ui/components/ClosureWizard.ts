@@ -56,7 +56,11 @@ export class ClosureWizard extends BaseComponent {
   @property({ type: String }) shiftId: string = ''; // Optional: Can be used to load specific shift
 
   private get numericStationId(): number {
-    return Number(this.stationId);
+    const value = Number(this.stationId);
+    if (!Number.isFinite(value) || value <= 0) {
+      return NaN;
+    }
+    return value;
   }
 
   @state() private wizardState: ClosureWizardState = {
@@ -838,13 +842,15 @@ export class ClosureWizard extends BaseComponent {
     try {
       const closingDataJson: Json = dataJson;
       const finalCountersJson: Json = this.includeCounters ? this.finalCounters : null;
+      const requestId = `closure_${activeOpeningId}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const { data: res, error } = await supabase.rpc('submit_shift_closure', {
         p_shift_id: activeOpeningId,
         p_station_id: this.numericStationId,
         p_closing_data: closingDataJson,
         p_is_final: isFinal,
         p_final_counters: finalCountersJson,
-        p_tank_usage: []
+        p_tank_usage: [],
+        p_request_id: requestId
       });
       if (error || (res && isRpcResult(res) && !res.success)) {
         throw new Error(error?.message || getRpcError(res));

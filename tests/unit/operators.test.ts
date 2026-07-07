@@ -191,11 +191,11 @@ describe('Operators Module', () => {
     it('should handle Delete Operator', async () => {
         const container = document.getElementById('admin-content') as HTMLElement;
 
-        await deleteUser('u1', container, null);
+        await deleteUser(1, container, null);
 
         await vi.waitFor(() => {
             expect(UI.openConfirmModal).toHaveBeenCalled();
-            expect(supabase.rpc).toHaveBeenCalledWith('admin_delete_user', { p_user_id: 'u1' });
+            expect(supabase.rpc).toHaveBeenCalledWith('admin_delete_user', { p_user_id: 1 });
             expect(Toast.show).toHaveBeenCalledWith(expect.stringContaining('eliminato'), 'success');
         });
     });
@@ -204,7 +204,7 @@ describe('Operators Module', () => {
         const mockStations = [{ station_id: 1, station_name: 'Station A' }];
         fuelStationsBuilder.select.mockResolvedValue({ data: mockStations, error: null });
 
-        await openAssignStationModal('u1');
+        await openAssignStationModal(1);
 
         const form = document.getElementById('assign-station-form') as HTMLFormElement;
         const select = form.querySelector('select[name="station_id"]') as HTMLSelectElement;
@@ -214,7 +214,7 @@ describe('Operators Module', () => {
 
         await vi.waitFor(() => {
             expect(supabase.rpc).toHaveBeenCalledWith('admin_assign_station', {
-                p_user_id: 'u1',
+                p_user_id: 1,
                 p_station_id: 1
             });
             expect(Toast.show).toHaveBeenCalledWith(expect.stringContaining('salvata'), 'success');
