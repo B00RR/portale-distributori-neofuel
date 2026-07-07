@@ -409,11 +409,21 @@ export async function processInvoiceRequest(
   const invoiceNumber = options?.invoiceNumber ?? `REQ-${Date.now()}`;
   const invoiceDate = options?.invoiceDate ?? todayIsoDate();
 
+  const numericUserId = Number(userId);
+  if (!Number.isFinite(numericUserId) || numericUserId <= 0) {
+    throw new Error('ID operatore non valido per la richiesta fattura.');
+  }
+
+  const numericStationId = Number(stationId);
+  if (!Number.isFinite(numericStationId) || numericStationId <= 0) {
+    throw new Error('ID stazione non valido per la richiesta fattura.');
+  }
+
   if (shouldQueue(options)) {
     await queueAction('movement_create', {
       kind: 'invoice_request',
-      stationId: Number(stationId),
-      operatorId: String(userId),
+      stationId: numericStationId,
+      operatorId: userId,
       clienteId: clienteId === null || clienteId === '' ? null : Number(clienteId),
       customerName,
       amount,
@@ -430,8 +440,8 @@ export async function processInvoiceRequest(
 
   const { error } = await supabase.from('invoices').insert([
     {
-      station_id: Number(stationId),
-      operator_id: Number(userId),
+      station_id: numericStationId,
+      operator_id: numericUserId,
       cliente_id: clienteId === null || clienteId === '' ? null : Number(clienteId),
       customer_name: customerName,
       amount,
