@@ -21,6 +21,7 @@ import { initOfflineQueue, setupAutoSync, registerExecutor } from './core/offlin
 import './operator/offline-financial-executors-v2.js';
 import { ensureSelectedOperatorStation } from './operator/station-context.js';
 import { showOperatorMenu } from './operator.js';
+import { handleError, AppError } from './shared/error-handler.js';
 import { store, User as StateUser } from './shared/state.js';
 import { CustomWindow } from './types.js';
 import { Toast } from './ui/toast.js';
@@ -254,7 +255,7 @@ async function initializeApp(): Promise<void> {
       const dbUserId = parseUserId(userForStore.user_id);
       if (dbUserId === undefined) {
         logger.error('App', 'Invalid user_id from store:', userForStore.user_id);
-        Toast.show('Errore identificativo utente', 'error');
+        handleError(new AppError('Errore identificativo utente', 'VALIDATION_ERROR'), 'App');
         return;
       }
       try {
@@ -264,7 +265,7 @@ async function initializeApp(): Promise<void> {
         );
 
         if (!stationId) {
-          Toast.show("Nessuna stazione assegnata all'utente", 'error');
+          handleError(new AppError("Nessuna stazione assegnata all'utente", 'VALIDATION_ERROR'), 'App');
           return;
         }
 
@@ -274,11 +275,11 @@ async function initializeApp(): Promise<void> {
           await showOperatorMenu(String(userForStore.id), stationId);
         } catch (menuError) {
           logger.error('App', 'Failed to show operator menu:', menuError);
-          Toast.show('Errore durante il caricamento del menu operatore', 'error');
+          handleError(new AppError('Errore durante il caricamento del menu operatore', 'APP_ERROR', menuError), 'App');
         }
       } catch (err) {
         logger.error('App', 'Failed to load operator station assignments:', err);
-        Toast.show('Errore durante il caricamento delle stazioni operatore', 'error');
+        handleError(new AppError('Errore durante il caricamento delle stazioni operatore', 'APP_ERROR', err), 'App');
       }
     }
   });
@@ -326,7 +327,7 @@ async function initializeApp(): Promise<void> {
       const dbUserId = parseUserId(loggedUser.user_id);
       if (dbUserId === undefined) {
         logger.error('App', 'Invalid user_id from session:', loggedUser.user_id);
-        Toast.show('Errore identificativo utente', 'error');
+        handleError(new AppError('Errore identificativo utente', 'VALIDATION_ERROR'), 'App');
       } else {
         try {
           const { user: freshUser, stationId } = await buildOperatorUserContext(
@@ -335,7 +336,7 @@ async function initializeApp(): Promise<void> {
           );
 
           if (!stationId) {
-            Toast.show("Nessuna stazione assegnata all'utente", 'error');
+            handleError(new AppError("Nessuna stazione assegnata all'utente", 'VALIDATION_ERROR'), 'App');
             return;
           }
 
@@ -344,11 +345,11 @@ async function initializeApp(): Promise<void> {
             await showOperatorMenu(String(loggedUser.id), stationId);
           } catch (menuError) {
             logger.error('App', 'Failed to restore operator menu:', menuError);
-            Toast.show('Errore durante il ripristino della sessione', 'error');
+            handleError(new AppError('Errore durante il ripristino della sessione', 'APP_ERROR', menuError), 'App');
           }
         } catch (err) {
           logger.error('App', 'Failed to restore operator station assignments:', err);
-          Toast.show('Errore durante il caricamento delle stazioni operatore', 'error');
+          handleError(new AppError('Errore durante il caricamento delle stazioni operatore', 'APP_ERROR', err), 'App');
         }
       }
     }
@@ -364,41 +365,68 @@ if (document.readyState === 'loading') {
   initializeApp();
 }
 
-// PWA Update Handler
-// PWA Update Handler
-let updateToastShown = false;
+// PWA Update Handler - silent auto-update when app is idle
+let pendingSWUpdate: (reloadPage?: boolean) => Promise<void> | null = null;
+let idleCheckInterval: ReturnType<typeof setInterval> | null = null;
+
+function applyUpdateWhenIdle(updateFn: (reloadPage?: boolean) => Promise<void>): void {
+  pendingSWUpdate = updateFn;
+
+  if (idleCheckInterval) {
+    clearInterval(idleCheckInterval);
+  }
+
+  idleCheckInterval = setInterval(() => {
+    if (store.isLoading() || store.isBusy()) {
+      return;
+    }
+
+    const activeModal = document.getElementById('app-modal');
+    if (activeModal && activeModal.style.display === 'flex') {
+      return;
+    }
+
+    const focusedTag = document.activeElement?.tagName?.toLowerCase();
+    const focusedInForm = !!(
+      document.activeElement &&
+      (focusedTag === 'input' ||
+        focusedTag === 'textarea' ||
+        focusedTag === 'select' ||
+        document.activeElement.closest('form'))
+    );
+    if (focusedInForm) {
+      return;
+    }
+
+    // App is idle: apply update silently
+    if (idleCheckInterval) {
+      clearInterval(idleCheckInterval);
+      idleCheckInterval = null;
+    }
+
+    logger.info('PWA', 'App idle; applying silent update');
+    updateFn(true)
+      .then(() => {
+        window.location.reload();
+        return undefined;
+      })
+      .catch(e => {
+        logger.error('PWA', 'Silent update failed:', e);
+        // Try a plain reload as fallback
+        window.location.reload();
+      });
+  }, 2000);
+}
 
 const updateSW = registerSW({
   onNeedRefresh() {
-    if (updateToastShown) {
-      return;
+    if (!pendingSWUpdate) {
+      logger.info('PWA', 'New version available; waiting for idle state to update silently');
+      applyUpdateWhenIdle(updateSW);
     }
-    updateToastShown = true;
-
-    Toast.show('Nuova versione disponibile!', 'info', 0, {
-      action: {
-        text: 'AGGIORNA',
-        onClick: () => {
-          logger.info('PWA', 'Update button clicked');
-          // Force reload immediately after clicking
-          updateSW(true)
-            .then(() => {
-              logger.info('PWA', 'Update accepted, reloading...');
-              // Force hard reload to bypass cache
-              window.location.reload();
-              return undefined;
-            })
-            .catch(e => {
-              logger.error('PWA', 'Update failed:', e);
-              // Reload anyway to try to get new version
-              window.location.reload();
-            });
-        }
-      }
-    });
   },
   onOfflineReady() {
-    Toast.show("App pronta per l'uso offline", 'success');
+    // Silently ignore offline-ready notification
   },
   onRegistered(r: ServiceWorkerRegistration | undefined): void {
     if (!r) {

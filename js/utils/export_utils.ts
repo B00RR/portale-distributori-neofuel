@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import { handleError, AppError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 
 /** Narrow an unknown value to a property bag, defaulting to an empty record. */
@@ -702,9 +703,9 @@ export async function generateClosureExcel(templateData: ExportMetrics): Promise
   try {
     const blob = await createPopulatedClosureWorkbook(templateData);
     downloadBlob(blob, `chiusura_${templateData.meta?.dateSlug || 'export'}.xlsx`);
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error('exportUtils', 'Excel generation error:', e);
-    Toast.show('Errore generazione Excel', 'error');
+    handleError(new AppError('Errore generazione Excel', 'EXPORT_ERROR', e), 'exportUtils');
   }
 }
 
@@ -732,9 +733,9 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
     downloadBlob(zipContent, `chiusure_multi_export_${today}.zip`);
 
     Toast.show('Download ZIP completato!', 'success');
-  } catch (e) {
+  } catch (e: unknown) {
     logger.error('exportUtils', 'ZIP export error:', e);
     const message = e instanceof Error ? e.message : 'Errore sconosciuto';
-    Toast.show('Errore fatale export: ' + message, 'error');
+    handleError(new AppError(`Errore fatale export: ${message}`, 'EXPORT_ERROR', e), 'exportUtils');
   }
 }

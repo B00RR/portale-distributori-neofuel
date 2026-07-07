@@ -1,5 +1,6 @@
 import { logger } from '../core/logger.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
+import { store } from '../shared/state.js';
 /**
  * UI Helpers Module
  * Provides reusable UI functions: loaders, modals, confirmations, prompts
@@ -201,6 +202,7 @@ export function openModal(title: string = ''): void {
   } // Clear previous content
 
   lastFocusedBeforeModal = document.activeElement as HTMLElement | null;
+  store.setBusy(true);
   modal.style.display = 'flex';
   const firstFocusable = modal.querySelector<HTMLElement>(MODAL_FOCUSABLES);
   (firstFocusable ?? modal).focus();
@@ -212,6 +214,7 @@ export function openModal(title: string = ''): void {
 export function closeModal(): void {
   const modal = document.getElementById('app-modal');
   if (modal) {
+    store.setBusy(false);
     modal.style.display = 'none';
     const bodyEl = modal.querySelector('#modal-body');
     if (bodyEl) {

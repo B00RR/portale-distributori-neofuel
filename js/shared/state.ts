@@ -50,6 +50,7 @@ export interface AppState {
   pagination: Pagination;
   loading: boolean;
   error: string | null;
+  busy: boolean;
 }
 
 export type StateKey = keyof AppState;
@@ -78,7 +79,8 @@ class Store {
         totalCount: 0
       },
       loading: false,
-      error: null
+      error: null,
+      busy: false
     };
     this.listeners = new Set();
   }
@@ -142,6 +144,14 @@ class Store {
   }
 
   /**
+   * Set busy state (e.g. modal open, wizard in progress)
+   */
+  setBusy(busy: boolean): void {
+    this.state.busy = busy;
+    this.notify('busy', busy);
+  }
+
+  /**
    * Set error state
    */
   setError(error: string | null): void {
@@ -191,6 +201,13 @@ class Store {
 
   isLoading(): boolean {
     return this.state.loading;
+  }
+
+  /**
+   * Check whether the app is in a busy/critical state (modal, wizard, etc.)
+   */
+  isBusy(): boolean {
+    return this.state.busy;
   }
 
   getError(): string | null {
