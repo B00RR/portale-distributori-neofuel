@@ -53,7 +53,15 @@ function safeErrorString(error: unknown): string {
   if (typeof error === 'string') {
     return maskSensitive(error);
   }
-  // For objects, only log a generic descriptor
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+  ) {
+    return maskSensitive((error as { message: string }).message);
+  }
+  // For other objects, only log a generic descriptor
   return '[Object]';
 }
 
@@ -97,7 +105,7 @@ function log(level: LogLevel, context: string, message: string, errorId?: string
 function formatArgs(args: unknown[]): string {
   return args
     .map(arg => {
-      if (arg instanceof Error) {
+      if (arg instanceof Error || (arg && typeof arg === 'object' && 'message' in arg)) {
         return safeErrorString(arg);
       }
       if (typeof arg === 'string') {

@@ -43,10 +43,22 @@ describe('Logger Module', () => {
         });
 
         it('should handle object errors safely', () => {
-            const errorId = logger.error('Context', { detail: 'some object' });
+            const errorId = logger.error('Context', { message: 'Object error payload' });
 
             expect(errorId).toMatch(/^ERR-[A-Z0-9]+$/);
             expect(consoleErrorSpy).toHaveBeenCalled();
+            const loggedMessage = consoleErrorSpy.mock.calls[0][0];
+            expect(loggedMessage).toContain('Object error payload');
+        });
+
+        it('should extract message from Supabase-like errors', () => {
+            const supabaseError = { message: 'PGRST116: exactly one row expected', code: 'PGRST116' };
+            const errorId = logger.error('AuthContext', supabaseError);
+
+            expect(errorId).toMatch(/^ERR-[A-Z0-9]+$/);
+            const loggedMessage = consoleErrorSpy.mock.calls[0][0];
+            expect(loggedMessage).toContain('PGRST116');
+            expect(loggedMessage).toContain('exactly one row expected');
         });
 
         it('should include error ID in log', () => {

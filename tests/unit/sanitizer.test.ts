@@ -16,8 +16,8 @@ describe('Sanitizer Module (Security)', () => {
     let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
-        consoleErrorSpy = vi.spyOn(console, 'error');
-        consoleWarnSpy = vi.spyOn(console, 'warn');
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     });
 
     afterEach(() => {
@@ -108,19 +108,20 @@ describe('Sanitizer Module (Security)', () => {
             expect(isSafeUrl('javascript:alert(1)')).toBe(false);
             expect(isSafeUrl('JAVASCRIPT:alert(1)')).toBe(false);
             expect(isSafeUrl(' javascript:alert(1)')).toBe(false);
-            expect(consoleWarnSpy).toHaveBeenCalled();
+            expect(consoleWarnSpy).toHaveBeenCalledTimes(3);
+            expect(consoleWarnSpy.mock.calls[0][0]).toContain('javascript:');
         });
 
         it('should block data: protocol', () => {
             expect(isSafeUrl('data:text/html,<script>alert(1)</script>')).toBe(false);
             expect(isSafeUrl('DATA:image/png;base64,...')).toBe(false);
-            expect(consoleWarnSpy).toHaveBeenCalled();
+            expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
         });
 
         it('should block vbscript and file protocols', () => {
             expect(isSafeUrl('vbscript:alert(1)')).toBe(false);
             expect(isSafeUrl('file:///etc/passwd')).toBe(false);
-            expect(consoleWarnSpy).toHaveBeenCalled();
+            expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
         });
 
         it('should return false for null/undefined/empty', () => {
@@ -148,7 +149,7 @@ describe('Sanitizer Module (Security)', () => {
         it('should return null for unsafe URLs', () => {
             expect(createSafeLink('javascript:alert(1)', 'Unsafe')).toBeNull();
             expect(createSafeLink('data:text/html,<script>', 'Unsafe')).toBeNull();
-            expect(consoleWarnSpy).toHaveBeenCalled();
+            expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
         });
 
         it('should add target and rel attributes when newTab is true', () => {
