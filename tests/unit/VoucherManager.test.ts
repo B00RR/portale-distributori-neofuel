@@ -18,7 +18,7 @@ const { mockSupabase, mockToast, mockUtils, mockOfflineQueue, mockRules } = vi.h
     return {
         mockSupabase: {
             from: vi.fn(() => chain),
-            rpc: vi.fn().mockResolvedValue({ data: {}, error: null }),
+            rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
             chain // Export to access in tests
         },
         mockToast: { show: vi.fn() },
@@ -59,6 +59,7 @@ describe('VoucherManager (523 lines)', () => {
         vi.clearAllMocks();
         // Reset default then behavior
         mockSupabase.chain.then = (resolve: any) => resolve({ data: [], error: null });
+        mockSupabase.rpc.mockResolvedValue({ data: { success: true }, error: null });
 
         document.body.innerHTML = `<voucher-manager stationId="ST-123" userId="user-456"></voucher-manager>`;
         element = document.querySelector('voucher-manager');
