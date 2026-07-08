@@ -7,10 +7,11 @@ import { BusinessLogicManager } from '../../core/business-logic-manager.js';
 import { type BusinessRules, DEFAULT_BUSINESS_RULES } from '../../core/business-rules-schema.js';
 import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
+import { handleError, AppError } from '../../shared/error-handler.js';
 import { Pistola, Island, Shift } from '../../types.js';
 import { formatEuro, formatDateTimeSafe, getErrorMessage } from '../../utils/utils.js';
-import { handleError, AppError } from '../../shared/error-handler.js';
 import { Toast } from '../toast.js';
+
 import { BaseComponent } from './BaseComponent.js';
 
 interface RpcResult {
@@ -571,7 +572,10 @@ export class ClosureWizard extends BaseComponent {
       const counters: Record<number, number> = {};
       for (const input of Array.from(inputs) as HTMLInputElement[]) {
         if (!input.value) {
-          handleError(new AppError('Inserisci tutti i contatori', 'VALIDATION_ERROR'), 'ClosureWizard.handleStep1Submit');
+          handleError(
+            new AppError('Inserisci tutti i contatori', 'VALIDATION_ERROR'),
+            'ClosureWizard.handleStep1Submit'
+          );
           input.focus();
           return;
         }
@@ -696,7 +700,10 @@ export class ClosureWizard extends BaseComponent {
 
   private handleStep2Submit(): void {
     if (!this.operatorCash || !this.operatorPos) {
-      handleError(new AppError('Inserisci i dati reali', 'VALIDATION_ERROR'), 'ClosureWizard.handleStep2Submit');
+      handleError(
+        new AppError('Inserisci i dati reali', 'VALIDATION_ERROR'),
+        'ClosureWizard.handleStep2Submit'
+      );
       return;
     }
     this.wizardState = { ...this.wizardState, step: 3 };
@@ -811,7 +818,10 @@ export class ClosureWizard extends BaseComponent {
     };
 
     if (!this.activeOpening) {
-      handleError(new AppError('Nessun turno aperto selezionato', 'VALIDATION_ERROR'), 'ClosureWizard');
+      handleError(
+        new AppError('Nessun turno aperto selezionato', 'VALIDATION_ERROR'),
+        'ClosureWizard'
+      );
       this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
       return;
     }
@@ -833,7 +843,10 @@ export class ClosureWizard extends BaseComponent {
         setTimeout(() => window.location.reload(), 2000);
       } catch (err) {
         logger.error('ClosureWizard', 'Impossibile salvare la chiusura offline', err);
-        handleError(new AppError('Impossibile salvare la chiusura offline', 'OFFLINE_QUEUE_ERROR', err), 'ClosureWizard');
+        handleError(
+          new AppError('Impossibile salvare la chiusura offline', 'OFFLINE_QUEUE_ERROR', err),
+          'ClosureWizard'
+        );
         this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
       }
       return;
@@ -858,7 +871,10 @@ export class ClosureWizard extends BaseComponent {
       Toast.show('Chiusura completata!', 'success');
       setTimeout(() => window.location.reload(), 2000);
     } catch (error: unknown) {
-      handleError(new AppError(getErrorMessage(error), 'SHIFT_CLOSURE_ERROR', error), 'ClosureWizard');
+      handleError(
+        new AppError(getErrorMessage(error), 'SHIFT_CLOSURE_ERROR', error),
+        'ClosureWizard'
+      );
       this.wizardState = { ...this.wizardState, mode: 'form', step: 3 };
     }
   }

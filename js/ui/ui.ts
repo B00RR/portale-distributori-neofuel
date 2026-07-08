@@ -1,6 +1,6 @@
 import { logger } from '../core/logger.js';
-import { setSafeHTML } from '../utils/sanitizer.js';
 import { store } from '../shared/state.js';
+import { setSafeHTML } from '../utils/sanitizer.js';
 /**
  * UI Helpers Module
  * Provides reusable UI functions: loaders, modals, confirmations, prompts
