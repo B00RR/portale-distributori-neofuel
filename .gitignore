@@ -8,6 +8,10 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+config/.env.test
+
+# PR body temp files
+.pr-body-*.md
 
 # IDE
 .vscode/

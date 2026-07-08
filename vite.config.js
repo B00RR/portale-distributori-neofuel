@@ -35,6 +35,7 @@ export default defineConfig(({ mode }) => {
                     name: 'Neofuel Portal - Distributori',
                     short_name: 'Neofuel',
                     description: 'Portale Distributori Neofuel - Gestione stazioni di servizio',
+                    lang: 'it',
                     theme_color: '#0A2342',
                     background_color: '#0A2342', // Match theme color for smooth launch
                     display: 'standalone',
