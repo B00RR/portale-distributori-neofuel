@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap opzionale: aggiungere quando disponibile
+# Sitemap: https://portale.neofuel.it/sitemap.xml

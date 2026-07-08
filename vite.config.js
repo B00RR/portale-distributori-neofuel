@@ -17,6 +17,20 @@ export default defineConfig(({ mode }) => {
     // Log presence (not the value) for debugging build config issues
     console.log(`[Vite Build] Supabase URL detected: ${env.VITE_SUPABASE_URL ? 'YES' : 'NO'}`);
 
+    // Fail build in production if required Supabase env vars are missing.
+    // This prevents deploying a non-functional artifact because js/core/config.ts
+    // throws at runtime when these values are empty.
+    if (mode === 'production') {
+        const required = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
+        const missing = required.filter((key) => !env[key]);
+        if (missing.length > 0) {
+            throw new Error(
+                `[Vite Build] Missing required environment variables: ${missing.join(', ')}. ` +
+                'Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in production.'
+            );
+        }
+    }
+
     return {
         root: '.',
         base: './',
@@ -35,6 +49,7 @@ export default defineConfig(({ mode }) => {
                     name: 'Neofuel Portal - Distributori',
                     short_name: 'Neofuel',
                     description: 'Portale Distributori Neofuel - Gestione stazioni di servizio',
+                    lang: 'it',
                     theme_color: '#0A2342',
                     background_color: '#0A2342', // Match theme color for smooth launch
                     display: 'standalone',
@@ -85,31 +100,6 @@ export default defineConfig(({ mode }) => {
                                 }
                             }
                         },
-                        // NetworkFirst for Supabase API (offline fallback)
-                        {
-                            urlPattern: /supabase\.co\/rest\/v1/i,
-                            handler: 'NetworkFirst',
-                            options: {
-                                cacheName: 'supabase-api-cache',
-                                networkTimeoutSeconds: 10,
-                                expiration: {
-                                    maxEntries: 100,
-                                    maxAgeSeconds: 24 * 60 * 60 // 24 hours
-                                },
-                                cacheableResponse: {
-                                    statuses: [0, 200]
-                                }
-                            }
-                        },
-                        // NetworkFirst for Supabase Auth
-                        {
-                            urlPattern: /supabase\.co\/auth/i,
-                            handler: 'NetworkFirst',
-                            options: {
-                                cacheName: 'supabase-auth-cache',
-                                networkTimeoutSeconds: 5
-                            }
-                        },
                         // Cache external fonts
                         {
                             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com/i,
@@ -154,7 +144,9 @@ export default defineConfig(({ mode }) => {
             target: 'es2022',
             outDir: 'dist',
             assetsDir: 'assets',
-            sourcemap: true,
+            // Use hidden sourcemaps in production so error monitoring tools can
+            // upload them privately without exposing source code in the deploy.
+            sourcemap: mode === 'production' ? 'hidden' : true,
             minify: 'terser',
             // 1000 e non il default 500: il chunk Excel viene caricato lazy solo
             // al primo export e non pesa sullo startup dell'app.
