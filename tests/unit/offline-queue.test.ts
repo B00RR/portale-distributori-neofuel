@@ -79,8 +79,8 @@ describe('Offline Queue Module', () => {
         vi.resetModules();
         smartIDB._reset();
         vi.stubGlobal('indexedDB', smartIDB);
-        consoleErrorSpy = vi.spyOn(console, 'error');
-        consoleWarnSpy = vi.spyOn(console, 'warn');
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         offlineQueue = await import('../../js/core/offline-queue.js');
         await offlineQueue.initOfflineQueue();

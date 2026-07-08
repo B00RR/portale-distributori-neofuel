@@ -9,8 +9,8 @@ describe('Rate Limiter Module', () => {
   beforeEach(() => {
     // Clear all rate limits before each test
     vi.useFakeTimers();
-    consoleErrorSpy = vi.spyOn(console, 'error');
-    consoleWarnSpy = vi.spyOn(console, 'warn');
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
