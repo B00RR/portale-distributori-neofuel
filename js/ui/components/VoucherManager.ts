@@ -278,21 +278,12 @@ export class VoucherManager extends BaseComponent {
     await this.updateComplete;
 
     // Load Html5Qrcode library on-demand if not already loaded
-    if (!window.Html5Qrcode && !document.querySelector('script[src*="html5-qrcode"]')) {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/html5-qrcode';
-      document.head.appendChild(script);
-    }
-
-    // Check if library is loaded with retries
-    let retries = 0;
-    while (!window.Html5Qrcode && retries < 20) {
-      await new Promise(r => setTimeout(r, 200));
-      retries++;
-    }
-
+    // The library is already exposed as window.Html5Qrcode by js/vendor/bundle.ts;
+    // this avoids loading it from unpkg.com (which would violate the CSP and
+    // duplicate the bundle-local copy).
     if (!window.Html5Qrcode) {
-      this.errorMessage = 'Libreria scanner non caricata. Riprova o ricarica la pagina.';
+      this.errorMessage =
+        'Libreria scanner non disponibile. Ricarica la pagina e assicurati di usare il bundle ufficiale.';
       this.mode = 'error';
       return;
     }
