@@ -210,6 +210,9 @@ export function formatDate(value: string | Date | null | undefined): string {
   if (!value) {
     return '';
   }
+  if (typeof value === 'symbol') {
+    return '';
+  }
   try {
     const date = new Date(value);
     if (isNaN(date.getTime())) {
@@ -218,6 +221,9 @@ export function formatDate(value: string | Date | null | undefined): string {
     return new Intl.DateTimeFormat('it-IT').format(date);
   } catch (err) {
     logger.warn('formatDate', 'Impossibile formattare la data', err);
+    if (typeof value === 'symbol') {
+      return '';
+    }
     return String(value);
   }
 }

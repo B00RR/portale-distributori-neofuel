@@ -120,12 +120,11 @@ describe('Utils Module', () => {
             expect(formatDate('invalid')).toBe('invalid');
             expect(formatDate(null)).toBe('');
 
-            // Cover catch block (line 177): Force standard Date constructor to throw (rare, but possible with proxy or bad polyfill)
-            // Or easier, pass a symbol which throws on toString if used in Date constructor?
-            // Actually new Date(Symbol()) throws TypeError.
+            // Runtime JS can still pass unexpected values even if the TypeScript
+            // signature is narrower. Symbol must not crash Date/string fallback.
             const badInput = Symbol('bad date') as unknown as string | number | Date;
-            expect(formatDate(badInput)).toBe('Symbol(bad date)');
-            expect(consoleWarnSpy).toHaveBeenCalled();
+            expect(formatDate(badInput)).toBe('');
+            expect(consoleWarnSpy).not.toHaveBeenCalled();
         });
 
         it('getISODate should return YYYY-MM-DD', () => {

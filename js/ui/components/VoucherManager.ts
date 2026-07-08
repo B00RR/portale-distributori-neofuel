@@ -5,10 +5,10 @@ import { supabase } from '../../core/api.js';
 import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { validateVoucher } from '../../core/rules.js';
+import { handleError, AppError } from '../../shared/error-handler.js';
 import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
 import { createRateLimiter } from '../../utils/utils.js';
 import { formatEuro, formatDate } from '../../utils/utils.js';
-import { handleError, AppError } from '../../shared/error-handler.js';
 import { Toast } from '../toast.js';
 
 import { BaseComponent } from './BaseComponent.js';
@@ -347,7 +347,10 @@ export class VoucherManager extends BaseComponent {
 
   private async processCode(code: string): Promise<void> {
     if (!this.rateLimiter.check()) {
-      handleError(new AppError('Troppi tentativi. Riprova tra un minuto.', 'RATE_LIMIT_ERROR'), 'VoucherManager.processCode');
+      handleError(
+        new AppError('Troppi tentativi. Riprova tra un minuto.', 'RATE_LIMIT_ERROR'),
+        'VoucherManager.processCode'
+      );
       return;
     }
 
@@ -363,7 +366,13 @@ export class VoucherManager extends BaseComponent {
         voucher_batches: { customer_name: 'Verifica al ritorno online' }
       };
       this.mode = 'verify';
-      handleError(new AppError('Modalità offline: il voucher verrà validato al ritorno online.', 'OFFLINE_MODE'), 'VoucherManager.processCode');
+      handleError(
+        new AppError(
+          'Modalità offline: il voucher verrà validato al ritorno online.',
+          'OFFLINE_MODE'
+        ),
+        'VoucherManager.processCode'
+      );
       return;
     }
 
@@ -395,7 +404,10 @@ export class VoucherManager extends BaseComponent {
         this.mode = 'verify';
       }
     } catch (e: unknown) {
-      const err = e instanceof AppError ? e : new AppError('Errore di controllo voucher', 'VOUCHER_CHECK_ERROR', e);
+      const err =
+        e instanceof AppError
+          ? e
+          : new AppError('Errore di controllo voucher', 'VOUCHER_CHECK_ERROR', e);
       handleError(err, 'VoucherManager.processCode');
       this.errorMessage = err.message;
       this.mode = 'error';
@@ -446,7 +458,8 @@ export class VoucherManager extends BaseComponent {
       this.mode = 'success';
       this.emit('voucher-redeemed', { voucher: this.activeVoucher });
     } catch (e: unknown) {
-      const err = e instanceof AppError ? e : new AppError('Riscatto fallito', 'VOUCHER_REDEEM_ERROR', e);
+      const err =
+        e instanceof AppError ? e : new AppError('Riscatto fallito', 'VOUCHER_REDEEM_ERROR', e);
       handleError(err, 'VoucherManager.confirmRedeem');
       this.errorMessage = err.message;
       this.mode = 'error';

@@ -24,7 +24,6 @@ import { showOperatorMenu } from './operator.js';
 import { handleError, AppError } from './shared/error-handler.js';
 import { store, User as StateUser } from './shared/state.js';
 import { CustomWindow } from './types.js';
-import { Toast } from './ui/toast.js';
 import './ui/ui-settings-panel.js';
 import { initializeCalculationPresets } from './utils/calculation-presets.js';
 
@@ -265,7 +264,10 @@ async function initializeApp(): Promise<void> {
         );
 
         if (!stationId) {
-          handleError(new AppError("Nessuna stazione assegnata all'utente", 'VALIDATION_ERROR'), 'App');
+          handleError(
+            new AppError("Nessuna stazione assegnata all'utente", 'VALIDATION_ERROR'),
+            'App'
+          );
           return;
         }
 
@@ -275,11 +277,21 @@ async function initializeApp(): Promise<void> {
           await showOperatorMenu(String(userForStore.id), stationId);
         } catch (menuError) {
           logger.error('App', 'Failed to show operator menu:', menuError);
-          handleError(new AppError('Errore durante il caricamento del menu operatore', 'APP_ERROR', menuError), 'App');
+          handleError(
+            new AppError(
+              'Errore durante il caricamento del menu operatore',
+              'APP_ERROR',
+              menuError
+            ),
+            'App'
+          );
         }
       } catch (err) {
         logger.error('App', 'Failed to load operator station assignments:', err);
-        handleError(new AppError('Errore durante il caricamento delle stazioni operatore', 'APP_ERROR', err), 'App');
+        handleError(
+          new AppError('Errore durante il caricamento delle stazioni operatore', 'APP_ERROR', err),
+          'App'
+        );
       }
     }
   });
@@ -336,7 +348,10 @@ async function initializeApp(): Promise<void> {
           );
 
           if (!stationId) {
-            handleError(new AppError("Nessuna stazione assegnata all'utente", 'VALIDATION_ERROR'), 'App');
+            handleError(
+              new AppError("Nessuna stazione assegnata all'utente", 'VALIDATION_ERROR'),
+              'App'
+            );
             return;
           }
 
@@ -345,11 +360,21 @@ async function initializeApp(): Promise<void> {
             await showOperatorMenu(String(loggedUser.id), stationId);
           } catch (menuError) {
             logger.error('App', 'Failed to restore operator menu:', menuError);
-            handleError(new AppError('Errore durante il ripristino della sessione', 'APP_ERROR', menuError), 'App');
+            handleError(
+              new AppError('Errore durante il ripristino della sessione', 'APP_ERROR', menuError),
+              'App'
+            );
           }
         } catch (err) {
           logger.error('App', 'Failed to restore operator station assignments:', err);
-          handleError(new AppError('Errore durante il caricamento delle stazioni operatore', 'APP_ERROR', err), 'App');
+          handleError(
+            new AppError(
+              'Errore durante il caricamento delle stazioni operatore',
+              'APP_ERROR',
+              err
+            ),
+            'App'
+          );
         }
       }
     }
@@ -366,7 +391,7 @@ if (document.readyState === 'loading') {
 }
 
 // PWA Update Handler - silent auto-update when app is idle
-let pendingSWUpdate: (reloadPage?: boolean) => Promise<void> | null = null;
+let pendingSWUpdate: ((reloadPage?: boolean) => Promise<void>) | null = null;
 let idleCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 function applyUpdateWhenIdle(updateFn: (reloadPage?: boolean) => Promise<void>): void {
