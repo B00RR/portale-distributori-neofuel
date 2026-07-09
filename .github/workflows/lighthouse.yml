@@ -31,8 +31,11 @@ jobs:
 
     - name: Run Lighthouse CI
       uses: treosh/lighthouse-ci-action@v12
+      env:
+        VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
       with:
         uploadArtifacts: true
         temporaryPublicStorage: true
-        budgetPath: ./lighthouse-budget.json
-        configPath: ./lighthouserc.json
+        budgetPath: ./config/lighthouse/lighthouse-budget.json
+        configPath: ./config/lighthouse/lighthouserc.json

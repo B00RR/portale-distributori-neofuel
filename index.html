@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <title>Portale Distributori Neofuel</title>
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; frame-src 'none'; object-src 'none';" />
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; frame-src 'none'; object-src 'none';" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- PWA Configuration -->
@@ -20,6 +20,7 @@
   <link rel="icon" type="image/svg+xml" href="/assets/images/Favicon.svg" />
   <link rel="stylesheet" href="css/index.css?v=1" />
   <script type="module" src="js/vendor/bundle.ts"></script>
+  <script type="module" src="js/startup-safety-net.ts"></script>
 </head>
 
 <body>
@@ -44,67 +45,6 @@
           id="error-code-display">Unknown</span></p>
     </div>
   </div>
-
-  <script>
-    // SAFETY NET SCRIPT
-    // Catch-all for startup errors
-    (function () {
-      var boundary = document.getElementById('global-error-boundary');
-      var btn = document.getElementById('btn-force-reset');
-      var codeDisplay = document.getElementById('error-code-display');
-
-      function showError(msg) {
-        if (boundary) boundary.style.display = 'block';
-        if (codeDisplay) codeDisplay.textContent = msg || 'Startup Failure';
-        console.error('CRITICAL STARTUP ERROR:', msg);
-      }
-
-      window.onerror = function (msg, source, lineno, colno, error) {
-        // Ignore simple resize errors or extensions
-        if (msg && typeof msg === 'string' && msg.indexOf('ResizeObserver') !== -1) return;
-        showError(msg);
-      };
-
-      window.addEventListener('unhandledrejection', function (event) {
-        showError(event.reason ? event.reason.message : 'Unhandled Promise Rejection');
-      });
-
-      // Force Reset Handler
-      if (btn) {
-        btn.onclick = function () {
-          btn.textContent = 'Pulizia in corso...';
-          btn.disabled = true;
-
-          // 1. Unregister Service Workers
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function (registrations) {
-              for (let registration of registrations) {
-                registration.unregister();
-              }
-            });
-          }
-
-          // 2. Clear Storage
-          localStorage.clear();
-          sessionStorage.clear();
-
-          // 3. Clear Caches
-          if ('caches' in window) {
-            caches.keys().then(function (names) {
-              for (let name of names) {
-                caches.delete(name);
-              }
-            });
-          }
-
-          // 4. Reload after short delay
-          setTimeout(function () {
-            window.location.reload(true);
-          }, 1000);
-        };
-      }
-    })();
-  </script>
 
   <div class="login-container" id="login-container">
     <form id="login-form">
