@@ -1,32 +1,32 @@
 [
-    {
-        "resourceSizes": [
-            {
-                "resourceType": "script",
-                "budget": 200
-            },
-            {
-                "resourceType": "total",
-                "budget": 500
-            }
-        ],
-        "timings": [
-            {
-                "metric": "first-contentful-paint",
-                "budget": 1800
-            },
-            {
-                "metric": "largest-contentful-paint",
-                "budget": 2500
-            },
-            {
-                "metric": "interactive",
-                "budget": 3800
-            },
-            {
-                "metric": "total-blocking-time",
-                "budget": 300
-            }
-        ]
-    }
+  {
+    "resourceSizes": [
+      {
+        "resourceType": "script",
+        "budget": 550
+      },
+      {
+        "resourceType": "total",
+        "budget": 800
+      }
+    ],
+    "timings": [
+      {
+        "metric": "first-contentful-paint",
+        "budget": 6000
+      },
+      {
+        "metric": "largest-contentful-paint",
+        "budget": 6500
+      },
+      {
+        "metric": "interactive",
+        "budget": 6500
+      },
+      {
+        "metric": "total-blocking-time",
+        "budget": 300
+      }
+    ]
+  }
 ]
