@@ -70,12 +70,12 @@ export async function renderOperatorShell(
                 </button>
 
                 <div class="op-menu-accordion" data-testid="menu-accordion-movements">
-                    <button class="op-menu-item accordion-trigger" id="btn-movimenti" data-testid="btn-movimenti">
+                    <button class="op-menu-item accordion-trigger" id="btn-movimenti" data-testid="btn-movimenti" aria-expanded="false" aria-controls="movimenti-content">
                         <i class="fas fa-exchange-alt"></i>
                         <span>Movimenti</span>
                         <i class="fas fa-chevron-down accordion-icon"></i>
                     </button>
-                    <div class="accordion-content" id="movimenti-content">
+                    <div class="accordion-content" id="movimenti-content" hidden aria-hidden="true">
                         <button class="op-submenu-item" id="btn-crediti" data-testid="btn-crediti">
                             <i class="fas fa-credit-card"></i>
                             <span>Crediti</span>
@@ -300,10 +300,14 @@ function attachEventListeners(handlers: OperatorHandlers): void {
   if (btnMovimenti && movimentiContent) {
     btnMovimenti.addEventListener('click', () => {
       const isOpen = movimentiContent.classList.contains('open');
-      movimentiContent.classList.toggle('open');
+      const nextOpen = !isOpen;
+      movimentiContent.classList.toggle('open', nextOpen);
+      movimentiContent.hidden = !nextOpen;
+      movimentiContent.setAttribute('aria-hidden', String(!nextOpen));
+      btnMovimenti.setAttribute('aria-expanded', String(nextOpen));
       const icon = btnMovimenti.querySelector('.accordion-icon') as HTMLElement | null;
       if (icon) {
-        icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+        icon.style.transform = nextOpen ? 'rotate(180deg)' : 'rotate(0deg)';
       }
     });
   }

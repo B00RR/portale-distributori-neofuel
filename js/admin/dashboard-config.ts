@@ -462,6 +462,9 @@ function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
         return '';
       }
 
+      const safeTitle = escapeHtml(kpiMeta.title);
+      const visibilityAction = kpi.visible ? 'Nascondi' : 'Mostra';
+
       return `
         <div class="kpi-config-item ${!kpi.visible ? 'hidden' : ''}" data-kpi-id="${kpi.id}">
           <div class="kpi-drag-handle">
@@ -482,13 +485,14 @@ function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
             <button 
               class="kpi-control-btn kpi-visibility-btn ${kpi.visible ? 'active' : ''}" 
               data-action="toggle-visibility"
-              title="${kpi.visible ? 'Nascondi' : 'Mostra'}"
+              title="${visibilityAction} ${safeTitle}"
+              aria-label="${visibilityAction} KPI ${safeTitle}"
             >
               <i class="fas ${kpi.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
             </button>
 
             <div class="kpi-size-dropdown">
-              <button class="kpi-control-btn" data-action="resize" title="Ridimensiona">
+              <button class="kpi-control-btn" data-action="resize" title="Ridimensiona ${safeTitle}" aria-label="Ridimensiona KPI ${safeTitle}">
                 <i class="fas fa-expand-arrows-alt"></i>
                 <span class="size-label">${kpi.size}</span>
               </button>
