@@ -26,19 +26,29 @@ export const UpdateUserSchema = z.object({
 
 // ========== PRICE SCHEMAS ==========
 
+const NumericIdSchema = z.preprocess(
+  value => (typeof value === 'string' && value.trim() !== '' ? Number(value) : value),
+  z.number().int('ID non valido').positive('ID non valido').finite('ID non valido')
+);
+
+const PriceValueSchema = z.preprocess(
+  value => (typeof value === 'string' && value.trim() !== '' ? Number(value) : value),
+  z.number().min(0, 'Prezzo non valido').max(10, 'Prezzo troppo alto').finite('Prezzo non valido')
+);
+
 export const PriceUpdateSchema = z.object({
-  station_id: z.union([z.number(), z.string().transform(Number)]),
-  prezzo_benzina: z.number().min(0, 'Prezzo non valido').max(10, 'Prezzo troppo alto'),
-  prezzo_gasolio: z.number().min(0, 'Prezzo non valido').max(10, 'Prezzo troppo alto'),
-  prezzo_gpl: z.number().min(0).max(10).nullable().optional(),
-  prezzo_metano: z.number().min(0).max(10).nullable().optional(),
+  station_id: NumericIdSchema,
+  prezzo_benzina: PriceValueSchema,
+  prezzo_gasolio: PriceValueSchema,
+  prezzo_gpl: PriceValueSchema.nullable().optional(),
+  prezzo_metano: PriceValueSchema.nullable().optional(),
   data_validita: z.string().datetime().or(z.date())
 });
 
 // ========== SHIFT SCHEMAS ==========
 
 export const ShiftIdSchema = z.object({
-  id: z.union([z.number(), z.string().transform(Number)])
+  id: NumericIdSchema
 });
 
 export const BulkExportSchema = z

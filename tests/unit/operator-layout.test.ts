@@ -57,6 +57,33 @@ describe('Operator Layout Module', () => {
     expect(container.querySelector('#operator-station-select')).toBeNull();
   });
 
+  it('exposes ARIA state for the movements accordion', async () => {
+    mockStore.getUser.mockReturnValue({
+      id: 'auth-user',
+      user_id: '10',
+      email: 'op@test.com',
+      role: 'operator',
+      station_id: '1',
+      assignedStations: [{ id: 1, name: 'Roma' }]
+    });
+    const container = document.getElementById('main-content') as HTMLElement;
+
+    await renderOperatorShell(container, handlers);
+
+    const trigger = container.querySelector('#btn-movimenti') as HTMLButtonElement;
+    const panel = container.querySelector('#movimenti-content') as HTMLElement;
+    expect(trigger.getAttribute('aria-controls')).toBe('movimenti-content');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(panel.hidden).toBe(true);
+    expect(panel.getAttribute('aria-hidden')).toBe('true');
+
+    trigger.click();
+
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.hidden).toBe(false);
+    expect(panel.getAttribute('aria-hidden')).toBe('false');
+  });
+
   it('renders a station selector for multiple stations and persists changes', async () => {
     const user = {
       id: 'auth-user',

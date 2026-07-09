@@ -110,12 +110,12 @@ export async function showVoucherAdminTab(
                 <div class="top-bar-title">
                     <h2><i class="fas fa-ticket-alt"></i> Gestione Voucher V3</h2>
                 </div>
-                
+
                 <!-- TABS -->
                 <div class="tabs-container" id="voucher-tabs" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; max-width: 100%;">
                     <!-- Buttons injected dynamically to handle active state -->
                 </div>
-                
+
                 <div id="voucher-content" class="tab-content" style="background: var(--bg-surface); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border-color); max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
                     <!-- Content injected here -->
                 </div>
@@ -171,7 +171,7 @@ function updateTabButtons(): void {
             </div>
             <div style="font-size: 0.85rem; opacity: 0.8;">Crea nuovi buoni</div>
         </button>
-        
+
         <button class="menu-button ${voucherState.activeTab === 'dashboard' ? 'primary' : 'outline'}" data-tab="dashboard" style="flex: 1 1 200px; padding: 20px; border-radius: 12px; height: auto; display: flex; flex-direction: column; gap: 4px;">
             <div style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
                 <i class="fas fa-chart-line"></i> Dashboard
@@ -238,9 +238,9 @@ function renderGenerator(container: HTMLElement): void {
                 <h3 style="font-size: 2rem; margin-bottom: 12px; color: var(--primary-color);">Crea Nuovi Voucher</h3>
                 <p class="section-subtitle" style="font-size: 1.2rem; color: var(--text-secondary);">Compila i dati per generare e stampare un nuovo lotto.</p>
             </div>
-            
+
             <form id="voucher-generator-form" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px;">
-                
+
                 <!-- Row 1: Metrics -->
                 <div class="form-field">
                     <label style="font-weight: 600; margin-bottom: 10px; display: block; color: var(--text-main); font-size: 1.05rem;">Valore (€)</label>
@@ -576,7 +576,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                     font-weight: 600;
                     color: var(--text-main);
                 }
-                
+
                 /* Action buttons hover effects */
                 [data-action] {
                     transition: all 0.2s ease;
@@ -588,7 +588,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                 [data-action]:active {
                     transform: scale(0.95);
                 }
-                
+
                 /* Responsive adjustments */
                 @media (max-width: 1200px) {
                     .voucher-grid-inner {
@@ -599,7 +599,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                         grid-template-columns: minmax(130px, 1fr) minmax(180px, 1fr) 120px 80px 80px 100px 150px;
                     }
                 }
-                
+
                 @media (max-width: 768px) {
                     .voucher-grid-inner {
                         min-width: 700px;
@@ -698,15 +698,15 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                                 </div>
                                 <div class="voucher-cell center" style="flex-shrink: 0; min-width: 150px;">
                                     <div style="display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center;">
-                                        <button class="menu-button primary action-btn-primary-${b.id}" data-action="print" data-batch-id="${b.id}" title="Stampa" 
+                                        <button class="menu-button primary action-btn-primary-${b.id}" data-action="print" data-batch-id="${b.id}" title="Stampa" aria-label="Stampa lotto voucher ${b.id.substring(0, 8)}"
                                             style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; min-width: auto; margin: 0;">
                                             <i class="fas fa-print" style="font-size: 14px;"></i>
                                         </button>
-                                        <button class="menu-button success action-btn-info-${b.id}" data-action="details" data-batch-id="${b.id}" title="Dettaglio" 
+                                        <button class="menu-button success action-btn-info-${b.id}" data-action="details" data-batch-id="${b.id}" title="Dettaglio" aria-label="Apri dettaglio lotto voucher ${b.id.substring(0, 8)}"
                                             style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; min-width: auto; margin: 0;">
                                             <i class="fas fa-list" style="font-size: 14px;"></i>
                                         </button>
-                                        <button class="menu-button danger action-btn-danger-${b.id}" data-action="delete" data-batch-id="${b.id}" title="Elimina" 
+                                        <button class="menu-button danger action-btn-danger-${b.id}" data-action="delete" data-batch-id="${b.id}" title="Elimina" aria-label="Elimina lotto voucher ${b.id.substring(0, 8)}"
                                             style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; min-width: auto; margin: 0;">
                                             <i class="fas fa-trash" style="font-size: 14px;"></i>
                                         </button>
@@ -731,7 +731,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
             </div>
 
             <section class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; width: 100%; max-width: 100%;">
-                
+
                 <!-- PRIMARY: Total Issued -->
                 <article class="kpi-card" style="border-top-color: var(--primary-color);">
                     <div class="kpi-row">
@@ -741,7 +741,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
                     <p class="kpi-value">${totalGen || 0}</p>
                     <p class="kpi-sub">Voucher generati</p>
                 </article>
-                
+
                 <!-- SUCCESS: Redeemed -->
                 <article class="kpi-card" style="border-top-color: var(--success-color);">
                     <div class="kpi-row">
@@ -1158,12 +1158,12 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                     <div class="voucher-front">
                         <div class="voucher-amount">${amount}</div>
                         <div class="voucher-code">${escapeHtml(visibleCode)}</div>
-                        
+
                         <!-- QR Code Image directly embedded -->
                         <div class="qr-code">
                             ${qrSrc ? `<img src="${qrSrc}" alt="QR Code" style="width:100%;height:100%;">` : '<span style="color: var(--danger-color); font-size:10px">QR Error</span>'}
                         </div>
-                        
+
                         <div class="voucher-expiry">${date}</div>
                     </div>
                 `;
@@ -1205,9 +1205,9 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                             background: var(--bg-surface);
                             margin: 0 auto 20px;
                             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-                            padding: 0; 
+                            padding: 0;
                             box-sizing: border-box;
-                            display: block; 
+                            display: block;
                             page-break-after: always;
                             position: relative;
                             background-size: 100% 100%;
@@ -1226,7 +1226,7 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                         .voucher-front {
                             width: 100%;
                             height: 100%;
-                            background: transparent; 
+                            background: transparent;
                             position: relative;
                         }
 
@@ -1237,16 +1237,16 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                             left: 0;
                             width: 100%;
                             text-align: center;
-                            font-family: 'Oswald', sans-serif; 
-                            font-size: 56px; 
+                            font-family: 'Oswald', sans-serif;
+                            font-size: 56px;
                             font-weight: 700;
-                            color: #000000; 
+                            color: #000000;
                             z-index: 10;
                             letter-spacing: 2px;
-                            text-transform: uppercase; 
+                            text-transform: uppercase;
                             /* STICKER EFFECT: 1px White Border + 5px Blue Shadow */
-                            text-shadow: 
-                                -1px -1px 0 #fff,  
+                            text-shadow:
+                                -1px -1px 0 #fff,
                                  1px -1px 0 #fff,
                                 -1px  1px 0 #fff,
                                  1px  1px 0 #fff,
@@ -1256,20 +1256,20 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
                         .qr-code {
                             position: absolute;
                             top: 38%;
-                            left: 0; 
+                            left: 0;
                             right: 0;
                             margin: auto;
                             width: 160px;
                             height: 160px;
                             z-index: 10;
                         }
-                        
+
                         .voucher-code {
                             position: absolute;
                             top: 54.2%;
                             left: 43.5%;
                             font-family: 'JetBrains Mono', monospace;
-                            font-size: 22px; 
+                            font-size: 22px;
                             font-weight: bold;
                             color: #333;
                             letter-spacing: 2px;
@@ -1277,12 +1277,12 @@ async function generatePrintHtmlCSS(win: Window, vouchers: Voucher[]): Promise<v
 
                         .voucher-expiry {
                             position: absolute;
-                            top: 58%; 
+                            top: 58%;
                             left: 0;
                             width: 100%;
                             /* text-align: center; REMOVED center if reusing left align from screenshot, but logic kept centered per previous CSS */
                             text-align: center;
-                            font-size: 26px; 
+                            font-size: 26px;
                             font-weight: bold;
                             color: #333;
                         }

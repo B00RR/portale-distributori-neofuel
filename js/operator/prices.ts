@@ -1,5 +1,6 @@
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import { PriceUpdateSchema, safeParse } from '../core/schemas.js';
 import { showErrorMessage, showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, getErrorMessage } from '../utils/utils.js';
@@ -118,12 +119,29 @@ export async function showPrezziEditForm(stationId: number): Promise<void> {
       const validita = fd.get('validita') as string;
 
       try {
+        const nextDay = new Date();
+        nextDay.setDate(nextDay.getDate() + 1);
+        nextDay.setHours(0, 0, 0, 0);
+        const dataValidita =
+          validita === 'next_day' ? nextDay.toISOString() : new Date().toISOString();
+        const validation = safeParse(PriceUpdateSchema, {
+          station_id: stationId,
+          prezzo_benzina: fd.get('benzina'),
+          prezzo_gasolio: fd.get('gasolio'),
+          data_validita: dataValidita
+        });
+        if (!validation.success) {
+          showInfoModal('Errore: ' + validation.error);
+          return;
+        }
+        const parsedPrices = validation.data;
+
         // NEW: Call Secure Edge Function
         const { data, error } = await supabase.functions.invoke('update-prices', {
           body: {
-            station_id: stationId,
-            benzina: parseFloat(fd.get('benzina') as string),
-            gasolio: parseFloat(fd.get('gasolio') as string),
+            station_id: parsedPrices.station_id,
+            benzina: parsedPrices.prezzo_benzina,
+            gasolio: parsedPrices.prezzo_gasolio,
             validita: validita
           }
         });

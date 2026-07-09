@@ -59,6 +59,7 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
 
   const sidebar = document.createElement('aside');
   sidebar.className = 'admin-sidebar';
+  sidebar.id = 'admin-sidebar';
   sidebar.dataset.testid = 'admin-sidebar';
 
   const sidebarHeader = document.createElement('div');
@@ -173,7 +174,11 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
 
   const toggle = document.createElement('button');
   toggle.id = 'sidebar-toggle';
+  toggle.type = 'button';
   toggle.title = 'Menu';
+  toggle.setAttribute('aria-label', 'Apri menu');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-controls', 'admin-sidebar');
   setSafeHTML(toggle, '<i class="fas fa-bars"></i>');
   headerCenter.appendChild(toggle);
 
@@ -237,12 +242,14 @@ function attachMobileListeners(): void {
   function closeSidebar(): void {
     sidebar?.classList.remove('open');
     overlay?.classList.remove('visible');
+    toggle?.setAttribute('aria-expanded', 'false');
   }
 
   if (toggle && sidebar) {
     toggle.addEventListener('click', () => {
-      sidebar.classList.toggle('open');
+      const isOpen = sidebar.classList.toggle('open');
       overlay?.classList.toggle('visible');
+      toggle.setAttribute('aria-expanded', String(isOpen));
     });
   }
 
