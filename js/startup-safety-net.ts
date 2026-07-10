@@ -13,6 +13,7 @@ const showStartupError = (message?: string): void => {
     codeDisplay.textContent = message || 'Startup Failure';
   }
 
+  // eslint-disable-next-line no-console -- runs before the logger module can load
   console.error('CRITICAL STARTUP ERROR:', message);
 };
 
