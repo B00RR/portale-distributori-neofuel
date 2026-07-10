@@ -102,20 +102,25 @@ export function initLoginElements(): void {
   }
 }
 
-function normalizeUserRole(role: string | undefined): UserRole {
-  const normalized = (role || 'operator').trim();
-  const allowed: readonly UserRole[] = [
-    'admin',
-    'super_admin',
-    'full_admin',
-    'operator',
-    'accounting',
-    'billing'
-  ];
-  if ((allowed as readonly string[]).includes(normalized)) {
+const ALLOWED_USER_ROLES: readonly UserRole[] = [
+  'admin',
+  'super_admin',
+  'full_admin',
+  'operator',
+  'accounting',
+  'billing'
+];
+
+function normalizeUserRole(role: unknown): UserRole | null {
+  if (typeof role !== 'string') {
+    return null;
+  }
+
+  const normalized = role.trim();
+  if ((ALLOWED_USER_ROLES as readonly string[]).includes(normalized)) {
     return normalized as UserRole;
   }
-  return 'operator';
+  return null;
 }
 
 function mapAssignedStations(stations: UserStationData[] | undefined | null): AssignedStation[] {
@@ -292,7 +297,7 @@ export function setupLoginForm(): void {
         }
         const userEmail = authData.user.email;
 
-        const { data: dbUserData, error: _userError } = await supabase
+        const { data: dbUserData, error: userError } = await supabase
           .from('users')
           .select(
             `
@@ -306,72 +311,45 @@ export function setupLoginForm(): void {
           .eq('email', userEmail)
           .maybeSingle();
 
-        if (dbUserData) {
-          const fullName =
-            dbUserData.full_name ||
-            authData.user.user_metadata?.full_name ||
-            userEmail.split('@')[0] ||
-            'Operatore';
-          userData = {
-            id: authData.user.id,
-            user_id: dbUserData.user_id,
-            email: dbUserData.email,
-            full_name: fullName,
-            role: normalizeUserRole(dbUserData.role),
-            user_stations: dbUserData.user_stations,
-            assignedStations: mapAssignedStations(dbUserData.user_stations)
-          };
-        } else {
-          logger.warn(
-            'auth',
-            'User not found via standard SELECT. Attempting Secure RPC lookup...'
-          );
-
-          // Only try RPC if we have authData.user
-          if (authData?.user) {
-            const { data: rpcId, error: rpcError } = await supabase.rpc('current_user_id');
-
-            if (rpcId && !rpcError) {
-              const fallbackName =
-                authData.user.user_metadata?.full_name ||
-                authData.user.email?.split('@')[0] ||
-                'Operatore';
-              userData = {
-                id: authData.user.id,
-                user_id: rpcId,
-                email: authData.user.email,
-                full_name: fallbackName,
-                role: normalizeUserRole(authData.user.user_metadata?.role),
-                assignedStations: []
-              };
-            } else {
-              logger.error('auth', 'RPC lookup failed:', rpcError);
-              if (!authData.user.email) {
-                if (errorElement) {
-                  errorElement.textContent = 'Errore: email utente non disponibile.';
-                }
-                return;
-              }
-              const fallbackName =
-                authData.user.user_metadata?.full_name ||
-                authData.user.email.split('@')[0] ||
-                'Operatore';
-              userData = {
-                id: authData.user.id,
-                // No numeric DB user_id is resolvable here: the DB row is missing
-                // and current_user_id RPC failed. The auth UUID is NOT a
-                // numeric id, so we must not parseInt() it. Leave it unresolved;
-                // parseUserId() downstream maps NaN to "Errore identificativo
-                // utente" for operator flows, while admin flows never read it.
-                user_id: Number.NaN,
-                email: authData.user.email,
-                full_name: fallbackName,
-                role: normalizeUserRole(authData.user.user_metadata?.role),
-                assignedStations: []
-              };
-            }
+        if (userError || !dbUserData) {
+          if (userError) {
+            logger.error('auth', 'Unable to load trusted user profile:', userError);
+          } else {
+            logger.warn('auth', 'Trusted user profile not found');
           }
+          loggedUser = null;
+          await supabase.auth.signOut();
+          if (errorElement) {
+            errorElement.textContent = 'Profilo utente non disponibile o non autorizzato.';
+          }
+          return;
         }
+
+        const trustedRole = normalizeUserRole(dbUserData.role);
+        if (!trustedRole) {
+          logger.error('auth', 'Trusted user profile has an invalid role');
+          loggedUser = null;
+          await supabase.auth.signOut();
+          if (errorElement) {
+            errorElement.textContent = 'Ruolo utente non valido.';
+          }
+          return;
+        }
+
+        const fullName =
+          dbUserData.full_name ||
+          authData.user.user_metadata?.full_name ||
+          userEmail.split('@')[0] ||
+          'Operatore';
+        userData = {
+          id: authData.user.id,
+          user_id: dbUserData.user_id,
+          email: dbUserData.email,
+          full_name: fullName,
+          role: trustedRole,
+          user_stations: dbUserData.user_stations,
+          assignedStations: mapAssignedStations(dbUserData.user_stations)
+        };
       }
 
       // Final userData validation
@@ -383,10 +361,7 @@ export function setupLoginForm(): void {
         return;
       }
 
-      loggedUser = {
-        ...userData,
-        role: userData.role || normalizeUserRole(authData?.user?.user_metadata?.role)
-      };
+      loggedUser = userData;
 
       // [TESTBILITY] Allow role override via query param for E2E testing (dev-only)
       if (import.meta.env.DEV) {
@@ -470,7 +445,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
       return null;
     }
 
-    const { data: dbUserData } = await supabase
+    const { data: dbUserData, error: profileError } = await supabase
       .from('users')
       .select(
         `
@@ -484,65 +459,37 @@ export async function loadSession(): Promise<LoggedUserData | null> {
       .eq('email', email)
       .maybeSingle();
 
-    let userData: LoggedUserData | null = null;
-
-    if (!dbUserData) {
-      logger.warn('auth', 'Session User not found via SELECT. Attempting Secure RPC...');
-      const { data: rpcId, error: rpcError } = await supabase.rpc('current_user_id');
-
-      if (rpcId && !rpcError) {
-        const fallbackName =
-          session.user.user_metadata?.full_name || email.split('@')[0] || 'Operatore';
-        userData = {
-          id: session.user.id,
-          user_id: rpcId,
-          email: email,
-          full_name: fallbackName,
-          role: normalizeUserRole(session.user.user_metadata?.role),
-          assignedStations: []
-        };
+    if (profileError || !dbUserData) {
+      if (profileError) {
+        logger.error('auth', 'Unable to load trusted session profile:', profileError);
       } else {
-        logger.error('auth', 'RPC lookup failed:', rpcError);
-        const fallbackName =
-          session.user.user_metadata?.full_name || email.split('@')[0] || 'Operatore';
-        userData = {
-          id: session.user.id,
-          // No numeric DB user_id is resolvable here: the DB row is missing
-          // and current_user_id RPC failed. The auth UUID is NOT a numeric
-          // id, so we must not parseInt() it. Leave it unresolved; parseUserId()
-          // downstream maps NaN to "Errore identificativo utente" for operator
-          // flows, while admin flows never read it.
-          user_id: Number.NaN,
-          email: email,
-          full_name: fallbackName,
-          role: normalizeUserRole(session.user.user_metadata?.role),
-          assignedStations: []
-        };
+        logger.warn('auth', 'Trusted session profile not found');
       }
-    } else {
-      const fullName =
-        dbUserData.full_name ||
-        session.user.user_metadata?.full_name ||
-        email.split('@')[0] ||
-        'Operatore';
-      userData = {
-        id: session.user.id,
-        user_id: dbUserData.user_id,
-        email: dbUserData.email,
-        full_name: fullName,
-        role: normalizeUserRole(dbUserData.role),
-        user_stations: dbUserData.user_stations,
-        assignedStations: mapAssignedStations(dbUserData.user_stations)
-      };
-    }
-
-    if (!userData) {
+      await supabase.auth.signOut();
       return null;
     }
 
-    if (!userData.role) {
-      userData.role = normalizeUserRole(session.user.user_metadata?.role);
+    const trustedRole = normalizeUserRole(dbUserData.role);
+    if (!trustedRole) {
+      logger.error('auth', 'Trusted session profile has an invalid role');
+      await supabase.auth.signOut();
+      return null;
     }
+
+    const fullName =
+      dbUserData.full_name ||
+      session.user.user_metadata?.full_name ||
+      email.split('@')[0] ||
+      'Operatore';
+    const userData: LoggedUserData = {
+      id: session.user.id,
+      user_id: dbUserData.user_id,
+      email: dbUserData.email,
+      full_name: fullName,
+      role: trustedRole,
+      user_stations: dbUserData.user_stations,
+      assignedStations: mapAssignedStations(dbUserData.user_stations)
+    };
 
     userData.assignedStations = mapAssignedStations(userData.user_stations);
 
