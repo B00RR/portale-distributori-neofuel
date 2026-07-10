@@ -1,4 +1,5 @@
 import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
+import { CreateUserSchema, UpdateUserSchema, safeParse } from '../core/schemas.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import {
@@ -259,8 +260,6 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
       const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
 
       // SECURITY: Validate with Zod schema
-      const { CreateUserSchema, UpdateUserSchema, safeParse } = await import('../core/schemas.js');
-
       let validation;
       if (isEdit) {
         validation = safeParse(UpdateUserSchema, { full_name: fullName, role });
