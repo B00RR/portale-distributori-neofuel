@@ -5,11 +5,14 @@
 
 import { showDashboardConfigPanel } from './admin/dashboard-config.js';
 import { renderAdminShell, renderBreadcrumbs } from './admin/layout.js';
-import { router, AdminTab } from './admin/router.js';
+import { router, AdminTab, isAdminTab } from './admin/router.js';
 import { supabase, safeSupabaseQuery } from './core/api.js';
 import { logger } from './core/logger.js';
+import { getCurrentRoute, onHashChange } from './shared/hash-router.js';
 import { store } from './shared/state.js';
 import { FuelStation } from './types.js';
+
+let unsubscribeHashListener: (() => void) | null = null;
 
 /**
  * Main entry point for Admin Area
@@ -28,13 +31,6 @@ export function showAdminArea(): void {
 
   // Initialize router with user role
   router.init(userRole);
-
-  // Render the admin shell
-  renderAdminShell(mainContent, async (tab: AdminTab) => {
-    await router.navigateTo(tab);
-    renderBreadcrumbs(tab);
-    await renderGlobalFilter();
-  });
 
   // Setup global filter
   async function renderGlobalFilter(): Promise<void> {
@@ -127,10 +123,31 @@ export function showAdminArea(): void {
     }
   }
 
-  // Initial load
+  // Tab change routine for use by both shell UI and hash router
+  const goToTab = async (tab: AdminTab): Promise<void> => {
+    await router.navigateTo(tab);
+    renderBreadcrumbs(tab);
+    await renderGlobalFilter();
+  };
+
+  // Render the admin shell with the tab change handler
+  renderAdminShell(mainContent, goToTab);
+
+  // Initial load: check for deep link first, then fall back to dashboard
+  const route = getCurrentRoute();
+  const initialTab: AdminTab =
+    route && route.area === 'admin' && isAdminTab(route.view) ? route.view : 'dashboard';
   renderGlobalFilter();
-  router.navigateTo('dashboard');
-  renderBreadcrumbs('dashboard');
+  router.navigateTo(initialTab);
+  renderBreadcrumbs(initialTab);
+
+  // Register browser back/forward support, avoiding duplicate listeners across repeated showAdminArea() calls
+  unsubscribeHashListener?.();
+  unsubscribeHashListener = onHashChange('admin', (view: string) => {
+    if (isAdminTab(view) && view !== router.getCurrentTab()) {
+      void goToTab(view);
+    }
+  });
 
   // Dashboard configuration listener (delegated)
   const adminContent = document.getElementById('admin-content');
