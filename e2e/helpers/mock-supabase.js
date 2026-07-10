@@ -126,6 +126,36 @@ export async function mockSupabaseSession(page, { role = 'admin' } = {}) {
 }
 
 /**
+ * Semina dati voucher per la tab admin Voucher (data-driven).
+ * Deve essere chiamato DOPO mockSupabaseSession cosi' le route specifiche
+ * (registrate piu' tardi) hanno priorita' sul catch-all REST.
+ * @param {import('@playwright/test').Page} page
+ * @param {{ batches?: Array<object>, vouchers?: Array<object> }} data
+ */
+export async function mockAdminVouchers(page, { batches = [], vouchers = [] } = {}) {
+  if (isLiveSupabaseE2E()) {
+    return;
+  }
+
+  await page.route(/\/rest\/v1\/voucher_batches/, route => json(route, 200, batches));
+  await page.route(/\/rest\/v1\/vouchers(\?|$|\/)/, route => json(route, 200, vouchers));
+}
+
+/**
+ * Semina richieste fattura per la tab admin Fatture (data-driven).
+ * Deve essere chiamato DOPO mockSupabaseSession.
+ * @param {import('@playwright/test').Page} page
+ * @param {Array<object>} invoices
+ */
+export async function mockAdminInvoices(page, invoices = []) {
+  if (isLiveSupabaseE2E()) {
+    return;
+  }
+
+  await page.route(/\/rest\/v1\/invoices/, route => json(route, 200, invoices));
+}
+
+/**
  * Esegue il login compilando il form. Le route devono essere gia' mockate.
  */
 export async function login(page, { role = 'admin' } = {}) {
