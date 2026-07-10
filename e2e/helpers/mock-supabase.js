@@ -11,6 +11,8 @@
  * primo e le route specifiche (users / user_stations) lo sovrascrivono.
  */
 
+import { expect } from '@playwright/test';
+
 const E2E_ENV = globalThis.process?.env || {};
 const isLiveSupabaseE2E = () => E2E_ENV.E2E_SUPABASE_MODE === 'live';
 
@@ -123,6 +125,64 @@ export async function mockSupabaseSession(page, { role = 'admin' } = {}) {
   await page.route(/\/rest\/v1\/user_stations/, route =>
     json(route, 200, [{ station_id: 1, fuel_stations: { station_name: 'Stazione E2E' } }])
   );
+}
+
+/**
+ * Semina dati voucher per la tab admin Voucher (data-driven).
+ * Deve essere chiamato DOPO mockSupabaseSession cosi' le route specifiche
+ * (registrate piu' tardi) hanno priorita' sul catch-all REST.
+ * @param {import('@playwright/test').Page} page
+ * @param {{ batches?: Array<object>, vouchers?: Array<object> }} data
+ */
+export async function mockAdminVouchers(page, { batches = [], vouchers = [] } = {}) {
+  if (isLiveSupabaseE2E()) {
+    return;
+  }
+
+  await page.route(/\/rest\/v1\/voucher_batches/, route => json(route, 200, batches));
+  await page.route(/\/rest\/v1\/vouchers(\?|$|\/)/, route => json(route, 200, vouchers));
+}
+
+/**
+ * Semina richieste fattura per la tab admin Fatture (data-driven).
+ * Deve essere chiamato DOPO mockSupabaseSession.
+ * @param {import('@playwright/test').Page} page
+ * @param {Array<object>} invoices
+ */
+export async function mockAdminInvoices(page, invoices = []) {
+  if (isLiveSupabaseE2E()) {
+    return;
+  }
+
+  await page.route(/\/rest\/v1\/invoices/, route => json(route, 200, invoices));
+}
+
+/**
+ * Su viewport mobile la sidebar e' un drawer fuori dal viewport (chiuso di
+ * default). Prima di cliccare un nav-btn Playwright deve poterlo portare
+ * nell'area visibile: apriamo il drawer come farebbe un utente reale tramite
+ * #sidebar-toggle. Su desktop la sidebar e' sempre visibile, quindi il toggle
+ * non esiste e la funzione e' un no-op.
+ * @param {import('@playwright/test').Page} page
+ */
+export async function openSidebarIfMobile(page) {
+  const shouldOpen = await page.evaluate(() => {
+    const toggle = document.getElementById('sidebar-toggle');
+    const sb = document.querySelector('.admin-sidebar');
+    if (!toggle || !sb) return false;
+    const cs = getComputedStyle(toggle);
+    const rect = toggle.getBoundingClientRect();
+    const toggleVisible =
+      cs.display !== 'none' && cs.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    return toggleVisible && !sb.classList.contains('open');
+  });
+
+  if (shouldOpen) {
+    await page.locator('#sidebar-toggle').click();
+    await expect(page.locator('.admin-sidebar')).toHaveClass(/open/, {
+      timeout: 5000
+    });
+  }
 }
 
 /**

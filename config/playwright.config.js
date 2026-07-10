@@ -79,21 +79,32 @@ export default defineConfig({
     serviceWorkers: 'block'
   },
 
-  // Configure projects for different browsers
+  // Configure projects for different browsers.
+  // I progetti browser bloccano i service worker (i mock di rete lo richiedono)
+  // e ignorano la suite PWA, coperta dal progetto dedicato 'pwa'.
   projects: [
     {
       name: 'chromium',
+      testIgnore: /pwa\.spec\.js/,
       use: { ...devices['Desktop Chrome'] }
     },
     {
       name: 'firefox',
+      testIgnore: /pwa\.spec\.js/,
       use: { ...devices['Desktop Firefox'] }
     },
     // Mobile viewport
     {
       name: 'mobile',
+      testIgnore: /pwa\.spec\.js/,
       use: { ...devices['iPhone 13'] },
       timeout: 60 * 1000
+    },
+    // Suite PWA: service worker abilitati per testare manifest e registrazione.
+    {
+      name: 'pwa',
+      testMatch: /pwa\.spec\.js/,
+      use: { ...devices['Desktop Chrome'], serviceWorkers: 'allow' }
     }
   ],
 
