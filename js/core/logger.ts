@@ -86,9 +86,11 @@ function log(level: LogLevel, context: string, message: string, errorId?: string
 
   switch (level) {
     case 'error':
+      // eslint-disable-next-line no-console -- logger backend must delegate to console
       console.error(`${timestamp} ERROR ${logMessage}`);
       break;
     case 'warn':
+      // eslint-disable-next-line no-console -- logger backend must delegate to console
       console.warn(`${timestamp} WARN ${logMessage}`);
       break;
     case 'info':
