@@ -9,7 +9,7 @@
 
 import { test, expect } from '@playwright/test';
 
-import { mockSupabaseSession, login } from './helpers/mock-supabase.js';
+import { mockSupabaseSession, login, openSidebarIfMobile } from './helpers/mock-supabase.js';
 
 test.describe('Deep-link e refresh (admin)', () => {
   test.beforeEach(async ({ page }) => {
@@ -41,6 +41,8 @@ test.describe('Deep-link e refresh (admin)', () => {
     await login(page, { role: 'admin' });
     await expect(page.locator('.admin-sidebar')).toBeVisible({ timeout: 15000 });
 
+    // Su mobile la sidebar e' un drawer: aprirlo prima di cliccare la nav.
+    await openSidebarIfMobile(page);
     await page.locator('[data-testid="nav-vouchers"]').click();
 
     await expect.poll(() => page.url()).toContain('#/admin/vouchers');
@@ -55,10 +57,15 @@ test.describe('Deep-link e refresh (admin)', () => {
     const content = page.locator('#admin-content');
 
     // Notifiche ha un render statico e deterministico: buon punto di ritorno.
+    // Su mobile la sidebar e' un drawer: aprirlo prima di cliccare la nav.
+    await openSidebarIfMobile(page);
     await page.locator('[data-testid="nav-notifiche"]').click();
     await expect.poll(() => page.url()).toContain('#/admin/notifiche');
     await expect(content).toContainText('prossimamente', { timeout: 15000 });
 
+    // Su mobile il click su nav-notifiche ha chiuso il drawer: riaprirlo
+    // prima di cliccare nav-vouchers.
+    await openSidebarIfMobile(page);
     await page.locator('[data-testid="nav-vouchers"]').click();
     await expect.poll(() => page.url()).toContain('#/admin/vouchers');
     await expect(page.locator('[data-testid="voucher-admin-panel"]')).toBeVisible({
@@ -78,11 +85,28 @@ test.describe('Accordion e navigazione operatore', () => {
 
   // Dopo il login l'operatore auto-naviga ad "apertura", che apre il modale
   // ShiftOpener dentro #app-modal. Lo chiudiamo per interagire con il menu.
+  // Su mobile la chiusura via Escape e' inaffidabile e il modale puo' apparire
+  // con un breve ritardo; usiamo un poll per chiuderlo non appena e' visibile.
   async function dismissOpenModal(page) {
-    const modal = page.locator('#app-modal');
-    if (await modal.isVisible().catch(() => false)) {
-      await page.keyboard.press('Escape');
-      await expect(modal).toBeHidden();
+    // Attendi che il modale esista e sia effettivamente visibile (max 10s).
+    const shown = await page.waitForFunction(() => {
+      const m = document.getElementById('app-modal');
+      if (!m) return false;
+      const cs = getComputedStyle(m);
+      const rect = m.getBoundingClientRect();
+      return cs.display !== 'none' && cs.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    }, { timeout: 10000 }).catch(() => false);
+
+    if (shown) {
+      await page.evaluate(() => {
+        const m = document.getElementById('app-modal');
+        if (m) {
+          const b = m.querySelector('#modal-close-btn');
+          if (b) b.click();
+          else m.style.display = 'none';
+        }
+      });
+      await expect(page.locator('#app-modal')).toBeHidden({ timeout: 5000 });
     }
   }
 

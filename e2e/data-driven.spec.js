@@ -11,7 +11,8 @@ import {
   mockSupabaseSession,
   mockAdminVouchers,
   mockAdminInvoices,
-  login
+  login,
+  openSidebarIfMobile
 } from './helpers/mock-supabase.js';
 
 test.describe('Admin Voucher (data-driven)', () => {
@@ -45,6 +46,8 @@ test.describe('Admin Voucher (data-driven)', () => {
     // altrimenti il suo fetch tardivo sovrascrive la view a cui navighiamo.
     await expect(page.locator('#admin-content')).toContainText('Venduto Oggi', { timeout: 15000 });
 
+    // Su mobile la sidebar e' un drawer: aprirlo prima di cliccare la nav.
+    await openSidebarIfMobile(page);
     await page.locator('[data-testid="nav-vouchers"]').click();
     await expect(page.locator('[data-testid="voucher-admin-panel"]')).toBeVisible({
       timeout: 15000
@@ -102,6 +105,8 @@ test.describe('Admin Fatture (data-driven)', () => {
     await expect(page.locator('.admin-sidebar')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('#admin-content')).toContainText('Venduto Oggi', { timeout: 15000 });
 
+    // Su mobile la sidebar e' un drawer: aprirlo prima di cliccare la nav.
+    await openSidebarIfMobile(page);
     await page.locator('[data-testid="nav-invoices"]').click();
 
     const table = page.locator('table.admin-table');
