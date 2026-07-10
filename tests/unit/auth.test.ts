@@ -102,13 +102,28 @@ describe('Auth Module', () => {
 
         // Setup default mock returns
         mockSupabase.auth.signInWithPassword.mockResolvedValue({
-            data: { user: { id: 'test-id', email: 'test@example.com' } },
+            data: {
+                user: {
+                    id: 'test-id',
+                    email: 'test@example.com',
+                    user_metadata: {}
+                }
+            },
             error: null
         });
+        mockSupabase.auth.signOut.mockResolvedValue({ error: null });
         mockSupabase.from.mockReturnValue({
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn().mockResolvedValue({ data: { role: 'operator', email: 'test@example.com' }, error: null })
+            maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                    user_id: 7,
+                    role: 'operator',
+                    email: 'test@example.com',
+                    full_name: 'Test Operator'
+                },
+                error: null
+            })
         });
     });
 
@@ -189,32 +204,131 @@ describe('Auth Module', () => {
         expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
-    it('does not derive a numeric user_id from the auth UUID in the last-resort fallback', async () => {
-        // UUID that starts with digits: parseInt(uuid, 10) used to yield a
-        // truncated, wrong integer (12345678) instead of failing. Regression for #38.
-        const uuid = '12345678-90ab-cdef-1234-567890abcdef';
+    it('rejects login when the trusted DB profile is missing despite admin user metadata', async () => {
+        const onLoginSuccess = vi.fn();
+        authModule.setOnLoginSuccess(onLoginSuccess);
         mockSupabase.auth.signInWithPassword.mockResolvedValue({
-            data: { user: { id: uuid, email: 'test@example.com', user_metadata: {} } },
+            data: {
+                user: {
+                    id: 'test-id',
+                    email: 'test@example.com',
+                    user_metadata: { role: 'admin' }
+                }
+            },
             error: null
         });
-        // DB row missing AND get_current_user_id RPC fails -> last-resort fallback.
         mockSupabase.from.mockReturnValue({
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
             maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
         });
-        mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'rpc failed' } });
+        mockSupabase.rpc.mockResolvedValue({ data: 7, error: null });
 
         const form = document.getElementById('login-form') as HTMLFormElement;
         form.dispatchEvent(new Event('submit'));
 
         await new Promise(r => setTimeout(r, 50));
 
-        expect(authModule.loggedUser).not.toBeNull();
-        expect(authModule.loggedUser.user_id).not.toBe(12345678);
-        expect(Number.isNaN(authModule.loggedUser.user_id)).toBe(true);
-        expect(consoleWarnSpy).toHaveBeenCalled();
-        expect(consoleErrorSpy).toHaveBeenCalled();
+        expect(authModule.loggedUser).toBeNull();
+        expect(onLoginSuccess).not.toHaveBeenCalled();
+        expect(mockSupabase.auth.signOut).toHaveBeenCalledOnce();
+        expect(mockSupabase.rpc).not.toHaveBeenCalled();
+        expect(document.getElementById('app-container')?.style.display).toBe('none');
+        expect(document.getElementById('login-error')?.textContent).toContain(
+            'Profilo utente non disponibile'
+        );
+    });
+
+    it('uses the trusted DB role instead of admin user metadata', async () => {
+        const onLoginSuccess = vi.fn();
+        authModule.setOnLoginSuccess(onLoginSuccess);
+        mockSupabase.auth.signInWithPassword.mockResolvedValue({
+            data: {
+                user: {
+                    id: 'test-id',
+                    email: 'test@example.com',
+                    user_metadata: { role: 'admin' }
+                }
+            },
+            error: null
+        });
+
+        const form = document.getElementById('login-form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit'));
+
+        await new Promise(r => setTimeout(r, 50));
+
+        expect(authModule.loggedUser?.role).toBe('operator');
+        expect(onLoginSuccess).toHaveBeenCalledWith(
+            expect.objectContaining({ role: 'operator' })
+        );
+        expect(mockSupabase.auth.signOut).not.toHaveBeenCalled();
+    });
+
+    it('rejects login when the trusted DB role is invalid', async () => {
+        const onLoginSuccess = vi.fn();
+        authModule.setOnLoginSuccess(onLoginSuccess);
+        mockSupabase.auth.signInWithPassword.mockResolvedValue({
+            data: {
+                user: {
+                    id: 'test-id',
+                    email: 'test@example.com',
+                    user_metadata: { role: 'admin' }
+                }
+            },
+            error: null
+        });
+        mockSupabase.from.mockReturnValue({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                    user_id: 7,
+                    role: 'owner',
+                    email: 'test@example.com',
+                    full_name: 'Invalid Role'
+                },
+                error: null
+            })
+        });
+
+        const form = document.getElementById('login-form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit'));
+
+        await new Promise(r => setTimeout(r, 50));
+
+        expect(authModule.loggedUser).toBeNull();
+        expect(onLoginSuccess).not.toHaveBeenCalled();
+        expect(mockSupabase.auth.signOut).toHaveBeenCalledOnce();
+        expect(document.getElementById('login-error')?.textContent).toContain(
+            'Ruolo utente non valido'
+        );
+    });
+
+    it('fails closed when restoring a session without a trusted DB profile', async () => {
+        mockSupabase.auth.getSession.mockResolvedValue({
+            data: {
+                session: {
+                    user: {
+                        id: 'test-id',
+                        email: 'test@example.com',
+                        user_metadata: { role: 'admin' }
+                    }
+                }
+            },
+            error: null
+        });
+        mockSupabase.from.mockReturnValue({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
+        });
+        mockSupabase.rpc.mockResolvedValue({ data: 7, error: null });
+
+        await expect(authModule.loadSession()).resolves.toBeNull();
+
+        expect(mockSupabase.auth.signOut).toHaveBeenCalledOnce();
+        expect(mockSupabase.rpc).not.toHaveBeenCalled();
     });
 
     it('should handle rate limiting', async () => {
