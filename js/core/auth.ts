@@ -16,6 +16,7 @@ import { setSafeHTML } from '../utils/sanitizer.js';
 
 import { supabase } from './api.js';
 import { logger } from './logger.js';
+import { LoginSchema, safeParse } from './schemas.js';
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -206,7 +207,6 @@ export function setupLoginForm(): void {
     }
 
     // SECURITY: Validate input with Zod schema
-    const { LoginSchema, safeParse } = await import('./schemas.js');
     const validation = safeParse(LoginSchema, {
       email: emailInput.value,
       password: passwordInput.value
