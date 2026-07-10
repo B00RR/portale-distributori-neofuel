@@ -7,9 +7,12 @@ import { logger } from './core/logger.js';
 import './operator/offline-financial-executors-v2.js';
 import { renderOperatorShell, OperatorHandlers } from './operator/layout.js';
 import { checkOpeningStatus } from './operator/opening.js';
-import { router, OperatorView } from './operator/router.js';
+import { router, OperatorView, isOperatorView } from './operator/router.js';
 import { setSelectedOperatorStation } from './operator/station-context.js';
+import { getCurrentRoute, onHashChange } from './shared/hash-router.js';
 import { store } from './shared/state.js';
+
+let unsubscribeHashListener: (() => void) | null = null;
 
 /**
  * Mostra il menu principale dell'operatore
@@ -46,30 +49,32 @@ export async function showOperatorMenu(_userId: string, stationId: string | numb
   // Render the operator shell
   await renderOperatorShell(mainContent, handlers);
 
-  // AUTO-NAVIGATE to prevent "White Screen" / Empty State
-  // If a shift is open -> go to Closure wizard (or stay in dashboard, but Closure is safer default)
-  // If closed -> go to Opening
-  try {
-    const opening = await checkOpeningStatus(selectedStationId);
-
-    if (opening) {
-      // Optional: We could just show the menu (default) or go to specific page
-      // For now, let's keep it on the dashboard (empty state but with menu) OR go to 'chiusura'
-      // To be less intrusive, we might just let them choose.
-      // BUT the user reported "White Screen", so maybe they want to see *something*.
-      // Let's use a Toast to tell them what to do if we don't auto-nav.
-      // BETTER: Auto-nav to 'chiusura' is standard for "I am working".
-      // However, 'chiusura' might be the *end* of the shift.
-      // Let's go to 'promemoria' or just keep shell?
-      // The shell has "Welcome message".
-      // Fix: The issue is likely that "Welcome message" is not enough or confusing.
-      // Let's just NOT auto-navigate if open, but ensure the shell is visible.
-      // OR: Navigate to a "Status" view.
-      // Let's stick to the plan: if closed -> apertura.
-    } else {
-      router.navigateTo('apertura');
+  // Register browser back/forward support without stacking listeners
+  unsubscribeHashListener?.();
+  unsubscribeHashListener = onHashChange('operator', view => {
+    if (isOperatorView(view) && view !== router.getCurrentView()) {
+      void router.navigateTo(view);
     }
-  } catch (err) {
-    logger.error('operator', 'Auto-navigation failed:', err);
+  });
+
+  // AUTO-NAVIGATE to prevent "White Screen" / Empty State
+  // If a shift is open -> stay on dashboard
+  // If closed -> go to Opening
+  // A valid deep link always wins over the default auto-navigation.
+  const route = getCurrentRoute();
+  const deepLinkView =
+    route && route.area === 'operator' && isOperatorView(route.view) ? route.view : null;
+
+  if (deepLinkView) {
+    router.navigateTo(deepLinkView);
+  } else {
+    try {
+      const opening = await checkOpeningStatus(selectedStationId);
+      if (!opening) {
+        router.navigateTo('apertura');
+      }
+    } catch (err) {
+      logger.error('operator', 'Auto-navigation failed:', err);
+    }
   }
 }

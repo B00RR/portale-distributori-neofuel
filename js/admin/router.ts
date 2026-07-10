@@ -4,6 +4,7 @@
  */
 
 import { handleError } from '../shared/error-handler.js';
+import { updateHash } from '../shared/hash-router.js';
 import { store } from '../shared/state.js';
 import { showLoadingMessage } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
@@ -28,6 +29,23 @@ export type AdminTab =
   | 'notifiche'
   | 'analytics'
   | 'settings';
+
+export const ADMIN_TABS: readonly AdminTab[] = [
+  'dashboard',
+  'stations',
+  'operators',
+  'shifts',
+  'crediti',
+  'invoices',
+  'vouchers',
+  'notifiche',
+  'analytics',
+  'settings'
+] as const;
+
+export function isAdminTab(value: string): value is AdminTab {
+  return (ADMIN_TABS as readonly string[]).includes(value);
+}
 
 export type UserRole =
   'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accounting' | 'billing';
@@ -71,6 +89,7 @@ class AdminRouter {
    */
   async navigateTo(tab: AdminTab): Promise<void> {
     this.currentTab = tab;
+    updateHash('admin', tab);
 
     const content = document.getElementById('admin-content');
     const headerActions = document.getElementById('header-actions');
