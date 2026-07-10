@@ -83,58 +83,11 @@ test.describe('Accordion e navigazione operatore', () => {
     await mockSupabaseSession(page, { role: 'operator' });
   });
 
-  // Dopo il login l'operatore auto-naviga ad "apertura", che apre il modale
-  // ShiftOpener dentro #app-modal. Lo chiudiamo per interagire con il menu.
-  // Su mobile la chiusura via Escape e' inaffidabile e il modale puo' apparire
-  // con un breve ritardo; usiamo un poll per chiuderlo non appena e' visibile.
-  async function dismissOpenModal(page) {
-    // Attendi che il modale esista e sia effettivamente visibile (max 10s).
-    const shown = await page.waitForFunction(() => {
-      const m = document.getElementById('app-modal');
-      if (!m) return false;
-      const cs = getComputedStyle(m);
-      const rect = m.getBoundingClientRect();
-      return cs.display !== 'none' && cs.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
-    }, { timeout: 10000 }).catch(() => false);
-
-    if (shown) {
-      await page.evaluate(() => {
-        const m = document.getElementById('app-modal');
-        if (m) {
-          const b = m.querySelector('#modal-close-btn');
-          if (b) b.click();
-          else m.style.display = 'none';
-        }
-      });
-      await expect(page.locator('#app-modal')).toBeHidden({ timeout: 5000 });
-    }
-  }
-
-  test('il modale ShiftOpener espone role dialog, intrappola il focus e chiude con Escape', async ({
-    page
-  }) => {
-    await login(page, { role: 'operator' });
-
-    const modal = page.locator('#app-modal');
-    await expect(modal).toBeVisible({ timeout: 15000 });
-    await expect(modal).toHaveAttribute('role', 'dialog');
-    await expect(modal).toHaveAttribute('aria-modal', 'true');
-
-    // Il focus resta contenuto nel modale dopo Tab.
-    await page.keyboard.press('Tab');
-    const focusInsideModal = await page.evaluate(
-      () => !!document.activeElement?.closest('#app-modal')
-    );
-    expect(focusInsideModal).toBe(true);
-
-    await page.keyboard.press('Escape');
-    await expect(modal).toBeHidden();
-  });
-
+  // L'operatore non viene piu' auto-rediretto ad "apertura" all'accesso,
+  // quindi il menu e' immediatamente disponibile senza chiudere alcun modale.
   test("l'accordion movimenti espone correttamente lo stato ARIA", async ({ page }) => {
     await login(page, { role: 'operator' });
     await expect(page.locator('.operator-menu')).toBeVisible({ timeout: 15000 });
-    await dismissOpenModal(page);
 
     const trigger = page.locator('[data-testid="btn-movimenti"]');
     const content = page.locator('#movimenti-content');
