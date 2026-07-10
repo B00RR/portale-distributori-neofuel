@@ -4,6 +4,7 @@
  */
 
 import { logger } from '../core/logger.js';
+import { updateHash } from '../shared/hash-router.js';
 import { store, User } from '../shared/state.js';
 
 import { startClosureWizard } from './closure.js';
@@ -20,6 +21,21 @@ import { showVoucherMenu } from './vouchers.js';
 
 export type OperatorView =
   'apertura' | 'chiusura' | 'prezzi' | 'crediti' | 'uscite' | 'incassi' | 'voucher' | 'fatture';
+
+export const OPERATOR_VIEWS: readonly OperatorView[] = [
+  'apertura',
+  'chiusura',
+  'prezzi',
+  'crediti',
+  'uscite',
+  'incassi',
+  'voucher',
+  'fatture'
+] as const;
+
+export function isOperatorView(value: string): value is OperatorView {
+  return (OPERATOR_VIEWS as readonly string[]).includes(value);
+}
 
 interface ExtendedUser extends User {
   assignedStations?: Array<{ id: string }>;
@@ -48,6 +64,7 @@ class OperatorRouter {
     }
 
     this.currentView = view;
+    updateHash('operator', view);
 
     switch (view) {
       case 'apertura':
