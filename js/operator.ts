@@ -3,10 +3,8 @@
  * Refactored to use modular architecture (Router + Layout)
  */
 
-import { logger } from './core/logger.js';
 import './operator/offline-financial-executors-v2.js';
 import { renderOperatorShell, OperatorHandlers } from './operator/layout.js';
-import { checkOpeningStatus } from './operator/opening.js';
 import { router, OperatorView, isOperatorView } from './operator/router.js';
 import { setSelectedOperatorStation } from './operator/station-context.js';
 import { getCurrentRoute, onHashChange } from './shared/hash-router.js';
@@ -57,24 +55,13 @@ export async function showOperatorMenu(_userId: string, stationId: string | numb
     }
   });
 
-  // AUTO-NAVIGATE to prevent "White Screen" / Empty State
-  // If a shift is open -> stay on dashboard
-  // If closed -> go to Opening
-  // A valid deep link always wins over the default auto-navigation.
+  // Rispetta solo il deep-link esplicito dell'utente; non aprire mai
+  // automaticamente il form di apertura al caricamento della shell.
   const route = getCurrentRoute();
   const deepLinkView =
     route && route.area === 'operator' && isOperatorView(route.view) ? route.view : null;
 
   if (deepLinkView) {
-    router.navigateTo(deepLinkView);
-  } else {
-    try {
-      const opening = await checkOpeningStatus(selectedStationId);
-      if (!opening) {
-        router.navigateTo('apertura');
-      }
-    } catch (err) {
-      logger.error('operator', 'Auto-navigation failed:', err);
-    }
+    void router.navigateTo(deepLinkView);
   }
 }

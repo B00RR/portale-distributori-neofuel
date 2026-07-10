@@ -47,7 +47,7 @@ describe('Operator Menu Initialization', () => {
         checkOpeningStatusMock = openingModule.checkOpeningStatus;
     });
 
-    it('should navigate to "apertura" if no shift is active', async () => {
+    it('should NOT auto-navigate to "apertura" when no shift is active', async () => {
         // Arrange
         checkOpeningStatusMock.mockResolvedValue(null); // No active shift
 
@@ -56,7 +56,7 @@ describe('Operator Menu Initialization', () => {
 
         // Assert
         expect(layout.renderOperatorShell).toHaveBeenCalled();
-        expect(router.navigateTo).toHaveBeenCalledWith('apertura');
+        expect(router.navigateTo).not.toHaveBeenCalledWith('apertura');
     });
 
     it('should NOT navigate to "apertura" if a shift IS active', async () => {
