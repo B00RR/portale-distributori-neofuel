@@ -12,6 +12,21 @@
 
 BEGIN;
 
+-- Preflight: replacing the role constraint must never leave the table without
+-- a valid guard because of an unexpected live value.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.users
+    WHERE role IS NULL
+       OR role NOT IN ('admin', 'operator', 'accounting', 'billing', 'super_admin', 'full_admin')
+  ) THEN
+    RAISE EXCEPTION 'Cannot replace users_role_check: unsupported users.role values found';
+  END IF;
+END
+$$;
+
 ALTER TABLE public.users
   DROP CONSTRAINT IF EXISTS users_role_check;
 

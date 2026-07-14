@@ -5,8 +5,36 @@
 -- The same locked shift can therefore be reopened and finalized later. Counter
 -- values are validated against both the opening value and any value already
 -- recorded by a previous partial closure before both counter stores are updated.
+-- Downtime: brief locks while the shifts status constraint is replaced.
+-- Data backfill: none.
 
 BEGIN;
+
+-- The live constraint historically allowed only open/closed. Validate the live
+-- data before extending it so the RPC can persist the intentional partial state.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM public.shifts
+        WHERE status IS NULL
+           OR status NOT IN ('open', 'partial', 'closed')
+    ) THEN
+        RAISE EXCEPTION 'Cannot extend shifts_status_check: unsupported shifts.status values found';
+    END IF;
+END
+$$;
+
+ALTER TABLE public.shifts
+    DROP CONSTRAINT IF EXISTS shifts_status_check;
+
+ALTER TABLE public.shifts
+    ADD CONSTRAINT shifts_status_check
+    CHECK (status IN ('open', 'partial', 'closed'))
+    NOT VALID;
+
+ALTER TABLE public.shifts
+    VALIDATE CONSTRAINT shifts_status_check;
 
 CREATE OR REPLACE FUNCTION public.submit_shift_closure(
     p_shift_id bigint,
@@ -260,6 +288,15 @@ BEGIN
                         'message', 'Valori utilizzo serbatoio non validi'
                     );
             END;
+
+            IF v_usage_liters::text IN ('NaN', 'Infinity', '-Infinity')
+               OR v_usage_ratio::text IN ('NaN', 'Infinity', '-Infinity') THEN
+                RETURN jsonb_build_object(
+                    'success', false,
+                    'error', 'Valori utilizzo serbatoio non finiti',
+                    'message', 'Valori utilizzo serbatoio non finiti'
+                );
+            END IF;
 
             IF v_usage_pump_id IS NULL
                OR v_usage_tank_id IS NULL

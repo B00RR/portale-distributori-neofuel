@@ -108,7 +108,7 @@ REVOKE ALL PRIVILEGES ON TABLE
   public.calculation_versions,
   public.calculation_tests,
   public.calculation_logs
-FROM anon;
+FROM PUBLIC, anon;
 
 REVOKE ALL PRIVILEGES ON TABLE
   public.calculation_modules,
