@@ -4,6 +4,7 @@
  */
 
 import { handleError } from '../shared/error-handler.js';
+import { isBackofficeRole, normalizeUserRole, type UserRole } from '../shared/roles.js';
 import { Toast } from '../ui/toast.js';
 import {
   showFullScreenLoader,
@@ -20,8 +21,7 @@ import { LoginSchema, safeParse } from './schemas.js';
 
 // ========== TYPE DEFINITIONS ==========
 
-export type UserRole =
-  'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accounting' | 'billing';
+export type { UserRole } from '../shared/roles.js';
 
 export interface AssignedStation {
   id: number;
@@ -101,27 +101,6 @@ export function initLoginElements(): void {
     appContainer = document.getElementById('app-container');
     loginError = document.getElementById('login-error');
   }
-}
-
-const ALLOWED_USER_ROLES: readonly UserRole[] = [
-  'admin',
-  'super_admin',
-  'full_admin',
-  'operator',
-  'accounting',
-  'billing'
-];
-
-function normalizeUserRole(role: unknown): UserRole | null {
-  if (typeof role !== 'string') {
-    return null;
-  }
-
-  const normalized = role.trim();
-  if ((ALLOWED_USER_ROLES as readonly string[]).includes(normalized)) {
-    return normalized as UserRole;
-  }
-  return null;
 }
 
 function mapAssignedStations(stations: UserStationData[] | undefined | null): AssignedStation[] {
@@ -390,10 +369,7 @@ export function setupLoginForm(): void {
         appContainer.style.display = 'block';
       }
 
-      const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(
-        loggedUser.role
-      );
-      if (isAdminRole) {
+      if (isBackofficeRole(loggedUser.role)) {
         document.body.classList.add('admin-layout', 'desktop-layout');
       } else {
         document.body.classList.remove('admin-layout', 'desktop-layout');

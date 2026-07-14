@@ -1,6 +1,7 @@
 import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
 import { CreateUserSchema, UpdateUserSchema, safeParse } from '../core/schemas.js';
 import { handleError } from '../shared/error-handler.js';
+import type { UserRole } from '../shared/roles.js';
 import { Toast } from '../ui/toast.js';
 import {
   showLoadingMessage,
@@ -27,7 +28,7 @@ interface User {
   user_id: number;
   full_name: string;
   email: string;
-  role: 'admin' | 'super_admin' | 'operator' | 'accounting' | 'billing';
+  role: UserRole;
   created_at: string;
 
   // Joins
@@ -112,6 +113,7 @@ export async function showOperatorsTab(
       const roleLabels: Record<string, string> = {
         admin: 'Admin',
         super_admin: 'Super Admin',
+        full_admin: 'Full Admin',
         operator: 'Operatore',
         accounting: 'Contabilità',
         billing: 'Fatturazione'
@@ -205,12 +207,21 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
 
   let user: Partial<User> = {};
   if (userId) {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('user_id', Number(userId))
-      .single();
-    user = (data as User | null) ?? {};
+    try {
+      const { data, error } = await safeSupabaseQuery(() =>
+        supabase.from('users').select('*').eq('user_id', Number(userId)).single()
+      );
+      if (error) {
+        throw error;
+      }
+      if (!data) {
+        throw new Error('Utente non trovato');
+      }
+      user = data as User;
+    } catch (err) {
+      handleError(err, 'openOperatorModal', target);
+      return;
+    }
   }
 
   setSafeHTML(
@@ -241,12 +252,19 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
           <option value="accounting" ${user.role === 'accounting' ? 'selected' : ''}>Contabilità (Accounting)</option>
           <option value="billing" ${user.role === 'billing' ? 'selected' : ''}>Fatturazione (Billing)</option>
           <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin (Full Access)</option>
+          <option value="super_admin" ${user.role === 'super_admin' ? 'selected' : ''}>Super Admin</option>
+          <option value="full_admin" ${user.role === 'full_admin' ? 'selected' : ''}>Full Admin</option>
         </select>
       </div>
       <button type="submit" class="menu-button primary">${isEdit ? 'Salva Modifiche' : 'Crea Utente'}</button>
     </form>
   `
   );
+
+  const roleSelect = target.querySelector<HTMLSelectElement>('select[name="role"]');
+  if (roleSelect && user.role) {
+    roleSelect.value = user.role;
+  }
 
   const form = document.getElementById('operator-form') as HTMLFormElement;
   if (form) {
@@ -280,7 +298,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
       try {
         setButtonLoading(submitBtn, true, 'Salvataggio...');
         if (isEdit && userId) {
-          await safeSupabaseQuery(() =>
+          const { error: updateError } = await safeSupabaseQuery(() =>
             supabase
               .from('users')
               .update({
@@ -289,6 +307,9 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
               })
               .eq('user_id', Number(userId))
           );
+          if (updateError) {
+            throw updateError;
+          }
         } else {
           // Usa la Edge Function per creare l'utente senza perdere la sessione Admin
           const { data: fnData, error: fnError } = await supabase.functions.invoke(
@@ -320,7 +341,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
           showOperatorsTab(adminContent, headerActions);
         }
       } catch (err) {
-        handleError(err, 'admin_action');
+        handleError(err, 'saveOperator');
       } finally {
         setButtonLoading(submitBtn, false);
       }

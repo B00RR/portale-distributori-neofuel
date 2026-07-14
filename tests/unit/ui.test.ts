@@ -3,227 +3,257 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-    openModal,
-    closeModal,
-    showInfoModal,
-    openConfirmModal,
-    showPromptModal,
-    showLoadingMessage,
-    showFullScreenLoader,
-    hideFullScreenLoader,
-    showErrorMessage,
-    setButtonLoading,
-    initAdminContent
+  openModal,
+  closeModal,
+  showInfoModal,
+  openConfirmModal,
+  showPromptModal,
+  showLoadingMessage,
+  showFullScreenLoader,
+  hideFullScreenLoader,
+  showErrorMessage,
+  setButtonLoading,
+  initAdminContent
 } from '../../js/ui/ui.js';
 
 describe('UI Module', () => {
-    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
-    beforeEach(() => {
-        document.body.innerHTML = '';
-        vi.useFakeTimers();
-        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    vi.useFakeTimers();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+  });
+
+  describe('Loaders', () => {
+    it('showLoadingMessage should inject loader html', () => {
+      const container = document.createElement('div');
+      showLoadingMessage(container);
+      expect(container.innerHTML).toContain('loader-logo');
     });
 
-    afterEach(() => {
-        vi.useRealTimers();
-        vi.restoreAllMocks();
-        consoleErrorSpy.mockRestore();
-        consoleWarnSpy.mockRestore();
+    it('showFullScreenLoader should create and display overlay', () => {
+      showFullScreenLoader();
+      const loader = document.getElementById('full-screen-loader');
+      expect(loader).toBeTruthy();
+      expect(loader?.style.display).toBe('flex');
+
+      // Call again to ensure no duplicate
+      showFullScreenLoader();
+      expect(document.querySelectorAll('#full-screen-loader').length).toBe(1);
     });
 
-    describe('Loaders', () => {
-        it('showLoadingMessage should inject loader html', () => {
-            const container = document.createElement('div');
-            showLoadingMessage(container);
-            expect(container.innerHTML).toContain('loader-logo');
-        });
+    it('hideFullScreenLoader should fade out and remove', () => {
+      showFullScreenLoader();
+      hideFullScreenLoader();
 
-        it('showFullScreenLoader should create and display overlay', () => {
-            showFullScreenLoader();
-            const loader = document.getElementById('full-screen-loader');
-            expect(loader).toBeTruthy();
-            expect(loader?.style.display).toBe('flex');
+      const loader = document.getElementById('full-screen-loader') as HTMLElement;
+      expect(loader.style.opacity).toBe('0');
 
-            // Call again to ensure no duplicate
-            showFullScreenLoader();
-            expect(document.querySelectorAll('#full-screen-loader').length).toBe(1);
-        });
-
-        it('hideFullScreenLoader should fade out and remove', () => {
-            showFullScreenLoader();
-            hideFullScreenLoader();
-
-            const loader = document.getElementById('full-screen-loader') as HTMLElement;
-            expect(loader.style.opacity).toBe('0');
-
-            vi.advanceTimersByTime(300);
-            expect(loader.style.display).toBe('none');
-        });
-
-        it('setButtonLoading should toggle state', () => {
-            const btn = document.createElement('button');
-            btn.innerHTML = 'Save';
-
-            setButtonLoading(btn, true, 'Saving...');
-            expect(btn.disabled).toBe(true);
-            expect(btn.innerHTML).toContain('Saving...');
-            expect(btn.dataset.originalText).toBe('Save');
-
-            setButtonLoading(btn, false);
-            expect(btn.disabled).toBe(false);
-            expect(btn.innerHTML).toBe('Save');
-        });
+      vi.advanceTimersByTime(300);
+      expect(loader.style.display).toBe('none');
     });
 
-    describe('Modals', () => {
-        it('openModal should create modal structure', () => {
-            openModal('Test Title');
-            const modal = document.getElementById('app-modal');
-            const title = document.getElementById('modal-title');
+    it('setButtonLoading should toggle state', () => {
+      const btn = document.createElement('button');
+      btn.innerHTML = 'Save';
 
-            expect(modal).toBeTruthy();
-            expect(modal?.style.display).toBe('flex');
-            expect(title?.textContent).toBe('Test Title');
-        });
+      setButtonLoading(btn, true, 'Saving...');
+      expect(btn.disabled).toBe(true);
+      expect(btn.innerHTML).toContain('Saving...');
+      expect(btn.dataset.originalText).toBe('Save');
 
-        it('closeModal should hide modal and clear body', () => {
-            openModal('Test');
-            const body = document.getElementById('modal-body') as HTMLElement;
-            body.innerHTML = '<p>Content</p>';
+      setButtonLoading(btn, false);
+      expect(btn.disabled).toBe(false);
+      expect(btn.innerHTML).toBe('Save');
+    });
+  });
 
-            closeModal();
-            const modal = document.getElementById('app-modal');
+  describe('Modals', () => {
+    it('openModal should create modal structure', () => {
+      openModal('Test Title');
+      const modal = document.getElementById('app-modal');
+      const title = document.getElementById('modal-title');
 
-            expect(modal?.style.display).toBe('none');
-            expect(body.innerHTML).toBe('');
-        });
-
-        it('openModal should expose dialog semantics', () => {
-            openModal('Accessible');
-            const modal = document.getElementById('app-modal');
-            expect(modal?.getAttribute('role')).toBe('dialog');
-            expect(modal?.getAttribute('aria-modal')).toBe('true');
-            expect(modal?.getAttribute('aria-labelledby')).toBe('modal-title');
-        });
-
-        it('openModal should move focus into the dialog', () => {
-            openModal('Focus');
-            const modal = document.getElementById('app-modal') as HTMLElement;
-            expect(modal.contains(document.activeElement)).toBe(true);
-        });
-
-        it('Escape keydown should close the modal', () => {
-            openModal('Escapable');
-            const modal = document.getElementById('app-modal') as HTMLElement;
-            modal.dispatchEvent(
-                new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
-            );
-            expect(modal.style.display).toBe('none');
-        });
-
-        it('closeModal should restore focus to the triggering element', () => {
-            const trigger = document.createElement('button');
-            trigger.id = 'modal-trigger';
-            document.body.appendChild(trigger);
-            trigger.focus();
-
-            openModal('Restorable');
-            closeModal();
-
-            expect(document.activeElement).toBe(trigger);
-            trigger.remove();
-        });
-
-        it('openConfirmModal should resolve true on OK', async () => {
-            const promise = openConfirmModal('Are you sure?');
-
-            const okBtn = document.getElementById('confirm-ok') as HTMLButtonElement;
-            okBtn.click();
-
-            const result = await promise;
-            expect(result).toBe(true);
-        });
-
-        it('openConfirmModal should resolve false on Cancel', async () => {
-            const promise = openConfirmModal('Are you sure?');
-
-            const cancelBtn = document.getElementById('confirm-cancel') as HTMLButtonElement;
-            cancelBtn.click();
-
-            const result = await promise;
-            expect(result).toBe(false);
-        });
-
-        it('showPromptModal should resolve with value on OK', async () => {
-            // Mock focus which might fail in JSDOM if not setting up full layout
-            const promise = showPromptModal('Enter name', 'John');
-
-            const input = document.getElementById('prompt-input') as HTMLInputElement;
-            expect(input.value).toBe('John');
-            input.value = 'Jane';
-
-            const okBtn = document.getElementById('prompt-ok') as HTMLButtonElement;
-            okBtn.click();
-
-            const result = await promise;
-            expect(result).toBe('Jane');
-        });
-
-        it('showPromptModal should resolve null on Cancel', async () => {
-            const promise = showPromptModal('Enter name');
-            const cancelBtn = document.getElementById('prompt-cancel') as HTMLButtonElement;
-            cancelBtn.click();
-
-            const result = await promise;
-            expect(result).toBeNull();
-        });
-
-        it('showInfoModal should close on OK and have primary button', () => {
-            showInfoModal('Info message');
-            const modal = document.getElementById('app-modal');
-            expect(modal?.style.display).toBe('flex');
-
-            const okBtn = document.getElementById('info-modal-ok') as HTMLButtonElement;
-            expect(okBtn.className).toContain('primary');
-            okBtn.click();
-
-            expect(modal?.style.display).toBe('none');
-        });
+      expect(modal).toBeTruthy();
+      expect(modal?.style.display).toBe('flex');
+      expect(title?.textContent).toBe('Test Title');
     });
 
-    describe('Error Messages', () => {
-        it('showErrorMessage should format error string', () => {
-            const container = document.createElement('div');
-            showErrorMessage(container, 'Fatal Error');
-            expect(container.innerHTML).toContain('Fatal Error');
-            expect(container.innerHTML).toContain('text-danger');
-            expect(consoleErrorSpy).toHaveBeenCalled();
-        });
+    it('closeModal should hide modal and clear body', () => {
+      openModal('Test');
+      const body = document.getElementById('modal-body') as HTMLElement;
+      body.innerHTML = '<p>Content</p>';
 
-        it('showErrorMessage should handle Error object', () => {
-            const container = document.createElement('div');
-            showErrorMessage(container, new Error('Object Error'));
-            expect(container.innerHTML).toContain('Object Error');
-            expect(consoleErrorSpy).toHaveBeenCalled();
-        });
+      closeModal();
+      const modal = document.getElementById('app-modal');
 
-        it('showErrorMessage should use default message', () => {
-            const container = document.createElement('div');
-            showErrorMessage(container, null, 'Default Msg');
-            expect(container.innerHTML).toContain('Default Msg');
-            expect(consoleErrorSpy).toHaveBeenCalled();
-        });
+      expect(modal?.style.display).toBe('none');
+      expect(body.innerHTML).toBe('');
     });
 
-    describe('Init Admin', () => {
-        it('initAdminContent should return elements', () => {
-            document.body.innerHTML = '<div id="admin-content"></div><div id="content-actions"></div>';
-            const els = initAdminContent();
-            expect(els.content).toBeTruthy();
-            expect(els.actions).toBeTruthy();
-        });
+    it('openModal should expose dialog semantics', () => {
+      openModal('Accessible');
+      const modal = document.getElementById('app-modal');
+      expect(modal?.getAttribute('role')).toBe('dialog');
+      expect(modal?.getAttribute('aria-modal')).toBe('true');
+      expect(modal?.getAttribute('aria-labelledby')).toBe('modal-title');
     });
+
+    it('openModal should move focus into the dialog', () => {
+      openModal('Focus');
+      const modal = document.getElementById('app-modal') as HTMLElement;
+      expect(modal.contains(document.activeElement)).toBe(true);
+    });
+
+    it('Escape keydown should close the modal', () => {
+      openModal('Escapable');
+      const modal = document.getElementById('app-modal') as HTMLElement;
+      modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(modal.style.display).toBe('none');
+    });
+
+    it('closeModal should restore focus to the triggering element', () => {
+      const trigger = document.createElement('button');
+      trigger.id = 'modal-trigger';
+      document.body.appendChild(trigger);
+      trigger.focus();
+
+      openModal('Restorable');
+      closeModal();
+
+      expect(document.activeElement).toBe(trigger);
+      trigger.remove();
+    });
+
+    it('openConfirmModal should resolve true on OK', async () => {
+      const promise = openConfirmModal('Are you sure?');
+
+      const okBtn = document.getElementById('confirm-ok') as HTMLButtonElement;
+      okBtn.click();
+
+      const result = await promise;
+      expect(result).toBe(true);
+    });
+
+    it('openConfirmModal should resolve false on Cancel', async () => {
+      const promise = openConfirmModal('Are you sure?');
+
+      const cancelBtn = document.getElementById('confirm-cancel') as HTMLButtonElement;
+      cancelBtn.click();
+
+      const result = await promise;
+      expect(result).toBe(false);
+    });
+
+    it('openConfirmModal should resolve false when dismissed with Escape', async () => {
+      const promise = openConfirmModal('Are you sure?');
+      const modal = document.getElementById('app-modal') as HTMLElement;
+
+      modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+      await expect(promise).resolves.toBe(false);
+    });
+
+    it('showPromptModal should resolve with value on OK', async () => {
+      // Mock focus which might fail in JSDOM if not setting up full layout
+      const promise = showPromptModal('Enter name', 'John');
+
+      const input = document.getElementById('prompt-input') as HTMLInputElement;
+      expect(input.value).toBe('John');
+      input.value = 'Jane';
+
+      const okBtn = document.getElementById('prompt-ok') as HTMLButtonElement;
+      okBtn.click();
+
+      const result = await promise;
+      expect(result).toBe('Jane');
+    });
+
+    it('showPromptModal should resolve null on Cancel', async () => {
+      const promise = showPromptModal('Enter name');
+      const cancelBtn = document.getElementById('prompt-cancel') as HTMLButtonElement;
+      cancelBtn.click();
+
+      const result = await promise;
+      expect(result).toBeNull();
+    });
+
+    it('showPromptModal should resolve null when dismissed from the backdrop', async () => {
+      const promise = showPromptModal('Enter name');
+      const modal = document.getElementById('app-modal') as HTMLElement;
+
+      modal.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+      await expect(promise).resolves.toBeNull();
+    });
+
+    it('should restore focus to the original trigger after replacing an open modal', async () => {
+      const trigger = document.createElement('button');
+      document.body.appendChild(trigger);
+      trigger.focus();
+
+      const firstPromise = openConfirmModal('First');
+      const replacementPromise = showPromptModal('Replacement');
+
+      await expect(firstPromise).resolves.toBe(false);
+      closeModal();
+      await expect(replacementPromise).resolves.toBeNull();
+      expect(document.activeElement).toBe(trigger);
+    });
+
+    it('showInfoModal should close on OK and have primary button', () => {
+      showInfoModal('Info message');
+      const modal = document.getElementById('app-modal');
+      expect(modal?.style.display).toBe('flex');
+
+      const okBtn = document.getElementById('info-modal-ok') as HTMLButtonElement;
+      expect(okBtn.className).toContain('primary');
+      okBtn.click();
+
+      expect(modal?.style.display).toBe('none');
+    });
+  });
+
+  describe('Error Messages', () => {
+    it('showErrorMessage should format error string', () => {
+      const container = document.createElement('div');
+      showErrorMessage(container, 'Fatal Error');
+      expect(container.innerHTML).toContain('Fatal Error');
+      expect(container.innerHTML).toContain('text-danger');
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    it('showErrorMessage should handle Error object', () => {
+      const container = document.createElement('div');
+      showErrorMessage(container, new Error('Object Error'));
+      expect(container.innerHTML).toContain('Object Error');
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    it('showErrorMessage should use default message', () => {
+      const container = document.createElement('div');
+      showErrorMessage(container, null, 'Default Msg');
+      expect(container.innerHTML).toContain('Default Msg');
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('Init Admin', () => {
+    it('initAdminContent should return elements', () => {
+      document.body.innerHTML = '<div id="admin-content"></div><div id="content-actions"></div>';
+      const els = initAdminContent();
+      expect(els.content).toBeTruthy();
+      expect(els.actions).toBeTruthy();
+    });
+  });
 });

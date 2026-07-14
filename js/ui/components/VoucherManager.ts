@@ -347,6 +347,8 @@ export class VoucherManager extends BaseComponent {
 
     this.mode = 'loading';
     this.errorMessage = '';
+    this.activeVoucher = null;
+    this.validationResult = null;
 
     // OFFLINE MODE: Skip validation and prepare for deferred redemption
     if (isOffline()) {

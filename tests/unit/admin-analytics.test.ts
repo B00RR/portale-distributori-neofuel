@@ -5,7 +5,7 @@ const { mockSupabase, mockUI, mockUtils } = vi.hoisted(() => {
     const chain = vi.fn(() => queryBuilder);
     const analyticsResult = { data: [{ closing_data: { ricavo_teorico: 100 }, closed_at: '2024-01-01' }], error: null };
     Object.assign(queryBuilder, {
-        select: chain, eq: chain, gte: chain, lte: chain, order: chain, in: chain,
+        select: chain, eq: chain, gte: chain, lt: chain, order: chain, in: chain,
         then: (resolve: (value: typeof analyticsResult) => unknown) => resolve(analyticsResult)
     });
 
@@ -57,6 +57,7 @@ describe('Admin Analytics Module', () => {
         await new Promise(r => setTimeout(r, 10));
 
         expect(container.innerHTML).toContain('analytics-wrapper');
+        expect(mockUI.showErrorMessage).not.toHaveBeenCalled();
     });
 
     it('should fetch analytics data', async () => {
@@ -65,5 +66,6 @@ describe('Admin Analytics Module', () => {
         await new Promise(r => setTimeout(r, 10));
 
         expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
+        expect(mockUI.showErrorMessage).not.toHaveBeenCalled();
     });
 });

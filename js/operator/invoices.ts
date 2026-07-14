@@ -41,6 +41,41 @@ function todayIsoDate(): string {
   return new Date().toISOString().split('T')[0] as string;
 }
 
+async function findExistingCustomer(
+  partitaIva: string,
+  telefono: string
+): Promise<Pick<BillingCustomer, 'id'> | null> {
+  const matches = new Map<number, Pick<BillingCustomer, 'id'>>();
+  const identifiers = [
+    ['partita_iva', partitaIva],
+    ['telefono', telefono]
+  ] as const;
+
+  for (const [column, value] of identifiers) {
+    if (!value) {
+      continue;
+    }
+
+    const { data, error } = await supabase
+      .from('clienti_fatturazione')
+      .select('id')
+      .eq(column, value)
+      .maybeSingle();
+    if (error) {
+      throw error;
+    }
+    if (data) {
+      matches.set(data.id, data);
+    }
+  }
+
+  if (matches.size > 1) {
+    throw new Error('Partita IVA e telefono risultano associati a clienti diversi.');
+  }
+
+  return matches.values().next().value ?? null;
+}
+
 export async function showInvoiceMenu(stationId: number | string, userId: string): Promise<void> {
   openModal('Richiesta Fattura');
   const modalBody = document.getElementById('modal-body');
@@ -164,13 +199,9 @@ function renderNewCustomerForm(
         return;
       }
 
-      const { data: existingCustomer } = await supabase
-        .from('clienti_fatturazione')
-        .select('id')
-        .or(
-          `nome.ilike.%${nome}%,partita_iva.eq.${partitaIva || 'null'},telefono.eq.${telefono || 'null'}`
-        )
-        .maybeSingle();
+      // Only stable, exact identifiers are safe for automatic reconciliation.
+      // A fuzzy name match can select and overwrite the wrong customer.
+      const existingCustomer = await findExistingCustomer(partitaIva, telefono);
 
       let clienteId: number;
       if (existingCustomer) {

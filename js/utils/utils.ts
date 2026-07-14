@@ -95,50 +95,126 @@ export function formatGunCounter(value: number | string): string {
   }).format(safeNum);
 }
 
+function hasValidGrouping(value: string, separator: '.' | ','): boolean {
+  const groups = value.split(separator);
+  return (
+    groups.length > 1 &&
+    (groups[0]?.length ?? 0) >= 1 &&
+    (groups[0]?.length ?? 0) <= 3 &&
+    groups.slice(1).every(group => group.length === 3)
+  );
+}
+
+function hasValidNumericCharacters(value: string): boolean {
+  if (!value) {
+    return false;
+  }
+
+  let hasDigit = false;
+  let previousWasSeparator = false;
+
+  for (let index = 0; index < value.length; index++) {
+    const character = value.charAt(index);
+    const isDigit = character >= '0' && character <= '9';
+
+    if (isDigit) {
+      hasDigit = true;
+      previousWasSeparator = false;
+      continue;
+    }
+
+    if (character !== '.' && character !== ',') {
+      return false;
+    }
+    if (previousWasSeparator || index === value.length - 1) {
+      return false;
+    }
+    previousWasSeparator = true;
+  }
+
+  return hasDigit;
+}
+
 /**
- * Parse gun counter from Italian format (e.g., "1.234,567" -> 1234.567)
+ * Normalize the numeric formats accepted by Neofuel forms.
+ *
+ * A single comma or dot is treated as the decimal separator. When both are
+ * present, the right-most one is the decimal separator and the other one is
+ * validated as a thousands separator. Repeated separators are accepted only
+ * when they form valid groups of three digits.
  */
-export function parseGunCounter(value: number | string | null | undefined): number {
+function parseLocalizedNumber(value: number | string | null | undefined): number {
   if (value == null || value === '') {
     return 0;
   }
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0;
   }
+  if (typeof value !== 'string') {
+    return 0;
+  }
 
-  const cleaned = value
-    .toString()
-    .replace(/[.\s]/g, '') // Remove thousand separators (dots or spaces)
-    .replace(',', '.'); // Replace comma with dot
+  const compact = value.trim().replace(/[\s\u00a0\u202f]/g, '');
+  const hasSign = compact.startsWith('-') || compact.startsWith('+');
+  const unsigned = compact.slice(hasSign ? 1 : 0);
+  if (!hasValidNumericCharacters(unsigned)) {
+    return 0;
+  }
 
-  const num = parseFloat(cleaned);
-  return Number.isFinite(num) ? num : 0;
+  const sign = compact.startsWith('-') ? '-' : '';
+  const lastComma = unsigned.lastIndexOf(',');
+  const lastDot = unsigned.lastIndexOf('.');
+  let normalized = unsigned;
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    const decimalSeparator: '.' | ',' = lastComma > lastDot ? ',' : '.';
+    const groupingSeparator: '.' | ',' = decimalSeparator === ',' ? '.' : ',';
+    const decimalIndex = unsigned.lastIndexOf(decimalSeparator);
+    const integerPart = unsigned.slice(0, decimalIndex);
+    const fractionPart = unsigned.slice(decimalIndex + 1);
+
+    if (
+      integerPart.includes(decimalSeparator) ||
+      !hasValidGrouping(integerPart, groupingSeparator)
+    ) {
+      return 0;
+    }
+
+    normalized = `${integerPart.replaceAll(groupingSeparator, '') || '0'}.${fractionPart}`;
+  } else {
+    const separator: '.' | ',' | null = lastComma >= 0 ? ',' : lastDot >= 0 ? '.' : null;
+
+    if (separator) {
+      const occurrences = unsigned.split(separator).length - 1;
+      if (occurrences === 1) {
+        const separatorIndex = unsigned.indexOf(separator);
+        const integerPart = unsigned.slice(0, separatorIndex) || '0';
+        const fractionPart = unsigned.slice(separatorIndex + 1);
+        normalized = `${integerPart}.${fractionPart}`;
+      } else if (hasValidGrouping(unsigned, separator)) {
+        normalized = unsigned.replaceAll(separator, '');
+      } else {
+        return 0;
+      }
+    }
+  }
+
+  const parsed = Number(`${sign}${normalized}`);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * Parse gun counter from Italian format (e.g., "1.234,567" -> 1234.567)
+ */
+export function parseGunCounter(value: number | string | null | undefined): number {
+  return parseLocalizedNumber(value);
 }
 
 /**
  * Parse a number flexibly from various formats
  */
 export function parseNumberFlexible(value: number | string | null | undefined): number {
-  if (value == null || value === '') {
-    return 0;
-  }
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : 0;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return 0;
-    }
-    if (trimmed.includes(',')) {
-      const normalized = trimmed.replace(/\./g, '').replace(',', '.');
-      const num = Number(normalized);
-      return Number.isFinite(num) ? num : 0;
-    }
-    const num = Number(trimmed);
-    return Number.isFinite(num) ? num : 0;
-  }
-  return 0;
+  return parseLocalizedNumber(value);
 }
 
 /**

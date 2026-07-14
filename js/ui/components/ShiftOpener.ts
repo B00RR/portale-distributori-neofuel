@@ -205,6 +205,9 @@ export class ShiftOpener extends BaseComponent {
       if (islandsRes.error) {
         throw islandsRes.error;
       }
+      if (tanksRes.error) {
+        throw tanksRes.error;
+      }
 
       this.islands = islandsRes.data.map(
         (i: { island_id?: number; nome?: string; island_name?: string }, idx: number) => ({
@@ -244,10 +247,11 @@ export class ShiftOpener extends BaseComponent {
 
       const counters: Record<number, number> = {};
       this.pistole.forEach(p => {
-        // Priority: shift_pistols -> current numero_litri
+        // The current counter includes any explicit admin correction. Historical
+        // data is only a compatibility fallback for rows without a base value.
         const lastShift = newCounters?.find(c => c.pistola_id === p.id);
 
-        counters[p.id] = lastShift?.closed_at_counter ?? p.numero_litri ?? 0;
+        counters[p.id] = p.numero_litri ?? lastShift?.closed_at_counter ?? 0;
       });
       this.lastCounters = counters;
 

@@ -1,5 +1,4 @@
 import { supabase, safeSupabaseQuery } from '../core/api.js';
-import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { createEl, createIcon } from '../ui/dom-helpers.js';
 import { Toast } from '../ui/toast.js';
@@ -65,37 +64,6 @@ async function renderGuns(
 
     const guns = rawGuns as Gun[];
 
-    // Load latest counters
-    const latestCounters: Record<number, number> = {};
-    const { data: rawCounters, error: countersError } = await safeSupabaseQuery(
-      async () =>
-        await supabase
-          .from('shift_pistols')
-          .select('pistola_id, closed_at_counter, shift_id')
-          .order('created_at', { ascending: false })
-          .limit(200)
-    );
-
-    if (countersError) {
-      throw countersError;
-    }
-
-    const allCounters = rawCounters as {
-      pistola_id: number;
-      closed_at_counter: number | null;
-      shift_id: number;
-    }[];
-
-    if (allCounters && allCounters.length > 0) {
-      const maxShiftId = Math.max(...allCounters.map(c => Number(c.shift_id)));
-      const latest = allCounters.filter(c => Number(c.shift_id) === maxShiftId);
-      latest.forEach(c => {
-        if (c.closed_at_counter !== null && c.closed_at_counter !== undefined) {
-          latestCounters[c.pistola_id] = Number(c.closed_at_counter);
-        }
-      });
-    }
-
     target.replaceChildren();
 
     if (!guns || guns.length === 0) {
@@ -152,9 +120,9 @@ async function renderGuns(
     });
 
     guns.forEach(gun => {
-      const latestVal = latestCounters[gun.id];
-      // Fallback to gun.numero_litri if no closure record exists
-      const currentCounter = latestVal !== undefined ? latestVal : gun.numero_litri;
+      // The closure RPC keeps this current value aligned after every final shift.
+      // Admin corrections intentionally affect only future openings, never history.
+      const currentCounter = gun.numero_litri ?? 0;
 
       const counter = formatGunCounter(currentCounter);
       const color = fuelColors[gun.tipo_carburante] || 'var(--text-secondary)';
@@ -616,97 +584,6 @@ async function showCounterEditModal(
           throw basicError;
         }
 
-        // 2. Find latest shift_id
-        let currentShiftId: number | null = null;
-        try {
-          const { data: lastCounters, error: lastCountersError } = await safeSupabaseQuery(
-            async () =>
-              await supabase
-                .from('shift_pistols')
-                .select('shift_id')
-                .order('created_at', { ascending: false })
-                .limit(1)
-          );
-
-          if (lastCountersError) {
-            throw lastCountersError;
-          }
-
-          const lastData = lastCounters as { shift_id: number }[];
-          if (lastData && lastData.length > 0) {
-            const first = lastData[0];
-            if (first) {
-              currentShiftId = Number(first.shift_id);
-            }
-          }
-        } catch (err) {
-          logger.warn(
-            'showCounterEditModal',
-            'Errore recupero ultimo shift_id: ' + (err as Error).message
-          );
-        }
-
-        // 3. Update or Insert
-        if (currentShiftId !== null) {
-          const { data: existing, error: existingError } = await safeSupabaseQuery(
-            async () =>
-              await supabase
-                .from('shift_pistols')
-                .select('id')
-                .eq('pistola_id', gunId)
-                .eq('shift_id', currentShiftId)
-                .single()
-          );
-
-          if (existingError && existingError.code !== 'PGRST116') {
-            throw existingError;
-          }
-
-          if (existing) {
-            const { error: updateCounterError } = await safeSupabaseQuery(
-              async () =>
-                await supabase
-                  .from('shift_pistols')
-                  .update({ closed_at_counter: numeroLitri })
-                  .eq('pistola_id', gunId)
-                  .eq('shift_id', currentShiftId)
-            );
-            if (updateCounterError) {
-              throw updateCounterError;
-            }
-          } else {
-            const { error: insertCounterError } = await safeSupabaseQuery(
-              async () =>
-                await supabase.from('shift_pistols').insert([
-                  {
-                    pistola_id: gunId,
-                    closed_at_counter: numeroLitri,
-                    shift_id: currentShiftId,
-                    opened_at_counter: numeroLitri
-                  }
-                ])
-            );
-            if (insertCounterError) {
-              throw insertCounterError;
-            }
-          }
-        } else {
-          const { error: initCounterError } = await safeSupabaseQuery(
-            async () =>
-              await supabase.from('shift_pistols').insert([
-                {
-                  pistola_id: gunId,
-                  closed_at_counter: numeroLitri,
-                  shift_id: 1, // Init with 1 if nothing exists
-                  opened_at_counter: numeroLitri
-                }
-              ])
-          );
-          if (initCounterError) {
-            throw initCounterError;
-          }
-        }
-
         showInfoModal(`Numeratore aggiornato a ${formatGunCounter(numeroLitri)} L`);
         closeModal();
         showGunsModal(islandId, islandName, stationId);
@@ -725,6 +602,21 @@ async function deleteGun(
 ): Promise<void> {
   try {
     if (!(await openConfirmModal('Sei sicuro di voler eliminare questa pistola?'))) {
+      return;
+    }
+
+    const { data: historicalCounter, error: historyError } = await safeSupabaseQuery<{
+      id: number;
+    }>(() =>
+      supabase.from('shift_pistols').select('id').eq('pistola_id', gunId).limit(1).maybeSingle()
+    );
+    if (historyError) {
+      throw historyError;
+    }
+    if (historicalCounter) {
+      showInfoModal(
+        'Questa pistola è presente nello storico delle chiusure e non può essere eliminata.'
+      );
       return;
     }
 

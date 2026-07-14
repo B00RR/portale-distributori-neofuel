@@ -3,51 +3,20 @@ import { logger } from '../core/logger.js';
 import type { CustomWindow, ChartInstance } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { formatEuro, formatLitri, getISODate } from '../utils/utils.js';
+import { formatEuro, formatLitri } from '../utils/utils.js';
 
-// Hack: Cast window to 'any' to silence the editor error about 'Chart' missing
-// We access it via window because it's loaded via CDN in index.html
-// Chart accessed lazily from window to support async loading and testing
+import {
+  aggregateShiftAnalytics,
+  createItalianCalendarRange,
+  formatItalianDayLabel,
+  type AnalyticsResult,
+  type AnalyticsShift,
+  type ItalianAnalyticsRange
+} from './analytics-aggregation.js';
 
-interface ClosingData extends Record<string, number | string | null | undefined> {
-  ricavo_teorico?: number | string | null;
-  litri_benzina?: number | string | null;
-  litri_gasolio?: number | string | null;
-  soldi_contanti?: number | string | null;
-  soldi_pos_totale?: number | string | null;
-  soldi_crediti?: number | string | null;
-  soldi_voucher?: number | string | null;
-}
+// Chart accessed lazily from window to support async loading and testing.
 
-interface ShiftData {
-  closed_at: string;
-  closing_data: ClosingData | null;
-  station_id: number;
-}
-
-interface DayStats {
-  date: string;
-  revenue: number;
-  liters_benzina: number;
-  liters_gasolio: number;
-}
-
-interface AnalyticsTotals {
-  benzina: number;
-  gasolio: number;
-  contanti: number;
-  pos: number;
-  crediti: number;
-  voucher: number;
-  revenue: number;
-}
-
-interface AnalyticsResult {
-  daily: DayStats[];
-  totals: AnalyticsTotals;
-}
-
-type DateRange = '7d' | '30d' | 'month' | 'year';
+type DateRange = ItalianAnalyticsRange;
 
 // --- STATE ---
 // Chart.js instances stored as opaque objects
@@ -147,22 +116,8 @@ async function updateCharts(
   stationId: number | null,
   dateRange: DateRange
 ): Promise<void> {
-  // 1. Calculate Date Range (Use UTC to match database/ISO strings)
-  const endDate = new Date();
-  const startDate = new Date();
-
-  if (dateRange === '7d') {
-    startDate.setUTCDate(endDate.getUTCDate() - 7);
-  } else if (dateRange === '30d') {
-    startDate.setUTCDate(endDate.getUTCDate() - 30);
-  } else if (dateRange === 'month') {
-    startDate.setUTCDate(1); // First day of current month
-  } else if (dateRange === 'year') {
-    startDate.setUTCMonth(0, 1);
-  }
-
-  startDate.setUTCHours(0, 0, 0, 0);
-  endDate.setUTCHours(23, 59, 59, 999);
+  // Use the station's Italian calendar independently from the browser timezone.
+  const calendarRange = createItalianCalendarRange(dateRange);
 
   try {
     // 2. Fetch Data from Shifts (Closed)
@@ -170,8 +125,8 @@ async function updateCharts(
       .from('shifts')
       .select('closed_at, closing_data, station_id')
       .eq('status', 'closed')
-      .gte('closed_at', startDate.toISOString())
-      .lte('closed_at', endDate.toISOString())
+      .gte('closed_at', calendarRange.startIso)
+      .lt('closed_at', calendarRange.endExclusiveIso)
       .order('closed_at', { ascending: true });
 
     if (stationId) {
@@ -184,7 +139,7 @@ async function updateCharts(
     }
 
     // 3. Process Data
-    const aggregated = processAnalyticsData(shifts as ShiftData[], startDate, endDate);
+    const aggregated = processAnalyticsData(shifts as AnalyticsShift[], calendarRange.days);
 
     // 4. Render Charts (Lazy load Chart.js logic if needed, but assuming global Chart)
     const customWindow = window as unknown as CustomWindow;
@@ -206,78 +161,10 @@ async function updateCharts(
  * Process raw shifts into daily and total aggregations
  */
 function processAnalyticsData(
-  shifts: ShiftData[],
-  startDate: Date,
-  endDate: Date
+  shifts: AnalyticsShift[],
+  days: AnalyticsResult['daily']
 ): AnalyticsResult {
-  const days: Record<string, DayStats> = {};
-  const totals: AnalyticsTotals = {
-    benzina: 0,
-    gasolio: 0,
-    contanti: 0,
-    pos: 0,
-    crediti: 0,
-    voucher: 0,
-    revenue: 0
-  };
-
-  // Initialize all days in range to 0 to ensure continuity in charts
-  // Create a new date object to avoid modifying startDate passed by reference
-  const currentDate = new Date(startDate);
-
-  // Safety check loop limit (e.g. 400 days) to prevent infinite loops if dates are wrong
-  let loopCount = 0;
-  while (currentDate <= endDate && loopCount < 400) {
-    const iso = getISODate(currentDate); // YYYY-MM-DD
-    // eslint-disable-next-line security/detect-object-injection -- iso is a generated YYYY-MM-DD key within controlled loop
-    days[iso] = {
-      date: iso,
-      revenue: 0,
-      liters_benzina: 0,
-      liters_gasolio: 0
-    };
-    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-    loopCount++;
-  }
-
-  shifts.forEach(s => {
-    if (!s.closed_at) {
-      return;
-    }
-    const day = s.closed_at.substring(0, 10);
-    const data = s.closing_data || {};
-
-    // eslint-disable-next-line security/detect-object-injection -- day is a substring of closed_at already validated
-    if (days[day]) {
-      // Revenue
-
-      const rev = Number(data.ricavo_teorico || 0);
-      // eslint-disable-next-line security/detect-object-injection -- day is validated above
-      days[day].revenue += rev;
-      totals.revenue += rev;
-
-      // Liters
-      const lb = Number(data.litri_benzina || 0);
-      const lg = Number(data.litri_gasolio || 0);
-      // eslint-disable-next-line security/detect-object-injection -- day is validated above
-      days[day].liters_benzina += lb;
-      // eslint-disable-next-line security/detect-object-injection -- day is validated above
-      days[day].liters_gasolio += lg;
-      totals.benzina += lb;
-      totals.gasolio += lg;
-
-      // Payments (approximation from cash movements attached in closing_data usually)
-      totals.contanti += Number(data.soldi_contanti || 0);
-      totals.pos += Number(data.soldi_pos_totale || 0); // Sum of all POS
-      totals.crediti += Number(data.soldi_crediti || 0);
-      totals.voucher += Number(data.soldi_voucher || 0);
-    }
-  });
-
-  return {
-    daily: Object.values(days).sort((a, b) => a.date.localeCompare(b.date)),
-    totals
-  };
+  return aggregateShiftAnalytics(shifts, days);
 }
 
 function getChartContext(id: string): HTMLCanvasElement | null {
@@ -311,9 +198,7 @@ function renderRevenueChart(data: AnalyticsResult): void {
   charts['revenue-chart'] = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: data.daily.map(d =>
-        new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
-      ),
+      labels: data.daily.map(d => formatItalianDayLabel(d.date)),
       datasets: [
         {
           label: 'Ricavi Totali (€)',
@@ -349,9 +234,7 @@ function renderVolumeChart(data: AnalyticsResult): void {
   charts['volume-chart'] = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: data.daily.map(d =>
-        new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
-      ),
+      labels: data.daily.map(d => formatItalianDayLabel(d.date)),
       datasets: [
         {
           label: 'Benzina (L)',
@@ -394,11 +277,18 @@ function renderPaymentChart(data: AnalyticsResult): void {
   charts['payments-chart'] = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Contanti', 'POS', 'Crediti', 'Voucher'],
+      labels: ['Contanti', 'POS', 'Crediti', 'Voucher', 'UTA/DKV', 'ID Gestore'],
       datasets: [
         {
-          data: [data.totals.contanti, data.totals.pos, data.totals.crediti, data.totals.voucher],
-          backgroundColor: ['#10b981', '#3b82f6', '#FFA500', '#ec4899']
+          data: [
+            data.totals.contanti,
+            data.totals.pos,
+            data.totals.crediti,
+            data.totals.voucher,
+            data.totals.utaDkv,
+            data.totals.idGestore
+          ],
+          backgroundColor: ['#10b981', '#3b82f6', '#FFA500', '#ec4899', '#8b5cf6', '#64748b']
         }
       ]
     },

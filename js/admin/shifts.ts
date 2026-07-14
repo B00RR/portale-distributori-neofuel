@@ -7,6 +7,7 @@ import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import {
   fetchClosureExportData,
+  fetchShiftPistolsForBulkExport,
   generateClosureExcel,
   generateMultiClosureExcel,
   computeExportSummaryMetrics
@@ -70,6 +71,19 @@ interface BulkExportOptions {
   limit: number;
   dateFrom?: string;
   dateTo?: string;
+}
+
+function getExclusiveNextDay(date: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error(`Data non valida: ${date}`);
+  }
+
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw new Error(`Data non valida: ${date}`);
+  }
+  parsed.setUTCDate(parsed.getUTCDate() + 1);
+  return parsed.toISOString().slice(0, 10);
 }
 
 // ========== MODULE ==========
@@ -156,7 +170,7 @@ export async function showChiusureTab(
         query = query.gte('created_at', filters.dateFrom);
       }
       if (filters.dateTo) {
-        query = query.lte('created_at', filters.dateTo + 'T23:59:59');
+        query = query.lt('created_at', getExclusiveNextDay(filters.dateTo));
       }
 
       // 3. Pagination
@@ -615,52 +629,64 @@ export async function openBulkExportModal(): Promise<void> {
 }
 
 export async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
-  try {
-    // 1. Fetch Data
-    let query = supabase
-      .from('shifts')
-      .select(
-        `
+  // 1. Fetch Data
+  let query = supabase
+    .from('shifts')
+    .select(
+      `
             *,
             fuel_stations(station_name),
             users(full_name)
         `
-      )
-      .order('created_at', { ascending: false });
+    )
+    .not('closed_at', 'is', null)
+    .order('closed_at', { ascending: false, nullsFirst: false });
 
-    if (opts.stationId) {
-      query = query.eq('station_id', Number(opts.stationId));
-    }
-
-    if (opts.type === 'last_n') {
-      query = query.limit(opts.limit);
-    } else {
-      if (!opts.dateFrom || !opts.dateTo) {
-        throw new Error('Range date mancante');
-      }
-      query = query.gte('created_at', opts.dateFrom).lte('created_at', opts.dateTo + 'T23:59:59');
-    }
-
-    const { data: closures, error } = await query;
-    if (error) {
-      throw error;
-    }
-    if (!closures || closures.length === 0) {
-      throw new Error('Nessuna chiusura trovata con i criteri selezionati.');
-    }
-
-    // 2. Process Data for Template
-    const processedClosures = [];
-    for (const c of closures) {
-      const metrics = await computeExportSummaryMetrics(supabase, c, c.station_id);
-      processedClosures.push(metrics);
-    }
-
-    // 3. Generate Excel
-    await generateMultiClosureExcel(processedClosures);
-  } catch (err) {
-    handleError(err as Error, 'handleBulkExport');
+  if (opts.stationId) {
+    query = query.eq('station_id', Number(opts.stationId));
   }
+
+  if (opts.type === 'last_n') {
+    query = query.limit(opts.limit);
+  } else {
+    if (!opts.dateFrom || !opts.dateTo) {
+      throw new Error('Range date mancante');
+    }
+    if (opts.dateFrom > opts.dateTo) {
+      throw new Error('La data iniziale non può essere successiva alla data finale');
+    }
+    const exclusiveDateTo = getExclusiveNextDay(opts.dateTo);
+    query = query.gte('closed_at', opts.dateFrom).lt('closed_at', exclusiveDateTo);
+  }
+
+  const { data: closures, error } = await query;
+  if (error) {
+    throw error;
+  }
+  if (!closures || closures.length === 0) {
+    throw new Error('Nessuna chiusura trovata con i criteri selezionati.');
+  }
+
+  const shiftIds = closures.map(closure => Number(closure.id));
+  if (shiftIds.some(shiftId => !Number.isInteger(shiftId) || shiftId <= 0)) {
+    throw new Error("L'export contiene uno o più ID turno non validi");
+  }
+  const shiftPistolsByShift = await fetchShiftPistolsForBulkExport(supabase, shiftIds);
+
+  // 2. Process Data for Template
+  const processedClosures = [];
+  for (const c of closures) {
+    const shiftId = Number(c.id);
+    const metrics = await computeExportSummaryMetrics(
+      supabase,
+      { ...c, shift_pistols: shiftPistolsByShift.get(shiftId) ?? [] },
+      c.station_id
+    );
+    processedClosures.push(metrics);
+  }
+
+  // 3. Generate Excel
+  await generateMultiClosureExcel(processedClosures);
 }
 
 export async function deleteClosure(

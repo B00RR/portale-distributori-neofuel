@@ -16,6 +16,13 @@ export interface QueuedAction {
   payload: Record<string, unknown>;
   createdAt: string;
   retryCount: number;
+  /**
+   * Monotonic version of the payload stored under this id. Optional so actions
+   * written by older application versions remain readable.
+   */
+  revision?: number;
+  status?: 'pending' | 'failed';
+  lastError?: string | undefined;
 }
 
 type DeduplicablePayload = Record<string, unknown> & {
@@ -79,8 +86,21 @@ function findDuplicateUpdateAction(
   dedupeKey: string
 ): QueuedAction | null {
   return (
-    actions.find(action => getUpdateDedupeKey(action.type, action.payload) === dedupeKey) ?? null
+    actions.find(
+      action =>
+        action.status !== 'failed' && getUpdateDedupeKey(action.type, action.payload) === dedupeKey
+    ) ?? null
   );
+}
+
+function getActionRevision(action: QueuedAction): number {
+  return Number.isSafeInteger(action.revision) && (action.revision ?? 0) >= 0
+    ? (action.revision ?? 0)
+    : 0;
+}
+
+function isSameRevision(current: QueuedAction, expected: QueuedAction): boolean {
+  return current.id === expected.id && getActionRevision(current) === getActionRevision(expected);
 }
 
 // ========== INITIALIZATION ==========
@@ -133,7 +153,9 @@ export async function queueAction(
     type,
     payload,
     createdAt: new Date().toISOString(),
-    retryCount: 0
+    retryCount: 0,
+    revision: 1,
+    status: 'pending'
   };
 
   return new Promise((resolve, reject) => {
@@ -173,7 +195,10 @@ export async function queueAction(
       const mergedAction: QueuedAction = {
         ...duplicate,
         payload,
-        retryCount: 0
+        retryCount: 0,
+        revision: getActionRevision(duplicate) + 1,
+        status: 'pending',
+        lastError: undefined
       };
 
       const updateRequest = store.put(mergedAction);
@@ -203,7 +228,7 @@ export async function queueAction(
 /**
  * Get all pending actions from the queue
  */
-export async function getPendingActions(): Promise<QueuedAction[]> {
+async function getAllQueuedActions(): Promise<QueuedAction[]> {
   if (!db) {
     await initOfflineQueue();
   }
@@ -225,6 +250,16 @@ export async function getPendingActions(): Promise<QueuedAction[]> {
       reject(request.error);
     };
   });
+}
+
+export async function getPendingActions(): Promise<QueuedAction[]> {
+  const actions = await getAllQueuedActions();
+  return actions.filter(action => action.status !== 'failed');
+}
+
+export async function getFailedActions(): Promise<QueuedAction[]> {
+  const actions = await getAllQueuedActions();
+  return actions.filter(action => action.status === 'failed');
 }
 
 /**
@@ -252,23 +287,99 @@ export async function removeAction(id: string): Promise<void> {
 }
 
 /**
- * Update retry count for an action
+ * Delete only if the record is still the exact revision that was executed.
+ * A deduplicated update can reuse the same id while an executor is awaiting a
+ * network response; deleting by id alone would otherwise discard that newer
+ * payload.
  */
-async function incrementRetry(action: QueuedAction): Promise<void> {
+async function removeActionIfCurrent(action: QueuedAction): Promise<boolean> {
   if (!db) {
-    return;
+    return false;
   }
   const database = db;
-
-  action.retryCount++;
 
   return new Promise((resolve, reject) => {
     const transaction = database.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
-    const request = store.put(action);
+    const readRequest = store.get(action.id);
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    readRequest.onsuccess = () => {
+      const current = readRequest.result as QueuedAction | undefined;
+      if (!current || !isSameRevision(current, action)) {
+        resolve(false);
+        return;
+      }
+
+      const deleteRequest = store.delete(action.id);
+      deleteRequest.onsuccess = () => resolve(true);
+      deleteRequest.onerror = () => reject(deleteRequest.error);
+    };
+
+    readRequest.onerror = () => reject(readRequest.error);
+  });
+}
+
+/** Persist a state transition without overwriting a payload queued meanwhile. */
+async function persistActionIfCurrent(
+  expected: QueuedAction,
+  updated: QueuedAction
+): Promise<boolean> {
+  if (!db) {
+    return false;
+  }
+  const database = db;
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const readRequest = store.get(expected.id);
+
+    readRequest.onsuccess = () => {
+      const current = readRequest.result as QueuedAction | undefined;
+      if (!current || !isSameRevision(current, expected)) {
+        resolve(false);
+        return;
+      }
+
+      const putRequest = store.put(updated);
+      putRequest.onsuccess = () => resolve(true);
+      putRequest.onerror = () => reject(putRequest.error);
+    };
+
+    readRequest.onerror = () => reject(readRequest.error);
+  });
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error || 'Errore sconosciuto');
+}
+
+async function recordFailedAttempt(action: QueuedAction, error?: unknown): Promise<boolean> {
+  const retryCount = action.retryCount + 1;
+  const exhausted = retryCount >= MAX_RETRIES;
+  const updatedAction: QueuedAction = {
+    ...action,
+    retryCount,
+    status: exhausted ? 'failed' : 'pending',
+    lastError: errorMessage(error)
+  };
+
+  const persisted = await persistActionIfCurrent(action, updatedAction);
+  if (!persisted) {
+    logger.info('offlineQueue', 'Action changed during sync; retry state not applied:', action.id);
+    return false;
+  }
+  if (exhausted) {
+    logger.error('offlineQueue', 'Max retries reached; action moved to failed queue:', action.id);
+  }
+  return exhausted;
+}
+
+async function quarantineCompletedAction(action: QueuedAction, error: unknown): Promise<void> {
+  await persistActionIfCurrent(action, {
+    ...action,
+    status: 'failed',
+    lastError: `Esecuzione remota riuscita, ma rimozione locale fallita: ${errorMessage(error)}`
   });
 }
 
@@ -310,6 +421,7 @@ async function runSync(): Promise<{ success: number; failed: number }> {
 
   let success = 0;
   let failed = 0;
+  let manualAttention = 0;
 
   for (const action of pending) {
     const executor = executors.get(action.type);
@@ -320,26 +432,59 @@ async function runSync(): Promise<{ success: number; failed: number }> {
       continue;
     }
 
+    let result: boolean;
     try {
-      const result = await executor(action);
-
-      if (result) {
-        await removeAction(action.id);
-        success++;
-      } else {
-        await incrementRetry(action);
-
-        if (action.retryCount >= MAX_RETRIES) {
-          logger.error('offlineQueue', 'Max retries reached for:', action.id);
-          await removeAction(action.id);
-        }
-        failed++;
-      }
+      result = await executor(action);
     } catch (err) {
       logger.error('offlineQueue', 'Error executing action:', action.id, err);
-      await incrementRetry(action);
+      try {
+        if (await recordFailedAttempt(action, err)) {
+          manualAttention++;
+        }
+      } catch (persistenceError) {
+        logger.error('offlineQueue', 'Failed to persist retry state:', action.id, persistenceError);
+      }
       failed++;
+      continue;
     }
+
+    if (result) {
+      try {
+        const removed = await removeActionIfCurrent(action);
+        if (!removed) {
+          logger.info(
+            'offlineQueue',
+            'Action changed during sync; latest revision kept in queue:',
+            action.id
+          );
+        }
+        success++;
+      } catch (persistenceError) {
+        logger.error(
+          'offlineQueue',
+          'Remote action succeeded but local removal failed:',
+          action.id,
+          persistenceError
+        );
+        try {
+          await quarantineCompletedAction(action, persistenceError);
+        } catch (quarantineError) {
+          logger.error('offlineQueue', 'Failed to quarantine completed action:', quarantineError);
+        }
+        failed++;
+        manualAttention++;
+      }
+      continue;
+    }
+
+    try {
+      if (await recordFailedAttempt(action, 'Executor returned false')) {
+        manualAttention++;
+      }
+    } catch (persistenceError) {
+      logger.error('offlineQueue', 'Failed to persist retry state:', action.id, persistenceError);
+    }
+    failed++;
   }
 
   if (success > 0) {
@@ -353,8 +498,16 @@ async function runSync(): Promise<{ success: number; failed: number }> {
     );
   }
 
-  if (failed > 0) {
-    Toast.show(`${failed} azioni non sincronizzate. Riproverò più tardi.`, 'warning');
+  const retryableFailures = failed - manualAttention;
+  if (retryableFailures > 0) {
+    Toast.show(`${retryableFailures} azioni non sincronizzate. Riproverò più tardi.`, 'warning');
+  }
+
+  if (manualAttention > 0) {
+    Toast.show(
+      `${manualAttention} azioni richiedono verifica manuale e sono state conservate nella coda errori.`,
+      'error'
+    );
   }
 
   return { success, failed };

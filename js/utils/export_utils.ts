@@ -1,51 +1,90 @@
 // ==========================================
 // EXPORT FUNCTIONS (PDF / EXCEL)
 // ==========================================
-import type { SupabaseClient } from '@supabase/supabase-js';
-
-import { supabase } from '../core/api.js';
-import { logger } from '../core/logger.js';
-import { handleError, AppError } from '../shared/error-handler.js';
+import type { Tables } from '../../supabase/database.types.js';
+import { supabase, type AppSupabaseClient } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
+
+import { closureTemplateXlsxBase64 } from './template_chiusura_base64.js';
+import { formatDate, slugifyLabel, base64ToArrayBuffer } from './utils.js';
 
 /** Narrow an unknown value to a property bag, defaulting to an empty record. */
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
 
-import { closureTemplateXlsxBase64 } from './template_chiusura_base64.js';
-import { formatDate, slugifyLabel, base64ToArrayBuffer } from './utils.js';
+type ShiftRow = Tables<'shifts'>;
+type ShiftPistolaRow = Pick<
+  Tables<'shift_pistols'>,
+  'pistola_id' | 'opened_at_counter' | 'closed_at_counter' | 'liters_dispensed'
+>;
+type IslandExportRow = Pick<Tables<'islands'>, 'island_id' | 'island_name' | 'nome'>;
+type PistolaExportRow = Pick<Tables<'pistole'>, 'id' | 'nome' | 'tipo_carburante' | 'island_id'> & {
+  islands: IslandExportRow | null;
+};
+type EnrichedShiftPistolaRow = ShiftPistolaRow & {
+  pistole: PistolaExportRow | null;
+};
+type StationExportRow = Pick<Tables<'fuel_stations'>, 'station_name'>;
+type ClosureExportRow = Pick<
+  ShiftRow,
+  'id' | 'station_id' | 'closed_at' | 'created_at' | 'closing_data'
+>;
+
+export type ClosureExportSource = Partial<ClosureExportRow> & {
+  fuel_stations?: StationExportRow | null;
+  shift_pistols?: EnrichedShiftPistolaRow[];
+};
+
+export type ClosureExportData = ClosureExportRow & {
+  fuel_stations: StationExportRow | null;
+  shift_pistols: EnrichedShiftPistolaRow[];
+};
 
 // Costanti per export
 const SUMMARY_TEMPLATE_START_ROW = 42;
 const ISLAND_TEMPLATE_BLOCKS = [
   {
     startRow: 9,
-    endRow: 16,
     pistolaRows: 6,
-    totals: [
-      { type: 'gasolio', valueCell: 'F15', priceCell: 'E15', priceType: 'gasolio' },
-      { type: 'benzina', valueCell: 'P15', priceCell: 'O15', priceType: 'benzina' },
-      { type: 'totale', valueCell: 'O16', priceCell: 'U16', priceType: 'totale' }
-    ]
+    fuelTotals: {
+      gasolio: { litersCell: 'O18', euroCell: 'U18' },
+      benzina: { litersCell: 'O19', euroCell: 'U19' }
+    }
   },
   {
     startRow: 21,
-    endRow: 28,
     pistolaRows: 6,
-    totals: [
-      { type: 'gasolio', valueCell: 'F27', priceCell: 'E27', priceType: 'gasolio' },
-      { type: 'benzina', valueCell: 'P27', priceCell: 'O27', priceType: 'benzina' },
-      { type: 'totale', valueCell: 'O28', priceCell: 'U28', priceType: 'totale' }
-    ]
+    fuelTotals: {
+      gasolio: { litersCell: 'O30', euroCell: 'U30' },
+      benzina: { litersCell: 'O31', euroCell: 'U31' }
+    }
   },
   {
     startRow: 33,
-    endRow: 40,
     pistolaRows: 2,
-    totals: [{ type: 'totale', valueCell: 'O38', priceCell: 'U38', priceType: 'totale' }]
+    aggregateTotal: { litersCell: 'O38', euroCell: 'U38' }
   }
-];
+] as const;
+
+const SHIFT_PISTOLS_EXPORT_SELECT = `
+  shift_id,
+  pistola_id,
+  opened_at_counter,
+  closed_at_counter,
+  liters_dispensed,
+  pistole!shift_pistols_pistola_id_fkey (
+    id,
+    nome,
+    tipo_carburante,
+    island_id,
+    islands!pistole_island_fk (
+      island_id,
+      island_name,
+      nome
+    )
+  )
+`;
 
 export interface ExportPistola {
   label: string;
@@ -142,22 +181,178 @@ function getClosureTemplateBase64(): string | null {
   return closureTemplateXlsxBase64 || null;
 }
 
-export async function computeExportSummaryMetrics(
-  adminClient: SupabaseClient,
-  closure: Record<string, unknown>,
-  stationId: unknown
-): Promise<ExportMetrics> {
-  const safeNumber = (value: unknown): number => {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : 0;
-  };
+function safeNumber(value: unknown): number {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
 
+function normalizeFuelType(pistola: PistolaExportRow): string {
+  const declaredType = pistola.tipo_carburante?.trim().toLowerCase() ?? '';
+  if (declaredType.includes('gasolio') || declaredType.includes('diesel')) {
+    return 'gasolio';
+  }
+  if (declaredType.includes('benzina') || declaredType.includes('verde')) {
+    return 'benzina';
+  }
+
+  const inferredFromType = inferFuelTypeFromNameExport(declaredType);
+  return inferredFromType === 'altro'
+    ? inferFuelTypeFromNameExport(pistola.nome)
+    : inferredFromType;
+}
+
+function readClosingPrices(closingData: Record<string, unknown>): Record<string, number> {
+  return {
+    benzina: safeNumber(closingData.prezzo_benzina),
+    gasolio: safeNumber(closingData.prezzo_gasolio),
+    gpl: safeNumber(closingData.prezzo_gpl),
+    metano: safeNumber(closingData.prezzo_metano)
+  };
+}
+
+function getFuelPrice(prices: Record<string, number>, fuelType: string): number {
+  if (fuelType === 'benzina') {
+    return prices.benzina ?? 0;
+  }
+  if (fuelType === 'gasolio') {
+    return prices.gasolio ?? 0;
+  }
+  if (fuelType === 'gpl') {
+    return prices.gpl ?? 0;
+  }
+  if (fuelType === 'metano') {
+    return prices.metano ?? 0;
+  }
+  return 0;
+}
+
+async function fetchShiftPistolsForExport(
+  client: AppSupabaseClient,
+  shiftId: number
+): Promise<EnrichedShiftPistolaRow[]> {
+  const { data, error } = await client
+    .from('shift_pistols')
+    .select(SHIFT_PISTOLS_EXPORT_SELECT)
+    .eq('shift_id', shiftId)
+    .order('pistola_id', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+  return data ?? [];
+}
+
+/** Load all nozzle snapshots needed by a bulk export in one relational query. */
+export async function fetchShiftPistolsForBulkExport(
+  client: AppSupabaseClient,
+  shiftIds: number[]
+): Promise<Map<number, EnrichedShiftPistolaRow[]>> {
+  const uniqueShiftIds = [...new Set(shiftIds)];
+  const byShiftId = new Map<number, EnrichedShiftPistolaRow[]>();
+  uniqueShiftIds.forEach(shiftId => byShiftId.set(shiftId, []));
+
+  if (uniqueShiftIds.length === 0) {
+    return byShiftId;
+  }
+
+  const { data, error } = await client
+    .from('shift_pistols')
+    .select(SHIFT_PISTOLS_EXPORT_SELECT)
+    .in('shift_id', uniqueShiftIds)
+    .order('pistola_id', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  for (const row of data ?? []) {
+    const shiftId = Number(row.shift_id);
+    const pistole = byShiftId.get(shiftId);
+    if (!pistole) {
+      throw new Error(`Dettaglio pistole associato a un turno inatteso: ${shiftId}`);
+    }
+
+    const { shift_id: _shiftId, ...shiftPistola } = row;
+    pistole.push(shiftPistola);
+  }
+
+  return byShiftId;
+}
+
+async function resolveStationName(
+  client: AppSupabaseClient,
+  closure: ClosureExportSource,
+  stationId: number | null
+): Promise<string> {
+  if (closure.fuel_stations?.station_name) {
+    return closure.fuel_stations.station_name;
+  }
+  if (stationId === null) {
+    return 'Stazione';
+  }
+
+  const { data, error } = await client
+    .from('fuel_stations')
+    .select('station_name')
+    .eq('station_id', stationId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  if (!data) {
+    throw new Error(`Stazione ${stationId} non trovata`);
+  }
+  return data.station_name;
+}
+
+function populateSummary(metrics: ExportMetrics, closingData: Record<string, unknown>): void {
+  const selfService = asRecord(closingData.scontrino_self);
+  const operator = asRecord(closingData.dettaglio_incasso);
+  const hasOwn = (record: Record<string, unknown>, key: string): boolean =>
+    Object.prototype.hasOwnProperty.call(record, key);
+  const hasSelfCashData =
+    hasOwn(selfService, 'banconote_incassate') || hasOwn(selfService, 'banconote_erogate');
+  const hasUtaData =
+    hasOwn(selfService, 'transazioni_uta') || hasOwn(operator, 'uta_dkv_operatore');
+
+  metrics.summary.self = hasSelfCashData
+    ? safeNumber(selfService.banconote_incassate) - safeNumber(selfService.banconote_erogate)
+    : safeNumber(closingData.cash_in_finale) - safeNumber(closingData.cash_out_finale);
+  metrics.summary.carteSelf = safeNumber(selfService.bancomat_erogati);
+  metrics.summary.contanti = safeNumber(
+    hasOwn(operator, 'contanti_operatore')
+      ? operator.contanti_operatore
+      : closingData.incasso_contanti
+  );
+  metrics.summary.cartePos = safeNumber(
+    hasOwn(operator, 'pos_operatore') ? operator.pos_operatore : closingData.incasso_pos
+  );
+  metrics.summary.crediti = safeNumber(operator.crediti ?? closingData.crediti);
+  metrics.summary.utaDkv = hasUtaData
+    ? safeNumber(selfService.transazioni_uta) + safeNumber(operator.uta_dkv_operatore)
+    : safeNumber(closingData.incasso_uta_dkv);
+  metrics.summary.nonErogato = safeNumber(closingData.non_erogato);
+  metrics.summary.lubrAdblue = safeNumber(
+    closingData.lubr_adblue ?? closingData.lubrificanti_adblue ?? closingData.accessori
+  );
+}
+
+export async function computeExportSummaryMetrics(
+  adminClient: AppSupabaseClient,
+  closure: ClosureExportSource,
+  stationId: number | null
+): Promise<ExportMetrics> {
+  const closingData = asRecord(closure.closing_data);
+  const prices = readClosingPrices(closingData);
+  const stationName = await resolveStationName(adminClient, closure, stationId);
+  const dateRaw = closure.closed_at ?? closure.created_at;
   const metrics: ExportMetrics = {
     meta: {
-      stationSlug: 'stazione',
-      dateSlug: 'data',
-      dateDisplay: '',
-      prices: {},
+      stationSlug: slugifyLabel(stationName),
+      dateSlug: dateRaw ? (dateRaw.split('T')[0] ?? 'date') : 'date',
+      dateDisplay: formatDate(dateRaw),
+      prices,
       totals: {
         ltGasolio: 0,
         ltBenzina: 0,
@@ -180,212 +375,89 @@ export async function computeExportSummaryMetrics(
     }
   };
 
-  try {
-    // 1. Dati Stazione (Nome)
-    let stationName = 'Stazione';
-    if (stationId) {
-      const { data: st } = await adminClient
-        .from('fuel_stations')
-        .select('station_name')
-        .eq('station_id', stationId)
-        .single();
-      if (st) {
-        stationName = st.station_name;
-      }
+  let shiftPistols = closure.shift_pistols;
+  if (shiftPistols === undefined) {
+    if (closure.id === undefined) {
+      throw new Error("ID turno mancante per l'export");
     }
-    const closingData = asRecord(closure.closing_data);
+    shiftPistols = await fetchShiftPistolsForExport(adminClient, closure.id);
+  }
 
-    metrics.meta.stationSlug = slugifyLabel(stationName);
-    const dateRaw = (closure.closed_at || closure.created_at || closure.data_chiusura) as
-      string | undefined;
-    metrics.meta.dateSlug = dateRaw ? (dateRaw.split('T')[0] ?? 'date') : 'date';
-    metrics.meta.dateDisplay = formatDate(dateRaw);
-
-    // Prices might be in 'prezzi' (legacy) or 'closing_data.prezzi' or 'closing_data.prices'
-    metrics.meta.prices = (closure.prezzi ||
-      closingData.prezzi ||
-      closingData.prices ||
-      {}) as Record<string, number>;
-
-    // 2. Fetch Pistole e Tank Pumps
-    let shiftPistols: Record<string, unknown>[] = Array.isArray(closure.shift_pistols)
-      ? closure.shift_pistols.map(asRecord)
-      : [];
-    if (!Array.isArray(closure.shift_pistols)) {
-      const targetId = closure.id || closure.shift_id;
-      if (targetId) {
-        const { data: sp } = await adminClient
-          .from('shift_pistols')
-          .select('*')
-          .eq('shift_id', targetId);
-
-        const rawPistols = sp || [];
-
-        if (rawPistols.length > 0) {
-          const pistolIds = [
-            ...new Set(rawPistols.map((p: Record<string, unknown>) => p.pistol_id))
-          ];
-
-          // 2a. Fetch Pistols (Flat)
-          const { data: pistolsFlat } = await adminClient
-            .from('pistols')
-            .select('pistol_id, pistol_name, pump_id')
-            .in('pistol_id', pistolIds);
-
-          const pistolsMap = new Map<string, Record<string, unknown>>();
-          const pumpIds = new Set<unknown>();
-          (pistolsFlat || []).forEach((p: Record<string, unknown>) => {
-            pistolsMap.set(String(p.pistol_id), { ...p });
-            if (p.pump_id) {
-              pumpIds.add(p.pump_id);
-            }
-          });
-
-          // 2b. Fetch Pumps (Flat)
-          const pumpsMap = new Map<string, Record<string, unknown>>();
-          const islandIds = new Set<unknown>();
-          if (pumpIds.size > 0) {
-            const { data: pumpsFlat } = await adminClient
-              .from('fuel_pumps')
-              .select('pump_id, pump_name, island_id')
-              .in('pump_id', [...pumpIds]);
-
-            (pumpsFlat || []).forEach((p: Record<string, unknown>) => {
-              pumpsMap.set(String(p.pump_id), p);
-              if (p.island_id) {
-                islandIds.add(p.island_id);
-              }
-            });
-          }
-
-          // 2c. Fetch Islands (Flat)
-          const islandsMapRef = new Map<string, Record<string, unknown>>();
-          if (islandIds.size > 0) {
-            const { data: islandsFlat } = await adminClient
-              .from('islands')
-              .select('island_id, island_name')
-              .in('island_id', [...islandIds]);
-
-            (islandsFlat || []).forEach((i: Record<string, unknown>) =>
-              islandsMapRef.set(String(i.island_id), i)
-            );
-          }
-
-          // Step 3: Deep Merge in JS
-          shiftPistols = rawPistols.map((rp: Record<string, unknown>) => {
-            const pId = parseInt(String(rp.pistol_id), 10);
-            const pistolBase = pistolsMap.get(String(pId));
-
-            let constructedPistol: Record<string, unknown> = {};
-            if (pistolBase) {
-              const pump = pumpsMap.get(String(pistolBase.pump_id));
-              const island = pump ? islandsMapRef.get(String(pump.island_id)) : null;
-
-              constructedPistol = {
-                pistol_name: pistolBase.pistol_name,
-                pump_id: pistolBase.pump_id,
-                fuel_pumps: pump
-                  ? {
-                      pump_name: pump.pump_name,
-                      island_id: pump.island_id,
-                      islands: island ? { island_name: island.island_name } : null
-                    }
-                  : null
-              };
-            } else {
-              constructedPistol = {
-                pistol_name: `[Pistola ${pId} non trovata]`,
-                fuel_pumps: { islands: { island_name: 'Isola ?' } }
-              };
-            }
-
-            return {
-              ...rp,
-              pistols: constructedPistol
-            };
-          });
-        } else {
-          shiftPistols = [];
-        }
-      } else {
-        shiftPistols = [];
-      }
+  const islandsMap = new Map<number, ExportSection>();
+  shiftPistols.forEach(shiftPistola => {
+    const pistola = shiftPistola.pistole;
+    if (!pistola) {
+      throw new Error(`Pistola ${shiftPistola.pistola_id} non disponibile per l'export`);
+    }
+    if (!pistola.islands) {
+      throw new Error(
+        `Isola della pistola ${shiftPistola.pistola_id} non disponibile per l'export`
+      );
     }
 
-    const islandsMap = new Map<number | string, ExportSection>();
+    const islandId = pistola.island_id;
+    let section = islandsMap.get(islandId);
+    if (!section) {
+      section = {
+        id: islandId,
+        label: pistola.islands.island_name || pistola.islands.nome,
+        pistole: []
+      };
+      islandsMap.set(islandId, section);
+    }
 
-    shiftPistols.forEach((sp: Record<string, unknown>) => {
-      const pistolsInfo = asRecord(sp.pistols);
-      const fuelPumps = asRecord(pistolsInfo.fuel_pumps);
-      const islandsInfo = asRecord(fuelPumps.islands);
-      const pistolName = (pistolsInfo.pistol_name as string) || `Pistola ${String(sp.pistol_id)}`;
-      const islandName = (islandsInfo.island_name as string) || 'Isola ?';
-      const islandId = (fuelPumps.island_id as number | string) || 999;
-      const pumpName = (fuelPumps.pump_name as string) || '';
+    const fuelType = normalizeFuelType(pistola);
+    const litersDispensed = safeNumber(shiftPistola.liters_dispensed);
+    const totalEuro = litersDispensed * getFuelPrice(prices, fuelType);
 
-      let section = islandsMap.get(islandId);
-      if (!section) {
-        section = { id: islandId, label: islandName, pistole: [] };
-        islandsMap.set(islandId, section);
-      }
-
-      const tipo = inferFuelTypeFromNameExport(pistolName);
-      const venduto = safeNumber(sp.liters_dispensed);
-      const prezzoUnitario = safeNumber(sp.end_price);
-      const totaleEuro = venduto * prezzoUnitario;
-
-      section.pistole.push({
-        label: `${pumpName} ${pistolName}`.trim(),
-        chiusura: safeNumber(sp.end_counter),
-        apertura: safeNumber(sp.start_counter),
-        venduti: venduto,
-        totaleEuro: totaleEuro,
-        tipo: tipo,
-        tipoSigla: fuelTypeSigla(tipo)
-      });
-
-      // Meta totals accumulation
-      if (tipo === 'gasolio') {
-        metrics.meta.totals.ltGasolio += venduto;
-        metrics.meta.totals.euroGasolio += totaleEuro;
-      } else if (tipo === 'benzina') {
-        metrics.meta.totals.ltBenzina += venduto;
-        metrics.meta.totals.euroBenzina += totaleEuro;
-      } else {
-        metrics.meta.totals.ltOther += venduto;
-      }
-      metrics.meta.totals.totalEuro += totaleEuro;
+    section.pistole.push({
+      label: pistola.nome,
+      chiusura: safeNumber(shiftPistola.closed_at_counter),
+      apertura: safeNumber(shiftPistola.opened_at_counter),
+      venduti: litersDispensed,
+      totaleEuro: totalEuro,
+      tipo: fuelType,
+      tipoSigla: fuelTypeSigla(fuelType)
     });
 
-    // Ordina isole e pistole
-    const sortedIslands = Array.from(islandsMap.values()).sort(
-      (a, b) => Number(a.id) - Number(b.id)
-    );
-    metrics.sections = sortedIslands;
+    if (fuelType === 'gasolio') {
+      metrics.meta.totals.ltGasolio += litersDispensed;
+      metrics.meta.totals.euroGasolio += totalEuro;
+    } else if (fuelType === 'benzina') {
+      metrics.meta.totals.ltBenzina += litersDispensed;
+      metrics.meta.totals.euroBenzina += totalEuro;
+    } else {
+      metrics.meta.totals.ltOther += litersDispensed;
+    }
+    metrics.meta.totals.totalEuro += totalEuro;
+  });
 
-    // 3. Summary Totals (Incassi)
-    const incassi = asRecord(closure.incassi);
-    metrics.summary.contanti = safeNumber(incassi.contanti);
-    metrics.summary.cartePos = safeNumber(incassi.pos);
-    metrics.summary.crediti = safeNumber(incassi.credito);
-    metrics.summary.self = safeNumber(incassi.self_service);
-    metrics.summary.nonErogato = safeNumber(incassi.non_erogato);
-    metrics.summary.lubrAdblue = safeNumber(incassi.accessori);
-
-    return metrics;
-  } catch (e) {
-    logger.error('exportUtils', 'Error computing metrics', e);
-    return metrics;
-  }
+  metrics.sections = Array.from(islandsMap.values()).sort((a, b) => Number(a.id) - Number(b.id));
+  populateSummary(metrics, closingData);
+  return metrics;
 }
 
 export async function fetchClosureExportData(
   closureId: string | number
-): Promise<Record<string, unknown>> {
+): Promise<ClosureExportData> {
+  const numericClosureId = Number(closureId);
+  if (!Number.isInteger(numericClosureId) || numericClosureId <= 0) {
+    throw new Error('ID chiusura non valido');
+  }
+
   const { data: closure, error } = await supabase
     .from('shifts')
-    .select('*')
-    .eq('id', Number(closureId))
+    .select(
+      `
+        id,
+        station_id,
+        closed_at,
+        created_at,
+        closing_data,
+        fuel_stations!shifts_station_id_fkey (station_name)
+      `
+    )
+    .eq('id', numericClosureId)
     .single();
 
   if (error) {
@@ -395,52 +467,14 @@ export async function fetchClosureExportData(
     throw new Error('Chiusura non trovata');
   }
 
-  const { data: sp } = await supabase
-    .from('shift_pistols')
-    .select('*')
-    .eq('shift_id', Number(closureId));
-
-  const rawPistols = sp || [];
-  let enrichedPistols: Record<string, unknown>[] = [];
-
-  if (rawPistols.length > 0) {
-    const pistolIds = [...new Set(rawPistols.map((p: Record<string, unknown>) => p.pistol_id))];
-    const { data: pistolDetails } = await supabase
-      .from('pistole')
-      .select(
-        `
-                pistol_id,
-                pistol_name,
-                pump_id,
-                fuel_pumps (
-                    pump_name,
-                    island_id,
-                    islands ( island_name, island_id )
-                )
-            `
-      )
-      .in('pistol_id', pistolIds);
-
-    const pxMap = new Map<unknown, Record<string, unknown>>();
-    // The generated DB types don't model the legacy 'pistole' relation/columns
-    // queried here (see CLAUDE.md: repo types can lag the live DB), so the row
-    // shape is treated as a generic record. Runtime query is unchanged.
-    const pistolRows = (pistolDetails ?? []) as unknown as Record<string, unknown>[];
-    pistolRows.forEach(p => pxMap.set(p.pistol_id, p));
-
-    enrichedPistols = rawPistols.map((rp: Record<string, unknown>) => ({
-      ...rp,
-      pistols: pxMap.get(rp.pistol_id) || {}
-    }));
-  }
-
-  (closure as Record<string, unknown>).shift_pistols = enrichedPistols;
-  return closure;
+  const shiftPistols = await fetchShiftPistolsForExport(supabase, numericClosureId);
+  return { ...closure, shift_pistols: shiftPistols };
 }
 
 interface XlsxTemplateArchive {
   file(path: string): XlsxTemplateFile | null;
   file(path: string, data: string | Blob): void;
+  remove(path: string): void;
   generateAsync(options: { type: 'blob' }): Promise<Blob>;
 }
 
@@ -464,6 +498,10 @@ interface JsZipModuleLike {
 
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const WORKSHEET_PATH = 'xl/worksheets/sheet1.xml';
+const WORKBOOK_PATH = 'xl/workbook.xml';
+const WORKBOOK_RELATIONSHIPS_PATH = 'xl/_rels/workbook.xml.rels';
+const CONTENT_TYPES_PATH = '[Content_Types].xml';
+const CALC_CHAIN_PATH = 'xl/calcChain.xml';
 
 async function loadJsZip(): Promise<XlsxZipConstructor> {
   const module = (await import('jszip')) as unknown as JsZipModuleLike;
@@ -492,8 +530,10 @@ function splitCellAddress(address: string): { column: string; row: number } {
 }
 
 function renderCell(address: string, value: unknown, existingCell?: string): string {
+  const selfClosingTagMatch = existingCell?.match(/^<c\b([^>]*)\/>$/);
   const openTagMatch = existingCell?.match(/^<c\b([^>]*)>/);
-  let attrs = openTagMatch?.[1] ?? ` r="${address}"`;
+  let attrs = selfClosingTagMatch?.[1] ?? openTagMatch?.[1] ?? ` r="${address}"`;
+  attrs = attrs.replace(/\/\s*$/u, '');
 
   if (!/\br=/.test(attrs)) {
     attrs = ` r="${address}"${attrs}`;
@@ -514,7 +554,7 @@ function upsertCellXml(xml: string, address: string, value: unknown): string {
   const { column, row } = splitCellAddress(address);
   // eslint-disable-next-line security/detect-non-literal-regexp -- address is an internal fixed Excel cell reference
   const cellPattern = new RegExp(
-    String.raw`<c\b(?=[^>]*\br="${address}")[\s\S]*?</c>|<c\b(?=[^>]*\br="${address}")[^>]*/>`,
+    String.raw`<c\b(?=[^>]*\br="${address}")[^>]*/>|<c\b(?=[^>]*\br="${address}")(?![^>]*\/>)[^>]*>[\s\S]*?</c>`,
     'u'
   );
   const existing = xml.match(cellPattern)?.[0];
@@ -540,7 +580,7 @@ function upsertCellXml(xml: string, address: string, value: unknown): string {
   const cellColumn = columnNameToNumber(column);
   const existingCells = [
     ...body.matchAll(
-      /<c\b(?=[^>]*\br="([A-Z]+)\d+")[\s\S]*?<\/c>|<c\b(?=[^>]*\br="([A-Z]+)\d+")[^>]*/gu
+      /<c\b(?=[^>]*\br="([A-Z]+)\d+")[^>]*\/>|<c\b(?=[^>]*\br="([A-Z]+)\d+")(?![^>]*\/>)[^>]*>[\s\S]*?<\/c>/gu
     )
   ];
 
@@ -576,6 +616,59 @@ function createSheetXmlAdapter(initialXml: string): XlsxSheetXml {
   };
 }
 
+async function normalizeWorkbookCalculationPackage(workbook: XlsxTemplateArchive): Promise<void> {
+  const contentTypesFile = workbook.file(CONTENT_TYPES_PATH);
+  const relationshipsFile = workbook.file(WORKBOOK_RELATIONSHIPS_PATH);
+  const workbookFile = workbook.file(WORKBOOK_PATH);
+  if (!contentTypesFile || !relationshipsFile || !workbookFile) {
+    throw new Error('Pacchetto Excel template incompleto');
+  }
+
+  const contentTypesXml = (await contentTypesFile.async('string')).replace(
+    /<Override\b(?=[^>]*\bPartName="\/xl\/calcChain\.xml")[^>]*\/>/u,
+    ''
+  );
+  const relationshipsXml = (await relationshipsFile.async('string')).replace(
+    /<Relationship\b(?=[^>]*\bType="[^"]*\/calcChain")[^>]*\/>/u,
+    ''
+  );
+
+  const workbookXml = await workbookFile.async('string');
+  const calcPropertiesPattern = /<calcPr\b([^>]*)\/>/u;
+  const currentCalcProperties = workbookXml.match(calcPropertiesPattern)?.[1] ?? '';
+  const preservedCalcProperties = currentCalcProperties.replace(
+    /\s+(?:calcMode|fullCalcOnLoad|forceFullCalc)="[^"]*"/gu,
+    ''
+  );
+  const calculationProperties = `<calcPr${preservedCalcProperties} calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1"/>`;
+  const normalizedWorkbookXml = calcPropertiesPattern.test(workbookXml)
+    ? workbookXml.replace(calcPropertiesPattern, calculationProperties)
+    : workbookXml.replace('</workbook>', `${calculationProperties}</workbook>`);
+
+  workbook.file(CONTENT_TYPES_PATH, contentTypesXml);
+  workbook.file(WORKBOOK_RELATIONSHIPS_PATH, relationshipsXml);
+  workbook.file(WORKBOOK_PATH, normalizedWorkbookXml);
+  workbook.remove(CALC_CHAIN_PATH);
+}
+
+function validateTemplateCapacity(sections: ExportSection[]): void {
+  if (sections.length > ISLAND_TEMPLATE_BLOCKS.length) {
+    throw new Error(
+      `Il template Excel supporta al massimo ${ISLAND_TEMPLATE_BLOCKS.length} isole; trovate ${sections.length}`
+    );
+  }
+
+  sections.forEach((section, index) => {
+    // eslint-disable-next-line security/detect-object-injection -- index is bounded by the length check above
+    const block = ISLAND_TEMPLATE_BLOCKS[index];
+    if (block && section.pistole.length > block.pistolaRows) {
+      throw new Error(
+        `L'isola "${section.label}" contiene ${section.pistole.length} pistole, ma il relativo blocco del template ne supporta al massimo ${block.pistolaRows}`
+      );
+    }
+  });
+}
+
 function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -587,7 +680,7 @@ function downloadBlob(blob: Blob, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
-async function createPopulatedClosureWorkbook(templateData: ExportMetrics): Promise<Blob> {
+export async function createPopulatedClosureWorkbook(templateData: ExportMetrics): Promise<Blob> {
   const templateBase64 = getClosureTemplateBase64();
   if (!templateBase64) {
     throw new Error('Template Excel mancante');
@@ -608,6 +701,7 @@ async function createPopulatedClosureWorkbook(templateData: ExportMetrics): Prom
   const sheet = createSheetXmlAdapter(await worksheetFile.async('string'));
   populateClosureSheet(sheet, templateData);
   workbook.file(WORKSHEET_PATH, sheet.toXml());
+  await normalizeWorkbookCalculationPackage(workbook);
 
   const output = await workbook.generateAsync({ type: 'blob' });
   if (output instanceof Blob) {
@@ -626,6 +720,7 @@ function populateClosureSheet(sheet: XlsxSheetXml, templateData: ExportMetrics):
   const totals = meta.totals || {};
   const summary = templateData.summary || {};
   const sections = templateData.sections || [];
+  validateTemplateCapacity(sections);
 
   // Intestazione
   setCell('C2', meta.dateDisplay || '');
@@ -640,7 +735,7 @@ function populateClosureSheet(sheet: XlsxSheetXml, templateData: ExportMetrics):
   setCell('F6', totals.ltGasolio || 0);
   setCell('P6', totals.ltBenzina || 0);
   setCell('U6', 'LT TOTALI');
-  setCell('V6', (totals.ltGasolio + totals.ltBenzina + totals.ltOther).toFixed(2));
+  setCell('V6', totals.ltGasolio + totals.ltBenzina + totals.ltOther);
 
   const fillPistolaRow = (rowIndex: number, pistola: ExportPistola | null): void => {
     const rowLetter = (col: string): string => `${col}${rowIndex}`;
@@ -658,24 +753,25 @@ function populateClosureSheet(sheet: XlsxSheetXml, templateData: ExportMetrics):
     }
   };
 
-  const activeCount = Math.min(sections.length, ISLAND_TEMPLATE_BLOCKS.length);
-
   ISLAND_TEMPLATE_BLOCKS.forEach((block, index) => {
     // eslint-disable-next-line security/detect-object-injection -- index is the forEach loop index (numeric, in-bounds)
     const section = sections[index];
-    const isActive = index < activeCount && !!section;
+    const isActive = !!section;
 
     if (!isActive) {
       setCell(`A${block.startRow}`, '');
       for (let i = 0; i < block.pistolaRows; i++) {
         fillPistolaRow(block.startRow + 2 + i, null);
       }
-      block.totals.forEach(t => {
-        setCell(t.valueCell, null);
-        if (t.priceCell) {
-          setCell(t.priceCell, null);
-        }
-      });
+      if ('fuelTotals' in block) {
+        Object.values(block.fuelTotals).forEach(total => {
+          setCell(total.litersCell, null);
+          setCell(total.euroCell, null);
+        });
+      } else {
+        setCell(block.aggregateTotal.litersCell, null);
+        setCell(block.aggregateTotal.euroCell, null);
+      }
       return;
     }
 
@@ -685,6 +781,31 @@ function populateClosureSheet(sheet: XlsxSheetXml, templateData: ExportMetrics):
     for (let i = 0; i < block.pistolaRows; i++) {
       // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
       fillPistolaRow(block.startRow + 2 + i, pistole[i] || null);
+    }
+
+    if ('fuelTotals' in block) {
+      (['gasolio', 'benzina'] as const).forEach(fuelType => {
+        const fuelPistole = pistole.filter(pistola => pistola.tipo === fuelType);
+        // eslint-disable-next-line security/detect-object-injection -- fuelType is a fixed local tuple
+        const totalCells = block.fuelTotals[fuelType];
+        setCell(
+          totalCells.litersCell,
+          fuelPistole.reduce((total, pistola) => total + pistola.venduti, 0)
+        );
+        setCell(
+          totalCells.euroCell,
+          fuelPistole.reduce((total, pistola) => total + pistola.totaleEuro, 0)
+        );
+      });
+    } else {
+      setCell(
+        block.aggregateTotal.litersCell,
+        pistole.reduce((total, pistola) => total + pistola.venduti, 0)
+      );
+      setCell(
+        block.aggregateTotal.euroCell,
+        pistole.reduce((total, pistola) => total + pistola.totaleEuro, 0)
+      );
     }
   });
 
@@ -700,42 +821,31 @@ function populateClosureSheet(sheet: XlsxSheetXml, templateData: ExportMetrics):
 }
 
 export async function generateClosureExcel(templateData: ExportMetrics): Promise<void> {
-  try {
-    const blob = await createPopulatedClosureWorkbook(templateData);
-    downloadBlob(blob, `chiusura_${templateData.meta?.dateSlug || 'export'}.xlsx`);
-  } catch (e: unknown) {
-    logger.error('exportUtils', 'Excel generation error:', e);
-    handleError(new AppError('Errore generazione Excel', 'EXPORT_ERROR', e), 'exportUtils');
-  }
+  const blob = await createPopulatedClosureWorkbook(templateData);
+  downloadBlob(blob, `chiusura_${templateData.meta?.dateSlug || 'export'}.xlsx`);
 }
 
 export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): Promise<void> {
-  try {
-    Toast.show('Generazione ZIP Excel in corso...', 'info');
-    const JSZip = await loadJsZip();
-    const zip = new JSZip();
+  Toast.show('Generazione ZIP Excel in corso...', 'info');
+  const JSZip = await loadJsZip();
+  const zip = new JSZip();
 
-    for (let i = 0; i < closuresData.length; i++) {
-      // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
-      const data = closuresData[i];
-      if (!data) {
-        continue;
-      }
-
-      const dateStr = data.meta?.dateSlug || `C${i + 1}`;
-      const fileName = `chiusura_${dateStr}_${i + 1}.xlsx`;
-      const blob = await createPopulatedClosureWorkbook(data);
-      zip.file(fileName, blob);
+  for (let i = 0; i < closuresData.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection -- i is a bounded numeric loop index
+    const data = closuresData[i];
+    if (!data) {
+      continue;
     }
 
-    const zipContent = await zip.generateAsync({ type: 'blob' });
-    const today = new Date().toISOString().split('T')[0];
-    downloadBlob(zipContent, `chiusure_multi_export_${today}.zip`);
-
-    Toast.show('Download ZIP completato!', 'success');
-  } catch (e: unknown) {
-    logger.error('exportUtils', 'ZIP export error:', e);
-    const message = e instanceof Error ? e.message : 'Errore sconosciuto';
-    handleError(new AppError(`Errore fatale export: ${message}`, 'EXPORT_ERROR', e), 'exportUtils');
+    const dateStr = data.meta?.dateSlug || `C${i + 1}`;
+    const fileName = `chiusura_${dateStr}_${i + 1}.xlsx`;
+    const blob = await createPopulatedClosureWorkbook(data);
+    zip.file(fileName, blob);
   }
+
+  const zipContent = await zip.generateAsync({ type: 'blob' });
+  const today = new Date().toISOString().split('T')[0];
+  downloadBlob(zipContent, `chiusure_multi_export_${today}.zip`);
+
+  Toast.show('Download ZIP completato!', 'success');
 }

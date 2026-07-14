@@ -9,6 +9,7 @@ import { router, AdminTab, isAdminTab } from './admin/router.js';
 import { supabase, safeSupabaseQuery } from './core/api.js';
 import { logger } from './core/logger.js';
 import { getCurrentRoute, onHashChange } from './shared/hash-router.js';
+import { isAdminRole } from './shared/roles.js';
 import { store } from './shared/state.js';
 import { FuelStation } from './types.js';
 
@@ -25,7 +26,7 @@ export function showAdminArea(): void {
 
   const user = store.getUser();
   const userRole = user?.role || 'operator';
-  const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
+  const isFullAdmin = isAdminRole(userRole);
 
   logger.info('Admin', 'showAdminArea role: ' + userRole + ' isFullAdmin: ' + isFullAdmin);
 
