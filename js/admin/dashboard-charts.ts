@@ -1,53 +1,22 @@
-import { supabase, type Json } from '../core/api.js';
+import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import type { ChartConstructor, ChartInstance } from '../types.js';
-import { formatEuro, getISODate } from '../utils/utils.js';
+import { formatEuro } from '../utils/utils.js';
+
+import {
+  aggregateShiftAnalytics,
+  createEmptyAnalyticsTotals,
+  createItalianCalendarRange,
+  formatItalianDayLabel,
+  type AnalyticsResult,
+  type AnalyticsShift
+} from './analytics-aggregation.js';
 
 // --- TYPES (Simplified for Dashboard) ---
 declare global {
   interface Window {
     Chart: ChartConstructor;
   }
-}
-
-const Chart = window.Chart;
-
-interface ClosingData extends Record<string, number | string | null | undefined> {
-  ricavo_teorico?: number | string | null;
-  litri_benzina?: number | string | null;
-  litri_gasolio?: number | string | null;
-  soldi_contanti?: number | string | null;
-  soldi_pos_totale?: number | string | null;
-  soldi_crediti?: number | string | null;
-  soldi_voucher?: number | string | null;
-}
-
-interface ShiftData {
-  closed_at: string | null;
-  closing_data: Json | null;
-  station_id: number;
-}
-
-interface AnalyticsResult {
-  daily: DayStats[];
-  totals: AnalyticsTotals;
-}
-
-interface DayStats {
-  date: string;
-  revenue: number;
-  liters_benzina: number;
-  liters_gasolio: number;
-}
-
-interface AnalyticsTotals {
-  benzina: number;
-  gasolio: number;
-  contanti: number;
-  pos: number;
-  crediti: number;
-  voucher: number;
-  revenue: number;
 }
 
 // Global chart instances store to destroy old charts on redraw
@@ -60,41 +29,16 @@ const dashboardCharts: Record<string, ChartInstance> = {};
 export async function fetchAnalyticsData(
   stationId: string | number | null = null
 ): Promise<AnalyticsResult> {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - 30); // Fixed 30 days for Dashboard view
-
-  startDate.setHours(0, 0, 0, 0);
-  endDate.setHours(23, 59, 59, 999);
-
-  // Initial Empty Data
-  const days: Record<string, DayStats> = {};
-  const totals: AnalyticsTotals = {
-    benzina: 0,
-    gasolio: 0,
-    contanti: 0,
-    pos: 0,
-    crediti: 0,
-    voucher: 0,
-    revenue: 0
-  };
-
-  // Fill dates
-  const currentDate = new Date(startDate);
-  while (currentDate <= endDate) {
-    const iso = getISODate(currentDate);
-    // eslint-disable-next-line security/detect-object-injection -- iso is generated YYYY-MM-DD
-    days[iso] = { date: iso, revenue: 0, liters_benzina: 0, liters_gasolio: 0 };
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
+  const calendarRange = createItalianCalendarRange('30d');
+  const totals = createEmptyAnalyticsTotals();
 
   try {
     let query = supabase
       .from('shifts')
       .select('closed_at, closing_data, station_id')
       .eq('status', 'closed')
-      .gte('closed_at', startDate.toISOString())
-      .lte('closed_at', endDate.toISOString());
+      .gte('closed_at', calendarRange.startIso)
+      .lt('closed_at', calendarRange.endExclusiveIso);
 
     if (stationId) {
       query = query.eq('station_id', Number(stationId));
@@ -105,44 +49,7 @@ export async function fetchAnalyticsData(
       throw error;
     }
 
-    (shifts || []).forEach((s: ShiftData) => {
-      if (!s.closed_at) {
-        return;
-      }
-      const day = s.closed_at.substring(0, 10);
-      const rawData = s.closing_data;
-      const data: ClosingData =
-        rawData && typeof rawData === 'object' && !Array.isArray(rawData)
-          ? (rawData as ClosingData)
-          : {};
-
-      // eslint-disable-next-line security/detect-object-injection -- day validated by days map
-      if (days[day]) {
-        const rev = Number(data.ricavo_teorico || 0);
-        const lb = Number(data.litri_benzina || 0);
-        const lg = Number(data.litri_gasolio || 0);
-
-        // eslint-disable-next-line security/detect-object-injection -- day validated above
-        days[day].revenue += rev;
-        // eslint-disable-next-line security/detect-object-injection -- day validated above
-        days[day].liters_benzina += lb;
-        // eslint-disable-next-line security/detect-object-injection -- day validated above
-        days[day].liters_gasolio += lg;
-
-        totals.revenue += rev;
-        totals.benzina += lb;
-        totals.gasolio += lg;
-        totals.contanti += Number(data.soldi_contanti || 0);
-        totals.pos += Number(data.soldi_pos_totale || 0);
-        totals.crediti += Number(data.soldi_crediti || 0);
-        totals.voucher += Number(data.soldi_voucher || 0);
-      }
-    });
-
-    return {
-      daily: Object.values(days).sort((a, b) => a.date.localeCompare(b.date)),
-      totals
-    };
+    return aggregateShiftAnalytics((shifts || []) as AnalyticsShift[], calendarRange.days);
   } catch (err) {
     logger.error('fetchAnalyticsData', err);
     return { daily: [], totals };
@@ -169,6 +76,7 @@ function getCtx(canvasId: string): HTMLCanvasElement | null {
  */
 export function renderRevenueChart(data: AnalyticsResult, canvasId: string): void {
   const ctx = getCtx(canvasId);
+  const Chart = window.Chart;
   if (!ctx || !Chart) {
     return;
   }
@@ -177,9 +85,7 @@ export function renderRevenueChart(data: AnalyticsResult, canvasId: string): voi
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: data.daily.map(d =>
-        new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
-      ),
+      labels: data.daily.map(d => formatItalianDayLabel(d.date)),
       datasets: [
         {
           label: 'Ricavi (€)',
@@ -205,6 +111,7 @@ export function renderRevenueChart(data: AnalyticsResult, canvasId: string): voi
 
 export function renderVolumeChart(data: AnalyticsResult, canvasId: string): void {
   const ctx = getCtx(canvasId);
+  const Chart = window.Chart;
   if (!ctx || !Chart) {
     return;
   }
@@ -213,9 +120,7 @@ export function renderVolumeChart(data: AnalyticsResult, canvasId: string): void
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: data.daily.map(d =>
-        new Date(d.date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
-      ),
+      labels: data.daily.map(d => formatItalianDayLabel(d.date)),
       datasets: [
         {
           label: 'Benzina',
@@ -243,6 +148,7 @@ export function renderVolumeChart(data: AnalyticsResult, canvasId: string): void
 
 export function renderPaymentChart(data: AnalyticsResult, canvasId: string): void {
   const ctx = getCtx(canvasId);
+  const Chart = window.Chart;
   if (!ctx || !Chart) {
     return;
   }
@@ -251,11 +157,18 @@ export function renderPaymentChart(data: AnalyticsResult, canvasId: string): voi
   dashboardCharts[canvasId] = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Contanti', 'POS', 'Crediti', 'Voucher'],
+      labels: ['Contanti', 'POS', 'Crediti', 'Voucher', 'UTA/DKV', 'ID Gestore'],
       datasets: [
         {
-          data: [data.totals.contanti, data.totals.pos, data.totals.crediti, data.totals.voucher],
-          backgroundColor: ['#10b981', '#3b82f6', '#FFA500', '#ec4899']
+          data: [
+            data.totals.contanti,
+            data.totals.pos,
+            data.totals.crediti,
+            data.totals.voucher,
+            data.totals.utaDkv,
+            data.totals.idGestore
+          ],
+          backgroundColor: ['#10b981', '#3b82f6', '#FFA500', '#ec4899', '#8b5cf6', '#64748b']
         }
       ]
     },
@@ -269,6 +182,7 @@ export function renderPaymentChart(data: AnalyticsResult, canvasId: string): voi
 
 export function renderFuelMixChart(data: AnalyticsResult, canvasId: string): void {
   const ctx = getCtx(canvasId);
+  const Chart = window.Chart;
   if (!ctx || !Chart) {
     return;
   }

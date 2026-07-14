@@ -3,13 +3,15 @@
  * Implements a simple Pub/Sub pattern with TypeScript types.
  */
 
+import type { UserRole } from './roles.js';
+
 // ========== TYPE DEFINITIONS ==========
 
 export interface User {
   id?: string;
   user_id: string;
   email: string;
-  role: 'admin' | 'operator' | 'super_admin' | 'accounting' | 'full_admin' | 'billing';
+  role: UserRole;
   station_id?: string | number | null;
   full_name?: string;
   assignedStations?: { id: number | string; name?: string }[];

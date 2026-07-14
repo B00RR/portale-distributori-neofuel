@@ -1,78 +1,11 @@
-import type { Json } from '../../supabase/database.types.js';
-import { supabase, safeSupabaseQuery } from '../core/api.js';
-import { logger } from '../core/logger.js';
+import { calculationEngine } from './calculation-engine.js';
 
-import { calculationEngine, CALCULATION_SCOPES } from './calculation-engine.js';
-
-interface PresetState {
-  functionsRegistered: boolean;
-  syncPromise: Promise<void> | null;
-}
-
-const presetState: PresetState = {
-  functionsRegistered: false,
-  syncPromise: null
-};
+let presetFunctionsRegistered = false;
 
 /** Narrow an unknown value to a property bag, defaulting to an empty record. */
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
-
-interface CalculationPreset {
-  scope: string;
-  name: string;
-  description: string;
-  dsl: Json;
-}
-
-const CALCULATION_PRESETS: CalculationPreset[] = [
-  {
-    scope: CALCULATION_SCOPES.KPI_VENDUTO,
-    name: 'Dashboard KPI Venduto',
-    description: 'Calcolo dinamico del venduto giornaliero dalle chiusure',
-    dsl: {
-      op: 'input',
-      path: 'salesEuro'
-    }
-  },
-  {
-    scope: CALCULATION_SCOPES.KPI_EROGATO,
-    name: 'Dashboard KPI Erogato',
-    description: 'Calcolo dinamico dei litri erogati (benzina e gasolio) dalle chiusure',
-    dsl: {
-      op: 'input',
-      path: 'erogatoData'
-    }
-  },
-  {
-    scope: CALCULATION_SCOPES.CHIUSURE_MOVIMENTI,
-    name: 'Chiusure - Somme movimenti',
-    description: 'Aggrega crediti, voucher, rimborsi e incassi extra',
-    dsl: {
-      op: 'function',
-      name: 'closure_movimenti_summary'
-    }
-  },
-  {
-    scope: CALCULATION_SCOPES.CHIUSURE_TOTALE_ATTESO,
-    name: 'Chiusure - Totale teorico carburante',
-    description: 'Calcola ricavo teorico e totale atteso',
-    dsl: {
-      op: 'function',
-      name: 'closure_totale_atteso'
-    }
-  },
-  {
-    scope: CALCULATION_SCOPES.CHIUSURE_CASH_METRICS,
-    name: 'Chiusure - Contanti attesi',
-    description: 'Determina i contanti attesi e la discrepanza',
-    dsl: {
-      op: 'function',
-      name: 'closure_expected_cash'
-    }
-  }
-];
 
 function round(value: number | string, precision: number = 2): number {
   const factor = Math.pow(10, precision);
@@ -80,10 +13,10 @@ function round(value: number | string, precision: number = 2): number {
 }
 
 function registerPresetFunctions(): void {
-  if (presetState.functionsRegistered) {
+  if (presetFunctionsRegistered) {
     return;
   }
-  presetState.functionsRegistered = true;
+  presetFunctionsRegistered = true;
 
   calculationEngine.registerFunction('dashboard_kpi_venduto', (args = {}, ctx = {}) => {
     const source = { ...asRecord(ctx), ...args };
@@ -204,107 +137,6 @@ function registerPresetFunctions(): void {
   });
 }
 
-async function syncCalculationPreset(preset: CalculationPreset): Promise<void> {
-  const existingModule = await safeSupabaseQuery<{ id: string; active_version_id: string | null }>(
-    async () =>
-      await supabase
-        .from('calculation_modules')
-        .select('id, active_version_id')
-        .eq('scope', preset.scope)
-        .maybeSingle(),
-    'Errore caricamento modulo calcoli'
-  );
-
-  let moduleId = existingModule?.data?.id;
-
-  if (!moduleId) {
-    const insertResult = await safeSupabaseQuery<{ id: string }>(
-      async () =>
-        await supabase
-          .from('calculation_modules')
-          .insert([
-            {
-              name: preset.name,
-              scope: preset.scope,
-              description: preset.description,
-              created_by: null
-            }
-          ])
-          .select('id')
-          .single(),
-      'Errore creazione modulo calcoli'
-    );
-    moduleId = insertResult.data?.id;
-  }
-
-  if (!moduleId) {
-    throw new Error(`Impossibile ottenere l'id del modulo per lo scope ${preset.scope}`);
-  }
-
-  const existingPublished = await safeSupabaseQuery<{ id: string }>(
-    async () =>
-      await supabase
-        .from('calculation_versions')
-        .select('id')
-        .eq('module_id', moduleId)
-        .eq('status', 'published')
-        .order('version', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    'Errore ricerca versioni calcoli'
-  );
-
-  if (!existingPublished?.data?.id) {
-    const versionResult = await safeSupabaseQuery<{ id: string }>(
-      async () =>
-        await supabase
-          .from('calculation_versions')
-          .insert([
-            {
-              module_id: moduleId,
-              version: 1,
-              status: 'published',
-              dsl: preset.dsl,
-              notes: 'Preset automatico',
-              published_at: new Date().toISOString()
-            }
-          ])
-          .select('id')
-          .single(),
-      'Errore creazione versione calcoli'
-    );
-
-    await safeSupabaseQuery(
-      async () =>
-        await supabase
-          .from('calculation_modules')
-          .update({ active_version_id: versionResult.data?.id ?? null })
-          .eq('id', moduleId),
-      'Errore aggiornamento modulo attivo'
-    );
-  }
-}
-
-async function syncAllPresets(): Promise<void> {
-  for (const preset of CALCULATION_PRESETS) {
-    try {
-      await syncCalculationPreset(preset);
-    } catch (err) {
-      logger.warn('calcPresets', `Preset calcoli "${preset.scope}" non sincronizzato:`, err);
-    }
-  }
-}
-
 export function initializeCalculationPresets(): void {
   registerPresetFunctions();
-}
-
-export async function ensureCalculationPresetsSynced(): Promise<void> {
-  registerPresetFunctions();
-  if (!presetState.syncPromise) {
-    presetState.syncPromise = syncAllPresets().catch(err => {
-      logger.warn('calcPresets', 'Impossibile sincronizzare i preset del motore di calcolo:', err);
-    });
-  }
-  return presetState.syncPromise;
 }

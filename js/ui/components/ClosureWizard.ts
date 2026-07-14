@@ -45,6 +45,10 @@ function getClosingStage(data: Json | null): 'partial' | 'final' | undefined {
   return undefined;
 }
 
+function isPartiallyClosedShift(shift: Shift | null): boolean {
+  return shift?.status === 'partial' || getClosingStage(shift?.closing_data ?? null) === 'partial';
+}
+
 interface ClosureWizardState {
   step: 1 | 2 | 3;
   mode: 'loading' | 'form' | 'submitting' | 'success' | 'error';
@@ -101,6 +105,40 @@ export class ClosureWizard extends BaseComponent {
   @state() private closureType: 'partial' | 'final' = 'final';
   @state() private includeCounters: boolean = true;
   @state() private businessRules: BusinessRules = DEFAULT_BUSINESS_RULES;
+
+  private get isFinalClosure(): boolean {
+    return this.closureType === 'final' || isPartiallyClosedShift(this.activeOpening);
+  }
+
+  private get shouldSubmitCounters(): boolean {
+    return this.isFinalClosure || this.includeCounters;
+  }
+
+  private selectClosureType(type: 'partial' | 'final'): void {
+    if (isPartiallyClosedShift(this.activeOpening)) {
+      this.closureType = 'final';
+      this.includeCounters = true;
+      return;
+    }
+
+    this.closureType = type;
+    if (type === 'final') {
+      this.includeCounters = true;
+    }
+  }
+
+  private calculateTotalIncasso(): number {
+    return (
+      Number(this.selfCashIn) -
+      Number(this.selfCashOut) +
+      Number(this.operatorCash) +
+      Number(this.selfPos) +
+      Number(this.operatorPos) +
+      Number(this.selfFleet) +
+      Number(this.selfManager) +
+      Number(this.operatorUta)
+    );
+  }
 
   static override styles: CSSResultGroup = [
     BaseComponent.styles,
@@ -302,6 +340,10 @@ export class ClosureWizard extends BaseComponent {
       }
       const activeOpening = shiftResult;
       this.activeOpening = activeOpening;
+      if (isPartiallyClosedShift(activeOpening)) {
+        this.closureType = 'final';
+        this.includeCounters = true;
+      }
 
       const shiftId = activeOpening.id;
       if (!shiftId) {
@@ -328,13 +370,22 @@ export class ClosureWizard extends BaseComponent {
           .single(),
         supabase
           .from('shift_pistols')
-          .select('pistola_id, opened_at_counter')
+          .select('pistola_id, opened_at_counter, closed_at_counter')
           .eq('shift_id', shiftId),
         BusinessLogicManager.loadRules()
       ]);
 
       if (islandsRes.error) {
         throw islandsRes.error;
+      }
+      if (prezziRes.error) {
+        throw prezziRes.error;
+      }
+      if (configRes.error) {
+        throw configRes.error;
+      }
+      if (countersRes.error) {
+        throw countersRes.error;
       }
 
       this.islands = islandsRes.data.map(
@@ -370,11 +421,24 @@ export class ClosureWizard extends BaseComponent {
       const counters = (countersRes.data || []) as Array<{
         pistola_id: number | string;
         opened_at_counter: number | string;
+        closed_at_counter: number | string | null;
       }>;
+      const previousClosingCounters: Record<number, number> = {};
       counters.forEach(c => {
-        countersMap[Number(c.pistola_id)] = Number(c.opened_at_counter) || 0;
+        const pistolId = Number(c.pistola_id);
+        if (!Number.isFinite(pistolId)) {
+          return;
+        }
+        // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
+        countersMap[pistolId] = Number(c.opened_at_counter) || 0;
+        const previousClosingCounter = Number(c.closed_at_counter);
+        if (c.closed_at_counter !== null && Number.isFinite(previousClosingCounter)) {
+          // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
+          previousClosingCounters[pistolId] = previousClosingCounter;
+        }
       });
       this.openingCounters = countersMap;
+      this.finalCounters = previousClosingCounters;
       this.wizardState = { ...this.wizardState, mode: 'form', step: 1 };
     } catch (error: unknown) {
       logger.error('closureWizard', 'Error loading ClosureWizard data:', error);
@@ -424,8 +488,8 @@ export class ClosureWizard extends BaseComponent {
 
   private renderStep1(): TemplateResult {
     const canPartial = this.stationConfig?.allow_partial_closure !== false;
-    const isPartialCompleted =
-      getClosingStage(this.activeOpening?.closing_data ?? null) === 'partial';
+    const isPartialCompleted = isPartiallyClosedShift(this.activeOpening);
+    const isFinal = this.isFinalClosure;
 
     return html`
       <div class="section-title">Step 1: Configurazione & Contatori</div>
@@ -456,7 +520,7 @@ export class ClosureWizard extends BaseComponent {
             ? html`
                         <div
                           class="radio-option ${this.closureType === 'partial' ? 'active' : ''}"
-                          @click=${() => (this.closureType = 'partial')}
+                          @click=${() => this.selectClosureType('partial')}
                         >
                           <i
                             class="fas fa-clock fa-2x"
@@ -471,8 +535,8 @@ export class ClosureWizard extends BaseComponent {
             : ''
         }
         <div
-          class="radio-option ${this.closureType === 'final' ? 'active' : ''}"
-          @click=${() => (this.closureType = 'final')}
+          class="radio-option ${isFinal ? 'active' : ''}"
+          @click=${() => this.selectClosureType('final')}
         >
           <i class="fas fa-flag-checkered fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
           <div style="font-weight: 700;">Finale</div>
@@ -481,7 +545,7 @@ export class ClosureWizard extends BaseComponent {
       </div>
 
       ${
-        this.closureType === 'partial'
+        !isFinal
           ? html`
                     <div style="margin-bottom: 1.5rem;">
                       <label
@@ -500,7 +564,7 @@ export class ClosureWizard extends BaseComponent {
           : ''
       }
       ${
-        this.closureType === 'final' || this.includeCounters
+        this.shouldSubmitCounters
           ? html`
                     <div class="form-grid">
                       ${this.islands.map(
@@ -542,8 +606,11 @@ export class ClosureWizard extends BaseComponent {
                                       type="number"
                                       name="counter_${p.id}"
                                       step="0.01"
-                                      min="${this.openingCounters[p.id]}"
-                                      .value=${this.finalCounters[p.id] || ''}
+                                      min="${Math.max(
+                                        this.openingCounters[p.id] ?? 0,
+                                        this.finalCounters[p.id] ?? this.openingCounters[p.id] ?? 0
+                                      )}"
+                                      .value=${this.finalCounters[p.id] ?? ''}
                                     />
                                   </div>
                                 </div>
@@ -567,7 +634,7 @@ export class ClosureWizard extends BaseComponent {
   }
 
   private handleStep1Submit(): void {
-    if (this.closureType === 'final' || this.includeCounters) {
+    if (this.shouldSubmitCounters) {
       const inputs = this.renderRoot.querySelectorAll('input[name^="counter_"]');
       const counters: Record<number, number> = {};
       for (const input of Array.from(inputs) as HTMLInputElement[]) {
@@ -580,8 +647,32 @@ export class ClosureWizard extends BaseComponent {
           return;
         }
         const pId = Number(input.name.replace('counter_', ''));
+        const closingCounter = Number(input.value);
+        if (!Number.isFinite(pId) || !Number.isFinite(closingCounter)) {
+          handleError(
+            new AppError('Inserisci un contatore valido', 'VALIDATION_ERROR'),
+            'ClosureWizard.handleStep1Submit'
+          );
+          input.focus();
+          return;
+        }
+        // eslint-disable-next-line security/detect-object-injection -- pId is a finite numeric id parsed from a controlled input name.
+        const openingCounter = this.openingCounters[pId] ?? 0;
+        // eslint-disable-next-line security/detect-object-injection -- pId is a finite numeric id parsed from a controlled input name.
+        const previousClosingCounter = this.finalCounters[pId] ?? openingCounter;
+        if (closingCounter < Math.max(openingCounter, previousClosingCounter)) {
+          handleError(
+            new AppError(
+              'Il contatore di chiusura non può essere inferiore all’ultimo valore registrato',
+              'VALIDATION_ERROR'
+            ),
+            'ClosureWizard.handleStep1Submit'
+          );
+          input.focus();
+          return;
+        }
         // eslint-disable-next-line security/detect-object-injection -- pId is a numeric id parsed from a controlled input name, written to a fresh local record
-        counters[pId] = parseFloat(input.value);
+        counters[pId] = closingCounter;
       }
       this.finalCounters = counters;
       let bLitri = 0,
@@ -604,12 +695,6 @@ export class ClosureWizard extends BaseComponent {
   }
 
   private renderStep2(): TemplateResult {
-    const selfTotal =
-      (Number(this.selfCashOut) || 0) +
-      (Number(this.selfPos) || 0) +
-      (Number(this.selfFleet) || 0) +
-      (Number(this.selfManager) || 0);
-    void selfTotal; // Calculated for future use
     return html`
       <div class="section-title">Step 2: Dati Incasso</div>
       <div style="background: #f0f9ff; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem;">
@@ -710,14 +795,7 @@ export class ClosureWizard extends BaseComponent {
   }
 
   private renderStep3(): TemplateResult {
-    const totalIncassi =
-      Number(this.selfCashIn) -
-      Number(this.selfCashOut) +
-      Number(this.operatorCash) +
-      Number(this.selfPos) +
-      Number(this.operatorPos) +
-      Number(this.selfFleet) +
-      Number(this.operatorUta);
+    const totalIncassi = this.calculateTotalIncasso();
     const discrepancy = totalIncassi - this.ricavoTeorico;
     const absDiscrepancy = Math.abs(discrepancy);
     const isWarning = absDiscrepancy > this.businessRules.cash_error_threshold;
@@ -784,15 +862,9 @@ export class ClosureWizard extends BaseComponent {
   private async handleConfirmClosure(): Promise<void> {
     this.wizardState = { ...this.wizardState, mode: 'submitting' };
 
-    const isFinal = this.closureType === 'final';
-    const totalIncasso =
-      Number(this.selfCashIn) -
-      Number(this.selfCashOut) +
-      Number(this.operatorCash) +
-      Number(this.selfPos) +
-      Number(this.operatorPos) +
-      Number(this.selfFleet) +
-      Number(this.operatorUta);
+    const isFinal = this.isFinalClosure;
+    const includeCounters = isFinal || this.includeCounters;
+    const totalIncasso = this.calculateTotalIncasso();
     const dataJson = {
       litri_benzina: this.totalLitriBenzina,
       litri_gasolio: this.totalLitriGasolio,
@@ -800,7 +872,7 @@ export class ClosureWizard extends BaseComponent {
       prezzo_gasolio: this.prezzi?.prezzo_gasolio || 0,
       ricavo_teorico: this.ricavoTeorico,
       incasso_reale: totalIncasso,
-      closure_stage: this.closureType,
+      closure_stage: isFinal ? 'final' : 'partial',
       scontrino_self: {
         banconote_incassate: Number(this.selfCashIn),
         banconote_erogate: Number(this.selfCashOut),
@@ -837,7 +909,7 @@ export class ClosureWizard extends BaseComponent {
           stationId: this.numericStationId,
           closingData: dataJson,
           isFinal,
-          finalCounters: this.includeCounters ? this.finalCounters : null
+          finalCounters: includeCounters ? this.finalCounters : null
         });
         Toast.show('Chiusura salvata. Verrà sincronizzata quando online.', 'info');
         setTimeout(() => window.location.reload(), 2000);
@@ -854,7 +926,7 @@ export class ClosureWizard extends BaseComponent {
 
     try {
       const closingDataJson: Json = dataJson;
-      const finalCountersJson: Json = this.includeCounters ? this.finalCounters : null;
+      const finalCountersJson: Json = includeCounters ? this.finalCounters : null;
       const requestId = `closure_${activeOpeningId}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const { data: res, error } = await supabase.rpc('submit_shift_closure', {
         p_shift_id: activeOpeningId,

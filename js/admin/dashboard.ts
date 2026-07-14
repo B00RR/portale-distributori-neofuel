@@ -8,6 +8,7 @@ import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engi
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
+import { createItalianCalendarRange } from './analytics-aggregation.js';
 import {
   fetchAnalyticsData,
   renderRevenueChart,
@@ -63,10 +64,7 @@ export async function showDashboard(
     // ------------------------------------------------------------------
     // PARALLEL DATA FETCHING
     // ------------------------------------------------------------------
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const todayRange = createItalianCalendarRange('1d');
 
     const [stationsRes, operatorsRes, closuresRes, tanksRes, todayClosuresRes, businessRules] =
       await Promise.all([
@@ -113,8 +111,8 @@ export async function showDashboard(
           let q = supabase
             .from('shifts')
             .select('closing_data')
-            .gte('closed_at', startOfDay.toISOString())
-            .lte('closed_at', endOfDay.toISOString())
+            .gte('closed_at', todayRange.startIso)
+            .lt('closed_at', todayRange.endExclusiveIso)
             .eq('status', 'closed');
           if (numericStationId) {
             q = q.eq('station_id', numericStationId);

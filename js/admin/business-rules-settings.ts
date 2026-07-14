@@ -1,5 +1,6 @@
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { handleError } from '../shared/error-handler.js';
+import { isAdminRole } from '../shared/roles.js';
 import { store } from '../shared/state.js';
 import { createEl, createIcon } from '../ui/dom-helpers.js';
 import { Toast } from '../ui/toast.js';
@@ -21,7 +22,7 @@ export async function showBusinessRulesSettings(container: HTMLElement): Promise
   // Authorization Guard
   const user = store.getUser();
   const userRole = user?.role || 'operator';
-  const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
+  const isFullAdmin = isAdminRole(userRole);
 
   if (!isFullAdmin) {
     setSafeHTML(

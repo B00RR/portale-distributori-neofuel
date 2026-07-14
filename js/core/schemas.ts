@@ -5,6 +5,8 @@
 
 import { z } from 'zod';
 
+import { USER_ROLES } from '../shared/roles.js';
+
 // ========== AUTH SCHEMAS ==========
 
 export const LoginSchema = z.object({
@@ -16,12 +18,12 @@ export const CreateUserSchema = z.object({
   email: z.string().email('Email non valida').toLowerCase().trim(),
   password: z.string().min(6, 'Password deve avere almeno 6 caratteri'),
   full_name: z.string().min(2, 'Nome troppo corto').max(100, 'Nome troppo lungo'),
-  role: z.enum(['admin', 'super_admin', 'operator', 'accounting', 'billing'])
+  role: z.enum(USER_ROLES)
 });
 
 export const UpdateUserSchema = z.object({
   full_name: z.string().min(2, 'Nome troppo corto').max(100, 'Nome troppo lungo'),
-  role: z.enum(['admin', 'super_admin', 'operator', 'accounting', 'billing'])
+  role: z.enum(USER_ROLES)
 });
 
 // ========== PRICE SCHEMAS ==========

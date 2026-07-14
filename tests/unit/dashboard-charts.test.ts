@@ -1,62 +1,200 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { AnalyticsResult } from '../../js/admin/analytics-aggregation.js';
 
 const { mockSupabase, mockUtils } = vi.hoisted(() => ({
-    mockSupabase: {
-        from: vi.fn(() => ({
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            gte: vi.fn().mockReturnThis(),
-            lte: vi.fn().mockResolvedValue({ data: [], error: null })
-        }))
-    },
-    mockUtils: {
-        getISODate: vi.fn((d) => d.toISOString().split('T')[0]),
-        formatEuro: vi.fn((n) => `€${n}`),
-        formatLitri: vi.fn((n) => `${n}L`)
-    }
+  mockSupabase: {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      gte: vi.fn().mockReturnThis(),
+      lt: vi.fn().mockResolvedValue({ data: [], error: null })
+    }))
+  },
+  mockUtils: {
+    getISODate: vi.fn(d => d.toISOString().split('T')[0]),
+    formatEuro: vi.fn(n => `€${n}`),
+    formatLitri: vi.fn(n => `${n}L`)
+  }
 }));
 
 global.window = global.window || ({} as unknown as typeof globalThis.window);
-(global.window as unknown as { Chart: typeof vi.fn }).Chart = vi.fn();
+const mockDestroyChart = vi.fn();
+const mockChart = vi.fn();
 
 vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
 vi.mock('../../js/utils/utils.js', () => mockUtils);
 
-import { fetchAnalyticsData, renderRevenueChart, renderVolumeChart, renderPaymentChart, renderFuelMixChart } from '../../js/admin/dashboard-charts.js';
+let chartsModule: typeof import('../../js/admin/dashboard-charts.js');
 
 describe('Dashboard Charts Module', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        document.body.innerHTML = '<canvas id="test-chart"></canvas>';
-    });
+  beforeAll(async () => {
+    (global.window as unknown as { Chart: typeof mockChart }).Chart = mockChart;
+    chartsModule = await import('../../js/admin/dashboard-charts.js');
+  });
 
-    it('should fetch analytics data', async () => {
-        const result = await fetchAnalyticsData();
-        expect(result).toBeDefined();
-        expect(result.daily).toBeInstanceOf(Array);
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (global.window as unknown as { Chart: typeof mockChart }).Chart = mockChart;
+    mockChart.mockImplementation(function () {
+      return { destroy: mockDestroyChart };
     });
+    document.body.innerHTML = '<canvas id="test-chart"></canvas>';
+  });
 
-    it('should render revenue chart', () => {
-        const data: { daily: { date: string; revenue: number; liters_benzina: number; liters_gasolio: number }[]; totals: { revenue: number; benzina: number; gasolio: number; contanti: number; pos: number; crediti: number; voucher: number } } = { daily: [{ date: '2024-01-01', revenue: 100, liters_benzina: 50, liters_gasolio: 50 }], totals: { revenue: 100, benzina: 50, gasolio: 50, contanti: 0, pos: 0, crediti: 0, voucher: 0 } };
-        renderRevenueChart(data, 'test-chart');
-        expect(true).toBe(true);
+  it('should fetch analytics data', async () => {
+    const result = await chartsModule.fetchAnalyticsData();
+    expect(result).toBeDefined();
+    expect(result.daily).toHaveLength(30);
+    expect(result.totals).toEqual({
+      benzina: 0,
+      gasolio: 0,
+      contanti: 0,
+      pos: 0,
+      crediti: 0,
+      voucher: 0,
+      utaDkv: 0,
+      idGestore: 0,
+      revenue: 0
     });
+  });
 
-    it('should render volume chart', () => {
-        const data: { daily: unknown[]; totals: { benzina: number; gasolio: number; revenue: number; contanti: number; pos: number; crediti: number; voucher: number } } = { daily: [], totals: { benzina: 100, gasolio: 200, revenue: 0, contanti: 0, pos: 0, crediti: 0, voucher: 0 } };
-        renderVolumeChart(data, 'test-chart');
-        expect(true).toBe(true);
-    });
+  it('should render revenue chart', () => {
+    const data: AnalyticsResult = {
+      daily: [{ date: '2024-01-01', revenue: 100, liters_benzina: 50, liters_gasolio: 50 }],
+      totals: {
+        revenue: 100,
+        benzina: 50,
+        gasolio: 50,
+        contanti: 0,
+        pos: 0,
+        crediti: 0,
+        voucher: 0,
+        utaDkv: 0,
+        idGestore: 0
+      }
+    };
+    chartsModule.renderRevenueChart(data, 'test-chart');
+    expect(mockChart).toHaveBeenCalledWith(
+      document.getElementById('test-chart'),
+      expect.objectContaining({
+        type: 'line',
+        data: expect.objectContaining({
+          datasets: [expect.objectContaining({ data: [100] })]
+        })
+      })
+    );
+  });
 
-    it('should render payment chart', () => {
-        const data: { daily: unknown[]; totals: { contanti: number; pos: number; crediti: number; voucher: number; revenue: number; benzina: number; gasolio: number } } = { daily: [], totals: { contanti: 100, pos: 200, crediti: 50, voucher: 25, revenue: 0, benzina: 0, gasolio: 0 } };
-        renderPaymentChart(data, 'test-chart');
-        expect(true).toBe(true);
-    });
+  it('should resolve Chart.js lazily when it becomes available after import', () => {
+    const data: AnalyticsResult = {
+      daily: [{ date: '2024-01-01', revenue: 100, liters_benzina: 0, liters_gasolio: 0 }],
+      totals: {
+        revenue: 100,
+        benzina: 0,
+        gasolio: 0,
+        contanti: 0,
+        pos: 0,
+        crediti: 0,
+        voucher: 0,
+        utaDkv: 0,
+        idGestore: 0
+      }
+    };
+    const chartWindow = global.window as unknown as { Chart?: typeof mockChart };
+    delete chartWindow.Chart;
 
-    it('should render fuel mix chart', () => {
-        const data: { daily: unknown[]; totals: { benzina: number; gasolio: number; revenue: number; contanti: number; pos: number; crediti: number; voucher: number } } = { daily: [], totals: { benzina: 1000, gasolio: 2000, revenue: 0, contanti: 0, pos: 0, crediti: 0, voucher: 0 } };
-        renderFuelMixChart(data, 'test-chart');
-        expect(true).toBe(true);
-    });
+    chartsModule.renderRevenueChart(data, 'test-chart');
+    expect(mockChart).not.toHaveBeenCalled();
+
+    chartWindow.Chart = mockChart;
+    chartsModule.renderRevenueChart(data, 'test-chart');
+    expect(mockChart).toHaveBeenCalledTimes(1);
+  });
+
+  it('should render volume chart', () => {
+    const data: AnalyticsResult = {
+      daily: [{ date: '2024-01-01', revenue: 0, liters_benzina: 100, liters_gasolio: 200 }],
+      totals: {
+        benzina: 100,
+        gasolio: 200,
+        revenue: 0,
+        contanti: 0,
+        pos: 0,
+        crediti: 0,
+        voucher: 0,
+        utaDkv: 0,
+        idGestore: 0
+      }
+    };
+    chartsModule.renderVolumeChart(data, 'test-chart');
+    expect(mockChart).toHaveBeenCalledWith(
+      document.getElementById('test-chart'),
+      expect.objectContaining({
+        type: 'bar',
+        data: expect.objectContaining({
+          datasets: [
+            expect.objectContaining({ label: 'Benzina', data: [100] }),
+            expect.objectContaining({ label: 'Gasolio', data: [200] })
+          ]
+        })
+      })
+    );
+  });
+
+  it('should render payment chart', () => {
+    const data: AnalyticsResult = {
+      daily: [],
+      totals: {
+        contanti: 100,
+        pos: 200,
+        crediti: 50,
+        voucher: 25,
+        utaDkv: 10,
+        idGestore: 5,
+        revenue: 0,
+        benzina: 0,
+        gasolio: 0
+      }
+    };
+    chartsModule.renderPaymentChart(data, 'test-chart');
+    expect(mockChart).toHaveBeenCalledWith(
+      document.getElementById('test-chart'),
+      expect.objectContaining({
+        type: 'doughnut',
+        data: expect.objectContaining({
+          labels: ['Contanti', 'POS', 'Crediti', 'Voucher', 'UTA/DKV', 'ID Gestore'],
+          datasets: [expect.objectContaining({ data: [100, 200, 50, 25, 10, 5] })]
+        })
+      })
+    );
+  });
+
+  it('should render fuel mix chart', () => {
+    const data: AnalyticsResult = {
+      daily: [],
+      totals: {
+        benzina: 1000,
+        gasolio: 2000,
+        revenue: 0,
+        contanti: 0,
+        pos: 0,
+        crediti: 0,
+        voucher: 0,
+        utaDkv: 0,
+        idGestore: 0
+      }
+    };
+    chartsModule.renderFuelMixChart(data, 'test-chart');
+    expect(mockChart).toHaveBeenCalledWith(
+      document.getElementById('test-chart'),
+      expect.objectContaining({
+        type: 'pie',
+        data: expect.objectContaining({
+          labels: ['Benzina', 'Gasolio'],
+          datasets: [expect.objectContaining({ data: [1000, 2000] })]
+        })
+      })
+    );
+  });
 });

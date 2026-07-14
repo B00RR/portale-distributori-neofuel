@@ -117,12 +117,46 @@ export function showErrorMessage(
 let lastFocusedBeforeModal: HTMLElement | null = null;
 
 const MODAL_FOCUSABLES = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const MODAL_CLOSE_EVENT = 'app-modal-close';
+
+function createModalSettler<T>(
+  modal: HTMLElement,
+  resolve: (value: T) => void,
+  cancelledValue: T
+): (value: T) => void {
+  let settled = false;
+
+  const handleDismiss = (): void => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    modal.removeEventListener(MODAL_CLOSE_EVENT, handleDismiss);
+    resolve(cancelledValue);
+  };
+
+  modal.addEventListener(MODAL_CLOSE_EVENT, handleDismiss);
+
+  return (value: T): void => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    modal.removeEventListener(MODAL_CLOSE_EVENT, handleDismiss);
+    closeModal();
+    resolve(value);
+  };
+}
 
 /**
  * Open reusable modal
  */
 export function openModal(title: string = ''): void {
   let modal = document.getElementById('app-modal');
+  const isReplacingOpenModal = modal?.style.display === 'flex';
+  if (modal && isReplacingOpenModal) {
+    modal.dispatchEvent(new Event(MODAL_CLOSE_EVENT));
+  }
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'app-modal';
@@ -201,7 +235,9 @@ export function openModal(title: string = ''): void {
     bodyEl.replaceChildren();
   } // Clear previous content
 
-  lastFocusedBeforeModal = document.activeElement as HTMLElement | null;
+  if (!isReplacingOpenModal) {
+    lastFocusedBeforeModal = document.activeElement as HTMLElement | null;
+  }
   store.setBusy(true);
   modal.style.display = 'flex';
   const firstFocusable = modal.querySelector<HTMLElement>(MODAL_FOCUSABLES);
@@ -214,6 +250,7 @@ export function openModal(title: string = ''): void {
 export function closeModal(): void {
   const modal = document.getElementById('app-modal');
   if (modal) {
+    modal.dispatchEvent(new Event(MODAL_CLOSE_EVENT));
     store.setBusy(false);
     modal.style.display = 'none';
     const bodyEl = modal.querySelector('#modal-body');
@@ -265,7 +302,8 @@ export function openConfirmModal(message: string): Promise<boolean> {
   return new Promise(resolve => {
     openModal('Conferma');
     const target = document.getElementById('modal-body');
-    if (!target) {
+    const modal = document.getElementById('app-modal');
+    if (!target || !modal) {
       resolve(false);
       return;
     }
@@ -293,15 +331,9 @@ export function openConfirmModal(message: string): Promise<boolean> {
 
     target.appendChild(actions);
 
-    const handleOk = (): void => {
-      closeModal();
-      resolve(true);
-    };
-
-    const handleCancel = (): void => {
-      closeModal();
-      resolve(false);
-    };
+    const settle = createModalSettler<boolean>(modal, resolve, false);
+    const handleOk = (): void => settle(true);
+    const handleCancel = (): void => settle(false);
 
     okBtn.addEventListener('click', handleOk, { once: true });
     cancelBtn.addEventListener('click', handleCancel, { once: true });
@@ -323,7 +355,8 @@ export function showPromptModal(
   return new Promise(resolve => {
     openModal(title);
     const target = document.getElementById('modal-body');
-    if (!target) {
+    const modal = document.getElementById('app-modal');
+    if (!target || !modal) {
       resolve(null);
       return;
     }
@@ -367,16 +400,9 @@ export function showPromptModal(
     // Auto-focus on input
     setTimeout(() => input.focus(), 100);
 
-    const handleOk = (): void => {
-      const val = input.value || '';
-      closeModal();
-      resolve(val);
-    };
-
-    const handleCancel = (): void => {
-      closeModal();
-      resolve(null);
-    };
+    const settle = createModalSettler<string | null>(modal, resolve, null);
+    const handleOk = (): void => settle(input.value || '');
+    const handleCancel = (): void => settle(null);
 
     okBtn.addEventListener('click', handleOk, { once: true });
     cancelBtn.addEventListener('click', handleCancel, { once: true });

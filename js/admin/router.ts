@@ -5,6 +5,7 @@
 
 import { handleError } from '../shared/error-handler.js';
 import { updateHash } from '../shared/hash-router.js';
+import { isAdminRole, normalizeUserRole, type UserRole } from '../shared/roles.js';
 import { store } from '../shared/state.js';
 import { showLoadingMessage } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
@@ -47,8 +48,7 @@ export function isAdminTab(value: string): value is AdminTab {
   return (ADMIN_TABS as readonly string[]).includes(value);
 }
 
-export type UserRole =
-  'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accounting' | 'billing';
+export type { UserRole } from '../shared/roles.js';
 
 const TAB_TITLES: Record<AdminTab, string> = {
   dashboard: 'Dashboard',
@@ -80,8 +80,8 @@ class AdminRouter {
    * Initialize router with user permissions
    */
   init(userRole: string | null | undefined): void {
-    this.userRole = (userRole as UserRole) || 'operator';
-    this.isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(this.userRole);
+    this.userRole = normalizeUserRole(userRole) ?? 'operator';
+    this.isFullAdmin = isAdminRole(this.userRole);
   }
 
   /**

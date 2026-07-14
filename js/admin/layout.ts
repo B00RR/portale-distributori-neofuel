@@ -5,16 +5,13 @@
 
 import { clearSession } from '../core/auth.js';
 import { logger } from '../core/logger.js';
+import { isAdminRole, type UserRole } from '../shared/roles.js';
 import { store } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
 
 import { router, AdminTab } from './router.js';
-
-// ========== TYPE DEFINITIONS ==========
-
-type UserRole = 'admin' | 'super_admin' | 'full_admin' | 'operator' | 'accounting' | 'billing';
 
 type TabChangeCallback = (tab: AdminTab) => void;
 
@@ -47,8 +44,8 @@ const ROLE_LABELS = new Map<string, string>([
  */
 export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeCallback): void {
   const user = store.getUser();
-  const userRole = (user?.role || 'operator') as UserRole;
-  const isFullAdmin = ['admin', 'super_admin', 'full_admin'].includes(userRole);
+  const userRole: UserRole = user?.role ?? 'operator';
+  const isFullAdmin = isAdminRole(userRole);
 
   logger.info('Layout', 'Rendering shell for role: ' + userRole + ' isFullAdmin: ' + isFullAdmin);
 

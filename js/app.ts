@@ -22,9 +22,9 @@ import './operator/offline-financial-executors-v2.js';
 import { ensureSelectedOperatorStation } from './operator/station-context.js';
 import { showOperatorMenu } from './operator.js';
 import { handleError, AppError } from './shared/error-handler.js';
+import { isBackofficeRole } from './shared/roles.js';
 import { store, User as StateUser } from './shared/state.js';
 import { CustomWindow } from './types.js';
-import './ui/ui-settings-panel.js';
 import { initializeCalculationPresets } from './utils/calculation-presets.js';
 
 const customWindow = window as unknown as CustomWindow;
@@ -244,10 +244,7 @@ async function initializeApp(): Promise<void> {
     // Track login event
     trackLogin(userForStore.role);
 
-    const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(
-      userForStore.role
-    );
-    if (isAdminRole) {
+    if (isBackofficeRole(userForStore.role)) {
       showAdminArea();
     } else {
       // ALWAYS fetch the authoritative station_id from DB, ignoring potential stale session data
@@ -328,8 +325,7 @@ async function initializeApp(): Promise<void> {
       appContainer.style.display = 'block';
     }
 
-    const isAdminRole = ['admin', 'super_admin', 'accounting', 'billing'].includes(loggedUser.role);
-    if (isAdminRole) {
+    if (isBackofficeRole(loggedUser.role)) {
       document.body.classList.add('admin-layout', 'desktop-layout');
       showAdminArea();
     } else {

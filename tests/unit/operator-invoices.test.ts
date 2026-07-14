@@ -271,7 +271,7 @@ describe('Operator Invoices Module', () => {
         select: vi.fn(function () {
           return this;
         }),
-        or: vi.fn(function () {
+        eq: vi.fn(function () {
           return this;
         }),
         maybeSingle: vi.fn(async function () {
@@ -318,7 +318,7 @@ describe('Operator Invoices Module', () => {
 
       const queryBuilder: any = {
         select: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
         maybeSingle: vi.fn().mockResolvedValue({
           data: existingCustomer,
           error: null
@@ -331,8 +331,10 @@ describe('Operator Invoices Module', () => {
 
       const form = document.getElementById('new-customer-form') as HTMLFormElement;
       const nomeInput = form?.querySelector('input[name="nome"]') as HTMLInputElement;
+      const phoneInput = form?.querySelector('input[name="telefono"]') as HTMLInputElement;
 
       if (nomeInput) nomeInput.value = 'Existing';
+      if (phoneInput) phoneInput.value = '3331234567';
 
       form?.dispatchEvent(new Event('submit'));
 
@@ -340,6 +342,31 @@ describe('Operator Invoices Module', () => {
 
       // Should have called update
       expect(updateBuilder.eq).toBeTruthy();
+    });
+
+    it('should not create a duplicate customer when the lookup fails', async () => {
+      mockOfflineQueue.isOffline.mockReturnValue(false);
+      const lookupError = new Error('Customer lookup failed');
+      const insert = vi.fn().mockReturnThis();
+      const queryBuilder: any = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: lookupError }),
+        insert
+      };
+      mockSupabase.from.mockReturnValue(queryBuilder);
+
+      const form = document.getElementById('new-customer-form') as HTMLFormElement;
+      const nomeInput = form.querySelector('input[name="nome"]') as HTMLInputElement;
+      const phoneInput = form.querySelector('input[name="telefono"]') as HTMLInputElement;
+      nomeInput.value = 'Customer';
+      phoneInput.value = '3331234567';
+      form.dispatchEvent(new Event('submit'));
+
+      await vi.waitFor(() => {
+        expect(mockErrorHandler.handleError).toHaveBeenCalledWith(lookupError, 'saveCustomer');
+      });
+      expect(insert).not.toHaveBeenCalled();
     });
 
     it('should queue request when offline', async () => {
