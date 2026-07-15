@@ -14,7 +14,6 @@ interface ShiftOpenerState {
 
 export class ShiftOpener extends BaseComponent {
   @property({ type: String }) stationId: string = '';
-  @property({ type: String }) userId: string = '';
 
   @state() private state: ShiftOpenerState = {
     mode: 'loading',
@@ -28,14 +27,6 @@ export class ShiftOpener extends BaseComponent {
 
   private get numericStationId(): number {
     const value = Number(this.stationId);
-    if (!Number.isFinite(value) || value <= 0) {
-      return NaN;
-    }
-    return value;
-  }
-
-  private get numericUserId(): number {
-    const value = Number(this.userId);
     if (!Number.isFinite(value) || value <= 0) {
       return NaN;
     }
@@ -278,6 +269,16 @@ export class ShiftOpener extends BaseComponent {
           </div>
         `;
 
+      case 'submitting':
+        return html`
+          <div class="opener-container">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin fa-3x"></i>
+              <p>Apertura turno in corso...</p>
+            </div>
+          </div>
+        `;
+
       case 'form':
         return this.renderForm();
 
@@ -326,17 +327,19 @@ export class ShiftOpener extends BaseComponent {
 
   private async handleFormSubmit(e: Event): Promise<void> {
     e.preventDefault();
+    if (this.state.mode === 'submitting') {
+      return;
+    }
+
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
 
     this.state = { ...this.state, mode: 'submitting' };
 
     try {
-      // 1. Create Shift record
       const stationId = this.numericStationId;
-      const operatorId = this.numericUserId;
-      if (Number.isNaN(stationId) || Number.isNaN(operatorId)) {
-        throw new Error('ID stazione o operatore non valido.');
+      if (Number.isNaN(stationId)) {
+        throw new Error('ID stazione non valido.');
       }
 
       const openingData = {
@@ -350,53 +353,45 @@ export class ShiftOpener extends BaseComponent {
         notes: String(formData.get('notes') ?? '')
       };
 
-      const { data: shift, error: shiftError } = await supabase
-        .from('shifts')
-        .insert([
-          {
-            station_id: stationId,
-            operator_id: operatorId,
-            status: 'open',
-            opened_at: new Date().toISOString(),
-            opening_data: openingData
-          }
-        ])
-        .select()
-        .single();
-
-      if (shiftError) {
-        throw shiftError;
-      }
-
       // 2. Save Pistol Counters
-      const shiftPistols = this.pistole.map(p => ({
-        shift_id: shift.id,
-        pistola_id: p.id,
-        opened_at_counter: Number(formData.get(`p_${p.id}`)) || 0
-      }));
-
-      const { error: spError } = await supabase.from('shift_pistols').insert(shiftPistols);
-
-      if (spError) {
-        throw spError;
-      }
+      const pistolCounters: Record<string, number> = {};
+      this.pistole.forEach(p => {
+        pistolCounters[p.id.toString()] = Number(formData.get(`p_${p.id}`)) || 0;
+      });
 
       // 3. Save Tank Levels (if any)
-      if (this.tanks.length > 0) {
-        const shiftTanks = this.tanks.map(t => ({
-          shift_id: shift.id,
-          tank_id: t.id,
-          liters: Number(formData.get(`tank_${t.id}`)) || 0,
-          reading_type: 'opening'
-        }));
+      const tankLevels: Record<string, number> = {};
+      this.tanks.forEach(t => {
+        tankLevels[t.id.toString()] = Number(formData.get(`tank_${t.id}`)) || 0;
+      });
 
-        const { error: stError } = await supabase.from('tank_readings').insert(shiftTanks);
+      const requestId = `open_${stationId}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-        if (stError) {
-          throw stError;
-        }
+      const { data: res, error: rpcError } = await supabase.rpc('open_shift', {
+        p_station_id: stationId,
+        p_opening_data: openingData,
+        p_pistol_counters: pistolCounters,
+        p_tank_levels: tankLevels,
+        p_request_id: requestId
+      });
+
+      if (rpcError) {
+        throw new Error(rpcError.message || 'Errore di connessione al database');
       }
 
+      const resObj = res as {
+        success?: boolean;
+        error?: string;
+        message?: string;
+        shift_id?: number;
+      } | null;
+      if (!resObj || !resObj.success) {
+        throw new Error(
+          resObj?.message || resObj?.error || "Errore imprevisto durante l'apertura del turno"
+        );
+      }
+
+      const shift = { id: resObj.shift_id };
       this.state = { ...this.state, mode: 'success' };
       this.emit('success', { shift });
     } catch (error: unknown) {

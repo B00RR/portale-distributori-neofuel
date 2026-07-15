@@ -1621,6 +1621,16 @@ export type Database = {
         }
         Returns: Json
       }
+      open_shift: {
+        Args: {
+          p_station_id: number
+          p_opening_data: Json
+          p_pistol_counters: Json
+          p_tank_levels?: Json
+          p_request_id?: string
+        }
+        Returns: Json
+      }
       reset_rate_limit: {
         Args: { p_endpoint: string; p_identifier: string }
         Returns: boolean

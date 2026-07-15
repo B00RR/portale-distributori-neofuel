@@ -55,7 +55,7 @@ describe('Operator Router', () => {
   describe('navigateTo', () => {
     it('should navigate to apertura', async () => {
       await router.navigateTo('apertura');
-      expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('456', '1');
+      expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('456');
     });
 
     it('should navigate to chiusura', async () => {
@@ -93,9 +93,8 @@ describe('Operator Router', () => {
       await router.navigateTo('apertura');
       await router.navigateTo('voucher');
 
-      // ShiftOpener fa Number(userId): con l'UUID otterrebbe NaN e
-      // l'apertura turno fallirebbe; la RPC voucher vuole invece l'UUID.
-      expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('456', '1');
+      // ShiftOpener did Number(userId) but now opening doesn't pass userId anymore; the RPC voucher wants the UUID.
+      expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('456');
       expect(mockVoucher.showVoucherMenu).toHaveBeenCalledWith('456', 'user-123');
     });
 

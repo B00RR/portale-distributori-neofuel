@@ -84,9 +84,8 @@ export async function checkOpeningStatus(stationId: number | string): Promise<Sh
 /**
  * Mostra il form per l'apertura turno
  * @param {number | string} stationId - ID della stazione
- * @param {string} userId - ID dell'operatore (UUID)
  */
-export async function showAperturaForm(stationId: number | string, userId: string): Promise<void> {
+export async function showAperturaForm(stationId: number | string): Promise<void> {
   try {
     // 1. Controlla se esiste già un'apertura attiva
     const activeOpening = await checkOpeningStatus(stationId);
@@ -125,7 +124,6 @@ export async function showAperturaForm(stationId: number | string, userId: strin
 
     const opener = document.createElement('shift-opener');
     opener.setAttribute('stationId', stationId.toString());
-    opener.setAttribute('userId', userId);
 
     // Listen for cancel event
     opener.addEventListener('cancel', () => closeModal());
