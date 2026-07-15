@@ -55,12 +55,12 @@ describe('Operator Router', () => {
   describe('navigateTo', () => {
     it('should navigate to apertura', async () => {
       await router.navigateTo('apertura');
-      expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('456', 'user-123');
+      expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('456', '1');
     });
 
     it('should navigate to chiusura', async () => {
       await router.navigateTo('chiusura');
-      expect(mockClosure.startClosureWizard).toHaveBeenCalledWith('456', 'user-123');
+      expect(mockClosure.startClosureWizard).toHaveBeenCalledWith('456', '1');
     });
 
     it('should navigate to prezzi', async () => {
@@ -70,15 +70,15 @@ describe('Operator Router', () => {
 
     it('should navigate to crediti', async () => {
       await router.navigateTo('crediti');
-      expect(mockCredits.showCreditsMenu).toHaveBeenCalledWith('456', 'user-123');
+      expect(mockCredits.showCreditsMenu).toHaveBeenCalledWith('456', '1');
     });
     it('should navigate to uscite', async () => {
       await router.navigateTo('uscite');
-      expect(mockOutflow.showOutflowMenu).toHaveBeenCalledWith('456', 'user-123');
+      expect(mockOutflow.showOutflowMenu).toHaveBeenCalledWith('456', '1');
     });
     it('should navigate to incassi', async () => {
       await router.navigateTo('incassi');
-      expect(mockExtraIncome.showExtraIncomeMenu).toHaveBeenCalledWith('456', 'user-123');
+      expect(mockExtraIncome.showExtraIncomeMenu).toHaveBeenCalledWith('456', '1');
     });
     it('should navigate to voucher', async () => {
       await router.navigateTo('voucher');
@@ -86,7 +86,31 @@ describe('Operator Router', () => {
     });
     it('should navigate to fatture', async () => {
       await router.navigateTo('fatture');
-      expect(mockInvoice.showInvoiceMenu).toHaveBeenCalledWith('456', 'user-123');
+      expect(mockInvoice.showInvoiceMenu).toHaveBeenCalledWith('456', '1');
+    });
+
+    it('passes the numeric DB user_id to shift flows and the auth UUID only to vouchers (#248)', async () => {
+      await router.navigateTo('apertura');
+      await router.navigateTo('voucher');
+
+      // ShiftOpener fa Number(userId): con l'UUID otterrebbe NaN e
+      // l'apertura turno fallirebbe; la RPC voucher vuole invece l'UUID.
+      expect(mockApertura.showAperturaForm).toHaveBeenCalledWith('456', '1');
+      expect(mockVoucher.showVoucherMenu).toHaveBeenCalledWith('456', 'user-123');
+    });
+
+    it('falls back to user_id for vouchers when the auth UUID is missing (#248)', async () => {
+      mockStore.getUser.mockReturnValue({
+        user_id: '1',
+        station_id: '456',
+        email: 'op@test.com',
+        role: 'operator',
+        assignedStations: [{ id: 456, name: 'Roma' }]
+      });
+
+      await router.navigateTo('voucher');
+
+      expect(mockVoucher.showVoucherMenu).toHaveBeenCalledWith('456', '1');
     });
 
     it('should use the persisted selected station instead of the first assigned station', async () => {
@@ -105,7 +129,7 @@ describe('Operator Router', () => {
 
       await router.navigateTo('crediti');
 
-      expect(mockCredits.showCreditsMenu).toHaveBeenCalledWith('222', 'user-123');
+      expect(mockCredits.showCreditsMenu).toHaveBeenCalledWith('222', '1');
     });
   });
 

@@ -56,40 +56,48 @@ class OperatorRouter {
   async navigateTo(view: OperatorView): Promise<void> {
     const user = store.getUser() as ExtendedUser | null;
     const stationId = getSelectedOperatorStationId(user);
-    const userId = user?.id || user?.user_id;
+    // #248: due identità distinte. user.user_id è l'id numerico della tabella
+    // users (finisce in operator_id di shifts/movimenti_cassa/crediti_movimenti);
+    // user.id è l'UUID di Supabase Auth, richiesto SOLO dalla RPC voucher
+    // (redeem_voucher_validated ha p_operator_id uuid). Il vecchio
+    // `user.id || user.user_id` passava sempre l'UUID: Number(UUID) = NaN
+    // bloccava l'apertura turno e parseInt(UUID) troncava/lanciava nei crediti.
+    const numericUserId = user?.user_id;
 
-    if (!stationId || !userId) {
+    if (!stationId || !numericUserId) {
       logger.error('operatorRouter', 'Missing user or station context');
       return;
     }
+
+    const authUserId = user?.id || numericUserId;
 
     this.currentView = view;
     updateHash('operator', view);
 
     switch (view) {
       case 'apertura':
-        showAperturaForm(stationId, userId);
+        showAperturaForm(stationId, numericUserId);
         break;
       case 'chiusura':
-        startClosureWizard(stationId, userId);
+        startClosureWizard(stationId, numericUserId);
         break;
       case 'prezzi':
         showPrezziEditForm(Number(stationId));
         break;
       case 'crediti':
-        showCreditsMenu(stationId, userId);
+        showCreditsMenu(stationId, numericUserId);
         break;
       case 'uscite':
-        showOutflowMenu(stationId, userId);
+        showOutflowMenu(stationId, numericUserId);
         break;
       case 'incassi':
-        showExtraIncomeMenu(stationId, userId);
+        showExtraIncomeMenu(stationId, numericUserId);
         break;
       case 'voucher':
-        showVoucherMenu(stationId, userId);
+        showVoucherMenu(stationId, authUserId);
         break;
       case 'fatture':
-        showInvoiceMenu(stationId, userId);
+        showInvoiceMenu(stationId, numericUserId);
         break;
       default:
         logger.warn('operatorRouter', 'Unknown view:', view);
