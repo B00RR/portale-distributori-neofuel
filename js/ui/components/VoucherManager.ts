@@ -28,6 +28,12 @@ function isRpcResult(value: unknown): value is RpcResult {
   );
 }
 
+// L'input manuale finisce in un LIKE: %, _ e \ vanno escapati, altrimenti un
+// codice come "%%%%" enumera qualunque voucher (#251).
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
+
 interface Voucher {
   code: string;
   amount: number;
@@ -374,7 +380,7 @@ export class VoucherManager extends BaseComponent {
       let query = supabase.from('vouchers').select('*, voucher_batches(customer_name)');
 
       if (code.length === 4) {
-        query = query.like('code', `${code}%`);
+        query = query.like('code', `${escapeLikePattern(code)}%`);
       } else {
         query = query.eq('code', code);
       }
@@ -383,6 +389,15 @@ export class VoucherManager extends BaseComponent {
 
       if (error || !vouchers || vouchers.length === 0) {
         throw new AppError('Codice non trovato.', 'VOUCHER_NOT_FOUND');
+      }
+
+      // Prefisso condiviso da più voucher: non riscattare arbitrariamente il
+      // primo risultato, serve il codice completo (#251).
+      if (vouchers.length > 1) {
+        throw new AppError(
+          'Più voucher corrispondono al codice: inserisci il codice completo.',
+          'VOUCHER_AMBIGUOUS'
+        );
       }
 
       const voucher = vouchers[0] ?? null;
