@@ -76,7 +76,7 @@ class OperatorRouter {
 
     switch (view) {
       case 'apertura':
-        showAperturaForm(stationId, numericUserId);
+        showAperturaForm(stationId);
         break;
       case 'chiusura':
         startClosureWizard(stationId, numericUserId);

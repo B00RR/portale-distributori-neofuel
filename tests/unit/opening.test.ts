@@ -69,8 +69,7 @@ describe('Operator Opening Module', () => {
     });
 
     it('should render opening form', async () => {
-        const container = document.getElementById('main-content')!;
-        await showAperturaForm(1, 'user-1');
+        await showAperturaForm(1);
 
         await new Promise(r => setTimeout(r, 10));
 
@@ -87,8 +86,7 @@ describe('Operator Opening Module', () => {
             error: null
         }) as unknown as ReturnType<typeof vi.fn>;
 
-        const container = document.getElementById('main-content')!;
-        await showAperturaForm(1, 'user-1');
+        await showAperturaForm(1);
 
         await new Promise(r => setTimeout(r, 10));
 
