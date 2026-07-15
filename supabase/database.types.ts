@@ -1572,6 +1572,27 @@ export type Database = {
       }
     }
     Functions: {
+      create_credit_transaction: {
+        Args: {
+          p_request_id: string
+          p_station_id: number
+          p_customer_name: string
+          p_amount: number
+          p_product: string
+          p_notes: string
+        }
+        Returns: Json
+      }
+      register_credit_payment: {
+        Args: {
+          p_request_id: string
+          p_station_id: number
+          p_customer_id: number
+          p_amount: number
+          p_method: string
+        }
+        Returns: Json
+      }
       admin_assign_station: {
         Args: { p_station_id?: number; p_user_id: number }
         Returns: undefined

@@ -25,8 +25,15 @@ interface CreditoCliente {
 
 interface OfflineReplayOptions {
   skipOfflineQueue?: boolean;
-  createdAt?: string;
+  requestId?: string;
 }
+
+const generateUUID = (): string => {
+  if (typeof crypto === 'undefined' || typeof crypto.randomUUID !== 'function') {
+    throw new Error('crypto.randomUUID non supportato o non disponibile in questo ambiente');
+  }
+  return crypto.randomUUID();
+};
 
 function toNumericId(value: number | string): number {
   if (typeof value === 'string') {
@@ -37,19 +44,6 @@ function toNumericId(value: number | string): number {
     return parsed;
   }
   return value;
-}
-
-function toCreditCustomerId(value: number | string): number {
-  if (typeof value === 'number') {
-    return value;
-  }
-
-  const parsed = parseInt(value, 10);
-  return Number.isNaN(parsed) ? (value as unknown as number) : parsed;
-}
-
-function nowIso(options?: OfflineReplayOptions): string {
-  return options?.createdAt ?? new Date().toISOString();
 }
 
 function shouldQueue(options?: OfflineReplayOptions): boolean {
@@ -172,7 +166,7 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
     }
 
     try {
-      await processNewCredit(stationId, userId, customerName, amount, product, notes);
+      await processNewCredit(stationId, customerName, amount, product, notes);
       closeModal();
       showInfoModal(
         isOffline()
@@ -223,7 +217,6 @@ async function searchCustomersForInput(
 
 export async function processNewCredit(
   stationId: number | string,
-  userId: string,
   customerName: string,
   amount: number,
   product: string,
@@ -231,92 +224,43 @@ export async function processNewCredit(
   options?: OfflineReplayOptions
 ): Promise<void> {
   const numericStationId = toNumericId(stationId);
-  const numericOperatorId = toNumericId(userId);
-  const createdAt = nowIso(options);
 
   if (shouldQueue(options)) {
     await queueAction('movement_create', {
       kind: 'credit_create',
       stationId: numericStationId,
-      operatorId: String(numericOperatorId),
       customerName,
       amount,
       product,
-      notes,
-      createdAt
+      notes
     });
     return;
   }
 
-  const { data: initialCustomer, error: fetchError } = await supabase
-    .from('crediti_clienti')
-    .select('*')
-    .eq('station_id', numericStationId)
-    // Match esatto case-insensitive: senza escape un nome con %/_ può
-    // agganciare il cliente sbagliato (#255).
-    .ilike('cliente', escapeLikePattern(customerName))
-    .maybeSingle();
+  const requestId = options?.requestId ?? `credit-create-${generateUUID()}`;
 
-  if (fetchError) {
-    throw fetchError;
+  const { data, error } = await supabase.rpc('create_credit_transaction', {
+    p_request_id: requestId,
+    p_station_id: numericStationId,
+    p_customer_name: customerName,
+    p_amount: amount,
+    p_product: product,
+    p_notes: notes
+  });
+
+  if (error) {
+    throw error;
   }
 
-  let customer = initialCustomer as CreditoCliente | null;
-
-  if (!customer) {
-    const { data: newCustomer, error: createError } = await supabase
-      .from('crediti_clienti')
-      .insert([{ station_id: numericStationId, cliente: customerName, saldo: 0, importo: 0 }])
-      .select()
-      .single();
-
-    if (createError) {
-      throw createError;
-    }
-    customer = newCustomer as CreditoCliente;
+  if (!data || typeof data !== 'object') {
+    throw new Error('Risposta del server non valida o vuota');
   }
 
-  if (!customer) {
-    throw new Error('Impossibile creare il cliente');
-  }
-
-  const customerId = toCreditCustomerId(customer.id);
-  const newBalance = (customer.saldo || 0) + amount;
-  const { error: updateError } = await supabase
-    .from('crediti_clienti')
-    .update({ saldo: newBalance, updated_at: createdAt })
-    .eq('id', customerId);
-
-  if (updateError) {
-    throw updateError;
-  }
-
-  const { error: moveError } = await supabase.from('crediti_movimenti').insert([
-    {
-      cliente_id: customerId,
-      station_id: numericStationId,
-      operator_id: numericOperatorId,
-      tipo: 'credito',
-      importo: amount,
-      metodo: 'credito',
-      note: `${product} - ${notes || ''}`,
-      created_at: createdAt
-    }
-  ]);
-
-  const { error: cashMoveError } = await supabase.from('movimenti_cassa').insert([
-    {
-      station_id: numericStationId,
-      operator_id: numericOperatorId,
-      tipo: 'credito',
-      importo: amount,
-      descrizione: `Credito: ${customerName} (${product}) ${notes ? '- ' + notes : ''}`,
-      created_at: createdAt
-    }
-  ]);
-
-  if (moveError || cashMoveError) {
-    throw moveError || cashMoveError;
+  const responseData = data as { success?: boolean; message?: string; error?: string };
+  if (responseData.success !== true) {
+    throw new Error(
+      responseData.message || responseData.error || 'Errore durante la creazione del credito'
+    );
   }
 }
 
@@ -464,7 +408,7 @@ export function showPaymentModal(
     }
 
     try {
-      await processPayment(stationId, userId, customer, amount, method);
+      await processPayment(stationId, customer.id, amount, method);
       closeModal();
       showInfoModal(
         isOffline()
@@ -479,80 +423,47 @@ export function showPaymentModal(
 
 export async function processPayment(
   stationId: number | string,
-  userId: string,
-  customer: Partial<CreditoCliente>,
+  customerId: number | string,
   amount: number,
   method: string,
   options?: OfflineReplayOptions
 ): Promise<void> {
-  if (!customer.id || !customer.cliente || typeof customer.saldo !== 'number') {
-    throw new Error('Cliente credito non valido');
-  }
-
   const numericStationId = toNumericId(stationId);
-  const numericOperatorId = toNumericId(userId);
-  const customerId = toCreditCustomerId(customer.id);
-  const createdAt = nowIso(options);
+  const numericCustomerId = toNumericId(customerId);
 
   if (shouldQueue(options)) {
     await queueAction('movement_create', {
       kind: 'credit_payment',
       stationId: numericStationId,
-      operatorId: String(numericOperatorId),
-      customer: {
-        id: customerId,
-        cliente: customer.cliente,
-        saldo: customer.saldo
-      },
+      customerId: numericCustomerId,
       amount,
-      method,
-      createdAt
+      method
     });
     return;
   }
 
-  const newBalance = Math.max(0, (customer.saldo || 0) - amount);
-  const { error: updateError } = await supabase
-    .from('crediti_clienti')
-    .update({ saldo: newBalance, updated_at: createdAt })
-    .eq('id', customerId);
+  const requestId = options?.requestId ?? `credit-payment-${generateUUID()}`;
 
-  if (updateError) {
-    throw updateError;
+  const { data, error } = await supabase.rpc('register_credit_payment', {
+    p_request_id: requestId,
+    p_station_id: numericStationId,
+    p_customer_id: numericCustomerId,
+    p_amount: amount,
+    p_method: method
+  });
+
+  if (error) {
+    throw error;
   }
 
-  let movementType = 'incasso';
-  if (method === 'pos') {
-    movementType = 'incasso_pos';
-  }
-  if (method === 'uta') {
-    movementType = 'incasso_uta';
+  if (!data || typeof data !== 'object') {
+    throw new Error('Risposta del server non valida o vuota');
   }
 
-  const { error: moveError } = await supabase.from('crediti_movimenti').insert([
-    {
-      cliente_id: customerId,
-      station_id: numericStationId,
-      operator_id: numericOperatorId,
-      tipo: movementType,
-      importo: amount,
-      metodo: method,
-      created_at: createdAt
-    }
-  ]);
-
-  const { error: cashMoveError } = await supabase.from('movimenti_cassa').insert([
-    {
-      station_id: numericStationId,
-      operator_id: numericOperatorId,
-      tipo: movementType,
-      importo: amount,
-      descrizione: `Pagamento Credito: ${customer.cliente} (${method})`,
-      created_at: createdAt
-    }
-  ]);
-
-  if (moveError || cashMoveError) {
-    throw moveError || cashMoveError;
+  const responseData = data as { success?: boolean; message?: string; error?: string };
+  if (responseData.success !== true) {
+    throw new Error(
+      responseData.message || responseData.error || 'Errore durante la registrazione del pagamento'
+    );
   }
 }
