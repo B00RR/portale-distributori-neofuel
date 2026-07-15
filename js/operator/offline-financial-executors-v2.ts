@@ -9,12 +9,6 @@ import { processOutflow } from './outflows.js';
 
 type FinancialActionPayload = Record<string, unknown> & { kind?: unknown };
 
-type CreditPaymentCustomer = {
-  id: number | string;
-  cliente: string;
-  saldo: number;
-};
-
 function readString(payload: Record<string, unknown>, key: string): string {
   const value = payload[key]; // eslint-disable-line security/detect-object-injection -- key is limited to known offline payload fields by callers.
   if (typeof value === 'string') return value;
@@ -32,27 +26,6 @@ function readNumber(payload: Record<string, unknown>, key: string): number {
   throw new Error(`Payload offline non valido: ${key}`);
 }
 
-function readCreditPaymentCustomer(payload: Record<string, unknown>): CreditPaymentCustomer {
-  const value = payload.customer;
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error('Payload offline non valido: customer');
-  }
-
-  const customer = value as Record<string, unknown>;
-  const id = customer.id;
-  const cliente = customer.cliente;
-  const saldo = customer.saldo;
-
-  if ((typeof id !== 'string' && typeof id !== 'number') || typeof cliente !== 'string') {
-    throw new Error('Payload offline non valido: customer');
-  }
-  if (typeof saldo !== 'number' || !Number.isFinite(saldo)) {
-    throw new Error('Payload offline non valido: customer.saldo');
-  }
-
-  return { id, cliente, saldo };
-}
-
 async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
   const payload = action.payload as FinancialActionPayload;
 
@@ -61,22 +34,26 @@ async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
       case 'credit_create':
         await processNewCredit(
           readNumber(payload, 'stationId'),
-          readString(payload, 'operatorId'),
           readString(payload, 'customerName'),
           readNumber(payload, 'amount'),
           readString(payload, 'product'),
           readString(payload, 'notes'),
-          { skipOfflineQueue: true, createdAt: readString(payload, 'createdAt') }
+          {
+            skipOfflineQueue: true,
+            requestId: action.id
+          }
         );
         return true;
       case 'credit_payment':
         await processPayment(
           readNumber(payload, 'stationId'),
-          readString(payload, 'operatorId'),
-          readCreditPaymentCustomer(payload),
+          readNumber(payload, 'customerId'),
           readNumber(payload, 'amount'),
           readString(payload, 'method'),
-          { skipOfflineQueue: true, createdAt: readString(payload, 'createdAt') }
+          {
+            skipOfflineQueue: true,
+            requestId: action.id
+          }
         );
         return true;
       case 'outflow_create':
