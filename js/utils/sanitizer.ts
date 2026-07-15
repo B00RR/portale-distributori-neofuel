@@ -216,3 +216,14 @@ export function sanitizeFilename(filename: string): string {
     .replace(/\.{2,}/g, '.') // Replace multiple dots with single
     .substring(0, 255); // Limit length
 }
+
+/**
+ * Escapes PostgreSQL LIKE/ILIKE metacharacters (%, _, \) in user input so it
+ * can be embedded in a pattern without acting as a wildcard (#251/#255).
+ *
+ * @param value - Raw user input destined for a LIKE/ILIKE pattern
+ * @returns The input with %, _ and \ escaped
+ */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}

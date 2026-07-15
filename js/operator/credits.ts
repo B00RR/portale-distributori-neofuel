@@ -8,7 +8,7 @@ import { isOffline, queueAction } from '../core/offline-queue.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
-import { setSafeHTML } from '../utils/sanitizer.js';
+import { escapeLikePattern, setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatEuro, formatDateSafe } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
@@ -197,7 +197,7 @@ async function searchCustomersForInput(
       .from('crediti_clienti')
       .select('cliente')
       .eq('station_id', numericStationId)
-      .ilike('cliente', `%${query}%`)
+      .ilike('cliente', `%${escapeLikePattern(query)}%`)
       .limit(5);
 
     if (customers && customers.length > 0) {
@@ -252,7 +252,9 @@ export async function processNewCredit(
     .from('crediti_clienti')
     .select('*')
     .eq('station_id', numericStationId)
-    .ilike('cliente', customerName)
+    // Match esatto case-insensitive: senza escape un nome con %/_ può
+    // agganciare il cliente sbagliato (#255).
+    .ilike('cliente', escapeLikePattern(customerName))
     .maybeSingle();
 
   if (fetchError) {
@@ -357,7 +359,7 @@ async function showPaymentSelection(stationId: number | string, userId: string):
         .order('cliente');
 
       if (filter) {
-        query = query.ilike('cliente', `%${filter}%`);
+        query = query.ilike('cliente', `%${escapeLikePattern(filter)}%`);
       }
 
       const { data: debtors, error } = await query;

@@ -8,7 +8,8 @@ import {
     createSafeLink,
     sanitizeFilename,
     getSafeLocalStorage,
-    setSafeLocalStorage
+    setSafeLocalStorage,
+    escapeLikePattern
 } from '../../js/utils/sanitizer.js';
 
 import { useRealLogger } from '../use-real-logger.js';
@@ -177,6 +178,22 @@ describe('Sanitizer Module (Security)', () => {
 
             expect(link).not.toBeNull();
             expect(link!.textContent).toBe('Internal Link');
+        });
+    });
+
+    describe('escapeLikePattern', () => {
+        it('should escape percent and underscore wildcards', () => {
+            expect(escapeLikePattern('%%%%')).toBe('\\%\\%\\%\\%');
+            expect(escapeLikePattern('a_b%c')).toBe('a\\_b\\%c');
+        });
+
+        it('should escape backslashes', () => {
+            expect(escapeLikePattern('a\\b')).toBe('a\\\\b');
+        });
+
+        it('should leave regular input untouched', () => {
+            expect(escapeLikePattern('Mario Rossi')).toBe('Mario Rossi');
+            expect(escapeLikePattern('')).toBe('');
         });
     });
 

@@ -142,6 +142,56 @@ describe('ClosureWizard Component', () => {
     });
   });
 
+  describe('Step 3 discrepancy warning (#255)', () => {
+    const buildStep3Container = async (
+      overrides: Record<string, unknown>
+    ): Promise<HTMLDivElement> => {
+      const { ClosureWizard } =
+        (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
+          ClosureWizard: CustomElementConstructor;
+        };
+      const { render } = await import('lit');
+
+      const element = new (ClosureWizard as unknown as CustomElementConstructor)();
+      Object.assign(element, {
+        operatorCash: '500',
+        ricavoTeorico: 0,
+        wizardState: { step: 3, mode: 'form' },
+        ...overrides
+      });
+
+      const container = document.createElement('div');
+      render(
+        (element as unknown as { renderStep3: () => unknown }).renderStep3() as Parameters<
+          typeof render
+        >[0],
+        container
+      );
+      return container;
+    };
+
+    it('suppresses the warning for a partial closure without counters', async () => {
+      const container = await buildStep3Container({
+        closureType: 'partial',
+        includeCounters: false
+      });
+
+      expect(container.textContent).not.toContain('Discrepanza Rilevata');
+      expect(container.textContent).not.toContain('Teorico');
+      expect(container.textContent).toContain('Reale');
+    });
+
+    it('still flags the discrepancy when counters are included', async () => {
+      const container = await buildStep3Container({
+        closureType: 'partial',
+        includeCounters: true
+      });
+
+      expect(container.textContent).toContain('Discrepanza Rilevata');
+      expect(container.textContent).toContain('Teorico');
+    });
+  });
+
   describe('Revenue Calculations', () => {
     it('should initialize with zero theoretical revenue', async () => {
       const { ClosureWizard } =

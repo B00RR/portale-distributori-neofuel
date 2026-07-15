@@ -134,13 +134,14 @@ export function showAdminArea(): void {
   // Render the admin shell with the tab change handler
   renderAdminShell(mainContent, goToTab);
 
-  // Initial load: check for deep link first, then fall back to dashboard
+  // Initial load: check for deep link first, then fall back to dashboard.
+  // Va usato lo stesso percorso sequenziale del cambio tab (#281/#268): le
+  // chiamate flottanti a navigateTo/renderGlobalFilter creavano una race in
+  // cui il deep-link poteva essere sovrascritto dal render della dashboard.
   const route = getCurrentRoute();
   const initialTab: AdminTab =
     route && route.area === 'admin' && isAdminTab(route.view) ? route.view : 'dashboard';
-  renderGlobalFilter();
-  router.navigateTo(initialTab);
-  renderBreadcrumbs(initialTab);
+  void goToTab(initialTab);
 
   // Register browser back/forward support, avoiding duplicate listeners across repeated showAdminArea() calls
   unsubscribeHashListener?.();

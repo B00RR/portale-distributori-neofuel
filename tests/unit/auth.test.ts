@@ -143,6 +143,9 @@ describe('Auth Module', () => {
 
     expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalled();
     expect(mockUI.showFullScreenLoader).toHaveBeenCalled();
+    // #255: nessun callback di successo è registrato in questo test, ma il
+    // rate limit del login va comunque azzerato.
+    expect(mockRateLimiter.resetRateLimit).toHaveBeenCalledWith('login:test@example.com');
   });
 
   it('does not call Supabase auth when required fields are empty (#62)', async () => {
