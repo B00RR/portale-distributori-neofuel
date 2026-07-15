@@ -454,18 +454,22 @@ const updateSW = registerSW({
       return;
     }
 
+    // Offline il fallimento dell'update è atteso: loggarlo ogni 60s sarebbe
+    // solo rumore, quindi il warn è limitato a quando siamo online.
+    const logUpdateFailure = (err: unknown): void => {
+      if (navigator.onLine) {
+        logger.warn('PWA', 'Service worker update check failed', err);
+      }
+    };
+
     // Poll for updates every 60 seconds (less aggressive)
     setInterval(() => {
-      r.update().catch(() => {
-        /* ignore */
-      });
+      r.update().catch(logUpdateFailure);
     }, 60 * 1000);
 
     // Immediate check when window gets focus
     window.addEventListener('focus', () => {
-      r.update().catch(() => {
-        /* ignore */
-      });
+      r.update().catch(logUpdateFailure);
     });
   }
 });
