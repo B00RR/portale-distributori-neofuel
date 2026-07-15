@@ -79,6 +79,10 @@ vi.mock('../../js/admin/tanks.js', () => ({
     showTanksAdminModal: vi.fn()
 }));
 
+import { useRealLogger } from '../use-real-logger.js';
+
+useRealLogger();
+
 describe('Stations Module', () => {
     let container: HTMLElement;
     let actions: HTMLElement;

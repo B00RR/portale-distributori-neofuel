@@ -1,6 +1,7 @@
-import { beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import '@testing-library/dom';
 import '@testing-library/jest-dom';
+import { logger } from '../js/core/logger.js';
 import { mockSupabase } from './mocks/supabase';
 
 // Helper per mockare variabili d'ambiente
@@ -71,6 +72,17 @@ beforeAll(() => {
     }));
 
     window.Chart = vi.fn();
+});
+
+// #263: i rami catch esercitati intenzionalmente dai test loggano via
+// logger.error/warn e sommergono l'output, mascherando gli errori reali.
+// Mockiamo SOLO il logger di dominio (mai console.* nativi, così i crash JS
+// non gestiti restano visibili). restoreMocks ripristina dopo ogni test,
+// quindi la spia va reinstallata in beforeEach; i test possono comunque
+// asserire sulle chiamate o fare mockRestore() per usare il logger reale.
+beforeEach(() => {
+    vi.spyOn(logger, 'error').mockImplementation(() => 'ERR-TEST1');
+    vi.spyOn(logger, 'warn').mockImplementation(() => {});
 });
 
 // 2. PULIZIA DOPO OGNI TEST

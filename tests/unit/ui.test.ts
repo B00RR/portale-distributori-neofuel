@@ -16,6 +16,10 @@ import {
   initAdminContent
 } from '../../js/ui/ui.js';
 
+import { useRealLogger } from '../use-real-logger.js';
+
+useRealLogger();
+
 describe('UI Module', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;

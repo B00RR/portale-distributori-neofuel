@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { isRateLimited, resetRateLimit, getRemainingAttempts, cleanupRateLimits } from '../../js/utils/rate-limiter.js';
 
+import { useRealLogger } from '../use-real-logger.js';
+
+useRealLogger();
+
 describe('Rate Limiter Module', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;

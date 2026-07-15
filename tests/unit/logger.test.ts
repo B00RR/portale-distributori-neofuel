@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { logger } from '../../js/core/logger.js';
 
+import { useRealLogger } from '../use-real-logger.js';
+
+useRealLogger();
+
 describe('Logger Module', () => {
 
     let consoleErrorSpy: any;

@@ -92,6 +92,28 @@ describe('VoucherManager (523 lines)', () => {
     }
   });
 
+  it('escapes LIKE wildcards in manual 4-char codes (#251)', async () => {
+    await element.processCode('%%%%');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(mockSupabase.chain.like).toHaveBeenCalledWith('code', '\\%\\%\\%\\%%');
+  });
+
+  it('rejects ambiguous prefixes matching multiple vouchers (#251)', async () => {
+    const vouchers = [
+      { id: 1, code: 'V123A', amount: 50, status: 'active' },
+      { id: 2, code: 'V123B', amount: 75, status: 'active' }
+    ];
+    mockSupabase.chain.then = (resolve: any) => resolve({ data: vouchers, error: null });
+
+    await element.processCode('V123');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(element.mode).toBe('error');
+    expect(element.errorMessage).toContain('codice completo');
+    expect(element.activeVoucher).toBeNull();
+  });
+
   it('should redeem voucher', async () => {
     element.activeVoucher = { id: 1, code: 'V123', amount: 100 };
     element.stationId = 'ST-123';

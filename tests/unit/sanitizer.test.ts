@@ -11,6 +11,10 @@ import {
     setSafeLocalStorage
 } from '../../js/utils/sanitizer.js';
 
+import { useRealLogger } from '../use-real-logger.js';
+
+useRealLogger();
+
 describe('Sanitizer Module (Security)', () => {
     let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
     let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
