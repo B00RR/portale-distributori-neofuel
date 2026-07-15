@@ -47,7 +47,8 @@ describe('Operator Hash Routing', () => {
       user_id: '1',
       station_id: '456',
       email: 'op@test.com',
-      role: 'operator'
+      role: 'operator',
+      assignedStations: [{ id: 456, name: 'Roma' }]
     });
   });
 
@@ -112,7 +113,7 @@ describe('Operator Hash Routing', () => {
     it('writes correct hashes for all operator views', async () => {
       for (const view of OPERATOR_VIEWS) {
         window.history.pushState(null, '', '/');
-        // eslint-disable-next-line no-await-in-loop
+         
         await router.navigateTo(view);
         expect(window.location.hash).toBe(`#/operator/${view}`);
       }

@@ -18,15 +18,26 @@ function getAssignedStationIds(assignedStations: AssignedStation[] | undefined):
     .filter((stationId): stationId is string => stationId !== null);
 }
 
+// Senza assegnazioni nessuna stazione è valida: il fallback "lista vuota =
+// tutto permesso" faceva ereditare a un operatore la stazione persistita da
+// un altro account sullo stesso dispositivo (#253).
 function isAssignedStation(stationId: string, assignedStationIds: string[]): boolean {
-  return assignedStationIds.length === 0 || assignedStationIds.includes(stationId);
+  return assignedStationIds.includes(stationId);
 }
 
-function persistSelectedStation(stationId: string | null): void {
+// Chiave scopata per utente: la selezione di un account non deve mai valere
+// per un altro account sullo stesso dispositivo (#253).
+function storageKeyFor(user: Pick<User, 'user_id'>): string {
+  return `${OPERATOR_SELECTED_STATION_KEY}:${user.user_id}`;
+}
+
+function persistSelectedStation(user: Pick<User, 'user_id'>, stationId: string | null): void {
+  // La chiave legacy non scopata è la fonte del leakage tra utenti: va sempre rimossa.
+  localStorage.removeItem(OPERATOR_SELECTED_STATION_KEY);
   if (stationId) {
-    localStorage.setItem(OPERATOR_SELECTED_STATION_KEY, stationId);
+    localStorage.setItem(storageKeyFor(user), stationId);
   } else {
-    localStorage.removeItem(OPERATOR_SELECTED_STATION_KEY);
+    localStorage.removeItem(storageKeyFor(user));
   }
 }
 
@@ -34,9 +45,7 @@ export function ensureSelectedOperatorStation<T extends User>(
   user: T
 ): { user: T; stationId: string | null } {
   const assignedStationIds = getAssignedStationIds(user.assignedStations);
-  const persistedStationId = normalizeStationId(
-    localStorage.getItem(OPERATOR_SELECTED_STATION_KEY)
-  );
+  const persistedStationId = normalizeStationId(localStorage.getItem(storageKeyFor(user)));
   const currentStationId = normalizeStationId(user.station_id);
 
   const selectedStationId =
@@ -46,7 +55,7 @@ export function ensureSelectedOperatorStation<T extends User>(
         ? currentStationId
         : (assignedStationIds[0] ?? null);
 
-  persistSelectedStation(selectedStationId);
+  persistSelectedStation(user, selectedStationId);
 
   return {
     user: { ...user, station_id: selectedStationId } as T,
@@ -76,7 +85,7 @@ export function setSelectedOperatorStation(stationId: string | number): string |
   }
 
   const nextUser = { ...user, station_id: selectedStationId };
-  persistSelectedStation(selectedStationId);
+  persistSelectedStation(user, selectedStationId);
   store.setUser(nextUser);
 
   return selectedStationId;

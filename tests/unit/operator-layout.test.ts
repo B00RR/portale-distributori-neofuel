@@ -110,7 +110,7 @@ describe('Operator Layout Module', () => {
     selector.dispatchEvent(new Event('change'));
 
     expect(mockStore.setUser).toHaveBeenCalledWith({ ...user, station_id: '2' });
-    expect(localStorage.getItem('operator_selected_station')).toBe('2');
+    expect(localStorage.getItem('operator_selected_station:10')).toBe('2');
     expect(handlers.onStationChange).toHaveBeenCalledWith('2');
   });
 });

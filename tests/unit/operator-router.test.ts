@@ -47,7 +47,8 @@ describe('Operator Router', () => {
       user_id: '1',
       station_id: '456',
       email: 'op@test.com',
-      role: 'operator'
+      role: 'operator',
+      assignedStations: [{ id: 456, name: 'Roma' }]
     });
   });
 
@@ -89,7 +90,7 @@ describe('Operator Router', () => {
     });
 
     it('should use the persisted selected station instead of the first assigned station', async () => {
-      localStorage.setItem('operator_selected_station', '222');
+      localStorage.setItem('operator_selected_station:1', '222');
       mockStore.getUser.mockReturnValue({
         id: 'user-123',
         user_id: '1',
