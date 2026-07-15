@@ -5,6 +5,10 @@ import {
     type DslOpNode
 } from '../../js/utils/calculation-engine.js';
 
+import { useRealLogger } from '../use-real-logger.js';
+
+useRealLogger();
+
 describe('CalculationEngine', () => {
     let engine: typeof calculationEngine;
 
