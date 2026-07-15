@@ -115,7 +115,9 @@ export async function renderOperatorShell(
     `
   );
 
-  const userId = user?.id || user?.user_id;
+  // #248: qui serve l'id numerico DB (user_id), non l'UUID auth: i handler
+  // del turno delegano al router che lo propaga ai flussi shift/crediti.
+  const userId = user?.user_id;
 
   renderStationSelector(user, stationId, userId ? String(userId) : null, handlers);
 
