@@ -796,10 +796,13 @@ export class ClosureWizard extends BaseComponent {
 
   private renderStep3(): TemplateResult {
     const totalIncassi = this.calculateTotalIncasso();
+    // Senza contatori il teorico non è calcolabile (resta 0): la "discrepanza"
+    // sarebbe l'intero incasso e il warning scatterebbe sempre (#255).
+    const hasTeorico = this.shouldSubmitCounters;
     const discrepancy = totalIncassi - this.ricavoTeorico;
     const absDiscrepancy = Math.abs(discrepancy);
-    const isWarning = absDiscrepancy > this.businessRules.cash_error_threshold;
-    const isCritical = absDiscrepancy > this.businessRules.critical_discrepancy_alert;
+    const isWarning = hasTeorico && absDiscrepancy > this.businessRules.cash_error_threshold;
+    const isCritical = hasTeorico && absDiscrepancy > this.businessRules.critical_discrepancy_alert;
 
     if (this.wizardState.mode === 'submitting') {
       return html`<div style="text-align:center; padding: 3rem;">
@@ -832,18 +835,27 @@ export class ClosureWizard extends BaseComponent {
       <div
         style="background: #f8fafc; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid #e2e8f0;"
       >
-        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-          <span>Teorico:</span><strong>${formatEuro(this.ricavoTeorico)}</strong>
-        </div>
+        ${
+          hasTeorico
+            ? html`<div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+              <span>Teorico:</span><strong>${formatEuro(this.ricavoTeorico)}</strong>
+            </div>`
+            : ''
+        }
         <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
           <span>Reale:</span><strong>${formatEuro(totalIncassi)}</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 1.25rem;">
-          <span>Differenza:</span
-          ><strong style="color: ${!isWarning ? '#059669' : isCritical ? '#dc2626' : '#d97706'};"
-            >${formatEuro(discrepancy)}</strong
-          >
-        </div>
+        ${
+          hasTeorico
+            ? html`<div style="display: flex; justify-content: space-between; font-size: 1.25rem;">
+              <span>Differenza:</span
+              ><strong
+                style="color: ${!isWarning ? '#059669' : isCritical ? '#dc2626' : '#d97706'};"
+                >${formatEuro(discrepancy)}</strong
+              >
+            </div>`
+            : ''
+        }
       </div>
       <div class="btn-group">
         <button

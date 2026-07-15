@@ -200,7 +200,10 @@ export function setupLoginForm(): void {
 
     const { email, password } = validation.data;
 
-    // SECURITY: Rate limiting - prevent brute force attacks
+    // SECURITY: Rate limiting - prevent brute force attacks.
+    // NOTA (#255): è un limite solo client-side (bypassabile azzerando lo
+    // stato locale) e serve come UX; la protezione reale contro il brute
+    // force è il rate limiting di Supabase Auth lato server.
     const rateLimitKey = `login:${email}`;
     if (isRateLimited(rateLimitKey, 5, 60000)) {
       // 5 attempts per minute
@@ -375,12 +378,15 @@ export function setupLoginForm(): void {
         document.body.classList.remove('admin-layout', 'desktop-layout');
       }
 
+      if (loggedUser) {
+        // SECURITY: Reset rate limit on successful login — incondizionato,
+        // non deve dipendere dalla presenza del callback (#255).
+        resetRateLimit(`login:${email}`);
+      }
+
       if (onLoginSuccessCallback && loggedUser) {
         loggedUser.assignedStations = mapAssignedStations(loggedUser.user_stations);
         onLoginSuccessCallback(loggedUser);
-
-        // SECURITY: Reset rate limit on successful login
-        resetRateLimit(`login:${email}`);
       }
     } catch (err: unknown) {
       logger.error('auth', 'Errore durante il login (catch):', err);

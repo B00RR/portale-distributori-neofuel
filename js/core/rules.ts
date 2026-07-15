@@ -16,7 +16,7 @@ export interface Voucher {
 export interface ValidationResult {
   valid: boolean;
   error?: string;
-  reason?: 'not_found' | 'redeemed' | 'expired';
+  reason?: 'not_found' | 'redeemed' | 'expired' | 'invalid_status';
   details?: { date?: string | null };
 }
 
@@ -101,7 +101,20 @@ export function validateVoucher(voucher: Voucher | null | undefined): Validation
     };
   }
 
-  // 3. Success
+  // 3. Whitelist status (#255): il DB ammette active/redeemed/expired/void.
+  // redeemed/expired sono gestiti sopra; tutto ciò che non è 'active' (o
+  // assente, per compatibilità legacy) non è riscattabile — es. 'void'.
+  // La RPC resta l'autorità: qui si evita solo di mostrare come valido un
+  // voucher che il server rifiuterebbe.
+  if (voucher.status != null && voucher.status !== 'active') {
+    return {
+      valid: false,
+      error: voucher.status === 'void' ? 'Voucher Annullato' : 'Voucher non riscattabile',
+      reason: 'invalid_status'
+    };
+  }
+
+  // 4. Success
   return { valid: true };
 }
 

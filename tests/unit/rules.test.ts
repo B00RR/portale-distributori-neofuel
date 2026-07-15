@@ -92,6 +92,44 @@ describe('Business Rules', () => {
             expect(result.reason).toBe('expired');
             expect(result.details?.date).toBe(pastDate.toISOString());
         });
+
+        it('should return error for void voucher (#255)', () => {
+            const voucher: Voucher = {
+                id: '111',
+                code: 'TEST-005',
+                amount: 40,
+                status: 'void'
+            };
+
+            const result = validateVoucher(voucher);
+            expect(result.valid).toBe(false);
+            expect(result.error).toBe('Voucher Annullato');
+            expect(result.reason).toBe('invalid_status');
+        });
+
+        it('should return error for unknown status values (#255)', () => {
+            const voucher: Voucher = {
+                id: '222',
+                code: 'TEST-006',
+                amount: 40,
+                status: 'cancelled'
+            };
+
+            const result = validateVoucher(voucher);
+            expect(result.valid).toBe(false);
+            expect(result.reason).toBe('invalid_status');
+        });
+
+        it('should accept a null status for legacy vouchers', () => {
+            const voucher: Voucher = {
+                id: '333',
+                code: 'TEST-007',
+                amount: 40,
+                status: null
+            };
+
+            expect(validateVoucher(voucher).valid).toBe(true);
+        });
     });
 
     describe('summarizeMovimenti', () => {

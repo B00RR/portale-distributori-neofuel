@@ -7,6 +7,7 @@ import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { validateVoucher } from '../../core/rules.js';
 import { handleError, AppError } from '../../shared/error-handler.js';
 import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
+import { escapeLikePattern } from '../../utils/sanitizer.js';
 import { createRateLimiter } from '../../utils/utils.js';
 import { formatEuro, formatDate } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
@@ -26,12 +27,6 @@ function isRpcResult(value: unknown): value is RpcResult {
     'success' in value &&
     typeof value.success === 'boolean'
   );
-}
-
-// L'input manuale finisce in un LIKE: %, _ e \ vanno escapati, altrimenti un
-// codice come "%%%%" enumera qualunque voucher (#251).
-function escapeLikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, '\\$&');
 }
 
 interface Voucher {
