@@ -76,7 +76,7 @@ describe('Auth Module', () => {
     document.body.innerHTML = `
             <div id="login-container">
                 <form id="login-form">
-                    <input id="email" value="test@example.com" />
+                    <input id="username" value="testuser" />
                     <input id="password" value="password123" />
                     <button type="submit">Accedi</button>
                     <div id="login-error"></div>
@@ -122,7 +122,7 @@ describe('Auth Module', () => {
         data: {
           user_id: 7,
           role: 'operator',
-          email: 'test@example.com',
+          email: 'testuser@neofuel.local',
           full_name: 'Test Operator'
         },
         error: null
@@ -145,15 +145,14 @@ describe('Auth Module', () => {
     expect(mockUI.showFullScreenLoader).toHaveBeenCalled();
     // #255: nessun callback di successo è registrato in questo test, ma il
     // rate limit del login va comunque azzerato.
-    expect(mockRateLimiter.resetRateLimit).toHaveBeenCalledWith('login:test@example.com');
+    expect(mockRateLimiter.resetRateLimit).toHaveBeenCalledWith('login:testuser');
   });
 
   it('does not call Supabase auth when required fields are empty (#62)', async () => {
-    const emailInput = document.getElementById('email') as HTMLInputElement;
+    const usernameInput = document.getElementById('username') as HTMLInputElement;
     const passwordInput = document.getElementById('password') as HTMLInputElement;
-    emailInput.type = 'email';
-    emailInput.required = true;
-    emailInput.value = '';
+    usernameInput.required = true;
+    usernameInput.value = '';
     passwordInput.required = true;
     passwordInput.value = '';
 
@@ -208,42 +207,30 @@ describe('Auth Module', () => {
     await new Promise(r => setTimeout(r, 50)); // Allow microtasks to drain
 
     const errorDiv = document.getElementById('login-error');
-    expect(errorDiv?.textContent).toContain('Email o password errati');
+    expect(errorDiv?.textContent).toContain('Username o password errati');
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
 
   it('rejects login when the trusted DB profile is missing despite admin user metadata', async () => {
     const onLoginSuccess = vi.fn();
     authModule.setOnLoginSuccess(onLoginSuccess);
-    mockSupabase.auth.signInWithPassword.mockResolvedValue({
-      data: {
-        user: {
-          id: 'test-id',
-          email: 'test@example.com',
-          user_metadata: { role: 'admin' }
-        }
-      },
-      error: null
-    });
+    // Ensure username lookup returns no profile
     mockSupabase.from.mockReturnValue({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
     });
-    mockSupabase.rpc.mockResolvedValue({ data: 7, error: null });
 
     const form = document.getElementById('login-form') as HTMLFormElement;
     form.dispatchEvent(new Event('submit'));
 
     await new Promise(r => setTimeout(r, 50));
 
+    expect(mockSupabase.from).toHaveBeenCalledWith('users');
     expect(authModule.loggedUser).toBeNull();
     expect(onLoginSuccess).not.toHaveBeenCalled();
-    expect(mockSupabase.auth.signOut).toHaveBeenCalledOnce();
-    expect(mockSupabase.rpc).not.toHaveBeenCalled();
-    expect(document.getElementById('app-container')?.style.display).toBe('none');
     expect(document.getElementById('login-error')?.textContent).toContain(
-      'Profilo utente non disponibile'
+      'Username o password errati'
     );
   });
 

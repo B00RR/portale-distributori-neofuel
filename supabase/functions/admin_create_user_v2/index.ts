@@ -10,13 +10,19 @@ const corsHeaders = {
 // Roles a new user may be assigned. Must stay in sync with CreateUserSchema
 // in js/core/schemas.ts (the client-side Zod enum).
 const ALLOWED_ROLES = ['admin', 'super_admin', 'full_admin', 'operator', 'accounting', 'billing'];
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_RE = /^[a-zA-Z0-9_.-]{3,32}$/;
+// Internal domain used to keep a unique email in Supabase Auth without exposing it to users.
+const INTERNAL_EMAIL_DOMAIN = 'neofuel.local';
 
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
+}
+
+function deriveEmail(username: string): string {
+  return `${username.toLowerCase()}@${INTERNAL_EMAIL_DOMAIN}`;
 }
 
 Deno.serve(async req => {
@@ -38,10 +44,7 @@ Deno.serve(async req => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // AUTHORIZATION: verify the caller is an admin BEFORE doing any privileged
-    // work. A user-scoped client carries the caller's JWT, so is_admin() runs
-    // as that user (it resolves auth.uid() -> users.role server-side). Without
-    // this check any authenticated user could create an admin account.
+    // AUTHORIZATION: verify caller is an admin BEFORE doing any privileged work.
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false }
@@ -58,10 +61,13 @@ Deno.serve(async req => {
     }
 
     // INPUT VALIDATION (server-side, independent of the client Zod checks).
-    const { email, password, full_name, role } = await req.json();
+    const { username, password, full_name, role } = await req.json();
 
-    if (typeof email !== 'string' || !EMAIL_RE.test(email.trim())) {
-      return jsonResponse({ error: 'Email non valida' }, 400);
+    if (typeof username !== 'string' || !USERNAME_RE.test(username.trim())) {
+      return jsonResponse(
+        { error: 'Username non valido. Usa 3-32 caratteri: lettere, numeri, . _ -' },
+        400
+      );
     }
     if (typeof password !== 'string' || password.length < 6) {
       return jsonResponse({ error: 'La password deve avere almeno 6 caratteri' }, 400);
@@ -73,23 +79,46 @@ Deno.serve(async req => {
       return jsonResponse({ error: 'Nome non valido' }, 400);
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim().toLowerCase();
+    const internalEmail = deriveEmail(normalizedUsername);
+
     console.log(
-      `[AdminCreateUser] Creazione utente autorizzata: ${normalizedEmail}, Ruolo: ${role}`
+      `[AdminCreateUser] Creazione utente autorizzata: ${normalizedUsername}, Ruolo: ${role}`
     );
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
+    // Check whether the username (or its derived email) is already in use in Auth.
+    const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    if (listError) {
+      console.error(`[AdminCreateUser] Errore list utenti: ${listError.message}`);
+      return jsonResponse({ error: 'Errore interno durante la verifica username' }, 500);
+    }
+
+    const duplicate = existingUsers.users.find(
+      u =>
+        u.email?.toLowerCase() === internalEmail ||
+        u.user_metadata?.username?.toLowerCase() === normalizedUsername
+    );
+    if (duplicate) {
+      console.warn(`[AdminCreateUser] Username già in uso: ${normalizedUsername}`);
+      return jsonResponse({ error: 'Username già in uso' }, 409);
+    }
+
     const {
       data: { user },
       error: createError
     } = await supabaseAdmin.auth.admin.createUser({
-      email: normalizedEmail,
+      email: internalEmail,
       password,
       email_confirm: true,
-      user_metadata: { full_name, role }
+      user_metadata: {
+        username: normalizedUsername,
+        full_name: full_name || normalizedUsername,
+        role
+      }
     });
 
     if (createError) {
@@ -100,7 +129,7 @@ Deno.serve(async req => {
         return jsonResponse(
           {
             error:
-              "L'utente risulta già registrato nel sistema di autenticazione. Verifica che l'email sia corretta o contatta l'assistenza.",
+              "L'utente risulta già registrato. Scegli un altro username o contatta l'assistenza.",
             details: createError.message
           },
           400

@@ -1,84 +1,108 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Portale Distributori Neofuel</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; frame-src 'none'; object-src 'none';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<head>
-  <meta charset="UTF-8" />
-  <title>Portale Distributori Neofuel</title>
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; frame-src 'none'; object-src 'none';" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#0A2342" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Neofuel" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
 
-  <!-- PWA Configuration -->
-  <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#0A2342" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Neofuel" />
-  <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/svg+xml" href="/assets/images/Favicon.svg" />
+    <link rel="stylesheet" href="css/index.css?v=1" />
+    <script type="module" src="js/vendor/bundle.ts"></script>
+    <script type="module" src="js/startup-safety-net.ts"></script>
+  </head>
 
-  <link rel="icon" type="image/svg+xml" href="/assets/images/Favicon.svg" />
-  <link rel="stylesheet" href="css/index.css?v=1" />
-  <script type="module" src="js/vendor/bundle.ts"></script>
-  <script type="module" src="js/startup-safety-net.ts"></script>
-</head>
+  <body>
+    <!-- Header rimosso per interfaccia full-width -->
 
-<body>
-  <!-- Header rimosso per interfaccia full-width -->
-
-
-  <!-- ERROR BOUNDARY & RECOVERY SYSTEM -->
-  <div id="global-error-boundary"
-    style="display: none; position: fixed; inset: 0; background: #fff; z-index: 99999; padding: 2rem; text-align: center; font-family: system-ui, -apple-system, sans-serif;">
+    <!-- ERROR BOUNDARY & RECOVERY SYSTEM -->
     <div
-      style="max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; height: 100%; justify-content: center; align-items: center;">
-      <h2 style="color: #e11d48; margin-bottom: 1rem;">Si è verificato un problema</h2>
-      <p style="color: #475569; margin-bottom: 2rem;">L'applicazione non è riuscita ad avviarsi correttamente. Questo
-        potrebbe essere dovuto a un aggiornamento incompleto o dati corrotti.</p>
+      id="global-error-boundary"
+      style="display: none; position: fixed; inset: 0; background: #fff; z-index: 99999; padding: 2rem; text-align: center; font-family: system-ui, -apple-system, sans-serif;"
+    >
+      <div
+        style="max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; height: 100%; justify-content: center; align-items: center;"
+      >
+        <h2 style="color: #e11d48; margin-bottom: 1rem;">Si è verificato un problema</h2>
+        <p style="color: #475569; margin-bottom: 2rem;">
+          L'applicazione non è riuscita ad avviarsi correttamente. Questo potrebbe essere dovuto a
+          un aggiornamento incompleto o dati corrotti.
+        </p>
 
-      <button id="btn-force-reset"
-        style="background: #e11d48; color: white; border: none; padding: 1rem 2rem; border-radius: 0.5rem; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
-        RIPRISTINA APP
-      </button>
-
-      <p style="margin-top: 2rem; font-size: 0.8rem; color: #94a3b8;">Codice Errore: <span
-          id="error-code-display">Unknown</span></p>
-    </div>
-  </div>
-
-  <div class="login-container" id="login-container">
-    <form id="login-form">
-      <div class="login-header">
-        <img class="login-logo" src="/assets/images/logo-svg.svg" alt="Logo Neofuel" />
-        <p class="login-tagline">Portale Distributori</p>
-      </div>
-
-      <h1 class="login-title">Accedi</h1>
-      <label for="email">Email</label>
-      <input required id="email" name="email" type="email" autocomplete="email"
-        placeholder="es. operatore@neofuel.it" />
-
-      <label for="password">Password</label>
-      <div class="password-wrapper">
-        <input required id="password" name="password" autocomplete="current-password" type="password" />
-        <button type="button" id="toggle-password" title="Mostra password" aria-label="Mostra password">
-          <i class="fas fa-eye" id="password-icon"></i>
+        <button
+          id="btn-force-reset"
+          style="background: #e11d48; color: white; border: none; padding: 1rem 2rem; border-radius: 0.5rem; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"
+        >
+          RIPRISTINA APP
         </button>
+
+        <p style="margin-top: 2rem; font-size: 0.8rem; color: #94a3b8;">
+          Codice Errore: <span id="error-code-display">Unknown</span>
+        </p>
       </div>
+    </div>
 
-      <button type="submit">Accedi</button>
-      <div id="login-error" class="error-msg" role="alert" aria-live="assertive"></div>
-    </form>
-  </div>
+    <div class="login-container" id="login-container">
+      <form id="login-form">
+        <div class="login-header">
+          <img class="login-logo" src="/assets/images/logo-svg.svg" alt="Logo Neofuel" />
+          <p class="login-tagline">Portale Distributori</p>
+        </div>
 
-  <div class="app-container hidden" id="app-container">
-    <main id="main-content" class="p-3"></main>
-    <!-- Contenuto dinamico inserito da app.js -->
-  </div>
+        <h1 class="login-title">Accedi</h1>
+        <label for="username">Username</label>
+        <input
+          required
+          id="username"
+          name="username"
+          type="text"
+          autocomplete="username"
+          placeholder="es. operatore01"
+        />
 
-  <!-- aggiungi sempre dropdown-content e dropdown styles nel CSS o inline JS classi -->
+        <label for="password">Password</label>
+        <div class="password-wrapper">
+          <input
+            required
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            type="password"
+          />
+          <button
+            type="button"
+            id="toggle-password"
+            title="Mostra password"
+            aria-label="Mostra password"
+          >
+            <i class="fas fa-eye" id="password-icon"></i>
+          </button>
+        </div>
 
-  <script type="module" src="js/app.ts"></script>
-</body>
+        <button type="submit">Accedi</button>
+        <div id="login-error" class="error-msg" role="alert" aria-live="assertive"></div>
+      </form>
+    </div>
 
+    <div class="app-container hidden" id="app-container">
+      <main id="main-content" class="p-3"></main>
+      <!-- Contenuto dinamico inserito da app.js -->
+    </div>
+
+    <!-- aggiungi sempre dropdown-content e dropdown styles nel CSS o inline JS classi -->
+
+    <script type="module" src="js/app.ts"></script>
+  </body>
 </html>
