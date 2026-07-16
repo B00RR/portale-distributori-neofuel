@@ -6,11 +6,16 @@ import { supabase, type AppSupabaseClient } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 
 import { closureTemplateXlsxBase64 } from './template_chiusura_base64.js';
-import { formatDate, slugifyLabel, base64ToArrayBuffer } from './utils.js';
+import { formatDate, slugifyLabel, base64ToArrayBuffer, getISODate } from './utils.js';
 
 /** Narrow an unknown value to a property bag, defaulting to an empty record. */
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+/** Rounds a euro amount to 2 decimal places to avoid IEEE754 accumulation errors. */
+function roundEuro(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 type ShiftRow = Tables<'shifts'>;
@@ -408,7 +413,7 @@ export async function computeExportSummaryMetrics(
 
     const fuelType = normalizeFuelType(pistola);
     const litersDispensed = safeNumber(shiftPistola.liters_dispensed);
-    const totalEuro = litersDispensed * getFuelPrice(prices, fuelType);
+    const totalEuro = roundEuro(litersDispensed * getFuelPrice(prices, fuelType));
 
     section.pistole.push({
       label: pistola.nome,
@@ -844,7 +849,7 @@ export async function generateMultiClosureExcel(closuresData: ExportMetrics[]): 
   }
 
   const zipContent = await zip.generateAsync({ type: 'blob' });
-  const today = new Date().toISOString().split('T')[0];
+  const today = getISODate(new Date());
   downloadBlob(zipContent, `chiusure_multi_export_${today}.zip`);
 
   Toast.show('Download ZIP completato!', 'success');
