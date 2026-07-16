@@ -519,6 +519,22 @@ function renderKpiConfigItems(kpiLayout: KPIConfigItem[]): string {
 /**
  * Initialize all event handlers for configuration panel
  */
+// Il listener va su document (che persiste), quindi va registrato una sola
+// volta per pagina e non a ogni render del pannello (issue #295).
+let outsideClickBound = false;
+
+function bindOutsideClickHandler(): void {
+  if (outsideClickBound) {
+    return;
+  }
+  outsideClickBound = true;
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.size-dropdown-menu').forEach(menu => {
+      menu.classList.remove('show');
+    });
+  });
+}
+
 function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTMLElement): void {
   const currentConfig: DashboardConfig = JSON.parse(JSON.stringify(initialConfig)); // Deep clone
 
@@ -599,11 +615,7 @@ function initializeConfigHandlers(initialConfig: DashboardConfig, container: HTM
   });
 
   // Close dropdowns when clicking outside
-  document.addEventListener('click', () => {
-    $$('.size-dropdown-menu').forEach(menu => {
-      menu.classList.remove('show');
-    });
-  });
+  bindOutsideClickHandler();
 
   // Initialize Sortable for drag-and-drop
   initializeSortable(currentConfig, container);

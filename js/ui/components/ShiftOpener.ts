@@ -3,6 +3,7 @@ import { property, state } from 'lit/decorators.js';
 
 import { supabase } from '../../core/api.js';
 import { logger } from '../../core/logger.js';
+import { handleError } from '../../shared/error-handler.js';
 import { Pistola, Tank, Island } from '../../types.js';
 
 import { BaseComponent } from './BaseComponent.js';
@@ -395,15 +396,12 @@ export class ShiftOpener extends BaseComponent {
       this.state = { ...this.state, mode: 'success' };
       this.emit('success', { shift });
     } catch (error: unknown) {
-      logger.error('Error opening shift:', error);
+      handleError(error, 'ShiftOpener.openShift');
       this.state = {
         ...this.state,
         mode: 'form',
         errorMessage: error instanceof Error ? error.message : 'Errore sconosciuto'
       };
-      alert(
-        `Errore durante l'apertura del turno: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`
-      );
     }
   }
 
