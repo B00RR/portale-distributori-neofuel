@@ -23,38 +23,39 @@ import {
 
 describe('Zod Schemas (real validation)', () => {
   describe('LoginSchema', () => {
-    it('accepts a valid login and lowercases the email', () => {
-      const res = safeParse(LoginSchema, { email: 'USER@Example.COM', password: 'secret1' });
+    it('accepts a valid login and lowercases the username', () => {
+      const res = safeParse(LoginSchema, { username: 'Operatore_01', password: 'secret1' });
       expect(res.success).toBe(true);
       if (res.success) {
-        expect(res.data.email).toBe('user@example.com');
+        expect(res.data.username).toBe('operatore_01');
         expect(res.data.password).toBe('secret1');
       }
     });
 
-    it('rejects an email with surrounding whitespace (real behavior: .email() runs before .trim())', () => {
-      // Finding surfaced by real-Zod testing: in `z.string().email().toLowerCase().trim()`
-      // the .email() check validates the RAW value, before .trim(), so a padded
-      // email is rejected. Documented here; fixing the schema order is out of #44 scope.
+    it('rejects a username with surrounding whitespace (real behavior: regex runs before .trim())', () => {
       expect(
-        safeParse(LoginSchema, { email: '  user@example.com  ', password: 'secret1' }).success
+        safeParse(LoginSchema, { username: '  operatore01  ', password: 'secret1' }).success
       ).toBe(false);
     });
 
-    it('rejects an invalid email', () => {
-      const res = safeParse(LoginSchema, { email: 'not-an-email', password: 'secret1' });
+    it('rejects an invalid username', () => {
+      const res = safeParse(LoginSchema, { username: 'op!', password: 'secret1' });
       expect(res.success).toBe(false);
     });
 
     it('rejects a password shorter than 6 chars (boundary)', () => {
-      expect(safeParse(LoginSchema, { email: 'a@b.com', password: '12345' }).success).toBe(false);
-      expect(safeParse(LoginSchema, { email: 'a@b.com', password: '123456' }).success).toBe(true);
+      expect(safeParse(LoginSchema, { username: 'operatore01', password: '12345' }).success).toBe(
+        false
+      );
+      expect(safeParse(LoginSchema, { username: 'operatore01', password: '123456' }).success).toBe(
+        true
+      );
     });
   });
 
   describe('CreateUserSchema', () => {
     const base = {
-      email: 'a@b.com',
+      username: 'operatore01',
       password: '123456',
       full_name: 'Mario Rossi',
       role: 'operator' as const
@@ -192,7 +193,7 @@ describe('Zod Schemas (real validation)', () => {
 
   describe('helpers', () => {
     it('safeParse returns a joined error string on failure', () => {
-      const res = safeParse(LoginSchema, { email: 'bad', password: '1' });
+      const res = safeParse(LoginSchema, { username: 'bad!', password: '1' });
       expect(res.success).toBe(false);
       if (!res.success) {
         expect(typeof res.error).toBe('string');
@@ -201,9 +202,9 @@ describe('Zod Schemas (real validation)', () => {
     });
 
     it('parse throws on invalid input and returns data on valid input', () => {
-      expect(() => parse(LoginSchema, { email: 'bad', password: '1' })).toThrow();
-      expect(parse(LoginSchema, { email: 'a@b.com', password: '123456' })).toMatchObject({
-        email: 'a@b.com'
+      expect(() => parse(LoginSchema, { username: 'bad!', password: '1' })).toThrow();
+      expect(parse(LoginSchema, { username: 'operatore01', password: '123456' })).toMatchObject({
+        username: 'operatore01'
       });
     });
 

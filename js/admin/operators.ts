@@ -27,7 +27,8 @@ interface UserStation {
 interface User {
   user_id: number;
   full_name: string;
-  email: string;
+  username?: string | null;
+  email?: string | null;
   role: UserRole;
   created_at: string;
 
@@ -90,7 +91,7 @@ export async function showOperatorsTab(
           <thead>
             <tr>
               <th>Nome</th>
-              <th>Email</th>
+              <th>Username</th>
               <th>Ruolo</th>
               <th>Distributore</th>
               <th>Azioni</th>
@@ -123,7 +124,7 @@ export async function showOperatorsTab(
       html += `
         <tr>
           <td>${escapeHtml(u.full_name)}</td>
-          <td>${escapeHtml(u.email)}</td>
+          <td>${escapeHtml(u.username || u.email || '-')}</td>
           <td><span class="badge role-${u.role || 'operator'}">${roleLabel}</span></td>
           <td>${escapeHtml(stationName)}</td>
           <td>
@@ -233,17 +234,21 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
         <input type="text" name="full_name" value="${escapeHtml(user.full_name || '')}" required>
       </div>
       <div class="form-group">
-        <label>Email</label>
-        <input type="email" name="email" value="${escapeHtml(user.email || '')}" required ${isEdit ? 'readonly' : ''}>
+        <label>Username</label>
+        <input type="text" name="username" value="${escapeHtml(user.username || '')}" required ${isEdit ? 'readonly' : ''} pattern="[a-zA-Z0-9_.-]{3,32}" title="3-32 caratteri: lettere, numeri, . _ -">
       </div>
       ${
-        !isEdit
+        isEdit
           ? `
+      <div class="form-group">
+        <label>Nuova Password (lascia vuoto per non cambiare)</label>
+        <input type="password" name="password" minlength="6" placeholder="Minimo 6 caratteri">
+      </div>`
+          : `
       <div class="form-group">
         <label>Password</label>
         <input type="password" name="password" required minlength="6">
       </div>`
-          : ''
       }
       <div class="form-group">
         <label>Ruolo</label>
@@ -271,7 +276,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(form); // Use FormData to get values
-      const email = fd.get('email')?.toString();
+      const username = fd.get('username')?.toString();
       const password = fd.get('password')?.toString();
       const fullName = fd.get('full_name')?.toString();
       const role = fd.get('role')?.toString();
@@ -283,7 +288,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
         validation = safeParse(UpdateUserSchema, { full_name: fullName, role });
       } else {
         validation = safeParse(CreateUserSchema, {
-          email,
+          username,
           password,
           full_name: fullName,
           role
@@ -298,15 +303,38 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
       try {
         setButtonLoading(submitBtn, true, 'Salvataggio...');
         if (isEdit && userId) {
+          const updatePayload: { full_name: string; role: string; password?: string } = {
+            full_name: validation.data.full_name,
+            role: validation.data.role
+          };
+
+          // If admin provided a new password, call the dedicated Edge Function.
+          if (password) {
+            const { data: resetData, error: resetError } = await supabase.functions.invoke(
+              'admin_reset_password_v2',
+              {
+                body: { user_id: Number(userId), password }
+              }
+            );
+            if (resetError) {
+              throw resetError;
+            }
+            if (resetData?.error) {
+              throw new Error(resetData.error);
+            }
+          }
+
           const { error: updateError } = await safeSupabaseQuery(() =>
             supabase
               .from('users')
               .update({
-                full_name: validation.data.full_name,
-                role: validation.data.role
+                full_name: updatePayload.full_name,
+                role: updatePayload.role,
+                updated_at: new Date().toISOString()
               })
               .eq('user_id', Number(userId))
           );
+
           if (updateError) {
             throw updateError;
           }
@@ -326,7 +354,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
             throw new Error(fnData.error);
           }
 
-          Toast.show('Utente creato con successo (email pre-confermata)!', 'success');
+          Toast.show('Utente creato con successo (username pre-confermato)!', 'success');
         }
         closeModal();
 

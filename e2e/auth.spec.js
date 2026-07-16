@@ -14,7 +14,7 @@ test.describe('Autenticazione (UI)', () => {
   test('mostra il form di login', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('#login-form')).toBeVisible();
-    await expect(page.locator('#email')).toBeVisible();
+    await expect(page.locator('#username')).toBeVisible();
     await expect(page.locator('#password')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
@@ -42,7 +42,7 @@ test.describe('Autenticazione (UI)', () => {
     await mockSupabaseAuthFailure(page);
 
     await page.goto('/');
-    await page.fill('#email', 'sbagliata@example.com');
+    await page.fill('#username', 'sbagliato');
     await page.fill('#password', 'password-errata');
     await page.click('button[type="submit"]');
 

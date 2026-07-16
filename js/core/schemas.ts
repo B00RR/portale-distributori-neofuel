@@ -10,12 +10,24 @@ import { USER_ROLES } from '../shared/roles.js';
 // ========== AUTH SCHEMAS ==========
 
 export const LoginSchema = z.object({
-  email: z.string().email('Email non valida').toLowerCase().trim(),
+  username: z
+    .string()
+    .min(3, 'Username troppo corto')
+    .max(32, 'Username troppo lungo')
+    .regex(/^[a-zA-Z0-9_.-]+$/, 'Username non valido: usa solo lettere, numeri, . _ -')
+    .toLowerCase()
+    .trim(),
   password: z.string().min(6, 'Password deve avere almeno 6 caratteri')
 });
 
 export const CreateUserSchema = z.object({
-  email: z.string().email('Email non valida').toLowerCase().trim(),
+  username: z
+    .string()
+    .min(3, 'Username troppo corto')
+    .max(32, 'Username troppo lungo')
+    .regex(/^[a-zA-Z0-9_.-]+$/, 'Username non valido: usa solo lettere, numeri, . _ -')
+    .toLowerCase()
+    .trim(),
   password: z.string().min(6, 'Password deve avere almeno 6 caratteri'),
   full_name: z.string().min(2, 'Nome troppo corto').max(100, 'Nome troppo lungo'),
   role: z.enum(USER_ROLES)

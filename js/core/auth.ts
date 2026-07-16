@@ -177,17 +177,17 @@ export function setupLoginForm(): void {
       return;
     }
 
-    const emailInput = loginForm?.querySelector('#email') as HTMLInputElement | null;
+    const usernameInput = loginForm?.querySelector('#username') as HTMLInputElement | null;
     const passwordInput = loginForm?.querySelector('#password') as HTMLInputElement | null;
 
-    if (!emailInput || !passwordInput) {
+    if (!usernameInput || !passwordInput) {
       logger.error('auth', 'Form inputs not found');
       return;
     }
 
     // SECURITY: Validate input with Zod schema
     const validation = safeParse(LoginSchema, {
-      email: emailInput.value,
+      username: usernameInput.value,
       password: passwordInput.value
     });
 
@@ -198,13 +198,13 @@ export function setupLoginForm(): void {
       return;
     }
 
-    const { email, password } = validation.data;
+    const { username, password } = validation.data;
 
     // SECURITY: Rate limiting - prevent brute force attacks.
     // NOTA (#255): è un limite solo client-side (bypassabile azzerando lo
     // stato locale) e serve come UX; la protezione reale contro il brute
     // force è il rate limiting di Supabase Auth lato server.
-    const rateLimitKey = `login:${email}`;
+    const rateLimitKey = `login:${username}`;
     if (isRateLimited(rateLimitKey, 5, 60000)) {
       // 5 attempts per minute
       const remaining = getRemainingAttempts(rateLimitKey, 5);
@@ -226,8 +226,25 @@ export function setupLoginForm(): void {
       const loginContainer = document.getElementById('login-container');
       const appContainer = document.getElementById('app-container');
 
+      // Resolve the hidden auth email from the username before calling Supabase Auth.
+      const { data: userByUsername, error: lookupError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('username', username.trim().toLowerCase())
+        .maybeSingle();
+
+      if (lookupError || !userByUsername?.email) {
+        logger.error('auth', 'Username lookup failed:', lookupError);
+        if (errorElement) {
+          errorElement.textContent = 'Username o password errati.';
+        }
+        return;
+      }
+
+      const resolvedEmail = userByUsername.email;
+
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email,
+        email: resolvedEmail,
         password: password
       });
 
@@ -244,7 +261,7 @@ export function setupLoginForm(): void {
         ) {
           if (errorElement) {
             errorElement.textContent =
-              "Email non confermata. Contatta l'amministratore per la convalida.";
+              "Account non confermato. Contatta l'amministratore per la convalida.";
           }
           return;
         }
@@ -255,7 +272,7 @@ export function setupLoginForm(): void {
             authError.message === 'Invalid login credentials' ||
             authError.message.includes('Invalid') ||
             authError.message.includes('invalid')
-              ? 'Email o password errati.'
+              ? 'Username o password errati.'
               : `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message}`;
         }
         return;
@@ -300,7 +317,11 @@ export function setupLoginForm(): void {
             logger.warn('auth', 'Trusted user profile not found');
           }
           loggedUser = null;
-          await supabase.auth.signOut();
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutErr) {
+            logger.error('auth', 'signOut failed during login cleanup:', signOutErr);
+          }
           if (errorElement) {
             errorElement.textContent = 'Profilo utente non disponibile o non autorizzato.';
           }
@@ -311,7 +332,11 @@ export function setupLoginForm(): void {
         if (!trustedRole) {
           logger.error('auth', 'Trusted user profile has an invalid role');
           loggedUser = null;
-          await supabase.auth.signOut();
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutErr) {
+            logger.error('auth', 'signOut failed during login cleanup:', signOutErr);
+          }
           if (errorElement) {
             errorElement.textContent = 'Ruolo utente non valido.';
           }
@@ -381,7 +406,7 @@ export function setupLoginForm(): void {
       if (loggedUser) {
         // SECURITY: Reset rate limit on successful login — incondizionato,
         // non deve dipendere dalla presenza del callback (#255).
-        resetRateLimit(`login:${email}`);
+        resetRateLimit(`login:${username}`);
       }
 
       if (onLoginSuccessCallback && loggedUser) {
@@ -447,7 +472,11 @@ export async function loadSession(): Promise<LoggedUserData | null> {
       } else {
         logger.warn('auth', 'Trusted session profile not found');
       }
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutErr) {
+        logger.error('auth', 'signOut failed during session recovery:', signOutErr);
+      }
       return null;
     }
 

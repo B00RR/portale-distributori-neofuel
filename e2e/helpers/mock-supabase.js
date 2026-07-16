@@ -18,11 +18,11 @@ const isLiveSupabaseE2E = () => E2E_ENV.E2E_SUPABASE_MODE === 'live';
 
 const TEST_CREDENTIALS = {
   admin: {
-    email: E2E_ENV.TEST_ADMIN_EMAIL || 'e2e-admin@neofuel.test',
+    username: E2E_ENV.TEST_ADMIN_USERNAME || 'e2e-admin',
     password: E2E_ENV.TEST_ADMIN_PASSWORD || E2E_ENV.TEST_USER_PASS || 'password-e2e-admin'
   },
   operator: {
-    email: E2E_ENV.TEST_OPERATOR_EMAIL || 'e2e-operator@neofuel.test',
+    username: E2E_ENV.TEST_OPERATOR_USERNAME || 'e2e-operator',
     password: E2E_ENV.TEST_OPERATOR_PASSWORD || E2E_ENV.TEST_USER_PASS || 'password-e2e-operator'
   }
 };
@@ -192,7 +192,7 @@ export async function login(page, { role = 'admin' } = {}) {
   const query = role === 'operator' ? '/?test_role=operator' : '/';
   await page.goto(query);
   const credentials = TEST_CREDENTIALS[role] || TEST_CREDENTIALS.admin;
-  await page.fill('#email', credentials.email);
+  await page.fill('#username', credentials.username);
   await page.fill('#password', credentials.password);
   await page.click('button[type="submit"]');
 }
