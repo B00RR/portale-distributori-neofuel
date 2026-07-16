@@ -76,8 +76,11 @@ const DEFAULT_OPERATIONS: Record<string, OperationHandler> = {
   },
   divide: ({ dividend, divisor, precision = 2 }, ctx, evaluate) => {
     const a = Number(evaluate(dividend, ctx) || 0);
-    const b = Number(evaluate(divisor, ctx) || 1);
-    if (b === 0) {
+    // Il default 1 vale solo per divisore ASSENTE (null/undefined): uno zero
+    // valutato deve arrivare al guard, non essere coartato a 1 con `|| 1` (#291)
+    const rawDivisor = evaluate(divisor, ctx);
+    const b = rawDivisor == null ? 1 : Number(rawDivisor);
+    if (b === 0 || Number.isNaN(b)) {
       return 0;
     }
     const result = a / b;

@@ -3,6 +3,7 @@ import { store } from '../../shared/state.js';
 import { Station } from '../../shared/state.js';
 import { openModal, closeModal } from '../../ui/ui.js';
 import { setSafeHTML } from '../../utils/sanitizer.js';
+import { getISODate } from '../../utils/utils.js';
 
 /**
  * Componente riutilizzabile per la barra dei filtri (Ricerca, Date, ecc.)
@@ -147,24 +148,26 @@ export class FilterBar {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    // NB: getISODate() produce la data LOCALE; toISOString() darebbe la data
+    // UTC, che a mezzanotte locale in Europe/Rome è ancora il giorno prima (#290)
     switch (rangeValue) {
       case 'today':
-        from = today.toISOString().split('T')[0] ?? null;
-        to = tomorrow.toISOString().split('T')[0] ?? null; // Query usually < to
+        from = getISODate(today) || null;
+        to = getISODate(tomorrow) || null; // Query usually < to
         break;
       case 'week': {
         // Inizio settimana (Lunedì)
         const day = today.getDay() || 7; // Dom=0 -> 7
         if (day !== 1) {
-          today.setHours(-24 * (day - 1));
+          today.setDate(today.getDate() - (day - 1));
         }
-        from = today.toISOString().split('T')[0] ?? null;
+        from = getISODate(today) || null;
         to = null; // Fine al futuro
         break;
       }
       case 'month':
         today.setDate(1);
-        from = today.toISOString().split('T')[0] ?? null;
+        from = getISODate(today) || null;
         to = null;
         break;
       case 'all':
