@@ -38,6 +38,8 @@ vi.mock('../../js/ui/toast.js', () => ({
   }
 }));
 
+import { Toast } from '../../js/ui/toast.js';
+
 import '../../js/ui/components/ShiftOpener.js';
 
 describe('ShiftOpener Component - TDD tests', () => {
@@ -229,7 +231,9 @@ describe('ShiftOpener Component - TDD tests', () => {
 
     expect(element.state.mode).toBe('form');
     expect(element.state.errorMessage).toBe('Il turno è già aperto.');
-    expect(alertSpy).toHaveBeenCalledWith("Errore durante l'apertura del turno: Il turno è già aperto.");
+    // Nessun alert() nativo: l'errore passa da handleError (Toast) + banner nel form (issue #296)
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(Toast.show).toHaveBeenCalledWith('Il turno è già aperto.', 'error');
   });
 
   it('should handle thrown database/Supabase error', async () => {
@@ -251,7 +255,9 @@ describe('ShiftOpener Component - TDD tests', () => {
 
     expect(element.state.mode).toBe('form');
     expect(element.state.errorMessage).toBe('Database connection timeout');
-    expect(alertSpy).toHaveBeenCalledWith("Errore durante l'apertura del turno: Database connection timeout");
+    // Nessun alert() nativo: l'errore passa da handleError (Toast) + banner nel form (issue #296)
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(Toast.show).toHaveBeenCalledWith('Database connection timeout', 'error');
   });
 
   it('should prevent concurrent submissions and only produce one RPC call when two submit events race', async () => {
