@@ -356,25 +356,32 @@ export async function openAssignStationModal(userId: string): Promise<void> {
     return;
   }
 
-  const [stationsData, currentRes] = await Promise.all([
-    Cache.getOrFetch(
-      CACHE_KEYS.STATIONS,
-      async () => {
-        const { data, error } = await supabase.from('fuel_stations').select('*');
-        if (error) {
-          throw error;
-        }
-        return data;
-      },
-      10 * 60 * 1000
-    ),
-    supabase.from('user_stations').select('station_id').eq('user_id', Number(userId)).maybeSingle()
-  ]);
+  try {
+    const [stationsData, currentRes] = await Promise.all([
+      Cache.getOrFetch(
+        CACHE_KEYS.STATIONS,
+        async () => {
+          const { data, error } = await supabase.from('fuel_stations').select('*');
+          if (error) {
+            throw error;
+          }
+          return data;
+        },
+        10 * 60 * 1000
+      ),
+      supabase
+        .from('user_stations')
+        .select('station_id')
+        .eq('user_id', Number(userId))
+        .maybeSingle()
+    ]);
 
-  const stations = (stationsData as FuelStation[]) || [];
-  const currentStationId = currentRes.data?.station_id;
+    if (currentRes.error) throw currentRes.error;
 
-  const html = `
+    const stations = (stationsData as FuelStation[]) || [];
+    const currentStationId = currentRes.data?.station_id;
+
+    const html = `
     <form id="assign-station-form">
       <div class="form-group">
         <label>Seleziona Stazione</label>
@@ -386,43 +393,48 @@ export async function openAssignStationModal(userId: string): Promise<void> {
       <button type="submit" class="menu-button primary">Salva Assegnazione</button>
     </form>
   `;
-  setSafeHTML(target, html);
+    setSafeHTML(target, html);
 
-  const form = document.getElementById('assign-station-form') as HTMLFormElement;
-  if (form) {
-    form.addEventListener('submit', async e => {
-      e.preventDefault();
-      const stationSelect = form.elements.namedItem('station_id') as HTMLSelectElement;
-      const stationId = stationSelect.value;
-      const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const form = document.getElementById('assign-station-form') as HTMLFormElement;
+    if (form) {
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const stationSelect = form.elements.namedItem('station_id') as HTMLSelectElement;
+        const stationId = stationSelect.value;
+        const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
 
-      try {
-        setButtonLoading(submitBtn, true, 'Salvataggio...');
+        try {
+          setButtonLoading(submitBtn, true, 'Salvataggio...');
 
-        // Use server-side RPC function for secure station assignment
-        const rpcArgs: { p_user_id: number; p_station_id?: number } = { p_user_id: Number(userId) };
-        if (stationId) {
-          rpcArgs.p_station_id = parseInt(stationId, 10);
+          // Use server-side RPC function for secure station assignment
+          const rpcArgs: { p_user_id: number; p_station_id?: number } = {
+            p_user_id: Number(userId)
+          };
+          if (stationId) {
+            rpcArgs.p_station_id = parseInt(stationId, 10);
+          }
+          const { error } = await supabase.rpc('admin_assign_station', rpcArgs);
+
+          if (error) {
+            throw error;
+          }
+
+          closeModal();
+          Toast.show('Assegnazione salvata', 'success');
+          // Reload
+          const adminContent = document.getElementById('admin-content');
+          if (adminContent && adminContent.querySelector('.edit-operator')) {
+            const headerActions = document.getElementById('header-actions');
+            showOperatorsTab(adminContent, headerActions);
+          }
+        } catch (err) {
+          handleError(err, 'admin_action');
+        } finally {
+          setButtonLoading(submitBtn, false);
         }
-        const { error } = await supabase.rpc('admin_assign_station', rpcArgs);
-
-        if (error) {
-          throw error;
-        }
-
-        closeModal();
-        Toast.show('Assegnazione salvata', 'success');
-        // Reload
-        const adminContent = document.getElementById('admin-content');
-        if (adminContent && adminContent.querySelector('.edit-operator')) {
-          const headerActions = document.getElementById('header-actions');
-          showOperatorsTab(adminContent, headerActions);
-        }
-      } catch (err) {
-        handleError(err, 'admin_action');
-      } finally {
-        setButtonLoading(submitBtn, false);
-      }
-    });
+      });
+    }
+  } catch (err) {
+    handleError(err, 'openAssignStationModal');
   }
 }

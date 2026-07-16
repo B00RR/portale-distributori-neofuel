@@ -1,4 +1,5 @@
 import { supabase } from '../core/api.js';
+import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { createEl, createIcon } from '../ui/dom-helpers.js';
 import { Toast } from '../ui/toast.js';
@@ -88,10 +89,14 @@ export async function showFattureTab(
         .filter((id, index, self) => self.indexOf(id) === index); // remove duplicates
 
       if (clienteIds.length > 0) {
-        const { data: clienti } = await supabase
+        const { data: clienti, error: clientiError } = await supabase
           .from('clienti_fatturazione')
           .select('id, nome, partita_iva, telefono')
           .in('id', clienteIds);
+
+        if (clientiError) {
+          logger.warn('showFattureTab', 'clienti_fatturazione lookup failed', clientiError);
+        }
 
         if (clienti) {
           const clientiMap: Record<number, BillingCustomer> = {};

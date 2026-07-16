@@ -196,13 +196,19 @@ export async function openStationModal(stationId: number | null = null): Promise
 
   let station: Partial<FuelStation> = {};
   if (stationId) {
-    const { data, error } = await supabase
-      .from('fuel_stations')
-      .select('*')
-      .eq('station_id', stationId)
-      .single();
-    if (!error && data) {
-      station = data as FuelStation;
+    try {
+      const { data, error } = await supabase
+        .from('fuel_stations')
+        .select('*')
+        .eq('station_id', stationId)
+        .single();
+      if (error) throw error;
+      if (data) {
+        station = data as FuelStation;
+      }
+    } catch (err) {
+      handleError(err, 'openStationModal');
+      return;
     }
   }
 

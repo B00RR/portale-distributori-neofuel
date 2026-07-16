@@ -225,9 +225,19 @@ async function openIslandForm(
 
   let island: Partial<Island> = { nome: '', island_name: '' };
   if (isEdit && islandId) {
-    const { data } = await supabase.from('islands').select('*').eq('island_id', islandId).single();
-    if (data) {
-      island = data as Island;
+    try {
+      const { data, error } = await supabase
+        .from('islands')
+        .select('*')
+        .eq('island_id', islandId)
+        .single();
+      if (error) throw error;
+      if (data) {
+        island = data as Island;
+      }
+    } catch (err) {
+      handleError(err, 'openIslandForm');
+      return;
     }
   }
 
@@ -312,7 +322,11 @@ async function openIslandForm(
 async function deleteIsland(islandId: number, stationId: number | string): Promise<void> {
   try {
     // Find if has guns
-    const { data: guns } = await supabase.from('pistole').select('id').eq('island_id', islandId);
+    const { data: guns, error } = await supabase
+      .from('pistole')
+      .select('id')
+      .eq('island_id', islandId);
+    if (error) throw error;
 
     if (guns && guns.length > 0) {
       Toast.show(
