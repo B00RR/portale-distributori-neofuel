@@ -182,7 +182,6 @@ export class ShiftOpener extends BaseComponent {
       return;
     }
 
-    this.state = { ...this.state, mode: 'loading' };
     try {
       // 1. Parallel fetch of core station data
       const [islandsRes, tanksRes] = await Promise.all([
@@ -201,7 +200,7 @@ export class ShiftOpener extends BaseComponent {
         throw tanksRes.error;
       }
 
-      this.islands = islandsRes.data.map(
+      const islandsData = islandsRes.data.map(
         (i: { island_id?: number; nome?: string; island_name?: string }, idx: number) => ({
           island_id: i.island_id ?? idx + 1,
           nome: i.nome ?? i.island_name ?? `Isola ${idx + 1}`,
@@ -209,10 +208,10 @@ export class ShiftOpener extends BaseComponent {
         })
       ) as unknown as Island[];
 
-      this.tanks = (tanksRes.data || []) as unknown as Tank[];
+      const tanksData = (tanksRes.data || []) as unknown as Tank[];
 
       // 2. Fetch all pistols for these islands
-      const islandIds = this.islands.map(i => i.island_id);
+      const islandIds = islandsData.map(i => i.island_id);
       const { data: pistoleData, error: pError } = await supabase
         .from('pistole')
         .select('*, islands(nome)')
@@ -222,10 +221,11 @@ export class ShiftOpener extends BaseComponent {
       if (pError) {
         throw pError;
       }
-      this.pistole = (pistoleData || []) as unknown as Pistola[];
+
+      const pistoleList = (pistoleData || []) as unknown as Pistola[];
 
       // 3. Fetch smart counters (last closure values)
-      const pIds = this.pistole.map(p => p.id);
+      const pIds = pistoleList.map(p => p.id);
       const { data: newCounters, error: countersErr } = await supabase
         .from('shift_pistols')
         .select('pistola_id, closed_at_counter')
@@ -238,16 +238,20 @@ export class ShiftOpener extends BaseComponent {
       }
 
       const counters: Record<number, number> = {};
-      this.pistole.forEach(p => {
+      pistoleList.forEach(p => {
         // The current counter includes any explicit admin correction. Historical
         // data is only a compatibility fallback for rows without a base value.
         const lastShift = newCounters?.find(c => c.pistola_id === p.id);
 
         counters[p.id] = p.numero_litri ?? lastShift?.closed_at_counter ?? 0;
       });
-      this.lastCounters = counters;
 
-      this.state = { ...this.state, mode: 'form' };
+      // Batch all property and state updates into a single render cycle
+      this.islands = islandsData;
+      this.tanks = tanksData;
+      this.pistole = pistoleList;
+      this.lastCounters = counters;
+      this.state = { mode: 'form', errorMessage: '' };
     } catch (error: unknown) {
       logger.error('Error loading ShiftOpener data:', error);
       this.state = {
