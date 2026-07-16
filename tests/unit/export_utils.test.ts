@@ -459,6 +459,39 @@ describe('computeExportSummaryMetrics', () => {
     expect(metrics.meta.totals.totalEuro).toBe(0);
     expect(metrics.summary.contanti).toBe(0);
   });
+
+  it('arrotonda i prezzi per evitare errori di accumulo IEEE754', async () => {
+    const { client } = createAdminClient({});
+
+    // 20 rows: 10.1 liters at 1.5 €/L = 15.15 € per row (rounded)
+    // Total euro: 20 * 15.15 = 303 euros exactly (no floating-point drift)
+    const shiftPistols = Array.from({ length: 20 }, (_, i) => ({
+      pistola_id: i + 1,
+      opened_at_counter: i * 10,
+      closed_at_counter: i * 10 + 10,
+      liters_dispensed: 10.1,
+      pistole: createPistola(i + 1, `Gasolio ${i + 1}`, 'gasolio', 1, 'Isola 1')
+    }));
+
+    const metrics = await computeExportSummaryMetrics(
+      client,
+      {
+        fuel_stations: { station_name: 'Neofuel' },
+        closing_data: { prezzo_gasolio: 1.5 },
+        shift_pistols: shiftPistols
+      },
+      1
+    );
+
+    // Each pistola should round 10.1 * 1.5 = 15.15 to exactly 15.15 €
+    metrics.sections[0]?.pistole.forEach(pistola => {
+      expect(pistola.totaleEuro).toBe(15.15);
+    });
+
+    // Total euro should be exactly 20 * 15.15 = 303, no drift from accumulating unrounded values
+    expect(metrics.meta.totals.euroGasolio).toBe(303); // 20 * 15.15 exactly
+    expect(metrics.meta.totals.totalEuro).toBe(303);
+  });
 });
 
 describe('createPopulatedClosureWorkbook', () => {
