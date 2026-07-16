@@ -220,7 +220,7 @@ class AdminRouter {
         showLoadingMessage(content);
         try {
           const { showVoucherAdminTab } = await import('./vouchers_reboot.js');
-          showVoucherAdminTab(content, headerActions);
+          await showVoucherAdminTab(content, headerActions);
         } catch (err) {
           handleError(err, 'Caricamento modulo Voucher', content);
         }
