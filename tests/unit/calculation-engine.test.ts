@@ -145,27 +145,31 @@ describe('CalculationEngine', () => {
             expect(compiled({})).toBe(3.33);
         });
 
-        it('current engine treats a constant zero divisor as 1', () => {
+        it('returns the guard value 0 for a constant zero divisor (#291)', () => {
             const compiled = engine.compile({
                 op: 'divide',
                 dividend: { op: 'constant', value: 10 },
                 divisor: { op: 'constant', value: 0 }
             } as DslOpNode);
-            // The engine coerces the divisor with `Number(evaluate(divisor, ctx) || 1)`.
-            // A literal constant `0` is falsy, so it falls back to 1 and the
-            // division-by-zero guard is unreachable. This test documents the real
-            // behavior surfaced by the suite; fixing it is out of scope here.
-            expect(compiled({})).toBe(10);
+            expect(compiled({})).toBe(0);
         });
 
-        it('falls back to divisor 1 when the evaluated divisor is falsy', () => {
+        it('returns the guard value 0 when the evaluated divisor is zero (#291)', () => {
             const compiled = engine.compile({
                 op: 'divide',
                 dividend: { op: 'constant', value: 10 },
                 divisor: { op: 'input', path: 'zeroValue' }
             } as DslOpNode);
-            // The engine uses `Number(evaluated || 1)` so a falsy divisor becomes 1.
-            expect(compiled({ zeroValue: 0 })).toBe(10);
+            expect(compiled({ zeroValue: 0 })).toBe(0);
+        });
+
+        it('falls back to divisor 1 when the divisor is missing (null/undefined)', () => {
+            const compiled = engine.compile({
+                op: 'divide',
+                dividend: { op: 'constant', value: 10 },
+                divisor: { op: 'input', path: 'missingValue' }
+            } as DslOpNode);
+            expect(compiled({})).toBe(10);
         });
 
         it('uses explicit precision', () => {
