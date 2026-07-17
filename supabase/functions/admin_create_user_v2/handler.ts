@@ -7,10 +7,19 @@ export interface AuthUserInput {
   email: string;
   password: string;
   user_metadata: Record<string, unknown>;
+  app_metadata: {
+    provisioning_request_id: string;
+    provisioning_origin: 'admin_create_user_v2';
+  };
 }
 
 export interface CreatedAuthUser {
   id: string;
+  emailConfirmed: boolean;
+}
+
+export interface AuthProvisioningState extends CreatedAuthUser {
+  provisioningRequestId: string | null;
 }
 
 export interface ProfileInput {
@@ -22,19 +31,23 @@ export interface ProfileInput {
   created_by_auth: string;
 }
 
-export type CompensationOutcome = 'deleted' | 'disabled' | 'failed' | 'unknown';
+export type ProfileState = 'match' | 'absent' | 'mismatch';
+export type CompensationOutcome = 'deleted' | 'disabled' | 'unconfirmed' | 'failed' | 'unknown';
 
 export interface ProvisioningFailureEvent {
   requestId: string;
   authUserId?: string;
-  phase: 'auth_create' | 'profile_create';
+  phase: 'auth_create' | 'profile_create' | 'auth_confirm';
   compensation: CompensationOutcome;
 }
 
 export interface AdminCreateUserDependencies {
   getCallerProfile(authHeader: string): Promise<CallerProfile | null>;
   createAuthUser(input: AuthUserInput): Promise<CreatedAuthUser>;
+  lookupAuthUser(email: string): Promise<AuthProvisioningState | null>;
   createProfile(input: ProfileInput): Promise<void>;
+  getProfileState(input: ProfileInput): Promise<ProfileState>;
+  confirmAuthUser(authUserId: string): Promise<void>;
   deleteAuthUser(authUserId: string): Promise<void>;
   disableAuthUser(authUserId: string): Promise<void>;
   reportProvisioningFailure(event: ProvisioningFailureEvent): void;
@@ -66,8 +79,8 @@ const ALLOWED_NEW_USER_ROLES = new Set([
 ]);
 
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{3,32}$/;
+const REQUEST_ID_RE = /^[a-zA-Z0-9._:-]{1,128}$/;
 const INTERNAL_EMAIL_DOMAIN = 'neofuel.local';
-const MAX_REQUEST_ID_LENGTH = 128;
 
 interface CreateUserBody {
   username: string;
@@ -98,9 +111,8 @@ function parseCreateUserBody(body: unknown): CreateUserBody | null {
     return null;
   }
 
-  const normalizedUsername = username.trim().toLowerCase();
   return {
-    username: normalizedUsername,
+    username: username.trim().toLowerCase(),
     password,
     full_name: normalizedFullName,
     role
@@ -115,29 +127,29 @@ function jsonResponse(body: unknown, status: number): Response {
 }
 
 function requestId(request: Request): string {
-  return (
-    request.headers.get('x-request-id')?.slice(0, MAX_REQUEST_ID_LENGTH) || crypto.randomUUID()
-  );
+  const supplied = request.headers.get('x-request-id')?.trim() ?? '';
+  return REQUEST_ID_RE.test(supplied) ? supplied : crypto.randomUUID();
 }
 
 async function compensateAuthUser(
   dependencies: AdminCreateUserDependencies,
-  authUserId: string
+  authUser: CreatedAuthUser
 ): Promise<Exclude<CompensationOutcome, 'unknown'>> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      await dependencies.deleteAuthUser(authUserId);
+      await dependencies.deleteAuthUser(authUser.id);
       return 'deleted';
     } catch {
-      // Retry once before falling back to a fail-closed disabled identity.
+      // Retry once before falling back to a disabled identity.
     }
   }
 
   try {
-    await dependencies.disableAuthUser(authUserId);
+    await dependencies.disableAuthUser(authUser.id);
     return 'disabled';
   } catch {
-    return 'failed';
+    // Newly created identities are deliberately unconfirmed until the profile commits.
+    return authUser.emailConfirmed ? 'failed' : 'unconfirmed';
   }
 }
 
@@ -188,47 +200,98 @@ export function createAdminUserHandler(
         user_metadata: {
           username: parsedBody.username,
           full_name: parsedBody.full_name
+        },
+        app_metadata: {
+          provisioning_request_id: correlationId,
+          provisioning_origin: 'admin_create_user_v2'
         }
       });
     } catch (error) {
-      if (error instanceof AuthUserAlreadyExistsError) {
-        return jsonResponse({ error: 'Username già esistente' }, 409);
+      let existing: AuthProvisioningState | null;
+      try {
+        existing = await dependencies.lookupAuthUser(email);
+      } catch {
+        existing = null;
       }
 
-      dependencies.reportProvisioningFailure({
-        requestId: correlationId,
-        phase: 'auth_create',
-        compensation: 'unknown'
-      });
-      return jsonResponse(
-        {
-          error:
-            error instanceof AuthUserCreationAmbiguousError
-              ? 'Esito creazione Auth non verificabile'
-              : 'Creazione Auth non completata'
-        },
-        503
-      );
+      if (existing?.provisioningRequestId === correlationId) {
+        authUser = existing;
+      } else if (error instanceof AuthUserAlreadyExistsError || existing) {
+        return jsonResponse({ error: 'Username già esistente' }, 409);
+      } else {
+        dependencies.reportProvisioningFailure({
+          requestId: correlationId,
+          phase: 'auth_create',
+          compensation: 'unknown'
+        });
+        return jsonResponse(
+          {
+            error:
+              error instanceof AuthUserCreationAmbiguousError
+                ? 'Esito creazione Auth non verificabile'
+                : 'Creazione Auth non completata'
+          },
+          503
+        );
+      }
     }
 
+    const profileInput: ProfileInput = {
+      username: parsedBody.username,
+      email,
+      full_name: parsedBody.full_name,
+      role: parsedBody.role,
+      is_active: true,
+      created_by_auth: authUser.id
+    };
+
     try {
-      await dependencies.createProfile({
-        username: parsedBody.username,
-        email,
-        full_name: parsedBody.full_name,
-        role: parsedBody.role,
-        is_active: true,
-        created_by_auth: authUser.id
-      });
+      await dependencies.createProfile(profileInput);
     } catch {
-      const compensation = await compensateAuthUser(dependencies, authUser.id);
-      dependencies.reportProvisioningFailure({
-        requestId: correlationId,
-        authUserId: authUser.id,
-        phase: 'profile_create',
-        compensation
-      });
-      return jsonResponse({ error: 'Provisioning utente non completato' }, 500);
+      let profileState: ProfileState | null;
+      try {
+        profileState = await dependencies.getProfileState(profileInput);
+      } catch {
+        profileState = null;
+      }
+
+      if (profileState !== 'match') {
+        const compensation =
+          profileState === 'absent'
+            ? await compensateAuthUser(dependencies, authUser)
+            : authUser.emailConfirmed
+              ? 'failed'
+              : 'unconfirmed';
+        dependencies.reportProvisioningFailure({
+          requestId: correlationId,
+          authUserId: authUser.id,
+          phase: 'profile_create',
+          compensation
+        });
+        return jsonResponse({ error: 'Provisioning utente non completato' }, 503);
+      }
+    }
+
+    if (!authUser.emailConfirmed) {
+      try {
+        await dependencies.confirmAuthUser(authUser.id);
+      } catch {
+        let reconciled: AuthProvisioningState | null = null;
+        try {
+          reconciled = await dependencies.lookupAuthUser(email);
+        } catch {
+          // Keep the identity unconfirmed and fail closed.
+        }
+        if (reconciled?.id !== authUser.id || !reconciled.emailConfirmed) {
+          dependencies.reportProvisioningFailure({
+            requestId: correlationId,
+            authUserId: authUser.id,
+            phase: 'auth_confirm',
+            compensation: 'unconfirmed'
+          });
+          return jsonResponse({ error: 'Attivazione utente non completata' }, 503);
+        }
+      }
     }
 
     return jsonResponse({ success: true, user_id: authUser.id }, 201);

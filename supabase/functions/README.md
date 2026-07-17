@@ -72,16 +72,21 @@ supabase functions deploy update-prices
 
 1. Freeze administrative user creation and snapshot Auth configuration, the
    exact three pre-existing orphan IDs, function version, trigger and function.
-2. Set `disable_signup=true` through the Supabase Management API and verify an
-   anonymous signup is rejected without creating an identity.
+2. Set `disable_signup=true` through the Supabase Management API. Read the Auth
+   configuration back from the same project and require the literal value
+   `disable_signup === true`; do not treat a rejected signup as sufficient while
+   the broken trigger still exists.
 3. Set `ADMIN_CREATE_USER_MAINTENANCE=true`, deploy
    `admin_create_user_v2`, and verify the new version returns `503` before any
    privileged work.
 4. Apply `sql/20260717_remove_broken_auth_trigger_304.sql` explicitly.
-5. Verify function version, catalog objects, unique indexes and the exact
-   orphan-ID set.
+5. Read the Auth configuration back again and require `disable_signup === true`.
+   With the trigger now absent, verify an anonymous signup is rejected without
+   creating an identity. Verify the function version, catalog objects, unique
+   indexes and the exact orphan-ID set (same IDs, not only the same count).
 6. Set `ADMIN_CREATE_USER_MAINTENANCE=false`, run the authorized/unauthorized
-   smoke tests, and only then lift the administrative freeze.
+   smoke tests, clean up the exact smoke identity, and verify the orphan-ID set
+   once more before lifting the administrative freeze.
 
 If any post-deploy check fails, keep public signup disabled and suspend the
 endpoint with:

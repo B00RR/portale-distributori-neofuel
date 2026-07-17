@@ -21,6 +21,30 @@
 
 BEGIN;
 
+CREATE OR REPLACE FUNCTION public.lookup_auth_user_for_provisioning(p_email text)
+RETURNS TABLE (
+  id uuid,
+  email_confirmed_at timestamptz,
+  provisioning_request_id text
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT
+    auth_user.id,
+    auth_user.email_confirmed_at,
+    auth_user.raw_app_meta_data ->> 'provisioning_request_id'
+  FROM auth.users AS auth_user
+  WHERE lower(auth_user.email) = lower(p_email)
+  LIMIT 1;
+$$;
+
+REVOKE ALL ON FUNCTION public.lookup_auth_user_for_provisioning(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.lookup_auth_user_for_provisioning(text) FROM anon;
+REVOKE ALL ON FUNCTION public.lookup_auth_user_for_provisioning(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.lookup_auth_user_for_provisioning(text) TO service_role;
+
 CREATE UNIQUE INDEX IF NOT EXISTS users_created_by_auth_key
   ON public.users (created_by_auth)
   WHERE created_by_auth IS NOT NULL;
