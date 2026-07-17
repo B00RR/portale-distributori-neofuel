@@ -4,6 +4,7 @@ import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
+import { getItalianBusinessDayEndUtc } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
@@ -142,7 +143,7 @@ export async function processExtraIncome(
   description: string,
   options?: PersistOptions
 ): Promise<void> {
-  const createdAt = options?.createdAt ?? new Date().toISOString();
+  const createdAt = options?.createdAt ?? getItalianBusinessDayEndUtc();
 
   if (shouldQueue(options)) {
     await queueAction('movement_create', {

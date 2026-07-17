@@ -30,6 +30,28 @@ describe('Sanitizer Module (Security)', () => {
         consoleWarnSpy.mockRestore();
     });
 
+    describe('escapeLikePattern', () => {
+        it('escapes % wildcard', () => {
+            expect(escapeLikePattern('100%')).toBe('100\\%');
+        });
+
+        it('escapes _ wildcard', () => {
+            expect(escapeLikePattern('A_B')).toBe('A\\_B');
+        });
+
+        it('escapes backslash', () => {
+            expect(escapeLikePattern('a\\b')).toBe('a\\\\b');
+        });
+
+        it('escapes a mix of metacharacters', () => {
+            expect(escapeLikePattern('%_\\')).toBe('\\%\\_\\\\');
+        });
+
+        it('leaves plain text unchanged', () => {
+            expect(escapeLikePattern('Rossi')).toBe('Rossi');
+        });
+    });
+
     describe('sanitizeHtml', () => {
         it('should escape script tags', () => {
             const result = sanitizeHtml('<script>alert("XSS")</script>');

@@ -10,7 +10,14 @@ import {
   openConfirmModal
 } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro, formatDate, getErrorMessage } from '../utils/utils.js';
+import {
+  escapeHtml,
+  formatEuro,
+  formatDate,
+  getErrorMessage,
+  getISODate,
+  getItalianBusinessDate
+} from '../utils/utils.js';
 
 // --- INTERFACES ---
 
@@ -225,10 +232,10 @@ async function renderActiveTab(): Promise<void> {
 
 // --- GENERATOR TAB ---
 function renderGenerator(container: HTMLElement): void {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getItalianBusinessDate();
   const nextYear = new Date();
   nextYear.setFullYear(nextYear.getFullYear() + 1);
-  const nextYearStr = nextYear.toISOString().split('T')[0];
+  const nextYearStr = getISODate(nextYear);
 
   setSafeHTML(
     container,

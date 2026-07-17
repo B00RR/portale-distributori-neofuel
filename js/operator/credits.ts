@@ -9,7 +9,12 @@ import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { showInfoModal, openModal, closeModal } from '../ui/ui.js';
 import { escapeLikePattern, setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml, formatEuro, formatDateSafe } from '../utils/utils.js';
+import {
+  escapeHtml,
+  formatEuro,
+  formatDateSafe,
+  getItalianBusinessDayEndUtc
+} from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 
@@ -24,6 +29,7 @@ interface CreditoCliente {
 }
 
 interface OfflineReplayOptions {
+  createdAt?: string;
   skipOfflineQueue?: boolean;
   requestId?: string;
 }
@@ -224,6 +230,7 @@ export async function processNewCredit(
   options?: OfflineReplayOptions
 ): Promise<void> {
   const numericStationId = toNumericId(stationId);
+  const creditDate = options?.createdAt ?? getItalianBusinessDayEndUtc();
 
   if (shouldQueue(options)) {
     await queueAction('movement_create', {
@@ -232,7 +239,8 @@ export async function processNewCredit(
       customerName,
       amount,
       product,
-      notes
+      notes,
+      ...(creditDate ? { createdAt: creditDate } : {})
     });
     return;
   }
@@ -430,6 +438,7 @@ export async function processPayment(
 ): Promise<void> {
   const numericStationId = toNumericId(stationId);
   const numericCustomerId = toNumericId(customerId);
+  const creditDate = options?.createdAt ?? getItalianBusinessDayEndUtc();
 
   if (shouldQueue(options)) {
     await queueAction('movement_create', {
@@ -437,7 +446,8 @@ export async function processPayment(
       stationId: numericStationId,
       customerId: numericCustomerId,
       amount,
-      method
+      method,
+      ...(creditDate ? { createdAt: creditDate } : {})
     });
     return;
   }

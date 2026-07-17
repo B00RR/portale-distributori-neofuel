@@ -89,11 +89,19 @@ function getExclusiveNextDay(date: string): string {
 
 // ========== MODULE ==========
 
+// Module-level subscription disposer to prevent leaked listeners when the tab is
+// re-initialized (#347).
+let activeSubscription: (() => void) | null = null;
+
 export async function showChiusureTab(
   container: HTMLElement,
   actionsContainer: HTMLElement | null,
   defaultStationId: string | null = null
 ): Promise<void> {
+  // Clean up any previous subscription before rebuilding the tab.
+  activeSubscription?.();
+  activeSubscription = null;
+
   // Basic structure
   setSafeHTML(
     container,
@@ -290,28 +298,39 @@ export async function showChiusureTab(
   // Initial Render
   await renderTable();
 
-  // Subscribe to state changes
-  const unsub = store.subscribe((key, val) => {
-    // Check if still mounted
-    if (!document.getElementById('filters-container')) {
-      unsub();
-      return;
-    }
-
-    if (key === 'filters' || key === 'stationFilter') {
-      // Always render if filters change
-      renderTable();
-    } else if (key === 'pagination') {
-      // Only render if PAGE changed. TotalCount change should be ignored (it was set by us)
-      const paginationState = val as unknown as PaginationType;
-      if (paginationState.page !== lastParams.page) {
-        renderTable();
-      } else {
-        // Just re-render pagination UI to be safe
-        pagination.render();
+  // Subscribe to state changes (only if we don't already have an active one).
+  if (activeSubscription === null) {
+    const unsub = store.subscribe((key, val) => {
+      // Check if still mounted
+      if (!document.getElementById('filters-container')) {
+        unsub();
+        return;
       }
-    }
-  });
+
+      if (key === 'filters' || key === 'stationFilter') {
+        // Always render if filters change
+        renderTable();
+      } else if (key === 'pagination') {
+        // Only render if PAGE changed. TotalCount change should be ignored (it was set by us)
+        const paginationState = val as unknown as PaginationType;
+        if (paginationState.page !== lastParams.page) {
+          renderTable();
+        } else {
+          // Just re-render pagination UI to be safe
+          pagination.render();
+        }
+      }
+    });
+
+    // Persist the disposer so re-initialization can clean it up (#347).
+    activeSubscription = unsub;
+  }
+}
+
+/** Explicitly tear down the active shifts subscription. Exported for tests. */
+export function disposeShiftsSubscription(): void {
+  activeSubscription?.();
+  activeSubscription = null;
 }
 
 export async function showClosureDetails(closureId: string | number): Promise<void> {

@@ -9,8 +9,8 @@ import { isOffline, queueAction } from '../core/offline-queue.js';
 import { handleError } from '../shared/error-handler.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, showInfoModal } from '../ui/ui.js';
-import { setSafeHTML } from '../utils/sanitizer.js';
-import { escapeHtml } from '../utils/utils.js';
+import { setSafeHTML, escapeLikePattern } from '../utils/sanitizer.js';
+import { escapeHtml, getItalianBusinessDate } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
 import { createErrorMessage, createFormActions } from './ui-components.js';
@@ -35,10 +35,6 @@ interface PersistOptions {
 
 function shouldQueue(options?: PersistOptions): boolean {
   return !options?.skipOfflineQueue && isOffline();
-}
-
-function todayIsoDate(): string {
-  return new Date().toISOString().split('T')[0] as string;
 }
 
 async function findExistingCustomer(
@@ -282,8 +278,9 @@ function renderExistingCustomerForm(
         const { data: customers, error } = await supabase
           .from('clienti_fatturazione')
           .select('id, nome, telefono, partita_iva')
-          .ilike('nome', `%${query}%`)
-          .limit(8);
+          .ilike('nome', `%${escapeLikePattern(query)}%`)
+          .order('nome', { ascending: true })
+          .limit(10);
         if (error) throw error;
         setSafeHTML(
           suggestionsDiv,
@@ -438,7 +435,7 @@ export async function processInvoiceRequest(
 ): Promise<void> {
   const createdAt = options?.createdAt ?? new Date().toISOString();
   const invoiceNumber = options?.invoiceNumber ?? `REQ-${Date.now()}`;
-  const invoiceDate = options?.invoiceDate ?? todayIsoDate();
+  const invoiceDate = options?.invoiceDate ?? getItalianBusinessDate();
 
   const numericUserId = Number(userId);
   if (!Number.isFinite(numericUserId) || numericUserId <= 0) {
