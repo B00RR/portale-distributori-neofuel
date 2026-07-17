@@ -136,6 +136,60 @@ describe('Cache Module', () => {
         });
     });
 
+    // #349: un fetch ancora in volo non deve ripopolare una chiave invalidata
+    // nel frattempo, altrimenti la cache diverge dallo stato reale del DB.
+    describe('atomic invalidation vs in-flight fetches', () => {
+        function deferredFetch<T>(): { fetchFn: () => Promise<T>; resolve: (value: T) => void } {
+            let resolveFn!: (value: T) => void;
+            const fetchFn = vi.fn(
+                () =>
+                    new Promise<T>(resolve => {
+                        resolveFn = resolve;
+                    })
+            );
+            return { fetchFn, resolve: value => resolveFn(value) };
+        }
+
+        it('invalidate during an in-flight fetch prevents stale repopulation', async () => {
+            const { fetchFn, resolve } = deferredFetch<string>();
+
+            const pending = Cache.getOrFetch('stations', fetchFn, 60000);
+            Cache.invalidate('stations');
+            resolve('stale-data');
+
+            // Il chiamante riceve comunque il dato che aveva richiesto...
+            await expect(pending).resolves.toBe('stale-data');
+            // ...ma la cache non viene ripopolata con dati pre-invalidazione.
+            expect(Cache.get('stations')).toBeNull();
+
+            const refetch = vi.fn(async () => 'fresh-data');
+            await expect(Cache.getOrFetch('stations', refetch, 60000)).resolves.toBe('fresh-data');
+            expect(refetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('invalidateByPrefix during an in-flight fetch prevents stale repopulation', async () => {
+            const { fetchFn, resolve } = deferredFetch<string>();
+
+            const pending = Cache.getOrFetch('station_9', fetchFn, 60000);
+            Cache.invalidateByPrefix('station_');
+            resolve('old-name');
+
+            await expect(pending).resolves.toBe('old-name');
+            expect(Cache.get('station_9')).toBeNull();
+        });
+
+        it('clear during an in-flight fetch prevents stale repopulation', async () => {
+            const { fetchFn, resolve } = deferredFetch<string>();
+
+            const pending = Cache.getOrFetch('stations', fetchFn, 60000);
+            Cache.clear();
+            resolve('old-list');
+
+            await expect(pending).resolves.toBe('old-list');
+            expect(Cache.get('stations')).toBeNull();
+        });
+    });
+
     describe('getStats', () => {
         it('should return accurate stats', async () => {
             const fetchFn = vi.fn(async () => ['data']);

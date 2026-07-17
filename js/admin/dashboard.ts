@@ -1,7 +1,8 @@
-import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
+import { supabase } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { DEFAULT_BUSINESS_RULES } from '../core/business-rules-schema.js';
 import { logger } from '../core/logger.js';
+import { getStations } from '../core/stations-cache.js';
 import type { SortableConstructor, ChartConstructor } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
@@ -458,37 +459,13 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
 
   const { data: closuresData } = await closuresQuery;
 
-  // Recupera tutti i distributori (o solo quello filtrato)
+  // Recupera tutti i distributori (o solo quello filtrato) dalla sorgente
+  // unica (#349): il filtro è applicato client-side sulla lista canonica,
+  // così non esistono indici `stations_filtered_<id>` che possono divergere.
+  const stationRows = await getStations();
   const allStations = numericStationId
-    ? await Cache.getOrFetch(
-        `${CACHE_KEYS.STATIONS}_filtered_${numericStationId}`,
-        async () => {
-          const { data, error } = await supabase
-            .from('fuel_stations')
-            .select('station_id, station_name')
-            .eq('station_id', numericStationId)
-            .order('station_name');
-          if (error) {
-            throw error;
-          }
-          return data;
-        },
-        10 * 60 * 1000
-      )
-    : await Cache.getOrFetch(
-        CACHE_KEYS.STATIONS,
-        async () => {
-          const { data, error } = await supabase
-            .from('fuel_stations')
-            .select('station_id, station_name')
-            .order('station_name');
-          if (error) {
-            throw error;
-          }
-          return data;
-        },
-        10 * 60 * 1000
-      );
+    ? stationRows.filter(st => st.station_id === numericStationId)
+    : [...stationRows].sort((a, b) => a.station_name.localeCompare(b.station_name));
 
   // Raggruppa vendite per data e distributore
   const salesByDateAndStation = new Map<string, Map<number, number>>();

@@ -80,6 +80,8 @@ vi.mock('../../js/admin/tanks.js', () => ({
 }));
 
 import { useRealLogger } from '../use-real-logger.js';
+// La cache reale (non mockata) è parte del contratto sotto test (#349).
+import { Cache, CACHE_KEYS } from '../../js/utils/cache.js';
 
 useRealLogger();
 
@@ -103,6 +105,7 @@ describe('Stations Module', () => {
         document.body.appendChild(modalBody);
 
         vi.clearAllMocks();
+        Cache.clear();
         consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     });
@@ -219,6 +222,75 @@ describe('Stations Module', () => {
             }
 
             expect(navUpdate).toHaveBeenCalled();
+        });
+    });
+
+    // #349: ogni modifica di una stazione deve invalidare tutti e soltanto
+    // gli indici interessati (lista `stations` e record `station_<id>`).
+    describe('cache invalidation on station changes (#349)', () => {
+        it('update invalidates the station list and the station record', async () => {
+            const { supabase } = await import('../../js/core/api.js');
+            vi.mocked(supabase.from).mockReturnValue({
+                select: () => ({
+                    eq: () => ({
+                        single: () => Promise.resolve({ data: { station_id: 1, station_name: 'Old' }, error: null })
+                    })
+                }),
+                update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) }))
+            } as unknown as ReturnType<typeof supabase.from>);
+
+            await openStationModal(1);
+
+            Cache.set(CACHE_KEYS.STATIONS, [{ station_id: 1, station_name: 'Old' }]);
+            Cache.set(`${CACHE_KEYS.STATION_PREFIX}1`, 'Old');
+            Cache.set(`${CACHE_KEYS.STATION_PREFIX}2`, 'Altro');
+
+            const form = document.getElementById('station-form') as HTMLFormElement;
+            const nameInput = form.querySelector('input[name="station_name"]') as HTMLInputElement;
+            nameInput.value = 'Nuovo Nome';
+            form.requestSubmit();
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            expect(Cache.get(CACHE_KEYS.STATIONS)).toBeNull();
+            expect(Cache.get(`${CACHE_KEYS.STATION_PREFIX}1`)).toBeNull();
+            // Le altre stazioni non sono toccate dall'update.
+            expect(Cache.get(`${CACHE_KEYS.STATION_PREFIX}2`)).toBe('Altro');
+        });
+
+        it('create invalidates the station list but not per-station records', async () => {
+            const { supabase } = await import('../../js/core/api.js');
+            vi.mocked(supabase.from).mockReturnValue({
+                insert: vi.fn(() => Promise.resolve({ error: null }))
+            } as unknown as ReturnType<typeof supabase.from>);
+
+            await openStationModal();
+
+            Cache.set(CACHE_KEYS.STATIONS, []);
+            Cache.set(`${CACHE_KEYS.STATION_PREFIX}1`, 'Esistente');
+
+            const form = document.getElementById('station-form') as HTMLFormElement;
+            const nameInput = form.querySelector('input[name="station_name"]') as HTMLInputElement;
+            nameInput.value = 'Nuova Stazione';
+            form.requestSubmit();
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            expect(Cache.get(CACHE_KEYS.STATIONS)).toBeNull();
+            expect(Cache.get(`${CACHE_KEYS.STATION_PREFIX}1`)).toBe('Esistente');
+        });
+
+        it('delete invalidates the station list and the station record', async () => {
+            const { supabase } = await import('../../js/core/api.js');
+            vi.mocked(supabase.from).mockReturnValue({
+                delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) }))
+            } as unknown as ReturnType<typeof supabase.from>);
+
+            Cache.set(CACHE_KEYS.STATIONS, [{ station_id: 1 }]);
+            Cache.set(`${CACHE_KEYS.STATION_PREFIX}1`, 'Da Eliminare');
+
+            await deleteStation(1);
+
+            expect(Cache.get(CACHE_KEYS.STATIONS)).toBeNull();
+            expect(Cache.get(`${CACHE_KEYS.STATION_PREFIX}1`)).toBeNull();
         });
     });
 
