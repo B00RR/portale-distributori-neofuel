@@ -2,9 +2,9 @@ name: 🧪 Elite Quality Gate
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   lint:
@@ -26,7 +26,11 @@ jobs:
         run: npx eslint js --max-warnings 0
 
       - name: Run Prettier Check
-        run: npx --yes prettier --check "js/**/*.{js,ts}"
+        run: >-
+          npx --yes prettier --check
+          "js/**/*.{js,ts}"
+          "supabase/functions/admin_create_user_v2/*.ts"
+          "tests/unit/admin-create-user-v2*.test.ts"
 
   type-check:
     name: 🧩 TypeScript
@@ -45,6 +49,38 @@ jobs:
 
       - name: Run type-check
         run: npm run type-check
+
+      - name: Type-check issue 304 Edge seams
+        run: >-
+          npx tsc --noEmit
+          --target ESNext
+          --module ESNext
+          --moduleResolution bundler
+          --lib ESNext,DOM
+          --types vitest/globals
+          --strict
+          --skipLibCheck
+          --allowImportingTsExtensions
+          tests/unit/admin-create-user-v2.test.ts
+          tests/unit/admin-create-user-v2-dependencies.test.ts
+          supabase/functions/admin_create_user_v2/handler.ts
+          supabase/functions/admin_create_user_v2/dependencies.ts
+
+  deno-check:
+    name: 🦕 Edge Function Deno Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.3
+
+      - name: Check admin_create_user_v2
+        run: >-
+          deno check --node-modules-dir=auto
+          supabase/functions/admin_create_user_v2/index.ts
 
   unit-tests:
     name: 🧪 Unit & Integration Tests
@@ -144,31 +180,31 @@ jobs:
 
   build-check:
     runs-on: ubuntu-latest
-    needs: [lint, type-check, unit-tests, security-scan]
+    needs: [lint, type-check, deno-check, unit-tests, security-scan]
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
 
-    - run: npm ci
-    - name: Build Application
-      run: npm run build
-      env:
-        VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
+      - run: npm ci
+      - name: Build Application
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
 
-    - name: Archive Production Build
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist
-        path: dist/
+      - name: Archive Production Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
 
   report:
     name: 📊 Test Summary
     runs-on: ubuntu-latest
-    needs: [lint, type-check, unit-tests, e2e-tests, security-scan, build-check]
+    needs: [lint, type-check, deno-check, unit-tests, e2e-tests, security-scan, build-check]
     if: always()
     steps:
       - name: Check Results
@@ -176,6 +212,7 @@ jobs:
           echo "Quality gate summary:"
           echo "Lint: ${{ needs.lint.result }}"
           echo "Type-check: ${{ needs.type-check.result }}"
+          echo "Deno check: ${{ needs.deno-check.result }}"
           echo "Unit Tests: ${{ needs.unit-tests.result }}"
           echo "E2E Tests: ${{ needs.e2e-tests.result }}"
           echo "Security Scan: ${{ needs.security-scan.result }}"
@@ -183,6 +220,7 @@ jobs:
 
           if [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.type-check.result }}" != "success" ] || \
+             [ "${{ needs.deno-check.result }}" != "success" ] || \
              [ "${{ needs.unit-tests.result }}" != "success" ] || \
              [ "${{ needs.e2e-tests.result }}" != "success" ] || \
              [ "${{ needs.security-scan.result }}" != "success" ] || \
