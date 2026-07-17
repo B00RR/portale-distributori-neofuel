@@ -3,6 +3,7 @@
  * Handles user authentication, login, logout, and password reset
  */
 
+import { deriveAuthAlias } from '../../supabase/functions/_shared/auth-identity.js';
 import { handleError } from '../shared/error-handler.js';
 import { isBackofficeRole, normalizeUserRole, type UserRole } from '../shared/roles.js';
 import { Toast } from '../ui/toast.js';
@@ -47,6 +48,8 @@ export interface LoggedUserData {
 }
 
 export type LoginSuccessCallback = (user: LoggedUserData) => void;
+
+const INVALID_LOGIN_MESSAGE = 'Username o password errati.';
 
 // ========== MODULE STATE ==========
 
@@ -215,6 +218,7 @@ export function setupLoginForm(): void {
       return;
     }
 
+    let authenticationSucceeded = false;
     try {
       showFullScreenLoader();
       const submitBtn = loginForm?.querySelector(
@@ -226,25 +230,10 @@ export function setupLoginForm(): void {
       const loginContainer = document.getElementById('login-container');
       const appContainer = document.getElementById('app-container');
 
-      // Resolve the hidden auth email from the username before calling Supabase Auth.
-      const { data: userByUsername, error: lookupError } = await supabase
-        .from('users')
-        .select('email')
-        .eq('username', username.trim().toLowerCase())
-        .maybeSingle();
-
-      if (lookupError || !userByUsername?.email) {
-        logger.error('auth', 'Username lookup failed:', lookupError);
-        if (errorElement) {
-          errorElement.textContent = 'Username o password errati.';
-        }
-        return;
-      }
-
-      const resolvedEmail = userByUsername.email;
+      const authAlias = deriveAuthAlias(username);
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: resolvedEmail,
+        email: authAlias,
         password: password
       });
 
@@ -253,27 +242,9 @@ export function setupLoginForm(): void {
       if (authError) {
         logger.error('auth', 'Auth error:', authError);
 
-        // Email not confirmed error
-        if (
-          authError.message &&
-          (authError.message.includes('Email not confirmed') ||
-            authError.message.includes('email_not_confirmed'))
-        ) {
-          if (errorElement) {
-            errorElement.textContent =
-              "Account non confermato. Contatta l'amministratore per la convalida.";
-          }
-          return;
-        }
-
-        // Invalid credentials or other errors - NO DATABASE FALLBACK
+        // Auth errors never fall back to the application database.
         if (errorElement) {
-          errorElement.textContent =
-            authError.message === 'Invalid login credentials' ||
-            authError.message.includes('Invalid') ||
-            authError.message.includes('invalid')
-              ? 'Username o password errati.'
-              : `Errore: ${authError.message === 'User not found' ? 'Utente non trovato' : authError.message}`;
+          errorElement.textContent = INVALID_LOGIN_MESSAGE;
         }
         return;
       }
@@ -281,20 +252,16 @@ export function setupLoginForm(): void {
       if (!authData?.user) {
         logger.error('auth', 'No user data returned');
         if (errorElement) {
-          errorElement.textContent = 'Errore durante il login. Riprova.';
+          errorElement.textContent = INVALID_LOGIN_MESSAGE;
         }
         return;
       }
+      authenticationSucceeded = true;
 
-      // Fetch user data from database using authenticated user's email
+      // Load the server-authoritative profile only after Auth succeeds. The
+      // immutable Auth UUID keeps this lookup valid during an email-alias migration.
       if (authData?.user) {
-        if (!authData.user.email) {
-          if (errorElement) {
-            errorElement.textContent = 'Errore: email utente non disponibile.';
-          }
-          return;
-        }
-        const userEmail = authData.user.email;
+        const userEmail = authData.user.email ?? authAlias;
 
         const { data: dbUserData, error: userError } = await supabase
           .from('users')
@@ -307,7 +274,7 @@ export function setupLoginForm(): void {
                     )
                 `
           )
-          .eq('email', userEmail)
+          .eq('created_by_auth', authData.user.id)
           .maybeSingle();
 
         if (userError || !dbUserData) {
@@ -415,9 +382,16 @@ export function setupLoginForm(): void {
       }
     } catch (err: unknown) {
       logger.error('auth', 'Errore durante il login (catch):', err);
+      loggedUser = null;
+      if (authenticationSucceeded) {
+        try {
+          await supabase.auth.signOut();
+        } catch (signOutErr) {
+          logger.error('auth', 'signOut failed after authenticated login exception:', signOutErr);
+        }
+      }
       if (errorElement) {
-        const message = err instanceof Error ? err.message : 'Errore sconosciuto';
-        errorElement.textContent = `Errore durante il login: ${message}`;
+        errorElement.textContent = INVALID_LOGIN_MESSAGE;
       }
     } finally {
       hideFullScreenLoader();
@@ -447,10 +421,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
       return null;
     }
 
-    const email = session.user.email;
-    if (!email) {
-      return null;
-    }
+    const email = session.user.email ?? '';
 
     const { data: dbUserData, error: profileError } = await supabase
       .from('users')
@@ -463,7 +434,7 @@ export async function loadSession(): Promise<LoggedUserData | null> {
                 )
             `
       )
-      .eq('email', email)
+      .eq('created_by_auth', session.user.id)
       .maybeSingle();
 
     if (profileError || !dbUserData) {

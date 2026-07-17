@@ -32,16 +32,37 @@ describe('Zod Schemas (real validation)', () => {
       }
     });
 
-    it('rejects a username with surrounding whitespace (real behavior: regex runs before .trim())', () => {
+    it('trims surrounding whitespace before validating the username', () => {
+      const res = safeParse(LoginSchema, {
+        username: '  Operatore01  ',
+        password: 'secret1'
+      });
+
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.username).toBe('operatore01');
+      }
+    });
+
+    it('enforces the exact username length boundaries after trim', () => {
+      expect(safeParse(LoginSchema, { username: 'abc', password: 'secret1' }).success).toBe(true);
       expect(
-        safeParse(LoginSchema, { username: '  operatore01  ', password: 'secret1' }).success
+        safeParse(LoginSchema, { username: 'a'.repeat(32), password: 'secret1' }).success
+      ).toBe(true);
+      expect(safeParse(LoginSchema, { username: 'ab', password: 'secret1' }).success).toBe(false);
+      expect(
+        safeParse(LoginSchema, { username: 'a'.repeat(33), password: 'secret1' }).success
       ).toBe(false);
     });
 
-    it('rejects an invalid username', () => {
-      const res = safeParse(LoginSchema, { username: 'op!', password: 'secret1' });
-      expect(res.success).toBe(false);
-    });
+    it.each(['admin operator', 'operator+admin', 'operat\u00f6r'])(
+      'rejects invalid username %j',
+      value => {
+        expect(safeParse(LoginSchema, { username: value, password: 'secret1' }).success).toBe(
+          false
+        );
+      }
+    );
 
     it('rejects a password shorter than 6 chars (boundary)', () => {
       expect(safeParse(LoginSchema, { username: 'operatore01', password: '12345' }).success).toBe(
@@ -63,6 +84,15 @@ describe('Zod Schemas (real validation)', () => {
 
     it('accepts a valid user', () => {
       expect(safeParse(CreateUserSchema, base).success).toBe(true);
+    });
+
+    it('uses the same trim and lowercase contract as LoginSchema', () => {
+      const res = safeParse(CreateUserSchema, { ...base, username: '  OPERATORE.01  ' });
+
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.username).toBe('operatore.01');
+      }
     });
 
     it('accepts the canonical full_admin role', () => {

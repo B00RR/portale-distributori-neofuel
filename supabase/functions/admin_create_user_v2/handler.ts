@@ -1,3 +1,5 @@
+import { parseUsernameIdentity } from '../_shared/auth-identity.ts';
+
 export interface CallerProfile {
   role: string;
   is_active: boolean | null;
@@ -78,12 +80,11 @@ const ALLOWED_NEW_USER_ROLES = new Set([
   'billing'
 ]);
 
-const USERNAME_RE = /^[a-zA-Z0-9_.-]{3,32}$/;
 const REQUEST_ID_RE = /^[a-zA-Z0-9._:-]{1,128}$/;
-const INTERNAL_EMAIL_DOMAIN = 'neofuel.local';
 
 interface CreateUserBody {
   username: string;
+  authAlias: string;
   password: string;
   full_name: string;
   role: string;
@@ -97,10 +98,10 @@ function parseCreateUserBody(body: unknown): CreateUserBody | null {
   const fullName = 'full_name' in body ? body.full_name : undefined;
   const role = 'role' in body ? body.role : undefined;
 
+  const usernameIdentity = parseUsernameIdentity(username);
   const normalizedFullName = typeof fullName === 'string' ? fullName.trim() : '';
   if (
-    typeof username !== 'string' ||
-    !USERNAME_RE.test(username.trim()) ||
+    !usernameIdentity.success ||
     typeof password !== 'string' ||
     password.length < 6 ||
     normalizedFullName.length < 2 ||
@@ -112,7 +113,8 @@ function parseCreateUserBody(body: unknown): CreateUserBody | null {
   }
 
   return {
-    username: username.trim().toLowerCase(),
+    username: usernameIdentity.data.username,
+    authAlias: usernameIdentity.data.authAlias,
     password,
     full_name: normalizedFullName,
     role
@@ -191,7 +193,7 @@ export function createAdminUserHandler(
       return jsonResponse({ error: 'Dati utente non validi' }, 400);
     }
 
-    const email = `${parsedBody.username}@${INTERNAL_EMAIL_DOMAIN}`;
+    const email = parsedBody.authAlias;
     let authUser: CreatedAuthUser;
     try {
       authUser = await dependencies.createAuthUser({

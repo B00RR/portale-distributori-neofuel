@@ -169,6 +169,34 @@ describe('admin_create_user_v2 handler', () => {
     expect(dependencies.deleteAuthUser).not.toHaveBeenCalled();
   });
 
+  it('uses the canonical trim, lowercase and Auth alias contract', async () => {
+    const dependencies = makeDependencies({
+      getCallerProfile: vi.fn().mockResolvedValue({ role: 'admin', is_active: true }),
+      createAuthUser: vi.fn().mockResolvedValue({
+        id: '12121212-1212-4212-8212-121212121212',
+        emailConfirmed: false
+      }),
+      createProfile: vi.fn().mockResolvedValue(undefined)
+    });
+    const handler = createAdminUserHandler(dependencies);
+
+    const response = await handler(makeRequest({ ...validBody, username: '  TEST.Operator_01  ' }));
+
+    expect(response.status).toBe(201);
+    expect(dependencies.createAuthUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'test.operator_01@neofuel.local',
+        user_metadata: expect.objectContaining({ username: 'test.operator_01' })
+      })
+    );
+    expect(dependencies.createProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        username: 'test.operator_01',
+        email: 'test.operator_01@neofuel.local'
+      })
+    );
+  });
+
   it('deletes the new Auth identity when profile creation fails', async () => {
     const dependencies = makeDependencies({
       getCallerProfile: vi.fn().mockResolvedValue({ role: 'admin', is_active: true }),

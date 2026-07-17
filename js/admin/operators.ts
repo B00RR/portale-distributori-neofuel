@@ -236,7 +236,7 @@ export async function openOperatorModal(userId: string | null = null): Promise<v
       </div>
       <div class="form-group">
         <label>Username</label>
-        <input type="text" name="username" value="${escapeHtml(user.username || '')}" required ${isEdit ? 'readonly' : ''} pattern="[a-zA-Z0-9_.-]{3,32}" title="3-32 caratteri: lettere, numeri, . _ -">
+        <input type="text" name="username" value="${escapeHtml(user.username || '')}" required ${isEdit ? 'readonly' : ''} title="3-32 caratteri: lettere, numeri, . _ -; gli spazi esterni vengono ignorati">
       </div>
       ${
         isEdit

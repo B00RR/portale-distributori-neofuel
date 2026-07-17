@@ -108,7 +108,7 @@ describe('Auth Module', () => {
       data: {
         user: {
           id: 'test-id',
-          email: 'test@example.com',
+          email: 'testuser@neofuel.local',
           user_metadata: {}
         }
       },
@@ -135,17 +135,87 @@ describe('Auth Module', () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it('should successfully login with valid credentials', async () => {
+  it('authenticates with the deterministic alias before loading the trusted profile', async () => {
+    const events: string[] = [];
+    const profileQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          user_id: 7,
+          role: 'operator',
+          email: 'testuser@neofuel.local',
+          full_name: 'Test Operator'
+        },
+        error: null
+      })
+    };
+    mockSupabase.auth.signInWithPassword.mockImplementation(async () => {
+      events.push('auth');
+      return {
+        data: {
+          user: {
+            id: 'test-id',
+            email: 'testuser@neofuel.local',
+            user_metadata: {}
+          }
+        },
+        error: null
+      };
+    });
+    mockSupabase.from.mockImplementation(() => {
+      events.push('profile');
+      return profileQuery;
+    });
+
     const form = document.getElementById('login-form') as HTMLFormElement;
     form.dispatchEvent(new Event('submit'));
 
-    await new Promise(r => setTimeout(r, 50));
+    await vi.waitFor(() => expect(mockRateLimiter.resetRateLimit).toHaveBeenCalled());
 
-    expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalled();
+    expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledWith({
+      email: 'testuser@neofuel.local',
+      password: 'password123'
+    });
+    expect(events).toEqual(['auth', 'profile']);
+    expect(profileQuery.eq).toHaveBeenCalledWith('created_by_auth', 'test-id');
     expect(mockUI.showFullScreenLoader).toHaveBeenCalled();
-    // #255: nessun callback di successo è registrato in questo test, ma il
-    // rate limit del login va comunque azzerato.
     expect(mockRateLimiter.resetRateLimit).toHaveBeenCalledWith('login:testuser');
+  });
+
+  it('does not load a profile while authentication is still pending', async () => {
+    let resolveAuth:
+      | ((value: {
+          data: {
+            user: { id: string; email: string; user_metadata: Record<string, never> };
+          };
+          error: null;
+        }) => void)
+      | undefined;
+    mockSupabase.auth.signInWithPassword.mockReturnValue(
+      new Promise(resolve => {
+        resolveAuth = resolve;
+      })
+    );
+
+    const form = document.getElementById('login-form') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit'));
+    await Promise.resolve();
+
+    expect(mockSupabase.from).not.toHaveBeenCalled();
+
+    resolveAuth?.({
+      data: {
+        user: {
+          id: 'test-id',
+          email: 'testuser@neofuel.local',
+          user_metadata: {}
+        }
+      },
+      error: null
+    });
+
+    await vi.waitFor(() => expect(mockSupabase.from).toHaveBeenCalledWith('users'));
   });
 
   it('does not call Supabase auth when required fields are empty (#62)', async () => {
@@ -195,10 +265,13 @@ describe('Auth Module', () => {
     expect(confirmPasswordToggle.getAttribute('aria-label')).toBe('Mostra password');
   });
 
-  it('should handle invalid credentials', async () => {
+  it.each([
+    ['unknown username', 'User not found'],
+    ['wrong password', 'Invalid login credentials']
+  ])('uses an indistinguishable message for %s', async (_case, authMessage) => {
     mockSupabase.auth.signInWithPassword.mockResolvedValue({
       data: { user: null },
-      error: { message: 'Invalid login credentials' }
+      error: { message: authMessage }
     });
 
     const form = document.getElementById('login-form') as HTMLFormElement;
@@ -207,14 +280,39 @@ describe('Auth Module', () => {
     await new Promise(r => setTimeout(r, 50)); // Allow microtasks to drain
 
     const errorDiv = document.getElementById('login-error');
-    expect(errorDiv?.textContent).toContain('Username o password errati');
+    expect(errorDiv?.textContent).toBe('Username o password errati.');
+    expect(mockSupabase.from).not.toHaveBeenCalled();
     expect(consoleErrorSpy).toHaveBeenCalled();
+  });
+
+  it('does not fall back to the database when Supabase Auth throws', async () => {
+    mockSupabase.auth.signInWithPassword.mockRejectedValue(new Error('Auth service unavailable'));
+
+    const form = document.getElementById('login-form') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit'));
+
+    await vi.waitFor(() => {
+      expect(document.getElementById('login-error')?.textContent).toBe(
+        'Username o password errati.'
+      );
+    });
+
+    expect(mockSupabase.from).not.toHaveBeenCalled();
   });
 
   it('rejects login when the trusted DB profile is missing despite admin user metadata', async () => {
     const onLoginSuccess = vi.fn();
     authModule.setOnLoginSuccess(onLoginSuccess);
-    // Ensure username lookup returns no profile
+    mockSupabase.auth.signInWithPassword.mockResolvedValue({
+      data: {
+        user: {
+          id: 'test-id',
+          email: 'testuser@neofuel.local',
+          user_metadata: { role: 'admin' }
+        }
+      },
+      error: null
+    });
     mockSupabase.from.mockReturnValue({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
@@ -226,12 +324,32 @@ describe('Auth Module', () => {
 
     await new Promise(r => setTimeout(r, 50));
 
+    expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledOnce();
     expect(mockSupabase.from).toHaveBeenCalledWith('users');
     expect(authModule.loggedUser).toBeNull();
     expect(onLoginSuccess).not.toHaveBeenCalled();
+    expect(mockSupabase.auth.signOut).toHaveBeenCalledOnce();
     expect(document.getElementById('login-error')?.textContent).toContain(
-      'Username o password errati'
+      'Profilo utente non disponibile'
     );
+  });
+
+  it('signs out fail-closed when the trusted profile query throws after authentication', async () => {
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockRejectedValue(new Error('profile transport failed'))
+    });
+
+    const form = document.getElementById('login-form') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit'));
+
+    await vi.waitFor(() => expect(mockSupabase.auth.signOut).toHaveBeenCalledOnce());
+
+    expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledOnce();
+    expect(mockSupabase.from).toHaveBeenCalledTimes(1);
+    expect(authModule.loggedUser).toBeNull();
+    expect(document.getElementById('login-error')?.textContent).toBe('Username o password errati.');
   });
 
   it('uses the trusted DB role instead of admin user metadata', async () => {
