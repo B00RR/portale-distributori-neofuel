@@ -1,5 +1,6 @@
-import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
+import { supabase, safeSupabaseQuery } from '../core/api.js';
 import { CreateUserSchema, UpdateUserSchema, safeParse } from '../core/schemas.js';
+import { getStations } from '../core/stations-cache.js';
 import { handleError } from '../shared/error-handler.js';
 import type { UserRole } from '../shared/roles.js';
 import { Toast } from '../ui/toast.js';
@@ -386,17 +387,7 @@ export async function openAssignStationModal(userId: string): Promise<void> {
 
   try {
     const [stationsData, currentRes] = await Promise.all([
-      Cache.getOrFetch(
-        CACHE_KEYS.STATIONS,
-        async () => {
-          const { data, error } = await supabase.from('fuel_stations').select('*');
-          if (error) {
-            throw error;
-          }
-          return data;
-        },
-        10 * 60 * 1000
-      ),
+      getStations(),
       supabase
         .from('user_stations')
         .select('station_id')
@@ -406,7 +397,7 @@ export async function openAssignStationModal(userId: string): Promise<void> {
 
     if (currentRes.error) throw currentRes.error;
 
-    const stations = (stationsData as FuelStation[]) || [];
+    const stations: FuelStation[] = stationsData;
     const currentStationId = currentRes.data?.station_id;
 
     const html = `

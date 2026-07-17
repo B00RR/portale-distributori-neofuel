@@ -20,6 +20,14 @@ export interface CacheStats {
 // Internal storage
 const cacheStore = new Map<string, CacheEntry>();
 
+// Epoch per chiave, incrementato a ogni invalidazione: un fetch ancora in volo
+// non deve ripopolare una chiave invalidata nel frattempo (#349).
+const keyEpochs = new Map<string, number>();
+
+function bumpEpoch(key: string): void {
+  keyEpochs.set(key, (keyEpochs.get(key) ?? 0) + 1);
+}
+
 /**
  * Cache utility to store data with expiration (TTL)
  */
@@ -64,6 +72,7 @@ export const Cache = {
    */
   invalidate(key: string): void {
     cacheStore.delete(key);
+    bumpEpoch(key);
   },
 
   /**
@@ -76,6 +85,13 @@ export const Cache = {
         cacheStore.delete(key);
       }
     }
+    // Anche le chiavi con un fetch in volo (registrate in keyEpochs ma non
+    // ancora in cacheStore) devono risultare invalidate.
+    for (const key of keyEpochs.keys()) {
+      if (key.startsWith(prefix)) {
+        bumpEpoch(key);
+      }
+    }
   },
 
   /**
@@ -83,6 +99,9 @@ export const Cache = {
    */
   clear(): void {
     cacheStore.clear();
+    for (const key of keyEpochs.keys()) {
+      bumpEpoch(key);
+    }
   },
 
   /**
@@ -103,8 +122,15 @@ export const Cache = {
       return cached;
     }
 
+    if (!keyEpochs.has(key)) {
+      keyEpochs.set(key, 0);
+    }
+    const epochAtFetch = keyEpochs.get(key);
+
     const data = await fetchFn();
-    if (data !== null && data !== undefined) {
+    // Se la chiave è stata invalidata mentre il fetch era in volo, il dato è
+    // già potenzialmente stantio: va restituito al chiamante ma non cachato.
+    if (data !== null && data !== undefined && keyEpochs.get(key) === epochAtFetch) {
       this.set(key, data, ttl);
     }
     return data;

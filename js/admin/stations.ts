@@ -3,8 +3,9 @@
  * CRUD for fuel stations / distributors
  */
 
-import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
+import { supabase, safeSupabaseQuery } from '../core/api.js';
 import { logger } from '../core/logger.js';
+import { getStations, invalidateStationCaches } from '../core/stations-cache.js';
 import { handleError } from '../shared/error-handler.js';
 import {
   showLoadingMessage,
@@ -54,23 +55,7 @@ export async function showStationsTab(
   }
 
   try {
-    const rawStations = await Cache.getOrFetch(
-      CACHE_KEYS.STATIONS,
-      async () => {
-        const { data, error } = await supabase
-          .from('fuel_stations')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          throw error;
-        }
-        return data;
-      },
-      10 * 60 * 1000
-    ); // Cache for 10 minutes
-
-    const stations = rawStations as FuelStation[];
+    const stations = await getStations();
 
     if (!stations || stations.length === 0) {
       setSafeHTML(container, '<p>Nessun distributore trovato.</p>');
@@ -299,8 +284,8 @@ export async function openStationModal(stationId: number | null = null): Promise
       }
       closeModal();
 
-      // Invalidate cache
-      Cache.invalidate(CACHE_KEYS.STATIONS);
+      // Invalidate list and (on edit) the station record caches (#349)
+      invalidateStationCaches(isEdit && stationId ? stationId : undefined);
 
       // Dispatch event
       const event = new CustomEvent('stations-updated');
@@ -329,8 +314,8 @@ export async function deleteStation(stationId: number): Promise<void> {
       supabase.from('fuel_stations').delete().eq('station_id', stationId)
     );
 
-    // Invalidate cache
-    Cache.invalidate(CACHE_KEYS.STATIONS);
+    // Invalidate list and station record caches (#349)
+    invalidateStationCaches(stationId);
 
     const event = new CustomEvent('stations-updated');
     document.dispatchEvent(event);

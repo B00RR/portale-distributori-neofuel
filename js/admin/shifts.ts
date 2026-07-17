@@ -1,6 +1,7 @@
-import { supabase, Cache, CACHE_KEYS } from '../core/api.js';
+import { supabase } from '../core/api.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { logger } from '../core/logger.js';
+import { getStations } from '../core/stations-cache.js';
 import { handleError } from '../shared/error-handler.js';
 import { store, type Pagination as PaginationType } from '../shared/state.js';
 import { Toast } from '../ui/toast.js';
@@ -471,24 +472,10 @@ export async function openBulkExportModal(): Promise<void> {
   // Fetch stations for dropdown
   let stationsHtml = '<option value="all">Tutte le stazioni</option>';
   try {
-    const stations = await Cache.getOrFetch(
-      CACHE_KEYS.STATIONS,
-      async () => {
-        const { data, error } = await supabase
-          .from('fuel_stations')
-          .select('station_id, station_name');
-        if (error) {
-          throw error;
-        }
-        return data;
-      },
-      10 * 60 * 1000
-    );
-    if (stations) {
-      stations.forEach((s: Record<string, unknown>) => {
-        stationsHtml += `<option value="${escapeHtml(String(s.station_id))}">${escapeHtml(String(s.station_name))}</option>`;
-      });
-    }
+    const stations = await getStations();
+    stations.forEach(s => {
+      stationsHtml += `<option value="${escapeHtml(String(s.station_id))}">${escapeHtml(String(s.station_name))}</option>`;
+    });
   } catch (e) {
     logger.error('shifts', e);
   }

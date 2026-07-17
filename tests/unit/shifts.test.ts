@@ -314,7 +314,9 @@ describe('Shifts Module', () => {
             fromMock.mockImplementation((table) => {
                 if (table === 'fuel_stations') {
                     return {
-                        select: vi.fn(() => Promise.resolve({ data: mockStations, error: null }))
+                        select: vi.fn(() => ({
+                            order: vi.fn(() => Promise.resolve({ data: mockStations, error: null }))
+                        }))
                     } as unknown as ReturnType<typeof supabase.from>;
                 }
                 // Default shift query fallback

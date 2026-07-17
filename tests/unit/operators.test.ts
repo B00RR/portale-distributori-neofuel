@@ -33,7 +33,8 @@ describe('Operators Module', () => {
     };
 
     fuelStationsBuilder = {
-      select: vi.fn().mockResolvedValue({ data: [], error: null })
+      select: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({ data: [], error: null })
     };
 
     userStationsBuilder = {
@@ -252,7 +253,7 @@ describe('Operators Module', () => {
 
   it('should handle Assign Station', async () => {
     const mockStations = [{ station_id: 1, station_name: 'Station A' }];
-    fuelStationsBuilder.select.mockResolvedValue({ data: mockStations, error: null });
+    fuelStationsBuilder.order.mockResolvedValue({ data: mockStations, error: null });
 
     await openAssignStationModal(1);
 
