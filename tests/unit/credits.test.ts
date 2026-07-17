@@ -29,7 +29,9 @@ const { mockSupabase, mockToast, mockUI, mockUtils, mockOpening, mockOfflineQueu
     mockUtils: {
       escapeHtml: vi.fn(str => str),
       formatEuro: vi.fn(val => `€${val.toFixed(2)}`),
-      formatDateSafe: vi.fn(val => (val ? String(val) : '—'))
+      formatDateSafe: vi.fn(val => (val ? String(val) : '—')),
+      getItalianBusinessDayEndUtc: vi.fn(() => '2024-01-01T23:59:59.999Z'),
+      getItalianBusinessDate: vi.fn(() => '2024-01-01')
     },
     mockOpening: {
       checkOpeningStatus: vi.fn()
@@ -153,7 +155,7 @@ describe('Credits Module - Logic and UI Verification', () => {
     );
     const queuedPayload = mockOfflineQueue.queueAction.mock.calls[0][1];
     expect(queuedPayload).not.toHaveProperty('operatorId');
-    expect(queuedPayload).not.toHaveProperty('createdAt');
+    expect(queuedPayload).toHaveProperty('createdAt', '2024-01-01T23:59:59.999Z');
   });
 
   it('should call register_credit_payment RPC when online', async () => {
@@ -224,7 +226,7 @@ describe('Credits Module - Logic and UI Verification', () => {
     expect(queuedPayload).not.toHaveProperty('operatorId');
     expect(queuedPayload).not.toHaveProperty('customer');
     expect(queuedPayload).not.toHaveProperty('saldo');
-    expect(queuedPayload).not.toHaveProperty('createdAt');
+    expect(queuedPayload).toHaveProperty('createdAt', '2024-01-01T23:59:59.999Z');
   });
 
   it('should have standard styled "Tutto" button in payment modal', async () => {

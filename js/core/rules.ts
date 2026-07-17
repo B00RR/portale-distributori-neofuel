@@ -87,7 +87,10 @@ export function validateVoucher(voucher: Voucher | null | undefined): Validation
 
   if (voucher.expiration_date) {
     const expDate = new Date(voucher.expiration_date);
-    if (expDate < now) {
+    // Expiration means "end of the business day in Italy" (#324).
+    const endOfDay = new Date(`${expDate.toISOString().split('T')[0]}T23:59:59.999+02:00`);
+    const cutoff = Number.isNaN(endOfDay.getTime()) ? expDate : endOfDay;
+    if (now > cutoff) {
       isExpired = true;
     }
   }

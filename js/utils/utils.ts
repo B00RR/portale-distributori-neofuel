@@ -305,7 +305,10 @@ export function formatDate(value: string | Date | null | undefined): string {
 }
 
 /**
- * Gets ISO date string (YYYY-MM-DD) from a date
+ * Gets ISO date string (YYYY-MM-DD) from a date in the Europe/Rome timezone.
+ * This is intended for "business date" pickers and filters so that midnight
+ * in Italy maps to the correct calendar day regardless of the browser's local
+ * timezone or daylight-saving transitions (#324).
  */
 export function getISODate(date: string | Date | null | undefined): string {
   if (!date) {
@@ -315,10 +318,37 @@ export function getISODate(date: string | Date | null | undefined): string {
   if (isNaN(d.getTime())) {
     return '';
   }
-  const isoString = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-    .toISOString()
-    .split('T')[0];
-  return isoString || '';
+  const romeFormatter = new Intl.DateTimeFormat('fr-CA', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  return romeFormatter.format(d);
+}
+
+/**
+ * Returns today's date as YYYY-MM-DD in the Europe/Rome timezone.
+ * Use this for any business-date default (invoice date, shift date, etc.) so
+ * that the date matches what Italian operators see on their clocks (#324).
+ */
+export function getItalianBusinessDate(): string {
+  return getISODate(new Date());
+}
+
+/**
+ * Returns an ISO timestamp representing the end of the current business day
+ * (23:59:59.999) in Europe/Rome, expressed in UTC for storage/querying.
+ * Useful for voucher expiration and end-of-day cutoffs (#324).
+ */
+export function getItalianBusinessDayEndUtc(): string {
+  const today = getItalianBusinessDate();
+  const endOfDayRome = new Date(`${today}T23:59:59.999+02:00`);
+  if (Number.isNaN(endOfDayRome.getTime())) {
+    // Fallback: let the browser parse a timezone-free string and convert.
+    return new Date(`${today}T23:59:59.999Z`).toISOString();
+  }
+  return endOfDayRome.toISOString();
 }
 
 /**

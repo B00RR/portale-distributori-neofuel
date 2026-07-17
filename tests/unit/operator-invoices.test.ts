@@ -46,7 +46,9 @@ const {
       formatEuro: vi.fn(v => `€${v}`),
       formatLitri: vi.fn(v => `${v}L`),
       escapeHtml: vi.fn((v: string) => v),
-      getISODate: vi.fn(() => '2024-01-01')
+      getISODate: vi.fn(() => '2024-01-01'),
+      getItalianBusinessDate: vi.fn(() => '2024-01-01'),
+      getItalianBusinessDayEndUtc: vi.fn(() => '2024-01-01T23:59:59.999Z')
     },
     mockToast: {
       show: vi.fn()
@@ -55,6 +57,7 @@ const {
       handleError: vi.fn()
     },
     mockSanitizer: {
+      escapeLikePattern: vi.fn((v: string) => v),
       setSafeHTML: vi.fn((el, html) => {
         if (el && typeof el.innerHTML === 'string') {
           el.innerHTML = html;
@@ -435,6 +438,7 @@ describe('Operator Invoices Module', () => {
       const queryBuilder: any = {
         select: vi.fn().mockReturnThis(),
         ilike: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: customers,
           error: null
@@ -462,6 +466,7 @@ describe('Operator Invoices Module', () => {
       const queryBuilder: any = {
         select: vi.fn().mockReturnThis(),
         ilike: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockResolvedValue({
           data: customers,
           error: null
