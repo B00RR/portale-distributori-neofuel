@@ -31,7 +31,7 @@ const AUTH_USER = {
   id: '00000000-0000-0000-0000-000000000001',
   aud: 'authenticated',
   role: 'authenticated',
-  email: 'e2e@neofuel.test',
+  email: 'e2e-admin@neofuel.local',
   email_confirmed_at: new Date().toISOString(),
   confirmed_at: new Date().toISOString(),
   phone: '',
@@ -41,14 +41,14 @@ const AUTH_USER = {
   updated_at: new Date().toISOString()
 };
 
-function buildSession() {
+function buildSession(user = AUTH_USER) {
   return {
     access_token: 'e2e-access-token',
     token_type: 'bearer',
     expires_in: 3600,
     expires_at: Math.floor(Date.now() / 1000) + 3600,
     refresh_token: 'e2e-refresh-token',
-    user: AUTH_USER
+    user
   };
 }
 
@@ -67,6 +67,15 @@ export async function mockSupabaseAuthFailure(page) {
   if (isLiveSupabaseE2E()) {
     return;
   }
+
+  // Ogni eventuale accesso REST resta ermetico e viene negato come in
+  // produzione per il ruolo anon. Il test verifica che non venga chiamato.
+  await page.route(/\/rest\/v1\//, route =>
+    json(route, 403, {
+      code: '42501',
+      message: 'permission denied'
+    })
+  );
 
   await page.route(/\/auth\/v1\/token/, route =>
     json(route, 400, {
@@ -98,28 +107,44 @@ export async function mockSupabaseSession(page, { role = 'admin' } = {}) {
     return json(route, status, wantsSingle ? 'null' : '[]');
   });
 
+  let authenticatedUser = AUTH_USER;
+
   // Endpoint auth (login, refresh, /user).
   await page.route(/\/auth\/v1\/(token|user|logout)/, route => {
     if (route.request().url().includes('/logout')) {
       return route.fulfill({ status: 204, body: '' });
     }
     if (route.request().url().includes('/user')) {
-      return json(route, 200, AUTH_USER);
+      return json(route, 200, authenticatedUser);
     }
-    return json(route, 200, buildSession());
+
+    const credentials = route.request().postDataJSON();
+    if (typeof credentials?.email === 'string') {
+      authenticatedUser = { ...AUTH_USER, email: credentials.email };
+    }
+    return json(route, 200, buildSession(authenticatedUser));
   });
 
-  // Lookup utente (auth.ts -> .from('users').maybeSingle()): oggetto singolo.
-  await page.route(/\/rest\/v1\/users(\?|$|\/)/, route =>
-    json(route, 200, {
+  // Profilo applicativo server-authoritative: e' leggibile soltanto con la
+  // sessione ottenuta dal login, mai con la chiave anonima.
+  await page.route(/\/rest\/v1\/users(\?|$|\/)/, route => {
+    if (route.request().headers()['authorization'] !== 'Bearer e2e-access-token') {
+      return json(route, 403, {
+        code: '42501',
+        message: 'permission denied'
+      });
+    }
+
+    return json(route, 200, {
       user_id: 1,
-      email: AUTH_USER.email,
+      created_by_auth: AUTH_USER.id,
+      email: authenticatedUser.email,
       full_name: 'Utente E2E',
       role,
       station_id: 1,
       user_stations: [{ station_id: 1, fuel_stations: { station_name: 'Stazione E2E' } }]
-    })
-  );
+    });
+  });
 
   // user_stations (app.ts percorso operatore -> .select()): lista assegnazioni.
   await page.route(/\/rest\/v1\/user_stations/, route =>

@@ -29,8 +29,16 @@ jobs:
         run: >-
           npx --yes prettier --check
           "js/**/*.{js,ts}"
+          "e2e/auth.spec.js"
+          "e2e/helpers/mock-supabase.js"
+          "scripts/e2e-live-seed.mjs"
+          "scripts/auth-identity-migration/*.ts"
+          "supabase/functions/_shared/*.ts"
           "supabase/functions/admin_create_user_v2/*.ts"
           "tests/unit/admin-create-user-v2*.test.ts"
+          "tests/unit/auth*.test.ts"
+          "tests/unit/schemas.test.ts"
+          "docs/runbooks/305-auth-alias-migration.md"
 
   type-check:
     name: 🧩 TypeScript
@@ -79,8 +87,20 @@ jobs:
 
       - name: Check admin_create_user_v2
         run: >-
-          deno check --node-modules-dir=auto
+          deno check --no-lock --node-modules-dir=auto
           supabase/functions/admin_create_user_v2/index.ts
+
+      - name: Check issue 305 migration tooling
+        run: >-
+          deno check --no-lock --node-modules-dir=auto
+          scripts/auth-identity-migration/cli.ts
+          scripts/auth-identity-migration/disposable-smoke.ts
+
+      - name: Test issue 305 artifact path guards
+        run: >-
+          deno test --no-lock --node-modules-dir=auto
+          --allow-read --allow-write
+          scripts/auth-identity-migration/cli_test.ts
 
   unit-tests:
     name: 🧪 Unit & Integration Tests

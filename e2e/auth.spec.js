@@ -8,7 +8,10 @@
 
 import { test, expect } from '@playwright/test';
 
-import { mockSupabaseAuthFailure } from './helpers/mock-supabase.js';
+import { mockSupabaseAuthFailure, mockSupabaseSession } from './helpers/mock-supabase.js';
+
+const GENERIC_LOGIN_ERROR = 'Username o password errati.';
+const LIVE_SUPABASE_E2E = process.env.E2E_SUPABASE_MODE === 'live';
 
 test.describe('Autenticazione (UI)', () => {
   test('mostra il form di login', async ({ page }) => {
@@ -38,18 +41,86 @@ test.describe('Autenticazione (UI)', () => {
     await expect(page.locator('#password')).toHaveAttribute('type', 'password');
   });
 
-  test('credenziali errate mostrano un messaggio di errore', async ({ page }) => {
-    await mockSupabaseAuthFailure(page);
+  test('username inesistente e password errata sono indistinguibili', async ({ browser }) => {
+    const attempts = [
+      { username: 'account-sconosciuto', password: 'password-e2e-admin' },
+      { username: 'e2e-admin', password: 'password-errata' }
+    ];
+    const messages = [];
+
+    for (const credentials of attempts) {
+      const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+      const page = await context.newPage();
+      const requests = [];
+      page.on('request', request => requests.push(request.url()));
+      await mockSupabaseAuthFailure(page);
+
+      await page.goto('/');
+      await page.fill('#username', credentials.username);
+      await page.fill('#password', credentials.password);
+      await page.click('button[type="submit"]');
+
+      const errorMsg = page.locator('#login-error');
+      await expect(errorMsg).toBeVisible();
+      await expect(errorMsg).toHaveText(GENERIC_LOGIN_ERROR);
+      messages.push(await errorMsg.textContent());
+      expect(requests.filter(url => url.includes('/auth/v1/token'))).toHaveLength(1);
+      expect(requests.filter(url => url.includes('/rest/v1/users'))).toHaveLength(0);
+      await expect(page.locator('#login-container')).toBeVisible();
+
+      await context.close();
+    }
+
+    expect(new Set(messages)).toEqual(new Set([GENERIC_LOGIN_ERROR]));
+  });
+
+  test("fresh-session usa l'alias deterministico prima del profilo", async ({ browser }) => {
+    test.skip(
+      LIVE_SUPABASE_E2E,
+      'Le asserzioni su token e UUID sono specifiche del backend ermetico'
+    );
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await context.newPage();
+    const requests = [];
+    page.on('request', request => {
+      if (request.url().includes('/auth/v1/token') || request.url().includes('/rest/v1/users')) {
+        requests.push({
+          url: request.url(),
+          body: request.postData() ? request.postDataJSON() : null,
+          authorization: request.headers()['authorization']
+        });
+      }
+    });
+    await mockSupabaseSession(page);
 
     await page.goto('/');
-    await page.fill('#username', 'sbagliato');
-    await page.fill('#password', 'password-errata');
-    await page.click('button[type="submit"]');
+    expect(
+      await page.evaluate(() =>
+        [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter(
+          key => key.startsWith('sb-') || key.toLowerCase().includes('supabase')
+        )
+      )
+    ).toEqual([]);
 
-    const errorMsg = page.locator('#login-error');
-    await expect(errorMsg).toBeVisible();
-    await expect(errorMsg).not.toBeEmpty();
-    // Nessun redirect: restiamo sul login.
-    await expect(page.locator('#login-container')).toBeVisible();
+    await page.fill('#username', '  E2E-ADMIN  ');
+    await page.fill('#password', 'password-e2e-admin');
+    await page.click('button[type=submit]');
+
+    await expect(page.locator('#app-container')).toBeVisible();
+
+    const authIndex = requests.findIndex(request => request.url.includes('/auth/v1/token'));
+    const profileIndex = requests.findIndex(request => request.url.includes('/rest/v1/users'));
+    expect(authIndex).toBeGreaterThanOrEqual(0);
+    expect(profileIndex).toBeGreaterThan(authIndex);
+    expect(requests[authIndex].body).toMatchObject({
+      email: 'e2e-admin@neofuel.local',
+      password: 'password-e2e-admin'
+    });
+    expect(requests[profileIndex].authorization).toBe('Bearer e2e-access-token');
+    expect(new URL(requests[profileIndex].url).searchParams.get('created_by_auth')).toBe(
+      'eq.00000000-0000-0000-0000-000000000001'
+    );
+
+    await context.close();
   });
 });

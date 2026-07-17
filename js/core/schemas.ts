@@ -5,29 +5,45 @@
 
 import { z } from 'zod';
 
+import {
+  parseUsernameIdentity,
+  type UsernameIdentityErrorCode
+} from '../../supabase/functions/_shared/auth-identity.js';
 import { USER_ROLES } from '../shared/roles.js';
 
 // ========== AUTH SCHEMAS ==========
 
+function usernameErrorMessage(code: UsernameIdentityErrorCode): string {
+  switch (code) {
+    case 'too_short':
+      return 'Username troppo corto';
+    case 'too_long':
+      return 'Username troppo lungo';
+    case 'invalid_type':
+    case 'invalid_characters':
+      return 'Username non valido: usa solo lettere, numeri, . _ -';
+  }
+}
+
+const UsernameSchema = z.string().transform((value, context) => {
+  const result = parseUsernameIdentity(value);
+  if (!result.success) {
+    context.addIssue({
+      code: 'custom',
+      message: usernameErrorMessage(result.code)
+    });
+    return z.NEVER;
+  }
+  return result.data.username;
+});
+
 export const LoginSchema = z.object({
-  username: z
-    .string()
-    .min(3, 'Username troppo corto')
-    .max(32, 'Username troppo lungo')
-    .regex(/^[a-zA-Z0-9_.-]+$/, 'Username non valido: usa solo lettere, numeri, . _ -')
-    .toLowerCase()
-    .trim(),
+  username: UsernameSchema,
   password: z.string().min(6, 'Password deve avere almeno 6 caratteri')
 });
 
 export const CreateUserSchema = z.object({
-  username: z
-    .string()
-    .min(3, 'Username troppo corto')
-    .max(32, 'Username troppo lungo')
-    .regex(/^[a-zA-Z0-9_.-]+$/, 'Username non valido: usa solo lettere, numeri, . _ -')
-    .toLowerCase()
-    .trim(),
+  username: UsernameSchema,
   password: z.string().min(6, 'Password deve avere almeno 6 caratteri'),
   full_name: z.string().min(2, 'Nome troppo corto').max(100, 'Nome troppo lungo'),
   role: z.enum(USER_ROLES)
