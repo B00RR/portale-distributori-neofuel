@@ -3,6 +3,7 @@
 ## Overview
 
 **Portale Distributori Neofuel** is a fuel-station management portal for operators and admins. It is a **PWA** built with:
+
 - **Vite 6** (build)
 - **Vanilla TypeScript** (strict mode)
 - **Lit 3** (web components)
@@ -44,18 +45,22 @@ npm run lint        # ESLint with max-warnings 0
 
 ## Architecture Notes
 
-**Server Logic = RPC + RLS, NOT Edge Functions**  
-- Server-side validation, authorization, and data logic live in Postgres RPC functions + Row-Level Security policies in `sql/`.
-- The `supabase/functions/` folder exists only to hold `database.types.ts` (generated types).
-- All business logic talks to the database via RPC.
+**Server Logic = RPC + RLS by default; privileged integrations use Edge Functions**
 
-**Offline Support**  
+- Database-local validation, authorization, and data logic live in Postgres RPC functions + Row-Level Security policies in `sql/`.
+- `supabase/functions/` also contains the small number of operations that require Auth Admin or other privileged side effects.
+- `admin_create_user_v2` is the single server-authoritative writer for Auth identity + `public.users` profile provisioning.
+
+**Offline Support**
+
 - `js/core/offline-queue.ts` queues mutations when offline; syncs on reconnect.
 
-**PWA**  
+**PWA**
+
 - Configured via `vite-plugin-pwa` and `workbox-window`; allows offline access to cached routes and assets.
 
-**UI building: Lit only for complex operator widgets; imperative elsewhere**  
+**UI building: Lit only for complex operator widgets; imperative elsewhere**
+
 - `js/ui/components/` holds Lit web components reserved for the few complex, stateful operator flows: `ClosureWizard`, `VoucherManager`, `ShiftOpener` (all extend `BaseComponent`). Add a new Lit component only for comparably complex, self-contained, stateful UI.
 - Everything else — admin pages, operator menus, dialogs, notifications — is built imperatively with `document.createElement` + `textContent`. Reuse the shared helpers in `js/ui/ui.ts` (loaders, `openModal`, `openConfirmModal`, `showPromptModal`, `showErrorMessage`) and `js/ui/toast.ts` rather than rolling new ones.
 - All dynamic HTML must pass through `setSafeHTML()` / `escapeHtml()` from `js/utils/sanitizer.ts`.
@@ -71,16 +76,16 @@ npm run lint        # ESLint with max-warnings 0
 
 ## Known Traps for Agents
 
-1. **Production Supabase differs from repo `sql/*.sql`**  
+1. **Production Supabase differs from repo `sql/*.sql`**
    - RPC functions and RLS policies may differ between the live database and files in `sql/`.
    - Always verify the live database state before trusting a repo SQL file.
 
-2. **Supabase stubs in tests**  
+2. **Supabase stubs in tests**
    - `config/vitest.config.ts` aliases `@supabase/supabase-js` and `zod` to test mocks.
    - Validation and Supabase calls are stubbed, so unit tests do not exercise true end-to-end behavior.
    - E2E tests (`e2e/`) are the source of truth for real integrations.
 
-3. **CI "Elite Quality Gate" is strict (zero-tolerance)**  
+3. **CI "Elite Quality Gate" is strict (zero-tolerance)**
    - `lint` (eslint `--max-warnings 0`), `type-check`, `unit-tests`, `e2e-tests`, `security-scan` (npm audit `--audit-level=high` + Snyk), and `build-check` all hard-fail the gate.
    - No `continue-on-error` and no ratchet baselines: any new lint warning, prettier diff, type error, or high/critical vuln blocks the merge.
 
