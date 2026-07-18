@@ -3,11 +3,11 @@ import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { DEFAULT_BUSINESS_RULES } from '../core/business-rules-schema.js';
 import { logger } from '../core/logger.js';
 import { getStations } from '../core/stations-cache.js';
-import type { SortableConstructor, ChartConstructor } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { calculationEngine, CALCULATION_SCOPES } from '../utils/calculation-engine.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
+import { ensureChart, ensureSortable } from '../vendor/lazy.js';
 
 import { createItalianCalendarRange } from './analytics-aggregation.js';
 import {
@@ -20,11 +20,9 @@ import {
 import { loadDashboardConfig, saveDashboardConfig } from './dashboard-config.js';
 import { renderKpiCards, KPIData } from './dashboard-helpers.js';
 
-// Global libraries types (assumed loaded via CDN or scripts)
+// window.Chart e window.Sortable sono dichiarati (opzionali) in js/vendor/lazy.ts (#343).
 declare global {
   interface Window {
-    Sortable: SortableConstructor;
-    Chart: ChartConstructor;
     dashboardResizeTimeout: ReturnType<typeof setTimeout>;
   }
 }
@@ -366,9 +364,9 @@ export async function showDashboard(
     );
 
     if (hasCharts) {
-      // Fetch only if needed
-      fetchAnalyticsData(numericStationId)
-        .then(analyticsData => {
+      // Fetch only if needed; Chart.js viene caricato on-demand (#343)
+      Promise.all([fetchAnalyticsData(numericStationId), ensureChart()])
+        .then(([analyticsData]) => {
           if (visibleKpis.includes('andamento_ricavi')) {
             renderRevenueChart(analyticsData, 'chart-andamento_ricavi');
           }
@@ -388,8 +386,13 @@ export async function showDashboard(
         );
     }
 
-    // Initialize Sortable for dashboard grid
+    // Initialize Sortable for dashboard grid (caricato on-demand, #343)
     const gridEl = document.getElementById('dashboard-kpi-grid');
+    if (gridEl) {
+      await ensureSortable().catch((err: unknown) =>
+        logger.error('dashboard', 'Sortable load failed', err)
+      );
+    }
     if (gridEl && window.Sortable) {
       new window.Sortable(gridEl, {
         animation: 200,
@@ -420,11 +423,15 @@ export async function showDashboard(
 
     // Activate Panels Drag & Drop
     requestAnimationFrame(() => {
-      initDashboardPanelsDrag();
+      void initDashboardPanelsDrag();
     });
 
-    // Popola grafico vendite per distributore se Chart.js è disponibile
-    if (window.Chart) {
+    // Popola grafico vendite per distributore; Chart.js caricato on-demand (#343)
+    const salesChartLib = await ensureChart().catch((err: unknown) => {
+      logger.error('dashboard', 'Chart.js load failed', err);
+      return null;
+    });
+    if (salesChartLib) {
       await renderSalesChart(stationId);
     }
   } catch (err) {
@@ -540,12 +547,13 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
   }
 
   const ctx = document.getElementById('sales-trend-chart') as HTMLCanvasElement;
-  if (ctx) {
+  const ChartLib = window.Chart;
+  if (ctx && ChartLib) {
     if (salesChart) {
       salesChart.destroy();
       salesChart = null;
     }
-    salesChart = new window.Chart(ctx, {
+    salesChart = new ChartLib(ctx, {
       type: 'line',
       data: {
         labels: sortedDates.map(d =>
@@ -597,14 +605,21 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
 // ------------------------------------------------------------------
 // DRAG & DROP FOR PANELS (Replaces Split.js)
 // ------------------------------------------------------------------
-function initDashboardPanelsDrag(): void {
+async function initDashboardPanelsDrag(): Promise<void> {
   const container = document.getElementById('dashboard-container');
-  if (!container || !window.Sortable) {
+  if (!container) {
+    return;
+  }
+  const Sortable = await ensureSortable().catch((err: unknown) => {
+    logger.error('dashboard', 'Sortable load failed', err);
+    return null;
+  });
+  if (!Sortable) {
     return;
   }
 
   // 1. Initialize Sortable (Drag & Drop)
-  new window.Sortable(container, {
+  new Sortable(container, {
     animation: 250,
     handle: '.panel-title', // Drag only by title
     ghostClass: 'panel-ghost',
