@@ -1,16 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockStore, mockGetStationName, mockGetPendingCount, mockCheckOpeningStatus } = vi.hoisted(
-  () => ({
-    mockStore: {
-      getUser: vi.fn(),
-      setUser: vi.fn()
-    },
-    mockGetStationName: vi.fn(),
-    mockGetPendingCount: vi.fn(),
-    mockCheckOpeningStatus: vi.fn()
-  })
-);
+const {
+  mockStore,
+  mockGetStationName,
+  mockGetPendingCount,
+  mockGetFailedCount,
+  mockCheckOpeningStatus
+} = vi.hoisted(() => ({
+  mockStore: {
+    getUser: vi.fn(),
+    setUser: vi.fn()
+  },
+  mockGetStationName: vi.fn(),
+  mockGetPendingCount: vi.fn(),
+  mockGetFailedCount: vi.fn(),
+  mockCheckOpeningStatus: vi.fn()
+}));
 
 vi.mock('../../js/shared/state.js', () => ({ store: mockStore }));
 vi.mock('../../js/core/api.js', () => ({ getStationName: mockGetStationName }));
@@ -18,7 +23,10 @@ vi.mock('../../js/core/auth.js', () => ({ clearSession: vi.fn() }));
 vi.mock('../../js/core/logger.js', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() }
 }));
-vi.mock('../../js/core/offline-queue.js', () => ({ getPendingCount: mockGetPendingCount }));
+vi.mock('../../js/core/offline-queue.js', () => ({
+  getPendingCount: mockGetPendingCount,
+  getFailedCount: mockGetFailedCount
+}));
 vi.mock('../../js/ui/ui.js', () => ({ openConfirmModal: vi.fn() }));
 vi.mock('../../js/operator/opening.js', () => ({ checkOpeningStatus: mockCheckOpeningStatus }));
 
@@ -37,6 +45,7 @@ describe('Operator Layout Module', () => {
     document.body.innerHTML = '<main id="main-content"></main>';
     mockGetStationName.mockResolvedValue('Roma');
     mockGetPendingCount.mockResolvedValue(0);
+    mockGetFailedCount.mockResolvedValue(0);
     mockCheckOpeningStatus.mockResolvedValue(null);
     localStorage.clear();
   });
@@ -112,5 +121,26 @@ describe('Operator Layout Module', () => {
     expect(mockStore.setUser).toHaveBeenCalledWith({ ...user, station_id: '2' });
     expect(localStorage.getItem('operator_selected_station:10')).toBe('2');
     expect(handlers.onStationChange).toHaveBeenCalledWith('2');
+  });
+
+  it('renders the offline actions button and reflects failed count', async () => {
+    mockStore.getUser.mockReturnValue({
+      id: 'auth-user',
+      user_id: '10',
+      email: 'op@test.com',
+      role: 'operator',
+      station_id: '1',
+      assignedStations: [{ id: 1, name: 'Roma' }]
+    });
+    mockGetPendingCount.mockResolvedValue(2);
+    mockGetFailedCount.mockResolvedValue(1);
+    const container = document.getElementById('main-content') as HTMLElement;
+
+    await renderOperatorShell(container, handlers);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const offlineBtn = container.querySelector('#op-offline-btn') as HTMLButtonElement;
+    expect(offlineBtn).toBeInstanceOf(HTMLButtonElement);
+    expect(offlineBtn.querySelector('#sync-count')?.textContent).toBe('3');
   });
 });

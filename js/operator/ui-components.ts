@@ -70,6 +70,16 @@ interface FormActionsOptions {
   confirmClass?: string;
 }
 
+export function createEmptyStateMessage(title: string, message: string): string {
+  return `
+    <div class="empty-state">
+      <i class="fas fa-inbox" style="font-size: 48px; color: var(--text-muted, #9ca3af); margin-bottom: 20px;"></i>
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(message)}</p>
+    </div>
+  `;
+}
+
 /**
  * Crea pulsanti azione standard (Annulla/Conferma)
  */

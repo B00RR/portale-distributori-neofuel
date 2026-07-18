@@ -6,11 +6,12 @@
 import { getStationName } from '../core/api.js';
 import { clearSession } from '../core/auth.js';
 import { logger } from '../core/logger.js';
-import { getPendingCount } from '../core/offline-queue.js';
+import { getFailedCount, getPendingCount } from '../core/offline-queue.js';
 import { store, User } from '../shared/state.js';
 import { openConfirmModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 
+import { showOfflineFailedActionsModal } from './offline-status.js';
 import { checkOpeningStatus } from './opening.js';
 import { OperatorView } from './router.js';
 import { getSelectedOperatorStationId, setSelectedOperatorStation } from './station-context.js';
@@ -59,6 +60,9 @@ export async function renderOperatorShell(
                         <i class="fas fa-sync-alt"></i> <span id="sync-count">0</span>
                     </span>
                     <button id="op-logout-btn" class="icon-btn" aria-label="Esci" title="Esci"><i class="fas fa-sign-out-alt"></i></button>
+                    <button id="op-offline-btn" class="icon-btn sync-badge" aria-label="Azioni offline" title="Azioni offline">
+                        <i class="fas fa-save"></i> <span id="sync-count">0</span>
+                    </button>
                 </div>
             </header>
             
@@ -269,13 +273,17 @@ export async function updateTurnoButton(
  */
 async function updateSyncBadge(): Promise<void> {
   try {
-    const count = await getPendingCount();
+    const [pending, failed] = await Promise.all([getPendingCount(), getFailedCount()]);
+    const count = pending + failed;
     const badge = document.getElementById('sync-indicator');
-    const countSpan = document.getElementById('sync-count');
-    if (badge && countSpan) {
-      countSpan.textContent = count.toString();
-      badge.classList.toggle('active', count > 0);
-    }
+    const offlineBtn = document.getElementById('op-offline-btn');
+    const countSpans = document.querySelectorAll('#sync-count');
+    countSpans.forEach(span => {
+      span.textContent = count.toString();
+    });
+    badge?.classList.toggle('active', count > 0);
+    offlineBtn?.classList.toggle('has-failed', failed > 0);
+    offlineBtn?.classList.toggle('active', count > 0);
   } catch (err) {
     logger.warn('operatorLayout', 'Sync indicator failed:', err);
   }
@@ -294,6 +302,13 @@ function attachEventListeners(handlers: OperatorHandlers): void {
         await new Promise(resolve => setTimeout(resolve, 100));
         window.location.href = window.location.pathname;
       }
+    });
+  }
+
+  const offlineBtn = document.getElementById('op-offline-btn');
+  if (offlineBtn) {
+    offlineBtn.addEventListener('click', () => {
+      void showOfflineFailedActionsModal();
     });
   }
 
@@ -361,6 +376,9 @@ function injectStyles(): void {
         border-radius: 10px; margin-left: 5px; display: none;
       }
       .sync-badge.active { display: inline-block; animation: pulse 2s infinite; }
+      .sync-badge.has-failed { background: var(--danger-color); }
+      #op-offline-btn { display: none; }
+      #op-offline-btn.active { display: inline-block; }
       @keyframes pulse {
         0% { opacity: 1; }
         50% { opacity: 0.5; }
