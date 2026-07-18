@@ -86,7 +86,7 @@ describe('ShiftOpener Component - TDD tests', () => {
       if (table === 'pistole') {
         const chain: any = {};
         const promise = Promise.resolve({
-          data: [{ id: 20, island_id: 1, nome: 'Pistola 1', tipo_carburante: 'Diesel', numero_litri: 100 }],
+          data: [{ id: 20, island_id: 1, nome: 'Pistola 1', tipo_carburante: 'Diesel', numero_litri: null }],
           error: null
         });
         Object.assign(chain, {
@@ -100,7 +100,7 @@ describe('ShiftOpener Component - TDD tests', () => {
       if (table === 'shift_pistols') {
         const chain: any = {};
         const promise = Promise.resolve({
-          data: [{ pistola_id: 20, closed_at_counter: 95 }],
+          data: [],
           error: null
         });
         Object.assign(chain, {
@@ -177,6 +177,8 @@ describe('ShiftOpener Component - TDD tests', () => {
 
     const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
     if (tankInput) tankInput.value = '1000';
+    const tankInput2 = form.querySelector('input[name="tank_11"]') as HTMLInputElement;
+    if (tankInput2) tankInput2.value = '500';
 
     // Dispatch submit event
     const event = new Event('submit', { bubbles: true, cancelable: true });
@@ -203,12 +205,135 @@ describe('ShiftOpener Component - TDD tests', () => {
       },
       p_tank_levels: {
         '10': 1000,
-        '11': 0
+        '11': 500
       },
       p_request_id: expect.any(String)
     }));
 
     // Expect transition to success
+    expect(element.state.mode).toBe('success');
+  });
+
+  it('should reject opening when a required pistol counter is empty', async () => {
+    mockSupabase.rpc.mockResolvedValue({
+      data: { success: true, shift_id: 456 },
+      error: null
+    });
+
+    const element = await setupComponent();
+    const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
+
+    // Fill all required fields except the pistol counter
+    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
+    if (cashInInput) cashInInput.value = '100.00';
+    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
+    if (totalAmountInput) totalAmountInput.value = '100.00';
+    const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
+    if (tankInput) tankInput.value = '1000';
+    const tankInput2 = form.querySelector('input[name="tank_11"]') as HTMLInputElement;
+    if (tankInput2) tankInput2.value = '500';
+
+    // p_20 intentionally left blank (do not set value)
+
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    form.dispatchEvent(event);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await element.updateComplete;
+
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    expect(element.state.mode).toBe('form');
+    expect(element.state.errorMessage).toContain('Pistola 1');
+  });
+
+  it('should accept explicit zero pistol counter', async () => {
+    mockSupabase.rpc.mockResolvedValue({
+      data: { success: true, shift_id: 456 },
+      error: null
+    });
+
+    const element = await setupComponent();
+    const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
+
+    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
+    if (cashInInput) cashInInput.value = '100.00';
+    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
+    if (totalAmountInput) totalAmountInput.value = '100.00';
+    const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
+    if (pCounterInput) pCounterInput.value = '0';
+    const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
+    if (tankInput) tankInput.value = '1000';
+    const tankInput2 = form.querySelector('input[name="tank_11"]') as HTMLInputElement;
+    if (tankInput2) tankInput2.value = '500';
+
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    form.dispatchEvent(event);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await element.updateComplete;
+
+    expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+    expect(element.state.mode).toBe('success');
+  });
+
+  it('should reject opening when a required tank level is empty (issue #319)', async () => {
+    mockSupabase.rpc.mockResolvedValue({
+      data: { success: true, shift_id: 456 },
+      error: null
+    });
+
+    const element = await setupComponent();
+    const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
+
+    // Fill all required fields except one tank level
+    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
+    if (cashInInput) cashInInput.value = '100.00';
+    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
+    if (totalAmountInput) totalAmountInput.value = '100.00';
+    const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
+    if (pCounterInput) pCounterInput.value = '105.50';
+    const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
+    if (tankInput) tankInput.value = '1000';
+    // tank_11 intentionally left blank
+
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    form.dispatchEvent(event);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await element.updateComplete;
+
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    expect(element.state.mode).toBe('form');
+    expect(element.state.errorMessage).toContain('Tank 2');
+  });
+
+  it('should accept explicit zero tank level (issue #319)', async () => {
+    mockSupabase.rpc.mockResolvedValue({
+      data: { success: true, shift_id: 456 },
+      error: null
+    });
+
+    const element = await setupComponent();
+    const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
+
+    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
+    if (cashInInput) cashInInput.value = '100.00';
+    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
+    if (totalAmountInput) totalAmountInput.value = '100.00';
+    const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
+    if (pCounterInput) pCounterInput.value = '105.50';
+    const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
+    if (tankInput) tankInput.value = '1000';
+    const tankInput2 = form.querySelector('input[name="tank_11"]') as HTMLInputElement;
+    if (tankInput2) tankInput2.value = '0';
+
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    form.dispatchEvent(event);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await element.updateComplete;
+
+    expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
     expect(element.state.mode).toBe('success');
   });
 
@@ -221,6 +346,18 @@ describe('ShiftOpener Component - TDD tests', () => {
 
     const element = await setupComponent();
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
+
+    // Fill required fields to avoid tank validation errors
+    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
+    if (cashInInput) cashInInput.value = '100.00';
+    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
+    if (totalAmountInput) totalAmountInput.value = '100.00';
+    const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
+    if (pCounterInput) pCounterInput.value = '105.50';
+    const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
+    if (tankInput) tankInput.value = '1000';
+    const tankInput2 = form.querySelector('input[name="tank_11"]') as HTMLInputElement;
+    if (tankInput2) tankInput2.value = '500';
 
     // Dispatch submit event
     const event = new Event('submit', { bubbles: true, cancelable: true });
@@ -245,6 +382,18 @@ describe('ShiftOpener Component - TDD tests', () => {
 
     const element = await setupComponent();
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
+
+    // Fill required fields to avoid tank validation errors
+    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
+    if (cashInInput) cashInInput.value = '100.00';
+    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
+    if (totalAmountInput) totalAmountInput.value = '100.00';
+    const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
+    if (pCounterInput) pCounterInput.value = '105.50';
+    const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
+    if (tankInput) tankInput.value = '1000';
+    const tankInput2 = form.querySelector('input[name="tank_11"]') as HTMLInputElement;
+    if (tankInput2) tankInput2.value = '500';
 
     // Dispatch submit event
     const event = new Event('submit', { bubbles: true, cancelable: true });
@@ -273,6 +422,29 @@ describe('ShiftOpener Component - TDD tests', () => {
 
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
     expect(form).not.toBeNull();
+
+    // Fill form inputs
+    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
+    if (cashInInput) cashInInput.value = '100.00';
+    const cashOutInput = form.querySelector('input[name="cash_out"]') as HTMLInputElement;
+    if (cashOutInput) cashOutInput.value = '10.00';
+    const posAmountInput = form.querySelector('input[name="pos_amount"]') as HTMLInputElement;
+    if (posAmountInput) posAmountInput.value = '50.00';
+    const utaDkvInput = form.querySelector('input[name="uta_dkv_iscard"]') as HTMLInputElement;
+    if (utaDkvInput) utaDkvInput.value = '20.00';
+    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
+    if (totalAmountInput) totalAmountInput.value = '160.00';
+
+    const notesTextarea = form.querySelector('textarea[name="notes"]') as HTMLTextAreaElement;
+    if (notesTextarea) notesTextarea.value = 'Opening notes';
+
+    const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
+    if (pCounterInput) pCounterInput.value = '105.50';
+
+    const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
+    if (tankInput) tankInput.value = '1000';
+    const tankInput2 = form.querySelector('input[name="tank_11"]') as HTMLInputElement;
+    if (tankInput2) tankInput2.value = '500';
 
     // Dispatch two submit events immediately back-to-back
     const event1 = new Event('submit', { bubbles: true, cancelable: true });
