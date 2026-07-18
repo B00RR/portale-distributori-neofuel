@@ -85,10 +85,11 @@ jobs:
         with:
           deno-version: v2.9.3
 
-      - name: Check admin_create_user_v2
-        run: >-
-          deno check --no-lock --node-modules-dir=auto
-          supabase/functions/admin_create_user_v2/index.ts
+      - name: Check all tracked Edge Functions
+        run: |
+          deno check --no-lock --node-modules-dir=auto supabase/functions/admin_create_user_v2/index.ts
+          deno check --no-lock --node-modules-dir=auto supabase/functions/admin_reset_password_v2/index.ts
+          deno check --no-lock --node-modules-dir=auto supabase/functions/update-prices/index.ts
 
       - name: Check issue 305 migration tooling
         run: >-
