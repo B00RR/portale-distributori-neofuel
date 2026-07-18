@@ -1,28 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 
-const networkImportMockPlugin = () => ({
-  name: 'network-import-mock',
-  enforce: 'pre' as const,
-  transform(code: string, id: string) {
-    if (id.includes('node_modules')) return;
-
-    if (id.endsWith('zod-client.ts') || id.endsWith('zod-client.js')) {
-      console.log(`[Vitest Proxy] Replacing whole file: ${id}`);
-      return 'export const z = { object: () => ({ parse: (x) => x || {}, infer: {} }), number: () => ({ min: () => ({ max: () => ({ default: () => ({}) }) }) }), boolean: () => ({ default: () => ({}) }), string: () => ({ optional: () => ({}), datetime: () => ({ optional: () => ({}) }) }), infer: (x) => x } as any;';
-    }
-
-    if (code.includes('https://')) {
-      return code.replace(/import\s+(.*)\s+from\s+['"]https:\/\/.*['"];/g, (match, imports) => {
-        console.log(`[Vitest Proxy] Stripping remaining network import: ${match}`);
-        return `// ${match}\nconst ${imports.includes('{') ? imports : imports.trim()} = {} as any;`;
-      });
-    }
-  }
-});
-
 export default defineConfig({
-  plugins: [networkImportMockPlugin()],
   test: {
     // Ambiente HappyDOM per emulazione browser (più leggero di JSDOM)
     environment: 'happy-dom',
@@ -63,12 +42,6 @@ export default defineConfig({
     // Reporter verbose per debugging
     reporters: ['verbose'],
 
-    // Mocking behavior for network imports
-    server: {
-      deps: {
-        inline: [/https:\/\/cdn\.jsdelivr\.net/, /https:\/\/unpkg\.com/]
-      }
-    },
     // Setup files eseguiti prima dei test
     setupFiles: [resolve(__dirname, '../tests/setup.ts')],
 
@@ -80,10 +53,6 @@ export default defineConfig({
   // Resolve aliases (specchiati da tsconfig)
   resolve: {
     alias: [
-      {
-        find: /.*\/core\/zod-client$/,
-        replacement: resolve(__dirname, '../tests/mocks/zod-stub.ts')
-      },
       {
         find: 'virtual:pwa-register',
         replacement: resolve(__dirname, '../tests/mocks/pwa-register.ts')

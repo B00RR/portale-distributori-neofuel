@@ -1,11 +1,10 @@
 /**
  * Schema validation tests against REAL Zod.
  *
- * NOTE (#44): the Vitest config only stubs `js/core/zod-client.ts` (the CDN
- * wrapper). `js/core/schemas.ts` imports `z` directly from the `zod` npm package,
- * which is NOT stubbed — so these tests exercise genuine Zod validation. The
- * sanity test at the bottom proves we are NOT hitting a no-op stub (an invalid
- * payload must be rejected).
+ * NOTE (#334): the permissive `zod-client` stub was removed from the Vitest
+ * config — every schema (including `BusinessRulesSchema` via `zod-client`) now
+ * runs against the real `zod` npm package. The sanity test at the bottom proves
+ * we are NOT hitting a no-op stub (an invalid payload must be rejected).
  */
 import { describe, it, expect } from 'vitest';
 
