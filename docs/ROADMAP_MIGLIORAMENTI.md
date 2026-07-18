@@ -74,6 +74,10 @@
 - ✅ Codecov integration
 
 ### 📚 Documentation (Enterprise-Level)
+- ✅ `docs/ONBOARDING.md` - Onboarding Guide
+- ✅ `docs/ROLES_AND_RLS.md` - Ruoli/RLS
+- ✅ `docs/MIGRATIONS_DEPLOY_RECOVERY.md` - Migrazioni/Deploy/Recovery
+- ✅ `docs/PILOT_RUNBOOK.md` - Pilot Runbook
 - ✅ `docs/adr/0001-use-supabase-for-backend.md`
 - ✅ `docs/adr/0002-choose-lit-for-components.md`
 - ✅ `docs/adr/0003-vitest-over-jest.md`
@@ -180,6 +184,12 @@
 - [ ] Advanced export (CSV/Excel)
 - [ ] Push notifications
 
+### Documentazione e runbook (audit #354)
+- [x] Onboarding Guide
+- [x] Ruoli/RLS
+- [x] Migrazioni/Deploy/Recovery
+- [x] Pilot Runbook
+
 ---
 
 ## 🚀 Quick Start
@@ -221,6 +231,11 @@ npm run storybook
 - ✅ 10/10 UI/UX quality achieved
 - ✅ Zero technical debt critico
 - ✅ Enterprise-ready production
+
+**Aggiornamento 2026-07-18 (audit #354):**
+- ✅ Aggiunti `docs/ONBOARDING.md`, `docs/ROLES_AND_RLS.md`, `docs/MIGRATIONS_DEPLOY_RECOVERY.md`, `docs/PILOT_RUNBOOK.md`
+- ✅ Roadmap aggiornata con sezioni documentazione mancanti
+- ⚠️ Pilot vietato finché Gate 0 e Gate 1 non sono chiusi
 
 **Costo Sviluppo:** €0 (100% free tools)  
 **Valore Creato:** €25,000+ (se outsourced)  
