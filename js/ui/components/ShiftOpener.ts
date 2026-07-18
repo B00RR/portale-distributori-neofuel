@@ -24,7 +24,7 @@ export class ShiftOpener extends BaseComponent {
   @state() private islands: Island[] = [];
   @state() private pistole: Pistola[] = [];
   @state() private tanks: Tank[] = [];
-  @state() private lastCounters: Record<number, number> = {};
+  @state() private lastCounters: Record<number, number | null> = {};
 
   private get numericStationId(): number {
     const value = Number(this.stationId);
@@ -237,13 +237,13 @@ export class ShiftOpener extends BaseComponent {
         throw countersErr;
       }
 
-      const counters: Record<number, number> = {};
+      const counters: Record<number, number | null> = {};
       pistoleList.forEach(p => {
         // The current counter includes any explicit admin correction. Historical
         // data is only a compatibility fallback for rows without a base value.
         const lastShift = newCounters?.find(c => c.pistola_id === p.id);
 
-        counters[p.id] = p.numero_litri ?? lastShift?.closed_at_counter ?? 0;
+        counters[p.id] = p.numero_litri ?? lastShift?.closed_at_counter ?? null;
       });
 
       // Batch all property and state updates into a single render cycle
@@ -358,17 +358,53 @@ export class ShiftOpener extends BaseComponent {
         notes: String(formData.get('notes') ?? '')
       };
 
-      // 2. Save Pistol Counters
+      // 2. Save Pistol Counters: preserve missing vs explicit zero
       const pistolCounters: Record<string, number> = {};
+      const missingPistols: string[] = [];
       this.pistole.forEach(p => {
-        pistolCounters[p.id.toString()] = Number(formData.get(`p_${p.id}`)) || 0;
+        const raw = formData.get(`p_${p.id}`);
+        const trimmed = raw === null ? '' : String(raw).trim();
+        if (trimmed === '') {
+          missingPistols.push(`${p.nome} / ${p.tipo_carburante}`);
+          return;
+        }
+        const value = Number(trimmed);
+        if (!Number.isFinite(value) || value < 0) {
+          missingPistols.push(`${p.nome} / ${p.tipo_carburante}`);
+          return;
+        }
+        pistolCounters[p.id.toString()] = value;
       });
 
-      // 3. Save Tank Levels (if any)
+      if (missingPistols.length > 0) {
+        throw new Error(
+          `Contatore pistola obbligatorio mancante o non valido per: ${missingPistols.join(', ')}`
+        );
+      }
+
+      // 3. Save Tank Levels: preserve missing vs explicit zero (issue #319)
       const tankLevels: Record<string, number> = {};
+      const missingTanks: string[] = [];
       this.tanks.forEach(t => {
-        tankLevels[t.id.toString()] = Number(formData.get(`tank_${t.id}`)) || 0;
+        const raw = formData.get(`tank_${t.id}`);
+        const trimmed = raw === null ? '' : String(raw).trim();
+        if (trimmed === '') {
+          missingTanks.push(t.name);
+          return;
+        }
+        const value = Number(trimmed);
+        if (!Number.isFinite(value) || value < 0) {
+          missingTanks.push(t.name);
+          return;
+        }
+        tankLevels[t.id.toString()] = value;
       });
+
+      if (missingTanks.length > 0) {
+        throw new Error(
+          `Livello cisterna obbligatorio mancante o non valido per: ${missingTanks.join(', ')}`
+        );
+      }
 
       const requestId = `open_${stationId}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -463,7 +499,9 @@ export class ShiftOpener extends BaseComponent {
                                       name="p_${p.id}"
                                       step="0.01"
                                       min="0"
-                                      .value=${this.lastCounters[p.id]?.toString() || '0'}
+                                      .value=${this.lastCounters[p.id]?.toString() || ''}
+                                      placeholder="0.00"
+                                      required
                                     />
                                   </div>
                                 `
@@ -484,6 +522,7 @@ export class ShiftOpener extends BaseComponent {
                                         step="1"
                                         min="0"
                                         placeholder="Litri attuali"
+                                        required
                                       />
                                     </div>
                                   `
