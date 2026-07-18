@@ -21,9 +21,42 @@ export interface QueuedAction {
    * written by older application versions remain readable.
    */
   revision?: number;
-  status?: 'pending' | 'failed';
+  status?: 'pending' | 'failed' | 'quarantined';
   lastError?: string | undefined;
+  /**
+   * Classification of the last failure. Set when the action reaches `failed`
+   * status so the UI can decide whether a manual retry makes sense.
+   */
+  errorType?: 'temporary' | 'permanent' | undefined;
+  failedAt?: string | undefined;
 }
+
+type PermanentErrorClassifier = (message: string) => boolean;
+
+const DEFAULT_PERMANENT_ERROR_CLASSIFIER: PermanentErrorClassifier = message => {
+  const lower = message.toLowerCase();
+  const permanentPatterns = [
+    'payload offline non valido',
+    'non valido',
+    'invalid_',
+    'unauthorized',
+    'forbidden',
+    'not found',
+    'not_found',
+    'duplicate',
+    'already exists',
+    'constraint',
+    'permission denied',
+    'violates',
+    'check constraint',
+    'foreign key',
+    'cannot',
+    'not allowed'
+  ];
+  return permanentPatterns.some(pattern => lower.includes(pattern));
+};
+
+let permanentErrorClassifier: PermanentErrorClassifier = DEFAULT_PERMANENT_ERROR_CLASSIFIER;
 
 type DeduplicablePayload = Record<string, unknown> & {
   operation?: unknown;
@@ -101,6 +134,22 @@ function getActionRevision(action: QueuedAction): number {
 
 function isSameRevision(current: QueuedAction, expected: QueuedAction): boolean {
   return current.id === expected.id && getActionRevision(current) === getActionRevision(expected);
+}
+
+export function setPermanentErrorClassifier(classifier: PermanentErrorClassifier): void {
+  permanentErrorClassifier = classifier;
+}
+
+function classifyError(error: unknown): 'temporary' | 'permanent' {
+  const message = errorMessage(error);
+  return permanentErrorClassifier(message) ? 'permanent' : 'temporary';
+}
+
+function isRetryableError(action: QueuedAction): boolean {
+  if (action.errorType === 'permanent') {
+    return false;
+  }
+  return true;
 }
 
 // ========== INITIALIZATION ==========
@@ -198,7 +247,9 @@ export async function queueAction(
         retryCount: 0,
         revision: getActionRevision(duplicate) + 1,
         status: 'pending',
-        lastError: undefined
+        lastError: undefined,
+        errorType: undefined,
+        failedAt: undefined
       };
 
       const updateRequest = store.put(mergedAction);
@@ -254,12 +305,98 @@ async function getAllQueuedActions(): Promise<QueuedAction[]> {
 
 export async function getPendingActions(): Promise<QueuedAction[]> {
   const actions = await getAllQueuedActions();
-  return actions.filter(action => action.status !== 'failed');
+  return actions.filter(action => action.status !== 'failed' && action.status !== 'quarantined');
 }
 
 export async function getFailedActions(): Promise<QueuedAction[]> {
   const actions = await getAllQueuedActions();
-  return actions.filter(action => action.status === 'failed');
+  return actions.filter(action => action.status === 'failed' || action.status === 'quarantined');
+}
+
+export async function getFailedCount(): Promise<number> {
+  const failed = await getFailedActions();
+  return failed.length;
+}
+
+export async function getTotalQueueCount(): Promise<number> {
+  const actions = await getAllQueuedActions();
+  return actions.length;
+}
+
+/**
+ * Retry a specific failed action after fresh authorization/verification.
+ * Returns true if the action was reset to pending and a sync was triggered.
+ */
+export async function retryFailedAction(id: string): Promise<boolean> {
+  const actions = await getAllQueuedActions();
+  const action = actions.find(
+    a => a.id === id && (a.status === 'failed' || a.status === 'quarantined')
+  );
+
+  if (!action) {
+    return false;
+  }
+
+  const updatedAction: QueuedAction = {
+    ...action,
+    retryCount: 0,
+    status: 'pending',
+    errorType: undefined,
+    lastError: undefined,
+    failedAt: undefined
+  };
+
+  const persisted = await persistActionIfCurrent(action, updatedAction);
+  if (!persisted) {
+    logger.info('offlineQueue', 'Action changed before retry reset:', action.id);
+    return false;
+  }
+
+  logger.info('offlineQueue', 'Retry requested for action:', action.id);
+  void syncPendingActions();
+  return true;
+}
+
+/**
+ * Cancel/quarantine a failed action. Requires user confirmation upstream.
+ */
+export async function cancelFailedAction(id: string): Promise<boolean> {
+  const actions = await getAllQueuedActions();
+  const action = actions.find(
+    a => a.id === id && (a.status === 'failed' || a.status === 'quarantined')
+  );
+
+  if (!action) {
+    return false;
+  }
+
+  const updatedAction: QueuedAction = {
+    ...action,
+    status: 'quarantined',
+    errorType: 'permanent',
+    lastError: action.lastError || "Annullata dall'utente",
+    failedAt: action.failedAt || new Date().toISOString()
+  };
+
+  const persisted = await persistActionIfCurrent(action, updatedAction);
+  if (!persisted) {
+    logger.info('offlineQueue', 'Action changed before cancellation:', action.id);
+    return false;
+  }
+
+  dispatchSyncStatusChanged();
+  return true;
+}
+
+/**
+ * Remove a quarantined action after it has been handled or reconciled.
+ */
+export async function removeQuarantinedAction(id: string): Promise<void> {
+  await removeAction(id);
+}
+
+function dispatchSyncStatusChanged(): void {
+  document.dispatchEvent(new CustomEvent('sync-status-changed'));
 }
 
 /**
@@ -355,13 +492,38 @@ function errorMessage(error: unknown): string {
 }
 
 async function recordFailedAttempt(action: QueuedAction, error?: unknown): Promise<boolean> {
+  const errorType = action.errorType || classifyError(error);
+  if (errorType === 'permanent') {
+    const updatedAction: QueuedAction = {
+      ...action,
+      status: 'failed',
+      errorType,
+      lastError: errorMessage(error),
+      failedAt: new Date().toISOString()
+    };
+
+    const persisted = await persistActionIfCurrent(action, updatedAction);
+    if (!persisted) {
+      logger.info(
+        'offlineQueue',
+        'Action changed during classification; permanent state not applied:',
+        action.id
+      );
+      return false;
+    }
+    logger.error('offlineQueue', 'Permanent error; action moved to failed queue:', action.id);
+    return true;
+  }
+
   const retryCount = action.retryCount + 1;
   const exhausted = retryCount >= MAX_RETRIES;
   const updatedAction: QueuedAction = {
     ...action,
     retryCount,
     status: exhausted ? 'failed' : 'pending',
-    lastError: errorMessage(error)
+    errorType,
+    lastError: errorMessage(error),
+    failedAt: exhausted ? new Date().toISOString() : undefined
   };
 
   const persisted = await persistActionIfCurrent(action, updatedAction);
@@ -378,8 +540,10 @@ async function recordFailedAttempt(action: QueuedAction, error?: unknown): Promi
 async function quarantineCompletedAction(action: QueuedAction, error: unknown): Promise<void> {
   await persistActionIfCurrent(action, {
     ...action,
-    status: 'failed',
-    lastError: `Esecuzione remota riuscita, ma rimozione locale fallita: ${errorMessage(error)}`
+    status: 'quarantined',
+    errorType: 'permanent',
+    lastError: `Esecuzione remota riuscita, ma rimozione locale fallita: ${errorMessage(error)}`,
+    failedAt: new Date().toISOString()
   });
 }
 
@@ -428,6 +592,17 @@ async function runSync(): Promise<{ success: number; failed: number }> {
 
     if (!executor) {
       logger.warn('offlineQueue', 'No executor for action type:', action.type);
+      try {
+        await cancelFailedAction(action.id);
+      } catch (cancelErr) {
+        logger.error('offlineQueue', 'Failed to quarantine action without executor:', cancelErr);
+      }
+      failed++;
+      continue;
+    }
+
+    if (!isRetryableError(action)) {
+      logger.warn('offlineQueue', 'Skipping non-retryable action:', action.id, action.errorType);
       failed++;
       continue;
     }
@@ -509,6 +684,8 @@ async function runSync(): Promise<{ success: number; failed: number }> {
       'error'
     );
   }
+
+  dispatchSyncStatusChanged();
 
   return { success, failed };
 }

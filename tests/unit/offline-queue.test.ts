@@ -190,7 +190,8 @@ describe('Offline Queue Module', () => {
     expect(await offlineQueue.getPendingActions()).toHaveLength(0);
     expect(await offlineQueue.getFailedActions()).toEqual([
       expect.objectContaining({
-        status: 'failed',
+        status: 'quarantined',
+        errorType: 'permanent',
         lastError: expect.stringContaining('rimozione locale fallita')
       })
     ]);
