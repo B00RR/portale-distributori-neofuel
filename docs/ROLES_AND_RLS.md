@@ -16,9 +16,9 @@
 
 ## Mappatura ruoli → UI
 
-- `js/shared/roles.ts` contiene helper come `isAdmin(role)` / `isOperator(role)` usati dai router di admin e operator per decidere quali viste renderizzare.
-- Il pannello admin (`js/admin/`) è accessibile solo agli utenti con ruolo `admin`, `super_admin` o `full_admin` (tutti gli `ADMIN_ROLES`).
-- Il pannello operatore (`js/operator/`) è accessibile agli operatori e agli admin.
+- `js/shared/roles.ts` definisce tassonomie e helper come `ADMIN_ROLES`, `BACKOFFICE_ROLES`, `isAdminRole(role)` e `isBackofficeRole(role)`, usati da autenticazione e routing per decidere quale area e quali viste renderizzare.
+- Il pannello backoffice (`js/admin/`) è avviato per tutti i `BACKOFFICE_ROLES` (`admin`, `super_admin`, `full_admin`, `accounting`, `billing`); le singole viste e operazioni sono filtrate in base al ruolo.
+- Il pannello operatore (`js/operator/`) è usato dagli utenti non backoffice (attualmente il ruolo `operator`).
 
 ## Autorizzazione lato server
 
