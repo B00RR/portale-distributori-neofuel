@@ -150,6 +150,13 @@ async function buildOperatorUserContext(
 customWindow.requestPasswordReset = requestPasswordReset;
 
 async function initializeApp(): Promise<void> {
+  // #335: aggancia subito il form di login, PRIMA di qualunque await.
+  // Se il listener arriva dopo il ripristino asincrono della sessione, un
+  // click rapido su "Accedi" (load freddo, browser lenti) trova il form senza
+  // handler e fa un submit nativo GET: pagina ricaricata, nessun errore
+  // mostrato e credenziali esposte nella query string.
+  initLoginElements();
+
   // Initialize monitoring and analytics
   initAnalytics();
 

@@ -60,7 +60,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
 
   // Reporters
-  reporter: [['html'], ['list']],
+  // JSON reporter (#335): output machine-readable per classificare
+  // passed/flaky/failed per browser nel gate CI (scripts/check-e2e-flaky.mjs).
+  reporter: [['html'], ['list'], ['json', { outputFile: '../playwright-report/results.json' }]],
 
   use: {
     // Base URL

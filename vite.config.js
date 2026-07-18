@@ -126,6 +126,14 @@ export default defineConfig(({ mode }) => {
                         }
                     ],
                     globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+                    // #343: i vendor lazy non stanno nel precache — vengono
+                    // scaricati al primo uso e poi serviti dalla runtime cache
+                    // (regola NetworkFirst su js/css qui sopra).
+                    globIgnores: [
+                        '**/vendor-chartjs*.js',
+                        '**/vendor-qrcode*.js',
+                        '**/vendor-misc*.js'
+                    ],
                     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
                     skipWaiting: true,
                     clientsClaim: true,
@@ -160,14 +168,8 @@ export default defineConfig(({ mode }) => {
                         if (!id.includes('node_modules')) {
                             return undefined;
                         }
-                        if (id.includes('exceljs')) {
-                            return 'vendor-excel';
-                        }
                         if (id.includes('chart.js') || id.includes('@kurkle')) {
                             return 'vendor-chartjs';
-                        }
-                        if (id.includes('jspdf')) {
-                            return 'vendor-pdf';
                         }
                         if (id.includes('html5-qrcode') || id.includes('qrcode')) {
                             return 'vendor-qrcode';
