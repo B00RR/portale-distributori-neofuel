@@ -167,8 +167,15 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
 
+      # #335: un test flaky (passato solo al retry) non deve produrre un
+      # riepilogo verde silenzioso — fallisce il job se non è in allowlist.
+      - name: Enforce flaky policy
+        run: node scripts/check-e2e-flaky.mjs
+
+      # #335: artefatti pubblicati per ogni run (non solo failure) così i
+      # tentativi flaky restano ispezionabili.
       - name: Upload Test Results
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.browser }}
