@@ -230,7 +230,7 @@ describe('Shifts Module', () => {
     });
 
     describe('showClosureDetails - Self Service Logic', () => {
-        it('should display simple match when cash matches', async () => {
+        it('should display the simple view when no banknotes were dispensed', async () => {
             const { formatEuro } = await import('../../js/utils/utils.js');
             const { supabase } = await import('../../js/core/api.js');
 
@@ -243,7 +243,7 @@ describe('Shifts Module', () => {
                                 created_at: '2024-01-01',
                                 closing_data: {
                                     scontrino_self: {
-                                        banconote_erogate: 100,
+                                        banconote_erogate: 0,
                                         banconote_incassate: 100
                                     }
                                 }
@@ -257,13 +257,14 @@ describe('Shifts Module', () => {
             await showClosureDetails(1);
 
             const modalBody = document.getElementById('modal-body');
-            // Expect simple format: "Contanti: € 100"
+            // Expect simple format: "Contanti: € 100" (netto = incassate - 0)
             expect(modalBody?.innerHTML).toContain('Contanti:');
             expect(formatEuro).toHaveBeenCalledWith(100);
-            expect(modalBody?.innerHTML).not.toContain('Incassati:'); // Detail hidden when matching
+            expect(modalBody?.innerHTML).not.toContain('Incassate:'); // Detail hidden
         });
 
-        it('should display detail view when cash mismatches', async () => {
+        it('should display the net cash with the raw breakdown when banknotes were dispensed (#326)', async () => {
+            const { formatEuro } = await import('../../js/utils/utils.js');
             const { supabase } = await import('../../js/core/api.js');
 
             vi.mocked(supabase.from).mockReturnValue({
@@ -275,8 +276,8 @@ describe('Shifts Module', () => {
                                 created_at: '2024-01-01',
                                 closing_data: {
                                     scontrino_self: {
-                                        banconote_erogate: 100,
-                                        banconote_incassate: 80 // Mismatch
+                                        banconote_erogate: 30,
+                                        banconote_incassate: 80
                                     }
                                 }
                             },
@@ -289,8 +290,12 @@ describe('Shifts Module', () => {
             await showClosureDetails(1);
 
             const modalBody = document.getElementById('modal-body');
-            expect(modalBody?.innerHTML).toContain('Erogati:');
-            expect(modalBody?.innerHTML).toContain('Incassati:');
+            expect(modalBody?.innerHTML).toContain('Contanti (netto):');
+            expect(modalBody?.innerHTML).toContain('Incassate:');
+            expect(modalBody?.innerHTML).toContain('Erogate:');
+            // Il netto (80 - 30 = 50) alimenta sia la riga contanti sia
+            // l'Incasso Totale Self: mai le sole erogate come totale.
+            expect(formatEuro).toHaveBeenCalledWith(50);
         });
     });
 

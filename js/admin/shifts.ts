@@ -14,6 +14,7 @@ import {
   computeExportSummaryMetrics
 } from '../utils/export_utils.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
+import { selfNetCash, selfTotalIncasso } from '../utils/self-service.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
 import { FilterBar } from './components/FilterBar.js';
@@ -376,20 +377,22 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     const bancomatSelf = selfData.bancomat_erogati || 0;
     const cardsSelf = selfData.transazioni_uta || 0;
 
-    const selfTotalVal = banconoteErogate + bancomatSelf + cardsSelf;
+    // #326: il contante self è il netto fra incassate ed erogate, mai il solo erogato.
+    const nettoContantiSelf = selfNetCash(banconoteIncassate, banconoteErogate);
+    const selfTotalVal = selfTotalIncasso(selfData);
     const selfTotalFormatted = formatEuro(selfTotalVal);
 
-    // Logic per Contanti Self
+    // Logic per Contanti Self: netto in evidenza, valori grezzi nel dettaglio
     let contantiSelfHtml = '';
-    if (banconoteErogate === banconoteIncassate) {
-      contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(banconoteErogate)}</b>`;
+    if (banconoteErogate === 0) {
+      contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(nettoContantiSelf)}</b>`;
     } else {
       contantiSelfHtml = `
             <div style="display: flex; justify-content: space-between; width: 100%;">
-                <span>Contanti:</span>
+                <span>Contanti (netto):</span>
                 <div style="text-align: right;">
-                    <div>Erogati: <b>${formatEuro(banconoteErogate)}</b></div>
-                    <div style="font-size: 0.85em; color: var(--secondary-color);">Incassati: <b>${formatEuro(banconoteIncassate)}</b></div>
+                    <div><b>${formatEuro(nettoContantiSelf)}</b></div>
+                    <div style="font-size: 0.85em; color: var(--secondary-color);">Incassate: <b>${formatEuro(banconoteIncassate)}</b> − Erogate: <b>${formatEuro(banconoteErogate)}</b></div>
                 </div>
             </div>`;
     }
