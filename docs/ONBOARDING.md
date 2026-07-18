@@ -60,7 +60,9 @@ sql/             # migrazioni e funzioni RPC/RLS
 supabase/        # Edge Functions e tipi generati
 tests/           # test Vitest
 e2e/             # test Playwright
-config/          # vite, vitest, playwright, eslint
+config/          # vitest, playwright
+vite.config.js   # configurazione Vite (root)
+eslint.config.js # configurazione ESLint (root)
 ```
 
 ## Convenzioni obbligatorie
