@@ -224,24 +224,24 @@ export class ShiftOpener extends BaseComponent {
 
       const pistoleList = (pistoleData || []) as unknown as Pistola[];
 
-      // 3. Fetch smart counters (last closure values)
-      const pIds = pistoleList.map(p => p.id);
-      const { data: newCounters, error: countersErr } = await supabase
-        .from('shift_pistols')
-        .select('pistola_id, closed_at_counter')
-        .in('pistola_id', pIds)
-        .not('closed_at_counter', 'is', null)
-        .order('created_at', { ascending: false });
+      // 3. Fetch smart counters (last closure values) from the dedicated RPC.
+      // This replaces the previous client-side deduplication over all historical
+      // shift_pistols rows and returns exactly one row per configured pump.
+      const { data: newCounters, error: countersErr } = await supabase.rpc(
+        'get_last_pump_counters',
+        { p_station_id: stationId }
+      );
 
       if (countersErr) {
         throw countersErr;
       }
 
       const counters: Record<number, number | null> = {};
+      const counterRows = Array.isArray(newCounters) ? newCounters : [];
       pistoleList.forEach(p => {
         // The current counter includes any explicit admin correction. Historical
         // data is only a compatibility fallback for rows without a base value.
-        const lastShift = newCounters?.find(c => c.pistola_id === p.id);
+        const lastShift = counterRows.find(c => c.pistola_id === p.id);
 
         counters[p.id] = p.numero_litri ?? lastShift?.closed_at_counter ?? null;
       });
