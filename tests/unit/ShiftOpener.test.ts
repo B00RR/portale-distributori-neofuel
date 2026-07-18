@@ -51,6 +51,17 @@ describe('ShiftOpener Component - TDD tests', () => {
     alertSpy = window.alert;
 
     // Set up standard mock responses for loadInitialData
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === 'get_last_pump_counters') {
+        return Promise.resolve({
+          data: [{ pistola_id: 20, closed_at_counter: 99.5 }],
+          error: null
+        });
+      }
+      // Default success for open_shift submission tests
+      return Promise.resolve({ data: { success: true, shift_id: 456 }, error: null });
+    });
+
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'islands') {
         const chain: any = {};
@@ -241,7 +252,7 @@ describe('ShiftOpener Component - TDD tests', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
     await element.updateComplete;
 
-    expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    expect(mockSupabase.rpc).not.toHaveBeenCalledWith('open_shift', expect.anything());
     expect(element.state.mode).toBe('form');
     expect(element.state.errorMessage).toContain('Pistola 1');
   });
@@ -272,7 +283,7 @@ describe('ShiftOpener Component - TDD tests', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
     await element.updateComplete;
 
-    expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('open_shift', expect.anything());
     expect(element.state.mode).toBe('success');
   });
 
@@ -302,7 +313,7 @@ describe('ShiftOpener Component - TDD tests', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
     await element.updateComplete;
 
-    expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    expect(mockSupabase.rpc).not.toHaveBeenCalledWith('open_shift', expect.anything());
     expect(element.state.mode).toBe('form');
     expect(element.state.errorMessage).toContain('Tank 2');
   });
@@ -333,7 +344,7 @@ describe('ShiftOpener Component - TDD tests', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
     await element.updateComplete;
 
-    expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('open_shift', expect.anything());
     expect(element.state.mode).toBe('success');
   });
 
@@ -375,9 +386,17 @@ describe('ShiftOpener Component - TDD tests', () => {
 
   it('should handle thrown database/Supabase error', async () => {
     // Setup RPC returning error object
-    mockSupabase.rpc.mockResolvedValue({
-      data: null,
-      error: { message: 'Database connection timeout' }
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === 'get_last_pump_counters') {
+        return Promise.resolve({
+          data: [{ pistola_id: 20, closed_at_counter: 99.5 }],
+          error: null
+        });
+      }
+      return Promise.resolve({
+        data: null,
+        error: { message: 'Database connection timeout' }
+      });
     });
 
     const element = await setupComponent();
@@ -415,7 +434,15 @@ describe('ShiftOpener Component - TDD tests', () => {
     const rpcPromise = new Promise(resolve => {
       resolveRpc = () => resolve({ data: { success: true, shift_id: 456 }, error: null });
     });
-    mockSupabase.rpc.mockImplementation(() => rpcPromise);
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === 'get_last_pump_counters') {
+        return Promise.resolve({
+          data: [{ pistola_id: 20, closed_at_counter: 99.5 }],
+          error: null
+        });
+      }
+      return Promise.resolve({ data: { success: true, shift_id: 456 }, error: null });
+    });
 
     const element = await setupComponent();
     expect(element.state.mode).toBe('form');
@@ -461,8 +488,8 @@ describe('ShiftOpener Component - TDD tests', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
     await element.updateComplete;
 
-    // Verify RPC was only called once!
-    expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+    // Verify RPC was only called once for open_shift!
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('open_shift', expect.anything());
     expect(element.state.mode).toBe('success');
   });
 });

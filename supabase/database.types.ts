@@ -1652,6 +1652,13 @@ export type Database = {
         }
         Returns: Json
       }
+      get_last_pump_counters: {
+        Args: { p_station_id: number }
+        Returns: {
+          pistola_id: number
+          closed_at_counter: number
+        }[]
+      }
       reset_rate_limit: {
         Args: { p_endpoint: string; p_identifier: string }
         Returns: boolean
