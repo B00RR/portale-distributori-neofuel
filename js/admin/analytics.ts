@@ -4,6 +4,7 @@ import type { CustomWindow, ChartInstance } from '../types.js';
 import { showLoadingMessage, showErrorMessage } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { formatEuro, formatLitri } from '../utils/utils.js';
+import { ensureChart } from '../vendor/lazy.js';
 
 import {
   aggregateShiftAnalytics,
@@ -141,15 +142,16 @@ async function updateCharts(
     // 3. Process Data
     const aggregated = processAnalyticsData(shifts as AnalyticsShift[], calendarRange.days);
 
-    // 4. Render Charts (Lazy load Chart.js logic if needed, but assuming global Chart)
-    const customWindow = window as unknown as CustomWindow;
-    if (customWindow.Chart) {
+    // 4. Render Charts — Chart.js viene caricato on-demand (#343)
+    const chart = await ensureChart().catch((err: unknown) => {
+      logger.error('showAnalyticsTab', 'Chart.js load failed', err);
+      return null;
+    });
+    if (chart) {
       renderRevenueChart(aggregated);
       renderVolumeChart(aggregated);
       renderPaymentChart(aggregated);
       renderFuelMixChart(aggregated);
-    } else {
-      logger.error('Chart.js not found');
     }
   } catch (err) {
     logger.error('showAnalyticsTab', err);

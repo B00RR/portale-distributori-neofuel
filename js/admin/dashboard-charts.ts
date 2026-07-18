@@ -1,6 +1,6 @@
 import { supabase } from '../core/api.js';
 import { logger } from '../core/logger.js';
-import type { ChartConstructor, ChartInstance } from '../types.js';
+import type { ChartInstance } from '../types.js';
 import { formatEuro } from '../utils/utils.js';
 
 import {
@@ -12,12 +12,7 @@ import {
   type AnalyticsShift
 } from './analytics-aggregation.js';
 
-// --- TYPES (Simplified for Dashboard) ---
-declare global {
-  interface Window {
-    Chart: ChartConstructor;
-  }
-}
+// window.Chart è dichiarato (opzionale) in js/vendor/lazy.ts (#343).
 
 // Global chart instances store to destroy old charts on redraw
 const dashboardCharts: Record<string, ChartInstance> = {};
