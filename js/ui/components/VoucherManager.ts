@@ -286,8 +286,7 @@ export class VoucherManager extends BaseComponent {
       Html5QrcodeLib = await ensureHtml5Qrcode();
     } catch (e: unknown) {
       logger.error('voucherManager', 'Html5Qrcode load failed', e);
-      this.errorMessage =
-        'Libreria scanner non disponibile. Controlla la connessione e riprova.';
+      this.errorMessage = 'Libreria scanner non disponibile. Controlla la connessione e riprova.';
       this.mode = 'error';
       return;
     }
