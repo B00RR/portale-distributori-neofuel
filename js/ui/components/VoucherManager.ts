@@ -10,6 +10,7 @@ import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js
 import { escapeLikePattern } from '../../utils/sanitizer.js';
 import { createRateLimiter } from '../../utils/utils.js';
 import { formatEuro, formatDate } from '../../utils/utils.js';
+import { ensureHtml5Qrcode } from '../../vendor/lazy.js';
 import { Toast } from '../toast.js';
 
 import { BaseComponent } from './BaseComponent.js';
@@ -278,13 +279,15 @@ export class VoucherManager extends BaseComponent {
     // Small delay to allow render
     await this.updateComplete;
 
-    // Load Html5Qrcode library on-demand if not already loaded
-    // The library is already exposed as window.Html5Qrcode by js/vendor/bundle.ts;
-    // this avoids loading it from unpkg.com (which would violate the CSP and
-    // duplicate the bundle-local copy).
-    if (!window.Html5Qrcode) {
+    // Load Html5Qrcode on-demand (#343): il vendor non è più nel bundle di
+    // avvio, viene importato qui alla prima apertura dello scanner.
+    let Html5QrcodeLib: Html5QrcodeConstructor;
+    try {
+      Html5QrcodeLib = await ensureHtml5Qrcode();
+    } catch (e: unknown) {
+      logger.error('voucherManager', 'Html5Qrcode load failed', e);
       this.errorMessage =
-        'Libreria scanner non disponibile. Ricarica la pagina e assicurati di usare il bundle ufficiale.';
+        'Libreria scanner non disponibile. Controlla la connessione e riprova.';
       this.mode = 'error';
       return;
     }
@@ -302,7 +305,7 @@ export class VoucherManager extends BaseComponent {
     }
 
     try {
-      this.html5QrCode = new window.Html5Qrcode('reader');
+      this.html5QrCode = new Html5QrcodeLib('reader');
       await this.html5QrCode.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 } },
