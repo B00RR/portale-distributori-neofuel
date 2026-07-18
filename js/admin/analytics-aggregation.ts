@@ -1,3 +1,5 @@
+import { selfNetCash } from '../utils/self-service.js';
+
 export interface ClosingData extends Record<string, unknown> {
   ricavo_teorico?: number | string | null;
   litri_benzina?: number | string | null;
@@ -101,8 +103,7 @@ function readPaymentTotals(
 
   return {
     contanti: hasNestedCash
-      ? toFiniteMetric(selfService.banconote_incassate) -
-        toFiniteMetric(selfService.banconote_erogate) +
+      ? selfNetCash(selfService.banconote_incassate, selfService.banconote_erogate) +
         toFiniteMetric(operator.contanti_operatore)
       : toFiniteMetric(data.soldi_contanti ?? data.incasso_contanti),
     pos: hasNestedPos

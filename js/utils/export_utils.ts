@@ -5,6 +5,7 @@ import type { Tables } from '../../supabase/database.types.js';
 import { supabase, type AppSupabaseClient } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
 
+import { selfNetCash } from './self-service.js';
 import { closureTemplateXlsxBase64 } from './template_chiusura_base64.js';
 import { formatDate, slugifyLabel, base64ToArrayBuffer, getISODate } from './utils.js';
 
@@ -322,8 +323,8 @@ function populateSummary(metrics: ExportMetrics, closingData: Record<string, unk
     hasOwn(selfService, 'transazioni_uta') || hasOwn(operator, 'uta_dkv_operatore');
 
   metrics.summary.self = hasSelfCashData
-    ? safeNumber(selfService.banconote_incassate) - safeNumber(selfService.banconote_erogate)
-    : safeNumber(closingData.cash_in_finale) - safeNumber(closingData.cash_out_finale);
+    ? selfNetCash(selfService.banconote_incassate, selfService.banconote_erogate)
+    : selfNetCash(closingData.cash_in_finale, closingData.cash_out_finale);
   metrics.summary.carteSelf = safeNumber(selfService.bancomat_erogati);
   metrics.summary.contanti = safeNumber(
     hasOwn(operator, 'contanti_operatore')
