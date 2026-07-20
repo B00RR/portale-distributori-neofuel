@@ -62,6 +62,7 @@ interface Shift {
   status: string;
   created_at: string;
   closed_at: string | null;
+  opening_data: Record<string, number>;
   closing_data: ClosingData;
   fuel_stations?: FuelStation; // Joined
   users?: User; // Joined
@@ -231,10 +232,11 @@ export async function showChiusureTab(
         const operatorName = c.users?.full_name || `#${c.operator_id}`;
         const closingData = c.closing_data || {};
         const isFinal = c.status === 'closed' || closingData.is_final === true;
+        const isOpen = c.status === 'open' && !isFinal;
 
         // Stale Shift Logic
         let staleIndicator = '';
-        if (!isFinal) {
+        if (isOpen) {
           const createdAt = new Date(c.created_at).getTime();
           const now = new Date().getTime();
           const hoursOpen = (now - createdAt) / (1000 * 60 * 60);
@@ -243,8 +245,18 @@ export async function showChiusureTab(
           }
         }
 
-        const closureType = isFinal ? 'Finale' : 'Parziale';
-        const closureClass = isFinal ? 'badge-success' : 'badge-warning';
+        let closureType: string;
+        let closureClass: string;
+        if (isOpen) {
+          closureType = 'Aperto';
+          closureClass = 'badge-info';
+        } else if (isFinal) {
+          closureType = 'Finale';
+          closureClass = 'badge-success';
+        } else {
+          closureType = 'Parziale';
+          closureClass = 'badge-warning';
+        }
         const totalValue = closingData.ricavo_teorico || closingData.totale_atteso || 0;
         const total = formatEuro(totalValue);
 
@@ -335,14 +347,8 @@ export function disposeShiftsSubscription(): void {
 }
 
 export async function showClosureDetails(closureId: string | number): Promise<void> {
-  openModal('Dettagli Chiusura');
-  const target = document.getElementById('modal-body');
-  if (!target) {
-    return;
-  }
-
-  showLoadingMessage(target);
-
+  // Fetch data first to determine the title
+  let closure: Shift;
   try {
     const { data: closureRaw, error } = await supabase
       .from('shifts')
@@ -353,36 +359,82 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     if (error || !closureRaw) {
       throw new Error('Chiusura non trovata');
     }
+    closure = closureRaw as unknown as Shift;
+  } catch (err) {
+    openModal('Dettagli Chiusura');
+    const target = document.getElementById('modal-body');
+    if (target) {
+      setSafeHTML(target, `<p class="error">Errore: ${escapeHtml((err as Error).message)}</p>`);
+    }
+    return;
+  }
 
-    const closure = closureRaw as unknown as Shift;
+  const isOpen = closure.status === 'open';
+  const modalTitle = isOpen ? 'Dettagli Apertura' : 'Dettagli Chiusura';
+  openModal(modalTitle);
+  const target = document.getElementById('modal-body');
+  if (!target) {
+    return;
+  }
 
+  showLoadingMessage(target);
+
+  try {
     const closingData = closure.closing_data || {};
-    const dettaglio = closingData.dettaglio_incasso || {};
+    const openingData = closure.opening_data || {};
+    const dettaglio = isOpen ? {} : closingData.dettaglio_incasso || {};
 
     // Mappa dati
     const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString('it-IT');
 
-    // Breakdown Incassi
-    const contanti = formatEuro(dettaglio.contanti_operatore || 0);
-    const pos = formatEuro(dettaglio.pos_operatore || 0);
-    const crediti = formatEuro(dettaglio.crediti || 0);
-    const voucher = formatEuro(dettaglio.voucher || 0);
-    const carteUta = formatEuro(dettaglio.uta_dkv_operatore || 0);
-    const rimborsi = formatEuro(dettaglio.rimborsi_uscite || 0);
+    let contanti: string,
+      pos: string,
+      crediti: string,
+      voucher: string,
+      carteUta: string,
+      rimborsi: string;
+    let selfData: SelfServiceData;
+    let extraVal: number;
+    let vendutoCarburanteVal: number;
 
-    // Self Service Breakdown Logic
-    const selfData = closingData.scontrino_self || {};
+    if (isOpen) {
+      // Turno aperto: mostra i dati di apertura
+      contanti = formatEuro(openingData.cash_in || 0);
+      pos = formatEuro(openingData.pos_amount || 0);
+      crediti = formatEuro(0);
+      voucher = formatEuro(0);
+      carteUta = formatEuro(openingData.uta_dkv_iscard || 0);
+      rimborsi = formatEuro(openingData.cash_out || 0);
+      selfData = {};
+      extraVal = 0;
+      vendutoCarburanteVal = 0;
+    } else {
+      // Turno chiuso: mostra i dati di chiusura
+      contanti = formatEuro(dettaglio.contanti_operatore || 0);
+      pos = formatEuro(dettaglio.pos_operatore || 0);
+      crediti = formatEuro(dettaglio.crediti || 0);
+      voucher = formatEuro(dettaglio.voucher || 0);
+      carteUta = formatEuro(dettaglio.uta_dkv_operatore || 0);
+      rimborsi = formatEuro(dettaglio.rimborsi_uscite || 0);
+      selfData = closingData.scontrino_self || {};
+      extraVal = closingData.extra_incassi || 0;
+      vendutoCarburanteVal = closingData.ricavo_teorico || 0;
+    }
+
+    const totaleRealeVal = vendutoCarburanteVal + extraVal;
+    const totaleReale = formatEuro(totaleRealeVal);
+
+    // Variabili per l'HTML (solo per turni chiusi)
     const banconoteErogate = selfData.banconote_erogate || 0;
     const banconoteIncassate = selfData.banconote_incassate || 0;
     const bancomatSelf = selfData.bancomat_erogati || 0;
     const cardsSelf = selfData.transazioni_uta || 0;
-
-    // #326: il contante self è il netto fra incassate ed erogate, mai il solo erogato.
     const nettoContantiSelf = selfNetCash(banconoteIncassate, banconoteErogate);
     const selfTotalVal = selfTotalIncasso(selfData);
     const selfTotalFormatted = formatEuro(selfTotalVal);
+    const extra = formatEuro(extraVal);
+    const vendutoCarburante = formatEuro(vendutoCarburanteVal);
 
-    // Logic per Contanti Self: netto in evidenza, valori grezzi nel dettaglio
     let contantiSelfHtml = '';
     if (banconoteErogate === 0) {
       contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(nettoContantiSelf)}</b>`;
@@ -397,26 +449,12 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
             </div>`;
     }
 
-    // Extra
-    const extraVal = closingData.extra_incassi || 0;
-    const extra = formatEuro(extraVal);
+    const idLabel = isOpen ? 'ID Apertura' : 'ID Chiusura';
+    const statusLabel = isOpen ? 'Aperto' : 'Chiuso';
 
-    // Totale Reale
-    const vendutoCarburanteVal = closingData.ricavo_teorico || 0;
-    const vendutoCarburante = formatEuro(vendutoCarburanteVal);
-
-    const totaleRealeVal = vendutoCarburanteVal + extraVal;
-    const totaleReale = formatEuro(totaleRealeVal);
-
-    setSafeHTML(
-      target,
-      `
-      <div class="closure-details">
-        <div class="closure-details-header">
-            <span>ID Chiusura: <b>${closure.id}</b></span>
-            <span>${dateStr}</span>
-        </div>
-
+    let selfSectionHtml = '';
+    if (!isOpen) {
+      selfSectionHtml = `
         <!-- SEZIONE SELF SERVICE -->
         <div class="closure-section-alt">
             <div class="closure-section-header">Dettaglio Self Service</div>
@@ -428,11 +466,32 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
             <div class="mt-2 pt-2 border-top-dashed d-flex justify-between font-weight-bold">
                 <span>Incasso Totale Self:</span> <span>${selfTotalFormatted}</span>
             </div>
+        </div>`;
+    }
+
+    let totalSectionHtml = '';
+    if (!isOpen) {
+      totalSectionHtml = `
+        <div class="closure-total-box">
+            <div class="closure-total-label">Totale Venduto (Carburante + Extra)</div>
+            <div class="closure-total-value">${totaleReale}</div>
+        </div>`;
+    }
+
+    setSafeHTML(
+      target,
+      `
+      <div class="closure-details">
+        <div class="closure-details-header">
+            <span>${idLabel}: <b>${closure.id}</b></span>
+            <span>${dateStr} <span class="badge ${isOpen ? 'badge-info' : 'badge-success'}">${statusLabel}</span></span>
         </div>
+
+        ${selfSectionHtml}
 
         <!-- SEZIONE OPERATORE -->
         <div class="closure-section">
-            <div class="closure-section-header">Dettaglio Operatore</div>
+            <div class="closure-section-header">${isOpen ? 'Dati Apertura' : 'Dettaglio Operatore'}</div>
             <p class="closure-row"><span>Contanti:</span> <b>${contanti}</b></p>
             <p class="closure-row"><span>POS:</span> <b>${pos}</b></p>
             <p class="closure-row"><span>Crediti:</span> <b>${crediti}</b></p>
@@ -440,18 +499,19 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
             <p class="closure-row"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
             <p class="closure-row text-danger"><span>Uscite/Rimborsi:</span> <b>- ${rimborsi}</b></p>
             
-            <hr class="my-2 border-0 border-top">
+            ${isOpen ? '' : '<hr class="my-2 border-0 border-top">'}
             
-            <!-- NUOVA RIGA: Totale venduto della giornata (pistole) -->
+            ${
+              isOpen
+                ? ''
+                : `
             <p class="closure-row font-weight-bold text-main"><span>Totale Venduto (Pistole):</span> <b>${vendutoCarburante}</b></p>
-            
             <p class="closure-row text-primary"><span>Incassi Extra:</span> <b>${extra}</b></p>
+            `
+            }
         </div>
 
-        <div class="closure-total-box">
-            <div class="closure-total-label">Totale Venduto (Carburante + Extra)</div>
-            <div class="closure-total-value">${totaleReale}</div>
-        </div>
+        ${totalSectionHtml}
         
         <div class="mt-4 text-center">
              <button class="menu-button primary" id="btn-export-details">
