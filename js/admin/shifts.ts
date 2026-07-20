@@ -399,12 +399,14 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
 
     if (isOpen) {
       // Turno aperto: mostra i dati di apertura
-      contanti = formatEuro(openingData.cash_in || 0);
+      const cashIn = openingData.cash_in || 0;
+      const cashOut = openingData.cash_out || 0;
+      contanti = formatEuro(cashIn - cashOut);
       pos = formatEuro(openingData.pos_amount || 0);
       crediti = formatEuro(0);
       voucher = formatEuro(0);
       carteUta = formatEuro(openingData.uta_dkv_iscard || 0);
-      rimborsi = formatEuro(openingData.cash_out || 0);
+      rimborsi = formatEuro(0);
       selfData = {};
       extraVal = 0;
       vendutoCarburanteVal = 0;
@@ -497,7 +499,7 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
             <p class="closure-row"><span>Crediti:</span> <b>${crediti}</b></p>
             <p class="closure-row"><span>Voucher/Buoni:</span> <b>${voucher}</b></p>
             <p class="closure-row"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
-            <p class="closure-row text-danger"><span>Uscite/Rimborsi:</span> <b>- ${rimborsi}</b></p>
+            ${isOpen ? '' : '<p class="closure-row text-danger"><span>Uscite/Rimborsi:</span> <b>- ' + rimborsi + '</b></p>'}
             
             ${isOpen ? '' : '<hr class="my-2 border-0 border-top">'}
             
