@@ -406,14 +406,20 @@ export class ClosureWizard extends BaseComponent {
       const islandIds = this.islands.map(i => i.island_id);
       const { data: pData, error: pError } = await supabase
         .from('pistole')
-        .select('*, islands(island_id, nome)')
+        .select('id, island_id, nome, tipo_carburante, numero_litri, station_id, created_at')
         .in('island_id', islandIds)
         .order('id');
 
       if (pError) {
         throw pError;
       }
-      this.pistole = pData ?? [];
+
+      // Abbina il nome dell'isola lato client per evitare JOIN ambigue
+      const islandMap = new Map(this.islands.map(i => [i.island_id, i.nome]));
+      this.pistole = (pData ?? []).map(p => ({
+        ...p,
+        islands: { nome: islandMap.get(p.island_id) ?? null }
+      })) as unknown as Pistola[];
 
       const countersMap: Record<number, number> = {};
       // The generated DB types don't model this legacy column selection (see
