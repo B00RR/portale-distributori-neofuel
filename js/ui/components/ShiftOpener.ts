@@ -318,7 +318,10 @@ export class ShiftOpener extends BaseComponent {
               <p style="color: #64748b; margin-bottom: 2rem;">
                 Il turno è stato registrato e i contatori sono stati salvati.
               </p>
-              <button class="btn btn-primary" @click=${() => { window.location.hash = ''; window.location.reload(); }}>
+              <button class="btn btn-primary" @click=${() => {
+                window.location.hash = '';
+                window.location.reload();
+              }}>
                 Vai al Dashboard
               </button>
             </div>
