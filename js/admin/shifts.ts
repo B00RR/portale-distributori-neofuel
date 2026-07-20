@@ -501,7 +501,7 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
             ${
               isOpen
                 ? `
-            <p class="closure-row"><span>Contanti:</span> <span style="text-align:right;"><b>${formatEuro(cashIn)}</b><br><span style="font-size:0.8em;color:var(--secondary-color);">erogati ${formatEuro(cashOut)}</span></span></p>
+            <p class="closure-row"><span>Contanti:</span> <span style="text-align:right;"><b>${formatEuro(cashIn)}</b>${cashOut > 0 && cashOut !== cashIn ? '<br><span style="font-size:0.8em;color:var(--secondary-color);">erogati ' + formatEuro(cashOut) + '</span>' : ''}</span></p>
             <p class="closure-row"><span>Non erogato:</span> <b>${formatEuro(netCash)}</b></p>
             <p class="closure-row"><span>POS:</span> <b>${pos}</b></p>
             <p class="closure-row"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
