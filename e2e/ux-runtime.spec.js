@@ -31,6 +31,8 @@ test.describe('Deep-link e refresh (admin)', () => {
 
     // Il refresh mantiene la view (non torna alla dashboard).
     await page.reload();
+    // Attendi che l'app sia completamente re-inizializzata dopo il reload
+    await expect(page.locator('.admin-sidebar')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="voucher-admin-panel"]')).toBeVisible({
       timeout: 15000
     });
