@@ -406,7 +406,7 @@ export class ClosureWizard extends BaseComponent {
       const islandIds = this.islands.map(i => i.island_id);
       const { data: pData, error: pError } = await supabase
         .from('pistole')
-        .select('*, islands(island_id, nome, station_id)')
+        .select('*, islands(island_id, nome)')
         .in('island_id', islandIds)
         .order('id');
 
