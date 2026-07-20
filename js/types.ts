@@ -78,7 +78,6 @@ export interface Pistola {
   tank_id?: number | null;
   islands?: {
     nome: string | null;
-    station_id: number | null;
   } | null;
 }
 
