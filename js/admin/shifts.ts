@@ -14,7 +14,7 @@ import {
   computeExportSummaryMetrics
 } from '../utils/export_utils.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
-import { selfNetCash, selfTotalIncasso } from '../utils/self-service.js';
+import { selfTotalErogato } from '../utils/self-service.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
 import { FilterBar } from './components/FilterBar.js';
@@ -435,22 +435,21 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     const banconoteIncassate = selfData.banconote_incassate || 0;
     const bancomatSelf = selfData.bancomat_erogati || 0;
     const cardsSelf = selfData.transazioni_uta || 0;
-    const nettoContantiSelf = selfNetCash(banconoteIncassate, banconoteErogate);
-    const selfTotalVal = selfTotalIncasso(selfData);
+    const selfTotalVal = selfTotalErogato(selfData);
     const selfTotalFormatted = formatEuro(selfTotalVal);
     const extra = formatEuro(extraVal);
     const vendutoCarburante = formatEuro(vendutoCarburanteVal);
 
     let contantiSelfHtml = '';
-    if (banconoteErogate === 0) {
-      contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(nettoContantiSelf)}</b>`;
+    if (banconoteErogate === banconoteIncassate) {
+      contantiSelfHtml = `<span>Contanti:</span> <b>${formatEuro(banconoteIncassate)}</b>`;
     } else {
       contantiSelfHtml = `
             <div style="display: flex; justify-content: space-between; width: 100%;">
-                <span>Contanti (netto):</span>
+                <span>Contanti:</span>
                 <div style="text-align: right;">
-                    <div><b>${formatEuro(nettoContantiSelf)}</b></div>
-                    <div style="font-size: 0.85em; color: var(--secondary-color);">Incassate: <b>${formatEuro(banconoteIncassate)}</b> − Erogate: <b>${formatEuro(banconoteErogate)}</b></div>
+                    <div style="font-size: 0.85em; color: var(--secondary-color);">Incassati: <b>${formatEuro(banconoteIncassate)}</b></div>
+                    <div style="font-size: 0.85em; color: var(--secondary-color);">Erogati: <b>${formatEuro(banconoteErogate)}</b></div>
                 </div>
             </div>`;
     }
