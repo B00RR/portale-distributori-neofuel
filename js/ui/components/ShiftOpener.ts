@@ -214,7 +214,7 @@ export class ShiftOpener extends BaseComponent {
       const islandIds = islandsData.map(i => i.island_id);
       const { data: pistoleData, error: pError } = await supabase
         .from('pistole')
-        .select('*, islands(nome)')
+        .select('id, island_id, nome, tipo_carburante, numero_litri, station_id, created_at')
         .in('island_id', islandIds)
         .order('id');
 
@@ -222,7 +222,12 @@ export class ShiftOpener extends BaseComponent {
         throw pError;
       }
 
-      const pistoleList = (pistoleData || []) as unknown as Pistola[];
+      // Abbina il nome dell'isola lato client per evitare JOIN ambigue
+      const islandMap = new Map(islandsData.map(i => [i.island_id, i.nome]));
+      const pistoleList = (pistoleData || []).map(p => ({
+        ...p,
+        islands: { nome: islandMap.get(p.island_id) ?? null }
+      })) as unknown as Pistola[];
 
       // 3. Fetch smart counters (last closure values) from the dedicated RPC.
       // This replaces the previous client-side deduplication over all historical
