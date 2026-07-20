@@ -396,12 +396,16 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     let selfData: SelfServiceData;
     let extraVal: number;
     let vendutoCarburanteVal: number;
+    let cashIn = 0,
+      cashOut = 0,
+      netCash = 0;
 
     if (isOpen) {
       // Turno aperto: mostra i dati di apertura
-      const cashIn = openingData.cash_in || 0;
-      const cashOut = openingData.cash_out || 0;
-      contanti = formatEuro(cashIn - cashOut);
+      cashIn = openingData.cash_in || 0;
+      cashOut = openingData.cash_out || 0;
+      netCash = cashIn - cashOut;
+      contanti = formatEuro(cashIn);
       pos = formatEuro(openingData.pos_amount || 0);
       crediti = formatEuro(0);
       voucher = formatEuro(0);
@@ -494,19 +498,24 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
         <!-- SEZIONE OPERATORE -->
         <div class="closure-section">
             <div class="closure-section-header">${isOpen ? 'Dati Apertura' : 'Dettaglio Operatore'}</div>
+            ${
+              isOpen
+                ? `
+            <p class="closure-row"><span>Contanti:</span> <b>${formatEuro(cashIn)}</b> <span style="font-size:0.85em;color:var(--secondary-color);">(erogati ${formatEuro(cashOut)})</span></p>
+            <p class="closure-row"><span>Non erogato:</span> <b>${formatEuro(netCash)}</b></p>
+            <p class="closure-row"><span>POS:</span> <b>${pos}</b></p>
+            <p class="closure-row"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
+            <hr class="my-2 border-0 border-top">
+            <p class="closure-row font-weight-bold text-main"><span>Totale Scontrino:</span> <b>${formatEuro(openingData.total_amount || 0)}</b></p>
+            `
+                : `
             <p class="closure-row"><span>Contanti:</span> <b>${contanti}</b></p>
             <p class="closure-row"><span>POS:</span> <b>${pos}</b></p>
             <p class="closure-row"><span>Crediti:</span> <b>${crediti}</b></p>
             <p class="closure-row"><span>Voucher/Buoni:</span> <b>${voucher}</b></p>
             <p class="closure-row"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
-            ${isOpen ? '' : '<p class="closure-row text-danger"><span>Uscite/Rimborsi:</span> <b>- ' + rimborsi + '</b></p>'}
-            
-            ${isOpen ? '' : '<hr class="my-2 border-0 border-top">'}
-            
-            ${
-              isOpen
-                ? ''
-                : `
+            <p class="closure-row text-danger"><span>Uscite/Rimborsi:</span> <b>- ${rimborsi}</b></p>
+            <hr class="my-2 border-0 border-top">
             <p class="closure-row font-weight-bold text-main"><span>Totale Venduto (Pistole):</span> <b>${vendutoCarburante}</b></p>
             <p class="closure-row text-primary"><span>Incassi Extra:</span> <b>${extra}</b></p>
             `
