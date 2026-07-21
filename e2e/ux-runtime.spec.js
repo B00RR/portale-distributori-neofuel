@@ -70,12 +70,16 @@ test.describe('Deep-link e refresh (admin)', () => {
     await openSidebarIfMobile(page);
     await page.locator('[data-testid="nav-vouchers"]').click();
     await expect.poll(() => page.url()).toContain('#/admin/vouchers');
+    // Aspetta che la view Voucher sia effettivamente montata prima di tornare
+    // indietro: l'hash cambia prima che il contenuto asincrono venga renderizzato.
     await expect(page.locator('[data-testid="voucher-admin-panel"]')).toBeVisible({
       timeout: 15000
     });
 
     await page.goBack();
     await expect.poll(() => page.url()).toContain('#/admin/notifiche');
+    // Attendiamo il re-render del contenuto di Notifiche prima dell'assertione
+    // sul testo, per evitare race condition sul back navigation.
     await expect(content).toContainText('prossimamente', { timeout: 15000 });
   });
 });
