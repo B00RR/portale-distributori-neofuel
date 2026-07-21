@@ -1,370 +1,382 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-    showChiusureTab,
-    showClosureDetails,
-    deleteClosure
-} from '../../js/admin/shifts.js';
+import { showChiusureTab, showClosureDetails, deleteClosure } from '../../js/admin/shifts.js';
 
 // --- MOCKS ---
 
 vi.mock('../../js/core/api.js', () => ({
-    supabase: {
-        from: vi.fn(() => {
-            const mockChain = {
-                select: vi.fn(() => mockChain),
-                eq: vi.fn(() => mockChain),
-                gt: vi.fn(() => mockChain),
-                gte: vi.fn(() => mockChain),
-                lte: vi.fn(() => mockChain),
-                range: vi.fn(() => mockChain),
-                order: vi.fn(() => Promise.resolve({ data: [], error: null, count: 0 })),
-                limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
-                single: vi.fn(() => Promise.resolve({ data: {}, error: null }))
-            };
-            return mockChain;
-        }),
-        rpc: vi.fn(() => Promise.resolve({ error: null }))
-    },
-    Cache: {
-        getOrFetch: vi.fn((key, fetchFn) => fetchFn()),
-        invalidate: vi.fn(),
-        invalidateByPrefix: vi.fn(),
-        clear: vi.fn(),
-        get: vi.fn(),
-        set: vi.fn(),
-        getStats: vi.fn(() => ({ total: 0, valid: 0, expired: 0 }))
-    },
-    CACHE_KEYS: {
-        STATIONS: 'stations',
-        CUSTOMERS: 'customers',
-        FUEL_TYPES: 'fuel_types',
-        STATION_PREFIX: 'station_'
-    }
+  supabase: {
+    from: vi.fn(() => {
+      const mockChain = {
+        select: vi.fn(() => mockChain),
+        eq: vi.fn(() => mockChain),
+        gt: vi.fn(() => mockChain),
+        gte: vi.fn(() => mockChain),
+        lte: vi.fn(() => mockChain),
+        range: vi.fn(() => mockChain),
+        order: vi.fn(() => Promise.resolve({ data: [], error: null, count: 0 })),
+        limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        single: vi.fn(() => Promise.resolve({ data: {}, error: null }))
+      };
+      return mockChain;
+    }),
+    rpc: vi.fn(() => Promise.resolve({ error: null }))
+  },
+  Cache: {
+    getOrFetch: vi.fn((key, fetchFn) => fetchFn()),
+    invalidate: vi.fn(),
+    invalidateByPrefix: vi.fn(),
+    clear: vi.fn(),
+    get: vi.fn(),
+    set: vi.fn(),
+    getStats: vi.fn(() => ({ total: 0, valid: 0, expired: 0 }))
+  },
+  CACHE_KEYS: {
+    STATIONS: 'stations',
+    CUSTOMERS: 'customers',
+    FUEL_TYPES: 'fuel_types',
+    STATION_PREFIX: 'station_'
+  }
 }));
 
 vi.mock('../../js/shared/error-handler.js', () => ({
-    handleError: vi.fn()
+  handleError: vi.fn()
 }));
 
 vi.mock('../../js/shared/state.js', () => ({
-    store: {
-        getFilters: vi.fn(() => ({ dateFrom: null, dateTo: null })),
-        getPagination: vi.fn(() => ({ page: 0, pageSize: 20, totalCount: 0 })),
-        getFilter: vi.fn(() => null),
-        getUser: vi.fn(() => ({ role: 'admin' })),
-        setPagination: vi.fn(),
-        subscribe: vi.fn(() => () => { })
-    }
+  store: {
+    getFilters: vi.fn(() => ({ dateFrom: null, dateTo: null })),
+    getPagination: vi.fn(() => ({ page: 0, pageSize: 20, totalCount: 0 })),
+    getFilter: vi.fn(() => null),
+    getUser: vi.fn(() => ({ role: 'admin' })),
+    setPagination: vi.fn(),
+    subscribe: vi.fn(() => () => {})
+  }
 }));
 
 vi.mock('../../js/ui/toast.js', () => ({
-    Toast: {
-        show: vi.fn()
-    }
+  Toast: {
+    show: vi.fn()
+  }
 }));
 
 vi.mock('../../js/core/business-logic-manager.js', () => ({
-    BusinessLogicManager: {
-        loadRules: vi.fn(() => Promise.resolve({ force_close_hours_threshold: 24 }))
-    }
+  BusinessLogicManager: {
+    loadRules: vi.fn(() => Promise.resolve({ force_close_hours_threshold: 24 }))
+  }
 }));
 
 vi.mock('../../js/ui/ui.js', () => ({
-    showLoadingMessage: vi.fn(),
-    openModal: vi.fn(),
-    closeModal: vi.fn(),
-    openConfirmModal: vi.fn(() => Promise.resolve(true))
+  showLoadingMessage: vi.fn(),
+  openModal: vi.fn(),
+  closeModal: vi.fn(),
+  openConfirmModal: vi.fn(() => Promise.resolve(true))
 }));
 
 vi.mock('../../js/utils/export_utils.js', () => ({
-    fetchClosureExportData: vi.fn(() => Promise.resolve({ station_id: 1 })),
-    generateClosureExcel: vi.fn(() => Promise.resolve()),
-    generateMultiClosureExcel: vi.fn(() => Promise.resolve()),
-    computeExportSummaryMetrics: vi.fn(() => Promise.resolve({}))
+  fetchClosureExportData: vi.fn(() => Promise.resolve({ station_id: 1 })),
+  generateClosureExcel: vi.fn(() => Promise.resolve()),
+  generateMultiClosureExcel: vi.fn(() => Promise.resolve()),
+  computeExportSummaryMetrics: vi.fn(() => Promise.resolve({}))
 }));
 
 vi.mock('../../js/utils/utils.js', () => ({
-    escapeHtml: vi.fn((text) => String(text || '')),
-    formatEuro: vi.fn((val) => `€ ${val}`)
+  escapeHtml: vi.fn(text => String(text || '')),
+  formatEuro: vi.fn(val => `€ ${val}`)
 }));
 
 vi.mock('../../js/admin/components/FilterBar.js', () => ({
-    FilterBar: class MockFilterBar {
-        render() { }
-    }
+  FilterBar: class MockFilterBar {
+    render() {}
+  }
 }));
 
 vi.mock('../../js/admin/components/Pagination.js', () => ({
-    Pagination: class MockPagination {
-        render() { }
-    }
+  Pagination: class MockPagination {
+    render() {}
+  }
 }));
 
 describe('Shifts Module', () => {
-    let container: HTMLElement;
+  let container: HTMLElement;
 
-    beforeEach(() => {
-        container = document.createElement('div');
-        container.id = 'container';
-        document.body.appendChild(container);
+  beforeEach(() => {
+    container = document.createElement('div');
+    container.id = 'container';
+    document.body.appendChild(container);
 
-        const actions = document.createElement('div');
-        actions.id = 'actions';
-        document.body.appendChild(actions);
+    const actions = document.createElement('div');
+    actions.id = 'actions';
+    document.body.appendChild(actions);
 
-        const modalBody = document.createElement('div');
-        modalBody.id = 'modal-body';
-        document.body.appendChild(modalBody);
+    const modalBody = document.createElement('div');
+    modalBody.id = 'modal-body';
+    document.body.appendChild(modalBody);
 
-        vi.clearAllMocks();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  describe('showChiusureTab - Data Rendering', () => {
+    it('should render shifts table container', async () => {
+      const actions = document.getElementById('actions')!;
+      await showChiusureTab(container, actions);
+
+      expect(container.querySelector('#filters-container')).toBeTruthy();
+      expect(container.querySelector('#data-container')).toBeTruthy();
+      expect(container.querySelector('#pagination-container')).toBeTruthy();
     });
 
-    afterEach(() => {
-        document.body.innerHTML = '';
+    it('should add bulk export button to actions', async () => {
+      const actions = document.getElementById('actions')!;
+      await showChiusureTab(container, actions);
+
+      const btn = document.getElementById('btn-bulk-export');
+      expect(btn).toBeTruthy();
+      expect(btn?.textContent).toContain('Export Multiplo');
     });
 
-    describe('showChiusureTab - Data Rendering', () => {
-        it('should render shifts table container', async () => {
-            const actions = document.getElementById('actions')!;
-            await showChiusureTab(container, actions);
+    it('should display "Nessuna chiusura trovata" when data is empty', async () => {
+      const { supabase } = await import('../../js/core/api.js');
 
-            expect(container.querySelector('#filters-container')).toBeTruthy();
-            expect(container.querySelector('#data-container')).toBeTruthy();
-            expect(container.querySelector('#pagination-container')).toBeTruthy();
-        });
+      // Create a recursive mock chain that handles any combination of calls
+      const mockChain = {
+        select: vi.fn(() => mockChain),
+        eq: vi.fn(() => mockChain),
+        gte: vi.fn(() => mockChain),
+        lte: vi.fn(() => mockChain),
+        range: vi.fn(() => mockChain),
+        order: vi.fn(() => Promise.resolve({ data: [], error: null, count: 0 })),
+        limit: vi.fn(() => Promise.resolve({ data: [], error: null }))
+      };
 
-        it('should add bulk export button to actions', async () => {
-            const actions = document.getElementById('actions')!;
-            await showChiusureTab(container, actions);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockChain as unknown as ReturnType<typeof supabase.from>
+      );
 
-            const btn = document.getElementById('btn-bulk-export');
-            expect(btn).toBeTruthy();
-            expect(btn?.textContent).toContain('Export Multiplo');
-        });
+      await showChiusureTab(container, null);
 
-        it('should display "Nessuna chiusura trovata" when data is empty', async () => {
-            const { supabase } = await import('../../js/core/api.js');
+      expect(container.innerHTML).toContain('Nessuna chiusura trovata');
+    });
+  });
 
-            // Create a recursive mock chain that handles any combination of calls
-            const mockChain = {
-                select: vi.fn(() => mockChain),
-                eq: vi.fn(() => mockChain),
-                gte: vi.fn(() => mockChain),
-                lte: vi.fn(() => mockChain),
-                range: vi.fn(() => mockChain),
-                order: vi.fn(() => Promise.resolve({ data: [], error: null, count: 0 })),
-                limit: vi.fn(() => Promise.resolve({ data: [], error: null }))
-            };
+  describe('Stale Indicator Logic', () => {
+    it('should show STALE badge for open shifts exceeding threshold', async () => {
+      const { supabase } = await import('../../js/core/api.js');
+      // Mock shift created 25 hours ago (threshold is 24)
+      const staleDate = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
 
-            vi.mocked(supabase.from).mockReturnValue(mockChain as unknown as ReturnType<typeof supabase.from>);
+      vi.mocked(supabase.from).mockReturnValue({
+        select: vi.fn(() => ({
+          // Simplified chain for default checks
+          range: vi.fn(() => ({
+            order: vi.fn(() =>
+              Promise.resolve({
+                data: [
+                  {
+                    id: 101,
+                    station_id: 1,
+                    operator_id: 'op1',
+                    status: 'open',
+                    created_at: staleDate,
+                    closed_at: null,
+                    closing_data: { is_final: false }
+                  }
+                ],
+                error: null,
+                count: 1
+              })
+            )
+          }))
+        }))
+      } as unknown as ReturnType<typeof supabase.from>);
 
-            await showChiusureTab(container, null);
+      await showChiusureTab(container, null);
 
-            expect(container.innerHTML).toContain('Nessuna chiusura trovata');
-        });
+      // Wait for async rendering
+      await new Promise(r => setTimeout(r, 0));
+
+      const badge = container.querySelector('.badge-danger');
+      expect(badge).toBeTruthy();
+      expect(badge?.textContent).toBe('STALE');
     });
 
-    describe('Stale Indicator Logic', () => {
-        it('should show STALE badge for open shifts exceeding threshold', async () => {
-            const { supabase } = await import('../../js/core/api.js');
-            // Mock shift created 25 hours ago (threshold is 24)
-            const staleDate = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+    it('should NOT show STALE badge for recent open shifts', async () => {
+      const { supabase } = await import('../../js/core/api.js');
+      // Mock shift created 10 hours ago
+      const recentDate = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
 
-            vi.mocked(supabase.from).mockReturnValue({
-                select: vi.fn(() => ({
-                    // Simplified chain for default checks
-                    range: vi.fn(() => ({
-                        order: vi.fn(() => Promise.resolve({
-                            data: [{
-                                id: 101,
-                                station_id: 1,
-                                operator_id: 'op1',
-                                status: 'open',
-                                created_at: staleDate,
-                                closed_at: null,
-                                closing_data: { is_final: false }
-                            }],
-                            error: null,
-                            count: 1
-                        }))
-                    }))
-                }))
-            } as unknown as ReturnType<typeof supabase.from>);
+      vi.mocked(supabase.from).mockReturnValue({
+        select: vi.fn(() => ({
+          range: vi.fn(() => ({
+            order: vi.fn(() =>
+              Promise.resolve({
+                data: [
+                  {
+                    id: 102,
+                    status: 'open',
+                    created_at: recentDate,
+                    closing_data: { is_final: false }
+                  }
+                ],
+                error: null,
+                count: 1
+              })
+            )
+          }))
+        }))
+      } as unknown as ReturnType<typeof supabase.from>);
 
-            await showChiusureTab(container, null);
+      await showChiusureTab(container, null);
+      await new Promise(r => setTimeout(r, 0));
 
-            // Wait for async rendering
-            await new Promise(r => setTimeout(r, 0));
+      expect(container.innerHTML).not.toContain('STALE');
+    });
+  });
 
-            const badge = container.querySelector('.badge-danger');
-            expect(badge).toBeTruthy();
-            expect(badge?.textContent).toBe('STALE');
-        });
+  describe('showClosureDetails - Self Service Logic', () => {
+    it('should display the simple view when no banknotes were dispensed', async () => {
+      const { formatEuro } = await import('../../js/utils/utils.js');
+      const { supabase } = await import('../../js/core/api.js');
 
-        it('should NOT show STALE badge for recent open shifts', async () => {
-            const { supabase } = await import('../../js/core/api.js');
-            // Mock shift created 10 hours ago
-            const recentDate = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
+      vi.mocked(supabase.from).mockReturnValue({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(() =>
+              Promise.resolve({
+                data: {
+                  id: 1,
+                  station_id: 'ST1',
+                  status: 'closed',
+                  created_at: '2024-01-01',
+                  opening_data: {},
+                  closing_data: {
+                    snapshot: {
+                      computed: {
+                        self: { cash_in: 100, cash_out: 0, pos: 0, fleet: 0, manager: 0 }
+                      }
+                    }
+                  }
+                },
+                error: null
+              })
+            )
+          }))
+        }))
+      } as unknown as ReturnType<typeof supabase.from>);
 
-            vi.mocked(supabase.from).mockReturnValue({
-                select: vi.fn(() => ({
-                    range: vi.fn(() => ({
-                        order: vi.fn(() => Promise.resolve({
-                            data: [{
-                                id: 102,
-                                status: 'open',
-                                created_at: recentDate,
-                                closing_data: { is_final: false }
-                            }],
-                            error: null,
-                            count: 1
-                        }))
-                    }))
-                }))
-            } as unknown as ReturnType<typeof supabase.from>);
+      await showClosureDetails(1);
 
-            await showChiusureTab(container, null);
-            await new Promise(r => setTimeout(r, 0));
-
-            expect(container.innerHTML).not.toContain('STALE');
-        });
+      const modalBody = document.getElementById('modal-body');
+      // Expect simple format: "Contanti: € 100" (incassate = 100)
+      expect(modalBody?.innerHTML).toContain('Contanti:');
+      expect(formatEuro).toHaveBeenCalledWith(100);
     });
 
-    describe('showClosureDetails - Self Service Logic', () => {
-        it('should display the simple view when no banknotes were dispensed', async () => {
-            const { formatEuro } = await import('../../js/utils/utils.js');
-            const { supabase } = await import('../../js/core/api.js');
+    it('should display the incassato with the raw breakdown when banknotes were dispensed (#347)', async () => {
+      const { formatEuro } = await import('../../js/utils/utils.js');
+      const { supabase } = await import('../../js/core/api.js');
 
-            vi.mocked(supabase.from).mockReturnValue({
-                select: vi.fn(() => ({
-                    eq: vi.fn(() => ({
-                        single: vi.fn(() => Promise.resolve({
-                            data: {
-                                id: 1,
-                                station_id: 'ST1',
-                                status: 'closed',
-                                created_at: '2024-01-01',
-                                opening_data: {},
-                                closing_data: {
-                                    snapshot: {
-                                        computed: {
-                                            self: { cash_in: 100, cash_out: 0, pos: 0, fleet: 0, manager: 0 }
-                                        }
-                                    }
-                                }
-                            },
-                            error: null
-                        }))
-                    }))
-                }))
-            } as unknown as ReturnType<typeof supabase.from>);
+      vi.mocked(supabase.from).mockReturnValue({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(() =>
+              Promise.resolve({
+                data: {
+                  id: 1,
+                  station_id: 'ST1',
+                  status: 'closed',
+                  created_at: '2024-01-01',
+                  opening_data: {},
+                  closing_data: {
+                    snapshot: {
+                      computed: {
+                        self: { cash_in: 80, cash_out: 30, pos: 0, fleet: 0, manager: 0 }
+                      }
+                    }
+                  }
+                },
+                error: null
+              })
+            )
+          }))
+        }))
+      } as unknown as ReturnType<typeof supabase.from>);
 
-            await showClosureDetails(1);
+      await showClosureDetails(1);
 
-            const modalBody = document.getElementById('modal-body');
-            // Expect simple format: "Contanti: € 100" (incassate = 100)
-            expect(modalBody?.innerHTML).toContain('Contanti:');
-            expect(formatEuro).toHaveBeenCalledWith(100);
-        });
-
-        it('should display the incassato with the raw breakdown when banknotes were dispensed (#347)', async () => {
-            const { formatEuro } = await import('../../js/utils/utils.js');
-            const { supabase } = await import('../../js/core/api.js');
-
-            vi.mocked(supabase.from).mockReturnValue({
-                select: vi.fn(() => ({
-                    eq: vi.fn(() => ({
-                        single: vi.fn(() => Promise.resolve({
-                            data: {
-                                id: 1,
-                                station_id: 'ST1',
-                                status: 'closed',
-                                created_at: '2024-01-01',
-                                opening_data: {},
-                                closing_data: {
-                                    snapshot: {
-                                        computed: {
-                                            self: { cash_in: 80, cash_out: 30, pos: 0, fleet: 0, manager: 0 }
-                                        }
-                                    }
-                                }
-                            },
-                            error: null
-                        }))
-                    }))
-                }))
-            } as unknown as ReturnType<typeof supabase.from>);
-
-            await showClosureDetails(1);
-
-            const modalBody = document.getElementById('modal-body');
-            expect(modalBody?.innerHTML).toContain('Contanti:');
-            expect(modalBody?.innerHTML).toContain('Incassati:');
-            expect(modalBody?.innerHTML).toContain('Erogati:');
-            // Mostra l'incassato (80) come valore principale
-            expect(formatEuro).toHaveBeenCalledWith(80);
-        });
+      const modalBody = document.getElementById('modal-body');
+      expect(modalBody?.innerHTML).toContain('Contanti:');
+      expect(modalBody?.innerHTML).toContain('Incassati:');
+      expect(modalBody?.innerHTML).toContain('Erogati:');
+      // Mostra l'incassato (80) come valore principale
+      expect(formatEuro).toHaveBeenCalledWith(80);
     });
+  });
 
-    describe('Bulk Export Modal', () => {
-        it('should open modal and populate station dropdown', async () => {
-            const { openModal } = await import('../../js/ui/ui.js');
-            const { supabase } = await import('../../js/core/api.js');
-            const actions = document.getElementById('actions')!;
+  describe('Bulk Export Modal', () => {
+    it('should open modal and populate station dropdown', async () => {
+      const { openModal } = await import('../../js/ui/ui.js');
+      const { supabase } = await import('../../js/core/api.js');
+      const actions = document.getElementById('actions')!;
 
-            // Mock Stations fetch
-            const mockStations = [
-                { station_id: 1, station_name: 'Stazione A' },
-                { station_id: 2, station_name: 'Stazione B' }
-            ];
+      // Mock Stations fetch
+      const mockStations = [
+        { station_id: 1, station_name: 'Stazione A' },
+        { station_id: 2, station_name: 'Stazione B' }
+      ];
 
-            // Setup supabase mock specifically for this flow
-            // Note: Shifts module calls showChiusureTab -> renders btn -> user clicks -> openBulkExportModal -> fetch stations
+      // Setup supabase mock specifically for this flow
+      // Note: Shifts module calls showChiusureTab -> renders btn -> user clicks -> openBulkExportModal -> fetch stations
 
-            // We need to mock the stations query which is: .from('fuel_stations').select(...)
-            const fromMock = vi.mocked(supabase.from);
-            fromMock.mockImplementation((table) => {
-                if (table === 'fuel_stations') {
-                    return {
-                        select: vi.fn(() => ({
-                            order: vi.fn(() => Promise.resolve({ data: mockStations, error: null }))
-                        }))
-                    } as unknown as ReturnType<typeof supabase.from>;
-                }
-                // Default shift query fallback
-                return {
-                    select: vi.fn(() => ({ range: vi.fn(() => ({ order: vi.fn(() => Promise.resolve({ data: [], count: 0 })) })) }))
-                } as unknown as ReturnType<typeof supabase.from>;
-            });
+      // We need to mock the stations query which is: .from('fuel_stations').select(...)
+      const fromMock = vi.mocked(supabase.from);
+      fromMock.mockImplementation(table => {
+        if (table === 'fuel_stations') {
+          return {
+            select: vi.fn(() => ({
+              order: vi.fn(() => Promise.resolve({ data: mockStations, error: null }))
+            }))
+          } as unknown as ReturnType<typeof supabase.from>;
+        }
+        // Default shift query fallback
+        return {
+          select: vi.fn(() => ({
+            range: vi.fn(() => ({ order: vi.fn(() => Promise.resolve({ data: [], count: 0 })) }))
+          }))
+        } as unknown as ReturnType<typeof supabase.from>;
+      });
 
-            await showChiusureTab(container, actions);
+      await showChiusureTab(container, actions);
 
-            const btn = document.getElementById('btn-bulk-export');
-            btn?.click();
+      const btn = document.getElementById('btn-bulk-export');
+      btn?.click();
 
-            // Wait for async fetch
-            await new Promise(r => setTimeout(r, 0));
+      // Wait for async fetch
+      await new Promise(r => setTimeout(r, 0));
 
-            expect(openModal).toHaveBeenCalledWith('Export Multiplo Chiusure');
+      expect(openModal).toHaveBeenCalledWith('Export Multiplo Chiusure');
 
-            const modalBody = document.getElementById('modal-body');
-            const select = modalBody?.querySelector('#bulk-station');
-            expect(select).toBeTruthy();
-            expect(select?.innerHTML).toContain('Stazione A');
-            expect(select?.innerHTML).toContain('Stazione B');
-        });
+      const modalBody = document.getElementById('modal-body');
+      const select = modalBody?.querySelector('#bulk-station');
+      expect(select).toBeTruthy();
+      expect(select?.innerHTML).toContain('Stazione A');
+      expect(select?.innerHTML).toContain('Stazione B');
     });
+  });
 
-    describe('deleteClosure', () => {
-        it('should call RPC for deletion', async () => {
-            const { supabase } = await import('../../js/core/api.js');
-            const callback = vi.fn();
+  describe('deleteClosure', () => {
+    it('should call RPC for deletion', async () => {
+      const { supabase } = await import('../../js/core/api.js');
+      const callback = vi.fn();
 
-            await deleteClosure(1, callback);
+      await deleteClosure(1, callback);
 
-            expect(supabase.rpc).toHaveBeenCalledWith('admin_delete_closure', {
-                closure_id: 1
-            });
-        });
+      expect(supabase.rpc).toHaveBeenCalledWith('admin_delete_closure', {
+        closure_id: 1
+      });
     });
+  });
 });

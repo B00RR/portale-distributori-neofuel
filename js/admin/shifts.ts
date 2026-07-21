@@ -486,7 +486,11 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
       // Server-authoritative values
       contanti = formatEuro(operatorSnapshot.cash || 0);
       pos = formatEuro(operatorSnapshot.pos || 0);
-      crediti = formatEuro((computed.credit_payments?.cash || 0) + (computed.credit_payments?.pos || 0) + (computed.credit_payments?.uta_dkv_fine_mese || 0));
+      crediti = formatEuro(
+        (computed.credit_payments?.cash || 0) +
+          (computed.credit_payments?.pos || 0) +
+          (computed.credit_payments?.uta_dkv_fine_mese || 0)
+      );
       voucher = formatEuro(computed.vouchers || 0);
       carteUta = formatEuro(operatorSnapshot.fleet || 0);
       rimborsi = formatEuro(computed.outflows || 0);
