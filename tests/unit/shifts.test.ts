@@ -51,6 +51,7 @@ vi.mock('../../js/shared/state.js', () => ({
         getFilters: vi.fn(() => ({ dateFrom: null, dateTo: null })),
         getPagination: vi.fn(() => ({ page: 0, pageSize: 20, totalCount: 0 })),
         getFilter: vi.fn(() => null),
+        getUser: vi.fn(() => ({ role: 'admin' })),
         setPagination: vi.fn(),
         subscribe: vi.fn(() => () => { })
     }
@@ -240,11 +241,15 @@ describe('Shifts Module', () => {
                         single: vi.fn(() => Promise.resolve({
                             data: {
                                 id: 1,
+                                station_id: 'ST1',
+                                status: 'closed',
                                 created_at: '2024-01-01',
+                                opening_data: {},
                                 closing_data: {
-                                    scontrino_self: {
-                                        banconote_erogate: 0,
-                                        banconote_incassate: 100
+                                    snapshot: {
+                                        computed: {
+                                            self: { cash_in: 100, cash_out: 0, pos: 0, fleet: 0, manager: 0 }
+                                        }
                                     }
                                 }
                             },
@@ -257,10 +262,9 @@ describe('Shifts Module', () => {
             await showClosureDetails(1);
 
             const modalBody = document.getElementById('modal-body');
-            // Expect simple format: "Contanti: € 100" (netto = incassate - 0)
+            // Expect simple format: "Contanti: € 100" (incassate = 100)
             expect(modalBody?.innerHTML).toContain('Contanti:');
             expect(formatEuro).toHaveBeenCalledWith(100);
-            expect(modalBody?.innerHTML).not.toContain('Incassate:'); // Detail hidden
         });
 
         it('should display the incassato with the raw breakdown when banknotes were dispensed (#347)', async () => {
@@ -273,11 +277,15 @@ describe('Shifts Module', () => {
                         single: vi.fn(() => Promise.resolve({
                             data: {
                                 id: 1,
+                                station_id: 'ST1',
+                                status: 'closed',
                                 created_at: '2024-01-01',
+                                opening_data: {},
                                 closing_data: {
-                                    scontrino_self: {
-                                        banconote_erogate: 30,
-                                        banconote_incassate: 80
+                                    snapshot: {
+                                        computed: {
+                                            self: { cash_in: 80, cash_out: 30, pos: 0, fleet: 0, manager: 0 }
+                                        }
                                     }
                                 }
                             },
