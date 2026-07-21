@@ -263,7 +263,7 @@ describe('Shifts Module', () => {
             expect(modalBody?.innerHTML).not.toContain('Incassate:'); // Detail hidden
         });
 
-        it('should display the net cash with the raw breakdown when banknotes were dispensed (#326)', async () => {
+        it('should display the incassato with the raw breakdown when banknotes were dispensed (#347)', async () => {
             const { formatEuro } = await import('../../js/utils/utils.js');
             const { supabase } = await import('../../js/core/api.js');
 
@@ -290,12 +290,11 @@ describe('Shifts Module', () => {
             await showClosureDetails(1);
 
             const modalBody = document.getElementById('modal-body');
-            expect(modalBody?.innerHTML).toContain('Contanti (netto):');
-            expect(modalBody?.innerHTML).toContain('Incassate:');
-            expect(modalBody?.innerHTML).toContain('Erogate:');
-            // Il netto (80 - 30 = 50) alimenta sia la riga contanti sia
-            // l'Incasso Totale Self: mai le sole erogate come totale.
-            expect(formatEuro).toHaveBeenCalledWith(50);
+            expect(modalBody?.innerHTML).toContain('Contanti:');
+            expect(modalBody?.innerHTML).toContain('Incassati:');
+            expect(modalBody?.innerHTML).toContain('Erogati:');
+            // Mostra l'incassato (80) come valore principale
+            expect(formatEuro).toHaveBeenCalledWith(80);
         });
     });
 

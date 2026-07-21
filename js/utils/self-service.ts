@@ -32,3 +32,12 @@ export function selfTotalIncasso(receipt: SelfReceiptAmounts): number {
     toFiniteAmount(receipt.transazioni_uta)
   );
 }
+
+/** Totale carburante erogato self = banconote erogate + bancomat + carte (UTA/DKV). */
+export function selfTotalErogato(receipt: SelfReceiptAmounts): number {
+  return (
+    toFiniteAmount(receipt.banconote_erogate) +
+    toFiniteAmount(receipt.bancomat_erogati) +
+    toFiniteAmount(receipt.transazioni_uta)
+  );
+}
