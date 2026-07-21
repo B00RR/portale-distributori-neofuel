@@ -65,6 +65,7 @@ describe('Offline financial executors bootstrap', () => {
       payload: {
         kind: 'credit_create',
         stationId: 123,
+        operatorId: '456',
         customerName: 'Cliente Test',
         amount: 50,
         product: 'Gasolio',
@@ -73,10 +74,18 @@ describe('Offline financial executors bootstrap', () => {
     });
 
     expect(result).toBe(true);
-    expect(mockProcessNewCredit).toHaveBeenCalledWith(123, 'Cliente Test', 50, 'Gasolio', 'nota', {
-      skipOfflineQueue: true,
-      requestId: 'queued-action-id-123'
-    });
+    expect(mockProcessNewCredit).toHaveBeenCalledWith(
+      123,
+      '456',
+      'Cliente Test',
+      50,
+      'Gasolio',
+      'nota',
+      {
+        skipOfflineQueue: true,
+        requestId: 'queued-action-id-123'
+      }
+    );
   });
 
   it('replays queued credit payment without queueing it again', async () => {
@@ -87,6 +96,7 @@ describe('Offline financial executors bootstrap', () => {
       payload: {
         kind: 'credit_payment',
         stationId: '123',
+        operatorId: '456',
         customerId: 7,
         amount: 25,
         method: 'contanti'
@@ -94,7 +104,7 @@ describe('Offline financial executors bootstrap', () => {
     });
 
     expect(result).toBe(true);
-    expect(mockProcessPayment).toHaveBeenCalledWith(123, 7, 25, 'contanti', {
+    expect(mockProcessPayment).toHaveBeenCalledWith(123, '456', 7, 25, 'contanti', {
       skipOfflineQueue: true,
       requestId: 'queued-action-id-456'
     });
@@ -138,6 +148,7 @@ describe('Offline financial executors bootstrap', () => {
         stationId: 123,
         operatorId: '456',
         amount: 12,
+        paymentMethod: 'cash',
         type: 'olio',
         description: 'Olio motore',
         createdAt: '2026-07-05T10:00:00.000Z'
@@ -145,10 +156,18 @@ describe('Offline financial executors bootstrap', () => {
     });
 
     expect(result).toBe(true);
-    expect(mockProcessExtraIncome).toHaveBeenCalledWith(123, '456', 12, 'olio', 'Olio motore', {
-      skipOfflineQueue: true,
-      createdAt: '2026-07-05T10:00:00.000Z'
-    });
+    expect(mockProcessExtraIncome).toHaveBeenCalledWith(
+      123,
+      '456',
+      12,
+      'cash',
+      'olio',
+      'Olio motore',
+      {
+        skipOfflineQueue: true,
+        createdAt: '2026-07-05T10:00:00.000Z'
+      }
+    );
   });
 
   it('replays queued invoice requests without queueing them again', async () => {

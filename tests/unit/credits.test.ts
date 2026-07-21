@@ -56,6 +56,7 @@ describe('Credits Module - Logic and UI Verification', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.body.innerHTML = '<div id="modal-body"></div>';
+    mockOpening.checkOpeningStatus.mockResolvedValue({ id: 1 });
     vi.stubGlobal('crypto', {
       randomUUID: () => 'mock-uuid-value-1234'
     });
@@ -64,7 +65,7 @@ describe('Credits Module - Logic and UI Verification', () => {
   it('should throw if crypto.randomUUID is not available', async () => {
     vi.stubGlobal('crypto', undefined);
     await expect(
-      processNewCredit('123', 'Nuovo Cliente', 100, 'Gasolio', 'Test note')
+      processNewCredit('123', '456', 'Nuovo Cliente', 100, 'Gasolio', 'Test note')
     ).rejects.toThrow('crypto.randomUUID non supportato o non disponibile in questo ambiente');
   });
 
@@ -86,14 +87,16 @@ describe('Credits Module - Logic and UI Verification', () => {
   it('should call create_credit_transaction RPC when online', async () => {
     mockOfflineQueue.isOffline.mockReturnValue(false);
     mockSupabase.rpc.mockResolvedValue({ data: { success: true }, error: null });
+    mockOpening.checkOpeningStatus.mockResolvedValue({ id: 1 });
 
-    await processNewCredit('123', 'Nuovo Cliente', 100, 'Gasolio', 'Test note');
+    await processNewCredit('123', '456', 'Nuovo Cliente', 100, 'Gasolio', 'Test note');
 
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
       'create_credit_transaction',
       expect.objectContaining({
         p_request_id: expect.stringMatching(/^credit-create-/),
         p_station_id: 123,
+        p_shift_id: 1,
         p_customer_name: 'Nuovo Cliente',
         p_amount: 100,
         p_product: 'Gasolio',
@@ -115,7 +118,7 @@ describe('Credits Module - Logic and UI Verification', () => {
     });
 
     await expect(
-      processNewCredit('123', 'Nuovo Cliente', 100, 'Gasolio', 'Test note')
+      processNewCredit('123', '456', 'Nuovo Cliente', 100, 'Gasolio', 'Test note')
     ).rejects.toThrow('Errore creazione');
   });
 
@@ -124,7 +127,7 @@ describe('Credits Module - Logic and UI Verification', () => {
     mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
 
     await expect(
-      processNewCredit('123', 'Nuovo Cliente', 100, 'Gasolio', 'Test note')
+      processNewCredit('123', '456', 'Nuovo Cliente', 100, 'Gasolio', 'Test note')
     ).rejects.toThrow('Risposta del server non valida o vuota');
   });
 
@@ -133,20 +136,21 @@ describe('Credits Module - Logic and UI Verification', () => {
     mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
 
     await expect(
-      processNewCredit('123', 'Nuovo Cliente', 100, 'Gasolio', 'Test note')
+      processNewCredit('123', '456', 'Nuovo Cliente', 100, 'Gasolio', 'Test note')
     ).rejects.toThrow('DB Error');
   });
 
   it('should queue credit_create offline action without operatorId or createdAt', async () => {
     mockOfflineQueue.isOffline.mockReturnValue(true);
 
-    await processNewCredit('123', 'Nuovo Cliente', 100, 'Gasolio', 'Test note');
+    await processNewCredit('123', '456', 'Nuovo Cliente', 100, 'Gasolio', 'Test note');
 
     expect(mockOfflineQueue.queueAction).toHaveBeenCalledWith(
       'movement_create',
       expect.objectContaining({
         kind: 'credit_create',
         stationId: 123,
+        operatorId: '456',
         customerName: 'Nuovo Cliente',
         amount: 100,
         product: 'Gasolio',
@@ -154,7 +158,7 @@ describe('Credits Module - Logic and UI Verification', () => {
       })
     );
     const queuedPayload = mockOfflineQueue.queueAction.mock.calls[0][1];
-    expect(queuedPayload).not.toHaveProperty('operatorId');
+    expect(queuedPayload).toHaveProperty('operatorId', '456');
     expect(queuedPayload).toHaveProperty('createdAt', '2024-01-01T23:59:59.999Z');
   });
 
@@ -162,13 +166,14 @@ describe('Credits Module - Logic and UI Verification', () => {
     mockOfflineQueue.isOffline.mockReturnValue(false);
     mockSupabase.rpc.mockResolvedValue({ data: { success: true }, error: null });
 
-    await processPayment('123', 7, 50, 'contanti');
+    await processPayment('123', '456', 7, 50, 'contanti');
 
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
       'register_credit_payment',
       expect.objectContaining({
         p_request_id: expect.stringMatching(/^credit-payment-/),
         p_station_id: 123,
+        p_shift_id: 1,
         p_customer_id: 7,
         p_amount: 50,
         p_method: 'contanti'
@@ -188,14 +193,16 @@ describe('Credits Module - Logic and UI Verification', () => {
       error: null
     });
 
-    await expect(processPayment('123', 7, 50, 'contanti')).rejects.toThrow('Errore pagamento');
+    await expect(processPayment('123', '456', 7, 50, 'contanti')).rejects.toThrow(
+      'Errore pagamento'
+    );
   });
 
   it('should throw error when register_credit_payment RPC returns null or malformed data', async () => {
     mockOfflineQueue.isOffline.mockReturnValue(false);
     mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
 
-    await expect(processPayment('123', 7, 50, 'contanti')).rejects.toThrow(
+    await expect(processPayment('123', '456', 7, 50, 'contanti')).rejects.toThrow(
       'Risposta del server non valida o vuota'
     );
   });
@@ -204,26 +211,27 @@ describe('Credits Module - Logic and UI Verification', () => {
     mockOfflineQueue.isOffline.mockReturnValue(false);
     mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
 
-    await expect(processPayment('123', 7, 50, 'contanti')).rejects.toThrow('DB Error');
+    await expect(processPayment('123', '456', 7, 50, 'contanti')).rejects.toThrow('DB Error');
   });
 
   it('should queue credit_payment offline action without operatorId, customer.saldo, or createdAt', async () => {
     mockOfflineQueue.isOffline.mockReturnValue(true);
 
-    await processPayment('123', 7, 50, 'contanti');
+    await processPayment('123', '456', 7, 50, 'contanti');
 
     expect(mockOfflineQueue.queueAction).toHaveBeenCalledWith(
       'movement_create',
       expect.objectContaining({
         kind: 'credit_payment',
         stationId: 123,
+        operatorId: '456',
         customerId: 7,
         amount: 50,
         method: 'contanti'
       })
     );
     const queuedPayload = mockOfflineQueue.queueAction.mock.calls[0][1];
-    expect(queuedPayload).not.toHaveProperty('operatorId');
+    expect(queuedPayload).toHaveProperty('operatorId', '456');
     expect(queuedPayload).not.toHaveProperty('customer');
     expect(queuedPayload).not.toHaveProperty('saldo');
     expect(queuedPayload).toHaveProperty('createdAt', '2024-01-01T23:59:59.999Z');

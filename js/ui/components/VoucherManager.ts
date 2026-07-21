@@ -446,10 +446,21 @@ export class VoucherManager extends BaseComponent {
     }
 
     try {
+      const requestId =
+        'voucher_' +
+        this.stationId +
+        '_' +
+        (this.shiftId ?? 'no-shift') +
+        '_' +
+        Date.now() +
+        '_' +
+        Math.random().toString(36).substring(2, 9);
       const { data: result, error } = await supabase.rpc('redeem_voucher_validated', {
         p_voucher_code: this.activeVoucher.code,
         p_station_id: Number(this.stationId),
-        p_operator_id: this.userId
+        p_operator_id: this.userId,
+        p_request_id: requestId,
+        p_shift_id: this.shiftId ? Number(this.shiftId) : undefined
       });
 
       if (error) {

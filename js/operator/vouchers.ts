@@ -1,6 +1,7 @@
 import { openModal } from '../ui/ui.js';
 // Import the web component definition to ensure it's registered
 import '../ui/components/VoucherManager.js';
+import { checkOpeningStatus } from './opening.js';
 
 /**
  * Shows the Voucher Manager Modal
@@ -17,10 +18,17 @@ export async function showVoucherMenu(stationId: number | string, userId: string
   // Clear previous content
   container.replaceChildren();
 
+  // Determine the active shift so the voucher redemption is tied to it.
+  const activeOpening = await checkOpeningStatus(stationId);
+  const shiftId = activeOpening?.id ?? '';
+
   // Create and configure component
   const manager = document.createElement('voucher-manager');
   manager.setAttribute('stationId', String(stationId));
   manager.setAttribute('userId', String(userId));
+  if (shiftId) {
+    manager.setAttribute('shiftId', String(shiftId));
+  }
 
   // Listen for completion events to maybe close modal or refresh data
   // Note: We use 'any' cast for custom event typing if needed,

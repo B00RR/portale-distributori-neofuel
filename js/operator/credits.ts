@@ -172,7 +172,7 @@ async function showNewCreditForm(stationId: number | string, userId: string): Pr
     }
 
     try {
-      await processNewCredit(stationId, customerName, amount, product, notes);
+      await processNewCredit(stationId, userId, customerName, amount, product, notes);
       closeModal();
       showInfoModal(
         isOffline()
@@ -223,6 +223,7 @@ async function searchCustomersForInput(
 
 export async function processNewCredit(
   stationId: number | string,
+  userId: string,
   customerName: string,
   amount: number,
   product: string,
@@ -232,10 +233,14 @@ export async function processNewCredit(
   const numericStationId = toNumericId(stationId);
   const creditDate = options?.createdAt ?? getItalianBusinessDayEndUtc();
 
+  const activeOpening = await checkOpeningStatus(stationId);
+  const shiftId = activeOpening?.id ?? null;
+
   if (shouldQueue(options)) {
     await queueAction('movement_create', {
       kind: 'credit_create',
       stationId: numericStationId,
+      operatorId: String(userId),
       customerName,
       amount,
       product,
@@ -250,6 +255,7 @@ export async function processNewCredit(
   const { data, error } = await supabase.rpc('create_credit_transaction', {
     p_request_id: requestId,
     p_station_id: numericStationId,
+    p_shift_id: shiftId,
     p_customer_name: customerName,
     p_amount: amount,
     p_product: product,
@@ -416,7 +422,7 @@ export function showPaymentModal(
     }
 
     try {
-      await processPayment(stationId, customer.id, amount, method);
+      await processPayment(stationId, userId, customer.id, amount, method);
       closeModal();
       showInfoModal(
         isOffline()
@@ -431,6 +437,7 @@ export function showPaymentModal(
 
 export async function processPayment(
   stationId: number | string,
+  userId: string,
   customerId: number | string,
   amount: number,
   method: string,
@@ -440,10 +447,14 @@ export async function processPayment(
   const numericCustomerId = toNumericId(customerId);
   const creditDate = options?.createdAt ?? getItalianBusinessDayEndUtc();
 
+  const activeOpening = await checkOpeningStatus(stationId);
+  const shiftId = activeOpening?.id ?? null;
+
   if (shouldQueue(options)) {
     await queueAction('movement_create', {
       kind: 'credit_payment',
       stationId: numericStationId,
+      operatorId: String(userId),
       customerId: numericCustomerId,
       amount,
       method,
@@ -457,6 +468,7 @@ export async function processPayment(
   const { data, error } = await supabase.rpc('register_credit_payment', {
     p_request_id: requestId,
     p_station_id: numericStationId,
+    p_shift_id: shiftId,
     p_customer_id: numericCustomerId,
     p_amount: amount,
     p_method: method
