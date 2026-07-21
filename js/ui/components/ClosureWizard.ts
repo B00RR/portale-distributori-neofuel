@@ -470,11 +470,9 @@ export class ClosureWizard extends BaseComponent {
       const opening = this.openingCounters[p.id] ?? 0;
       const closing = this.finalCounters[p.id];
       if (closing === null || closing === undefined) {
-        // eslint-disable-next-line security/detect-object-injection -- p.id is a finite numeric database id.
         result[p.id] = 0;
         return;
       }
-      // eslint-disable-next-line security/detect-object-injection -- p.id is a finite numeric database id.
       result[p.id] = Math.max(0, closing - opening);
     });
     return result;
@@ -636,7 +634,6 @@ export class ClosureWizard extends BaseComponent {
     }
     this.finalCounters = {
       ...this.finalCounters,
-      // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
       [pistolId]: numericValue
     };
   }
@@ -906,10 +903,8 @@ export class ClosureWizard extends BaseComponent {
     this.pistole.forEach(p => {
       const closing = this.finalCounters[p.id];
       if (closing === null || closing === undefined) {
-        // eslint-disable-next-line security/detect-object-injection -- p.id is a finite numeric database id.
         finalCounters[p.id] = null;
       } else {
-        // eslint-disable-next-line security/detect-object-injection -- p.id is a finite numeric database id.
         finalCounters[p.id] = closing;
       }
     });

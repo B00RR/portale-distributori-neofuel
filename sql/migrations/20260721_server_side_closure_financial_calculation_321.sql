@@ -1453,7 +1453,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.register_credit_payment(
     p_request_id text,
     p_station_id integer,
-    p_customer_id integer,
+    p_customer_id_param integer,
     p_amount numeric,
     p_method text,
     p_shift_id bigint DEFAULT NULL
@@ -1533,7 +1533,7 @@ BEGIN
         'operator_id', v_operator_id,
         'station_id', p_station_id,
         'shift_id', p_shift_id,
-        'customer_id', p_customer_id,
+        'customer_id', p_customer_id_param,
         'amount', v_amount,
         'method', v_method
     );
@@ -1571,7 +1571,7 @@ BEGIN
     SELECT id, cliente, saldo
     INTO v_customer_id, v_customer_name, v_customer_saldo
     FROM public.crediti_clienti
-    WHERE id = p_customer_id
+    WHERE id = p_customer_id_param
       AND station_id = p_station_id
     FOR UPDATE;
 
@@ -1596,7 +1596,7 @@ BEGIN
     UPDATE public.crediti_clienti
     SET saldo = saldo - v_amount,
         updated_at = v_created_at
-    WHERE id = p_customer_id
+    WHERE id = p_customer_id_param
       AND station_id = p_station_id
       AND saldo >= v_amount
     RETURNING saldo INTO v_new_balance;
@@ -1620,7 +1620,7 @@ BEGIN
         cliente_id, station_id, operator_id, shift_id, tipo, importo, metodo, created_at
     )
     VALUES (
-        p_customer_id, p_station_id, v_operator_id, p_shift_id,
+        p_customer_id_param, p_station_id, v_operator_id, p_shift_id,
         v_movement_type, v_amount, v_method, v_created_at
     );
 

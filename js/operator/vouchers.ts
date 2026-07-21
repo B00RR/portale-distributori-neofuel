@@ -1,6 +1,8 @@
 import { openModal } from '../ui/ui.js';
+
 // Import the web component definition to ensure it's registered
 import '../ui/components/VoucherManager.js';
+
 import { checkOpeningStatus } from './opening.js';
 
 /**
