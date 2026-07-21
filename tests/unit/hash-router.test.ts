@@ -100,6 +100,17 @@ describe('Hash Router (shared)', () => {
       unsubscribe();
     });
 
+    it('invokes the handler on popstate (browser back/forward)', () => {
+      const handler = vi.fn();
+      const unsubscribe = onHashChange('admin', handler);
+
+      window.history.pushState(null, '', '#/admin/vouchers');
+      window.dispatchEvent(new Event('popstate'));
+
+      expect(handler).toHaveBeenCalledWith('vouchers');
+      unsubscribe();
+    });
+
     it('ignores routes of other areas and malformed hashes', () => {
       const handler = vi.fn();
       const unsubscribe = onHashChange('admin', handler);

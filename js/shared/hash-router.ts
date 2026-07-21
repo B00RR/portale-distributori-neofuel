@@ -65,6 +65,8 @@ export function updateHash(area: RouteArea, view: string): void {
 /**
  * Subscribe to hash changes (browser back/forward or manual URL edits) for
  * one area; routes of other areas or malformed hashes are ignored.
+ * Listens to both `hashchange` and `popstate` so back/forward navigation
+ * triggers routing even when the app uses `history.pushState` for updates.
  * Returns the unsubscribe function.
  */
 export function onHashChange(area: RouteArea, handler: (view: string) => void): () => void {
@@ -76,5 +78,9 @@ export function onHashChange(area: RouteArea, handler: (view: string) => void): 
   };
 
   window.addEventListener('hashchange', listener);
-  return (): void => window.removeEventListener('hashchange', listener);
+  window.addEventListener('popstate', listener);
+  return (): void => {
+    window.removeEventListener('hashchange', listener);
+    window.removeEventListener('popstate', listener);
+  };
 }
