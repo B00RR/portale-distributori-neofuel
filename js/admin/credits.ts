@@ -280,16 +280,17 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
             supabase.from('crediti_clienti').update({ cliente }).eq('id', customerId)
           );
         } else {
-          // Opzionale: gestire station_id se necessario
+          const insertPayload: Record<string, unknown> = {
+            cliente,
+            saldo,
+            importo: saldo, // Initial saldo recorded as importo (required field)
+            created_at: new Date().toISOString()
+          };
+          if (creditsContext.stationId !== null && creditsContext.stationId !== undefined) {
+            insertPayload.station_id = creditsContext.stationId;
+          }
           await safeSupabaseQuery(() =>
-            supabase.from('crediti_clienti').insert([
-              {
-                cliente,
-                saldo,
-                importo: saldo, // Initial saldo recorded as importo (required field)
-                created_at: new Date().toISOString()
-              }
-            ])
+            supabase.from('crediti_clienti').insert([insertPayload])
           );
         }
         closeModal();
