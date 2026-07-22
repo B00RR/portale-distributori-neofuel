@@ -221,3 +221,52 @@ export async function login(page, { role = 'admin' } = {}) {
   await page.fill('#password', credentials.password);
   await page.click('button[type="submit"]');
 }
+
+/**
+ * Registra le route per le RPC di chiusura
+ */
+export async function mockClosureRPCs(page) {
+  if (isLiveSupabaseE2E()) return;
+
+  // open_shift RPC
+  await page.route(/\/rest\/v1\/rpc\/open_shift/, route =>
+    json(route, 200, { success: true, shift_id: 1, station_id: 1 })
+  );
+
+  // submit_shift_closure_v2 RPC
+  await page.route(/\/rest\/v1\/rpc\/submit_shift_closure_v2/, route => {
+    const body = route.request().postDataJSON();
+    const isPreview = body?.p_preview === true;
+    return json(route, 200, {
+      success: true,
+      idempotent: false,
+      totals: {
+        total_liters: 100.0,
+        fuel_revenue: 150.0,
+        total_fuel_revenue: 150.0,
+        extra_revenue: 30.0,
+        total_sold: 180.0,
+        expected_cash: 175.0,
+        real_cash: 175.0,
+        discrepancy: 0.0,
+        operator_cash: 175.0,
+        operator_pos: 10.0,
+        operator_fleet: 0.0,
+        self_cash_in: 0.0,
+        self_cash_out: 0.0,
+        self_pos: 0.0,
+        self_fleet: 0.0,
+        self_manager: 0.0
+      },
+      computed: {
+        totale_venduto_carburante: 150,
+        totale_venduto_extra: 30,
+        totale_venduto: 180,
+        expected_cash: 175,
+        real_cash: 175,
+        discrepancy: 0
+      },
+      ...(isPreview ? { preview: true } : {})
+    });
+  });
+}
