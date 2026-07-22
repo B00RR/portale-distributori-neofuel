@@ -442,14 +442,21 @@ export class ClosureWizard extends BaseComponent {
         if (!Number.isFinite(pistolId)) {
           return;
         }
+        const hasClosedAt = c.closed_at_counter !== null && c.closed_at_counter !== undefined;
+        const closedAtVal = hasClosedAt ? Number(c.closed_at_counter) : null;
+        const openedAtVal = Number(c.opened_at_counter) || 0;
+
+        // If a partial closure has already been registered (closed_at_counter is present),
+        // use closed_at_counter as the starting baseline for the final closure stage.
+        const effectiveOpening =
+          hasClosedAt && Number.isFinite(closedAtVal) ? (closedAtVal as number) : openedAtVal;
+
         // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
-        countersMap[pistolId] = Number(c.opened_at_counter) || 0;
-        if (c.closed_at_counter !== null) {
-          const previousClosingCounter = Number(c.closed_at_counter);
-          if (Number.isFinite(previousClosingCounter)) {
-            // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
-            previousClosingCounters[pistolId] = previousClosingCounter;
-          }
+        countersMap[pistolId] = effectiveOpening;
+
+        if (this.isEditingClosure && hasClosedAt && Number.isFinite(closedAtVal)) {
+          // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
+          previousClosingCounters[pistolId] = closedAtVal;
         } else {
           // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
           previousClosingCounters[pistolId] = null;
