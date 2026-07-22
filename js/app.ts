@@ -252,7 +252,7 @@ async function initializeApp(): Promise<void> {
     trackLogin(userForStore.role);
 
     if (isBackofficeRole(userForStore.role)) {
-      showAdminArea();
+      await showAdminArea();
     } else {
       // ALWAYS fetch the authoritative station_id from DB, ignoring potential stale session data
       const dbUserId = parseUserId(userForStore.user_id);
@@ -334,7 +334,7 @@ async function initializeApp(): Promise<void> {
 
     if (isBackofficeRole(loggedUser.role)) {
       document.body.classList.add('admin-layout', 'desktop-layout');
-      showAdminArea();
+      await showAdminArea();
     } else {
       document.body.classList.remove('admin-layout', 'desktop-layout');
 

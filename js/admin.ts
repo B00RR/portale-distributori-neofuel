@@ -18,7 +18,7 @@ let unsubscribeHashListener: (() => void) | null = null;
 /**
  * Main entry point for Admin Area
  */
-export function showAdminArea(): void {
+export async function showAdminArea(): Promise<void> {
   const mainContent = document.getElementById('main-content');
   if (!mainContent) {
     return;
@@ -126,6 +126,9 @@ export function showAdminArea(): void {
 
   // Tab change routine for use by both shell UI and hash router
   const goToTab = async (tab: AdminTab): Promise<void> => {
+    // Serializza le navigazioni: se una tab precedente (es. dashboard) sta
+    // ancora caricando dati asincroni, questo await evita che il suo render
+    // finale sovrascriva la tab appena richiesta.
     await router.navigateTo(tab);
     renderBreadcrumbs(tab);
     await renderGlobalFilter();
@@ -138,10 +141,12 @@ export function showAdminArea(): void {
   // Va usato lo stesso percorso sequenziale del cambio tab (#281/#268): le
   // chiamate flottanti a navigateTo/renderGlobalFilter creavano una race in
   // cui il deep-link poteva essere sovrascritto dal render della dashboard.
+  // Awaiating goToTab garantisce che la tab iniziale sia completamente
+  // renderizzata prima di attivare il listener per back/forward.
   const route = getCurrentRoute();
   const initialTab: AdminTab =
     route && route.area === 'admin' && isAdminTab(route.view) ? route.view : 'dashboard';
-  void goToTab(initialTab);
+  await goToTab(initialTab);
 
   // Register browser back/forward support, avoiding duplicate listeners across repeated showAdminArea() calls
   unsubscribeHashListener?.();
