@@ -10,10 +10,36 @@ import { showLoadingMessage } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, formatEuro } from '../utils/utils.js';
 
+interface ShiftSummary {
+  id: number;
+  operator_id: number;
+  operator_name?: string;
+  opened_at?: string;
+  closed_at?: string;
+  closing_data?: {
+    computed?: {
+      fuel_revenue?: number;
+      extra_revenue?: number;
+      expected_cash?: number;
+      real_cash?: number;
+      discrepancy?: number;
+    };
+  };
+}
+
+interface MovementSummary {
+  id: number;
+  tipo: string;
+  payment_method?: string;
+  importo: number;
+  descrizione?: string;
+  created_at: string;
+}
+
 interface DailyReconciliationData {
   date: string;
   station_id: number;
-  shifts: any[];
+  shifts: ShiftSummary[];
   totals: {
     fuel_revenue: number;
     extra_revenue: number;
@@ -28,10 +54,10 @@ interface DailyReconciliationData {
     outflows_total: number;
   };
   movements: {
-    extra_incomes: any[];
-    outflows: any[];
-    vouchers: any[];
-    credits: any[];
+    extra_incomes: MovementSummary[];
+    outflows: MovementSummary[];
+    vouchers: MovementSummary[];
+    credits: MovementSummary[];
   };
 }
 
@@ -55,7 +81,15 @@ export async function showReconciliationTab(
 
     // Default values
     const today = new Date().toISOString().split('T')[0];
-    let selectedStationId = defaultStationId || stations[0]!.station_id;
+    const firstStation = stations[0];
+    if (!firstStation) {
+      setSafeHTML(
+        container,
+        '<div class="content-box"><p>Nessun distributore disponibile.</p></div>'
+      );
+      return;
+    }
+    let selectedStationId = defaultStationId || firstStation.station_id;
     let selectedDate = today;
 
     // Create layout
@@ -113,7 +147,7 @@ export async function showReconciliationTab(
     const filterBtn = filterPanel.querySelector('#recon-filter-btn') as HTMLButtonElement;
 
     // Load function
-    const loadReconciliation = async () => {
+    const loadReconciliation = async (): Promise<void> => {
       showLoadingMessage(resultsContainer);
       selectedStationId = parseInt(stationSelect.value, 10);
       selectedDate = dateInput.value;
