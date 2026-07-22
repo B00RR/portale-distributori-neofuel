@@ -103,7 +103,8 @@ function parseCreateUserBody(body: unknown): CreateUserBody | null {
   if (
     !usernameIdentity.success ||
     typeof password !== 'string' ||
-    password.length < 6 ||
+    password.length < 12 ||
+    password.trim().toLowerCase() === usernameIdentity.data.username.trim().toLowerCase() ||
     normalizedFullName.length < 2 ||
     normalizedFullName.length > 100 ||
     typeof role !== 'string' ||

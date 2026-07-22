@@ -54,8 +54,8 @@ Deno.serve(async req => {
     if (typeof user_id !== 'number' || user_id <= 0) {
       return jsonResponse({ error: 'ID utente non valido' }, 400);
     }
-    if (typeof password !== 'string' || password.length < 6) {
-      return jsonResponse({ error: 'La password deve avere almeno 6 caratteri' }, 400);
+    if (typeof password !== 'string' || password.length < 12) {
+      return jsonResponse({ error: 'La password deve avere almeno 12 caratteri' }, 400);
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
@@ -65,13 +65,17 @@ Deno.serve(async req => {
     // Resolve the auth UUID from public.users.created_by_auth.
     const { data: dbUser, error: dbError } = await supabaseAdmin
       .from('users')
-      .select('created_by_auth')
+      .select('created_by_auth, username')
       .eq('user_id', user_id)
       .single();
 
     if (dbError || !dbUser?.created_by_auth) {
       console.error(`[AdminResetPassword] Utente non trovato: ${dbError?.message || 'no uuid'}`);
       return jsonResponse({ error: 'Utente non trovato' }, 404);
+    }
+
+    if (dbUser.username && password.trim().toLowerCase() === dbUser.username.trim().toLowerCase()) {
+      return jsonResponse({ error: 'La password non può essere uguale allo username' }, 400);
     }
 
     const authId = dbUser.created_by_auth;

@@ -1,9 +1,13 @@
+/**
+ * @vitest-environment happy-dom
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import {
     sanitizeHtml,
     setInnerHTML,
+    setSafeHTML,
     isSafeUrl,
     createSafeLink,
     sanitizeFilename,
@@ -115,6 +119,23 @@ describe('Sanitizer Module (Security)', () => {
         it('should default to safe mode (allowHtml=false)', () => {
             setInnerHTML(container, '<script>alert(1)</script>');
             expect(container.innerHTML).not.toContain('<script');
+        });
+    });
+
+    describe('setSafeHTML', () => {
+        let container: HTMLElement;
+
+        beforeEach(() => {
+            container = document.createElement('div');
+        });
+
+        it('should assign HTML content to element', () => {
+            setSafeHTML(container, '<span>Safe Content</span>');
+            expect(container.innerHTML).toBe('<span>Safe Content</span>');
+        });
+
+        it('should handle null element gracefully without throwing', () => {
+            expect(() => setSafeHTML(null, '<div>Test</div>')).not.toThrow();
         });
     });
 
