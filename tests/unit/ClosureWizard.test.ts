@@ -346,7 +346,7 @@ describe('ClosureWizard Component', () => {
       );
     });
 
-    it('forces a previously partial shift through the final closure path', async () => {
+    it('keeps partial closure type on a previously partial shift when isLastOperator is false', async () => {
       const [{ ClosureWizard }, { supabase }] = await Promise.all([
         import('../../js/ui/components/ClosureWizard.js'),
         import('../../js/core/api.js')
@@ -363,9 +363,6 @@ describe('ClosureWizard Component', () => {
         pistole: Array<{ id: number; island_id: number; nome: string; tipo_carburante: string }>;
         handleConfirmClosure: () => Promise<void>;
       };
-
-      // Partial->final triggers window.confirm
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
 
       Object.assign(element, {
         stationId: '1',
@@ -386,7 +383,7 @@ describe('ClosureWizard Component', () => {
         expect.objectContaining({
           p_shift_id: 43,
           p_station_id: 1,
-          p_closure_type: 'final',
+          p_closure_type: 'partial',
           p_final_counters: { 7: 130 },
           p_preview: false
         })
