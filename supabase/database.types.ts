@@ -1761,6 +1761,7 @@ export type Database = {
           p_operator_cash?: number;
           p_operator_fleet?: number;
           p_operator_pos?: number;
+          p_preview?: boolean;
           p_request_id?: string;
           p_self_cash_in?: number;
           p_self_cash_out?: number;
@@ -1770,6 +1771,13 @@ export type Database = {
           p_shift_id: number;
           p_station_id: number;
           p_tank_usage?: Json;
+        };
+        Returns: Json;
+      };
+      revert_last_closure: {
+        Args: {
+          p_shift_id: number;
+          p_station_id: number;
         };
         Returns: Json;
       };
