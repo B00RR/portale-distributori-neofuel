@@ -41,6 +41,10 @@ describe('ClosureWizard Component', () => {
   beforeEach(() => {
     document.body.replaceChildren();
     vi.clearAllMocks();
+    // JSDOM does not provide window.confirm — stub it for all tests.
+    if (typeof window.confirm !== 'function') {
+      window.confirm = vi.fn(() => true);
+    }
   });
 
   describe('Component Structure', () => {
@@ -120,7 +124,11 @@ describe('ClosureWizard Component', () => {
         serverTotals: {
           total_liters: 100,
           total_fuel_revenue: 200,
+          fuel_revenue: 200,
+          extra_revenue: 50,
+          total_sold: 250,
           total_cash_collected: 500,
+          expected_cash: 180,
           discrepancy: 300,
           operator_cash: 500,
           operator_pos: 0,
@@ -159,6 +167,66 @@ describe('ClosureWizard Component', () => {
       expect(container.textContent).not.toContain('Discrepanza Rilevata');
       expect(container.textContent).toContain('Anteprima non disponibile');
       expect(container.textContent).toContain('Discrepanza');
+    });
+
+    it('renders total_sold, expected_cash, and extra_revenue in preview', async () => {
+      const container = await buildStep3Container({});
+
+      expect(container.textContent).toContain('Totale venduto');
+      expect(container.textContent).toContain('Contante atteso');
+      expect(container.textContent).toContain('Ricavo extra');
+    });
+
+    it('shows loading spinner when previewLoading is true', async () => {
+      const container = await buildStep3Container({
+        previewLoading: true
+      });
+
+      expect(container.textContent).toContain('Calcolo anteprima dal server');
+    });
+
+    it('shows final closure warning when isLastOperator is true', async () => {
+      const container = await buildStep3Container({
+        isLastOperator: true,
+        activeOpening: { id: 1, status: 'open', closing_data: null }
+      });
+
+      expect(container.textContent).toContain('Chiusura Finale');
+      expect(container.textContent).toContain('ultima chiusura della giornata');
+    });
+
+    it('does not show final closure warning for partial closure', async () => {
+      const container = await buildStep3Container({
+        isLastOperator: false,
+        activeOpening: { id: 1, status: 'open', closing_data: null }
+      });
+
+      expect(container.textContent).not.toContain('Chiusura Finale');
+    });
+
+    it('shows discrepancy sign (positive)', async () => {
+      const container = await buildStep3Container({
+        serverTotals: {
+          total_liters: 100,
+          total_fuel_revenue: 200,
+          fuel_revenue: 200,
+          extra_revenue: 0,
+          total_sold: 200,
+          total_cash_collected: 0,
+          expected_cash: 150,
+          discrepancy: 50,
+          operator_cash: 100,
+          operator_pos: 0,
+          operator_fleet: 0,
+          self_cash_in: 0,
+          self_cash_out: 0,
+          self_pos: 0,
+          self_fleet: 0,
+          self_manager: 0
+        }
+      });
+
+      expect(container.textContent).toContain('+');
     });
   });
 
@@ -237,6 +305,9 @@ describe('ClosureWizard Component', () => {
         handleConfirmClosure: () => Promise<void>;
       };
 
+      // Final closure triggers a window.confirm dialog
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+
       Object.assign(element, {
         stationId: '1',
         activeOpening: { id: 42, status: 'open', closing_data: null },
@@ -269,7 +340,8 @@ describe('ClosureWizard Component', () => {
           p_self_manager: 40,
           p_operator_cash: 50,
           p_operator_pos: 60,
-          p_operator_fleet: 70
+          p_operator_fleet: 70,
+          p_preview: false
         })
       );
     });
@@ -292,6 +364,9 @@ describe('ClosureWizard Component', () => {
         handleConfirmClosure: () => Promise<void>;
       };
 
+      // Partial->final triggers window.confirm
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+
       Object.assign(element, {
         stationId: '1',
         activeOpening: {
@@ -312,7 +387,8 @@ describe('ClosureWizard Component', () => {
           p_shift_id: 43,
           p_station_id: 1,
           p_closure_type: 'final',
-          p_final_counters: { 7: 130 }
+          p_final_counters: { 7: 130 },
+          p_preview: false
         })
       );
     });
@@ -344,6 +420,308 @@ describe('ClosureWizard Component', () => {
       ).stationId = '1';
 
       expect(() => (element as unknown as Partial<{ render(): void }>).render?.()).not.toThrow();
+    });
+  });
+
+  describe('Preview mode (p_preview)', () => {
+    it('calls fetchServerPreview with p_preview: true', async () => {
+      const [{ ClosureWizard }, { supabase }] = await Promise.all([
+        import('../../js/ui/components/ClosureWizard.js'),
+        import('../../js/core/api.js')
+      ]);
+      const element = new ClosureWizard() as unknown as {
+        stationId: string;
+        activeOpening: { id: number; status: string; closing_data: null };
+        isLastOperator: boolean;
+        finalCounters: Record<number, number | null>;
+        pistole: Array<{ id: number; island_id: number; nome: string; tipo_carburante: string }>;
+        operatorCash: string;
+        operatorPos: string;
+        operatorUta: string;
+        selfCashIn: string;
+        selfCashOut: string;
+        selfPos: string;
+        selfFleet: string;
+        selfManager: string;
+        fetchServerPreview: () => Promise<void>;
+      };
+
+      Object.assign(element, {
+        stationId: '1',
+        activeOpening: { id: 42, status: 'open', closing_data: null },
+        isLastOperator: false,
+        finalCounters: { 7: 125 },
+        pistole: [{ id: 7, island_id: 1, nome: 'Pistola 7', tipo_carburante: 'benzina' }],
+        operatorCash: '50',
+        operatorPos: '60',
+        operatorUta: '70',
+        selfCashIn: '100',
+        selfCashOut: '10',
+        selfPos: '20',
+        selfFleet: '30',
+        selfManager: '40'
+      });
+
+      await element.fetchServerPreview();
+
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'submit_shift_closure_v2',
+        expect.objectContaining({
+          p_shift_id: 42,
+          p_preview: true
+        })
+      );
+    });
+
+    it('does not include p_request_id in preview calls', async () => {
+      const [{ ClosureWizard }, { supabase }] = await Promise.all([
+        import('../../js/ui/components/ClosureWizard.js'),
+        import('../../js/core/api.js')
+      ]);
+      const element = new ClosureWizard() as unknown as {
+        stationId: string;
+        activeOpening: { id: number; status: string; closing_data: null };
+        isLastOperator: boolean;
+        finalCounters: Record<number, number | null>;
+        pistole: Array<{ id: number; island_id: number; nome: string; tipo_carburante: string }>;
+        operatorCash: string;
+        operatorPos: string;
+        operatorUta: string;
+        selfCashIn: string;
+        selfCashOut: string;
+        selfPos: string;
+        selfFleet: string;
+        selfManager: string;
+        fetchServerPreview: () => Promise<void>;
+      };
+
+      Object.assign(element, {
+        stationId: '1',
+        activeOpening: { id: 42, status: 'open', closing_data: null },
+        isLastOperator: false,
+        finalCounters: {},
+        pistole: [],
+        operatorCash: '0',
+        operatorPos: '0',
+        operatorUta: '0',
+        selfCashIn: '0',
+        selfCashOut: '0',
+        selfPos: '0',
+        selfFleet: '0',
+        selfManager: '0'
+      });
+
+      await element.fetchServerPreview();
+
+      const rpcCall = (supabase.rpc as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(rpcCall[1]).not.toHaveProperty('p_request_id');
+    });
+  });
+
+  describe('Final closure confirmation', () => {
+    it('does not submit if user cancels the final closure confirm', async () => {
+      const [{ ClosureWizard }, { supabase }] = await Promise.all([
+        import('../../js/ui/components/ClosureWizard.js'),
+        import('../../js/core/api.js')
+      ]);
+      const element = new ClosureWizard() as unknown as {
+        stationId: string;
+        activeOpening: { id: number; status: string; closing_data: null };
+        isLastOperator: boolean;
+        finalCounters: Record<number, number | null>;
+        pistole: Array<{ id: number; island_id: number; nome: string; tipo_carburante: string }>;
+        operatorCash: string;
+        operatorPos: string;
+        operatorUta: string;
+        selfCashIn: string;
+        selfCashOut: string;
+        selfPos: string;
+        selfFleet: string;
+        selfManager: string;
+        handleConfirmClosure: () => Promise<void>;
+      };
+
+      // User cancels the confirm dialog
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+      Object.assign(element, {
+        stationId: '1',
+        activeOpening: { id: 42, status: 'open', closing_data: null },
+        isLastOperator: true,
+        finalCounters: { 7: 125 },
+        pistole: [{ id: 7, island_id: 1, nome: 'Pistola 7', tipo_carburante: 'benzina' }],
+        operatorCash: '50',
+        operatorPos: '60',
+        operatorUta: '70',
+        selfCashIn: '100',
+        selfCashOut: '10',
+        selfPos: '20',
+        selfFleet: '30',
+        selfManager: '40'
+      });
+
+      await element.handleConfirmClosure();
+
+      // RPC should NOT have been called
+      expect(supabase.rpc).not.toHaveBeenCalled();
+    });
+
+    it('does not show confirm dialog for partial closure', async () => {
+      const [{ ClosureWizard }, { supabase }] = await Promise.all([
+        import('../../js/ui/components/ClosureWizard.js'),
+        import('../../js/core/api.js')
+      ]);
+      const element = new ClosureWizard() as unknown as {
+        stationId: string;
+        activeOpening: { id: number; status: string; closing_data: null };
+        isLastOperator: boolean;
+        finalCounters: Record<number, number | null>;
+        pistole: Array<{ id: number; island_id: number; nome: string; tipo_carburante: string }>;
+        operatorCash: string;
+        operatorPos: string;
+        operatorUta: string;
+        selfCashIn: string;
+        selfCashOut: string;
+        selfPos: string;
+        selfFleet: string;
+        selfManager: string;
+        handleConfirmClosure: () => Promise<void>;
+      };
+
+      const confirmSpy = vi.spyOn(window, 'confirm');
+
+      Object.assign(element, {
+        stationId: '1',
+        activeOpening: { id: 42, status: 'open', closing_data: null },
+        isLastOperator: false,
+        finalCounters: { 7: 125 },
+        pistole: [{ id: 7, island_id: 1, nome: 'Pistola 7', tipo_carburante: 'benzina' }],
+        operatorCash: '50',
+        operatorPos: '60',
+        operatorUta: '70',
+        selfCashIn: '100',
+        selfCashOut: '10',
+        selfPos: '20',
+        selfFleet: '30',
+        selfManager: '40'
+      });
+
+      await element.handleConfirmClosure();
+
+      // Confirm should NOT have been called for partial closures
+      expect(confirmSpy).not.toHaveBeenCalled();
+      // But RPC should have been called
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'submit_shift_closure_v2',
+        expect.objectContaining({ p_closure_type: 'partial' })
+      );
+    });
+  });
+
+  describe('Revert closure', () => {
+    it('calls revert_last_closure RPC when handleRevertClosure is invoked', async () => {
+      const [{ ClosureWizard }, { supabase }] = await Promise.all([
+        import('../../js/ui/components/ClosureWizard.js'),
+        import('../../js/core/api.js')
+      ]);
+      const element = new ClosureWizard() as unknown as {
+        stationId: string;
+        activeOpening: { id: number; status: string; closed_at: string };
+        handleRevertClosure: () => Promise<void>;
+      };
+
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      Object.assign(element, {
+        stationId: '1',
+        activeOpening: { id: 42, status: 'closed', closed_at: new Date().toISOString() }
+      });
+
+      await element.handleRevertClosure();
+
+      expect(supabase.rpc).toHaveBeenCalledWith('revert_last_closure', {
+        p_shift_id: 42,
+        p_station_id: 1
+      });
+    });
+
+    it('does not call revert if user cancels confirm', async () => {
+      const [{ ClosureWizard }, { supabase }] = await Promise.all([
+        import('../../js/ui/components/ClosureWizard.js'),
+        import('../../js/core/api.js')
+      ]);
+      const element = new ClosureWizard() as unknown as {
+        stationId: string;
+        activeOpening: { id: number; status: string; closed_at: string };
+        handleRevertClosure: () => Promise<void>;
+      };
+
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+      Object.assign(element, {
+        stationId: '1',
+        activeOpening: { id: 42, status: 'closed', closed_at: new Date().toISOString() }
+      });
+
+      await element.handleRevertClosure();
+
+      expect(supabase.rpc).not.toHaveBeenCalled();
+    });
+
+    it('has isReverting state', async () => {
+      const { ClosureWizard } =
+        (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
+          ClosureWizard: CustomElementConstructor;
+        };
+      const element = new (ClosureWizard as unknown as CustomElementConstructor)();
+
+      expect((element as unknown as Partial<{ isReverting: boolean }>).isReverting).toBe(false);
+    });
+  });
+
+  describe('canEditClosure within 1 hour', () => {
+    it('computes canEditClosure as true if closed_at is within 1 hour', async () => {
+      const { ClosureWizard } =
+        (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
+          ClosureWizard: CustomElementConstructor;
+        };
+      const element = new (ClosureWizard as unknown as CustomElementConstructor)();
+
+      const recentDate = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // 30 min ago
+      const result = (
+        element as unknown as { computeCanEditClosure: (shift: unknown) => boolean }
+      ).computeCanEditClosure({ closed_at: recentDate });
+
+      expect(result).toBe(true);
+    });
+
+    it('computes canEditClosure as false if closed_at is over 1 hour ago', async () => {
+      const { ClosureWizard } =
+        (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
+          ClosureWizard: CustomElementConstructor;
+        };
+      const element = new (ClosureWizard as unknown as CustomElementConstructor)();
+
+      const oldDate = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(); // 2 hours ago
+      const result = (
+        element as unknown as { computeCanEditClosure: (shift: unknown) => boolean }
+      ).computeCanEditClosure({ closed_at: oldDate });
+
+      expect(result).toBe(false);
+    });
+
+    it('computes canEditClosure as false if closed_at is null', async () => {
+      const { ClosureWizard } =
+        (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
+          ClosureWizard: CustomElementConstructor;
+        };
+      const element = new (ClosureWizard as unknown as CustomElementConstructor)();
+
+      const result = (
+        element as unknown as { computeCanEditClosure: (shift: unknown) => boolean }
+      ).computeCanEditClosure({ closed_at: null });
+
+      expect(result).toBe(false);
     });
   });
 });

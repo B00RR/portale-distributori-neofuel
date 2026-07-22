@@ -18,7 +18,11 @@ interface RpcResult {
   totals?: {
     total_liters?: number;
     total_fuel_revenue?: number;
+    fuel_revenue?: number;
+    extra_revenue?: number;
+    total_sold?: number;
     total_cash_collected?: number;
+    expected_cash?: number;
     discrepancy?: number;
     operator_cash?: number;
     operator_pos?: number;
@@ -70,7 +74,11 @@ interface ClosureWizardState {
 interface ServerTotals {
   total_liters: number;
   total_fuel_revenue: number;
+  fuel_revenue: number;
+  extra_revenue: number;
+  total_sold: number;
   total_cash_collected: number;
+  expected_cash: number;
   discrepancy: number;
   operator_cash: number;
   operator_pos: number;
@@ -86,7 +94,11 @@ function emptyServerTotals(): ServerTotals {
   return {
     total_liters: 0,
     total_fuel_revenue: 0,
+    fuel_revenue: 0,
+    extra_revenue: 0,
+    total_sold: 0,
     total_cash_collected: 0,
+    expected_cash: 0,
     discrepancy: 0,
     operator_cash: 0,
     operator_pos: 0,
@@ -138,9 +150,11 @@ export class ClosureWizard extends BaseComponent {
 
   // Server-computed preview
   @state() private serverTotals: ServerTotals | null = null;
+  @state() private previewLoading: boolean = false;
 
   // UI State
   @state() private canEditClosure: boolean = false;
+  @state() private isReverting: boolean = false;
   @state() private isEditingClosure: boolean = false;
 
   static override styles: CSSResultGroup = [
@@ -502,18 +516,28 @@ export class ClosureWizard extends BaseComponent {
           this.canEditClosure && !this.isEditingClosure
             ? html`
               <div
-                style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; color: #1e40af; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;"
+                style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; color: #1e40af; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;"
               >
                 <div><i class="fas fa-info-circle fa-lg" style="margin-right: 0.5rem;"></i> Questa
                   chiusura è ancora modificabile (&lt; 1 ora).
                 </div>
-                <button
-                  class="btn btn-secondary"
-                  style="flex: 0 0 auto;"
-                  @click=${() => (this.isEditingClosure = true)}
-                >
-                  Modifica chiusura
-                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button
+                    class="btn btn-secondary"
+                    style="flex: 0 0 auto;"
+                    @click=${() => (this.isEditingClosure = true)}
+                  >
+                    Modifica chiusura
+                  </button>
+                  <button
+                    class="btn btn-danger"
+                    style="flex: 0 0 auto;"
+                    ?disabled=${this.isReverting}
+                    @click=${this.handleRevertClosure}
+                  >
+                    ${this.isReverting ? 'Annullamento...' : 'Annulla chiusura'}
+                  </button>
+                </div>
               </div>
             `
             : ''
@@ -812,17 +836,6 @@ export class ClosureWizard extends BaseComponent {
       return;
     }
 
-    const isFinal = isPartiallyClosedShift(this.activeOpening) || this.isLastOperator;
-
-    if (isFinal) {
-      const confirmFinal = window.confirm(
-        'Stai per eseguire una CHIUSURA FINALE. Dopo questa operazione il turno verrà chiuso definitivamente e non sarà possibile registrare nuovi incassi. Confermi?'
-      );
-      if (!confirmFinal) {
-        return;
-      }
-    }
-
     this.wizardState = { ...this.wizardState, step: 3 };
     // Kick off server preview without blocking the step transition.
     this.fetchServerPreview();
@@ -833,16 +846,11 @@ export class ClosureWizard extends BaseComponent {
     if (!payload) {
       return;
     }
-    const isFinal = payload.isFinal;
+    this.previewLoading = true;
     try {
-      const requestId = `closure_preview_${Number(payload.activeOpeningId)}_${Date.now()}_${Math.random()
-        .toString(36)
-        .substring(2, 9)}`;
-
       const { data, error } = await supabase.rpc('submit_shift_closure_v2', {
         p_shift_id: payload.activeOpeningId,
         p_station_id: this.numericStationId,
-        p_request_id: requestId,
         p_final_counters: payload.finalCountersJson,
         p_tank_usage: [],
         p_self_cash_in: payload.selfCashIn,
@@ -853,7 +861,8 @@ export class ClosureWizard extends BaseComponent {
         p_operator_cash: payload.operatorCash,
         p_operator_pos: payload.operatorPos,
         p_operator_fleet: payload.operatorUta,
-        p_closure_type: isFinal ? 'final' : 'partial'
+        p_closure_type: payload.isFinal ? 'final' : 'partial',
+        p_preview: true
       });
 
       if (error) {
@@ -863,7 +872,9 @@ export class ClosureWizard extends BaseComponent {
       if (isRpcResult(data) && data.totals) {
         this.serverTotals = {
           ...emptyServerTotals(),
-          ...data.totals
+          ...data.totals,
+          // Map fuel_revenue to total_fuel_revenue for backward compat
+          total_fuel_revenue: data.totals.fuel_revenue ?? data.totals.total_fuel_revenue ?? 0
         };
       } else {
         this.serverTotals = null;
@@ -871,6 +882,8 @@ export class ClosureWizard extends BaseComponent {
     } catch (error: unknown) {
       logger.error('ClosureWizard', 'Server preview failed', error);
       this.serverTotals = null;
+    } finally {
+      this.previewLoading = false;
     }
   }
 
@@ -930,6 +943,7 @@ export class ClosureWizard extends BaseComponent {
     const absDiscrepancy = Math.abs(discrepancy);
     const isWarning = absDiscrepancy > 10;
     const isCritical = absDiscrepancy > 50;
+    const isFinal = isPartiallyClosedShift(this.activeOpening) || this.isLastOperator;
 
     if (this.wizardState.mode === 'submitting') {
       return html`<div style="text-align:center; padding: 3rem;">
@@ -940,6 +954,17 @@ export class ClosureWizard extends BaseComponent {
     return html`
       <div class="section-title">Step 3: Anteprima e Conferma</div>
 
+      ${
+        this.previewLoading
+          ? html`
+            <div
+              style="text-align: center; padding: 2rem; color: #475569;"
+            >
+              <i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 0.75rem; display: block;"></i>
+              <p>Calcolo anteprima dal server...</p>
+            </div>
+          `
+          : html`
       ${
         !this.serverTotals
           ? html`
@@ -985,6 +1010,12 @@ export class ClosureWizard extends BaseComponent {
           <span>Ricavo carburante:</span><strong>${formatEuro(totals.total_fuel_revenue)}</strong>
         </div>
         <div class="preview-row">
+          <span>Ricavo extra:</span><strong>${formatEuro(totals.extra_revenue)}</strong>
+        </div>
+        <div class="preview-row highlight">
+          <span>Totale venduto:</span><strong>${formatEuro(totals.total_sold)}</strong>
+        </div>
+        <div class="preview-row">
           <span>Contanti operatore:</span><strong>${formatEuro(totals.operator_cash)}</strong>
         </div>
         <div class="preview-row">
@@ -1009,12 +1040,32 @@ export class ClosureWizard extends BaseComponent {
           <span>ID Gestore:</span><strong>${formatEuro(totals.self_manager)}</strong>
         </div>
         <div class="preview-row highlight">
+          <span>Contante atteso:</span><strong>${formatEuro(totals.expected_cash)}</strong>
+        </div>
+        <div class="preview-row highlight">
           <span>Discrepanza:</span>
-          <strong style="color: ${!isWarning ? '#059669' : isCritical ? '#dc2626' : '#d97706'};"
-            >${formatEuro(discrepancy)}</strong
+          <strong style="color: ${!isWarning ? '#059669' : isCritical ? '#dc2626' : '#d97706'};">
+            ${discrepancy > 0 ? '+' : ''}${formatEuro(discrepancy)}</strong
           >
         </div>
       </div>
+
+      ${
+        isFinal
+          ? html`
+              <div
+                style="background: #fef2f2; border: 1px solid #fecaca; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; color: #991b1b; display: flex; align-items: center; gap: 0.75rem;"
+              >
+                <i class="fas fa-exclamation-triangle fa-lg"></i>
+                <div>
+                  <strong>Chiusura Finale</strong><br />
+                  Questa è l'ultima chiusura della giornata. Il distributore resterà senza turno
+                  aperto fino all'apertura di domani mattina.
+                </div>
+              </div>
+            `
+          : ''
+      }
 
       ${
         this.isEditingClosure
@@ -1037,7 +1088,7 @@ export class ClosureWizard extends BaseComponent {
                   class="btn btn-secondary"
                   @click=${() => (this.wizardState = { ...this.wizardState, step: 2 })}
                 >
-                  Indietro
+                  Modifica dati
                 </button>
                 <button class="btn btn-primary" @click=${this.handleConfirmClosure}>
                   Conferma & Salva
@@ -1045,12 +1096,12 @@ export class ClosureWizard extends BaseComponent {
               </div>
             `
       }
+    `
+      }
     `;
   }
 
   private async handleConfirmClosure(): Promise<void> {
-    this.wizardState = { ...this.wizardState, mode: 'submitting' };
-
     const payload = this.buildPayload();
     if (!payload) {
       handleError(
@@ -1061,10 +1112,21 @@ export class ClosureWizard extends BaseComponent {
       return;
     }
 
+    const isFinal = payload.isFinal;
+    if (isFinal) {
+      const confirmFinal = window.confirm(
+        "Questa è l'ultima chiusura della giornata. Il distributore resterà senza turno aperto fino all'apertura di domani mattina. Confermi?"
+      );
+      if (!confirmFinal) {
+        return;
+      }
+    }
+
+    this.wizardState = { ...this.wizardState, mode: 'submitting' };
+
     const {
       activeOpeningId,
       finalCountersJson,
-      isFinal,
       selfCashIn,
       selfCashOut,
       selfPos,
@@ -1122,7 +1184,8 @@ export class ClosureWizard extends BaseComponent {
         p_operator_cash: operatorCash,
         p_operator_pos: operatorPos,
         p_operator_fleet: operatorUta,
-        p_closure_type: isFinal ? 'final' : 'partial'
+        p_closure_type: isFinal ? 'final' : 'partial',
+        p_preview: false
       });
       if (error || (res && isRpcResult(res) && !res.success)) {
         throw new Error(error?.message || getRpcError(res) || 'Errore durante la chiusura');
@@ -1155,6 +1218,47 @@ export class ClosureWizard extends BaseComponent {
       <p>${this.wizardState.errorMessage}</p>
       <button class="btn btn-primary mt-4" @click=${this.loadInitialData}>Riprova</button>
     </div>`;
+  }
+
+  async handleRevertClosure(): Promise<void> {
+    if (!this.activeOpening) {
+      return;
+    }
+    const shiftId = Number(this.activeOpening.id);
+    if (!Number.isFinite(shiftId)) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Vuoi annullare questa chiusura e riaprire il turno? I contatori verranno ripristinati ai valori di apertura.'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    this.isReverting = true;
+    try {
+      const { data, error } = await supabase.rpc('revert_last_closure', {
+        p_shift_id: shiftId,
+        p_station_id: this.numericStationId
+      });
+      if (error) {
+        throw error;
+      }
+      if (isRpcResult(data) && !data.success) {
+        throw new Error(getRpcError(data) || "Errore durante l'annullamento");
+      }
+      Toast.show('Chiusura annullata. Il turno è stato riaperto.', 'success');
+      window.location.hash = '';
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (error: unknown) {
+      handleError(
+        new AppError(getErrorMessage(error), 'REVERT_CLOSURE_ERROR', error),
+        'ClosureWizard.handleRevertClosure'
+      );
+    } finally {
+      this.isReverting = false;
+    }
   }
 }
 
