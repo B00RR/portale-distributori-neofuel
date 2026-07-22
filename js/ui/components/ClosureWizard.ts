@@ -582,12 +582,12 @@ export class ClosureWizard extends BaseComponent {
         isPartialCompleted
           ? html`
                     <div
-                      style="background: #fffbeb; border: 1px solid #fdf2f8; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; color: #92400e; display: flex; align-items: center; gap: 0.75rem;"
+                      style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; color: #1e40af; display: flex; align-items: center; gap: 0.75rem;"
                     >
                       <i class="fas fa-info-circle fa-lg"></i>
                       <div>
-                        <strong>Chiusura Parziale già registrata.</strong><br />
-                        È necessario procedere con la chiusura <strong>Finale</strong>.
+                        Sono state registrate chiusure parziali precedenti per questo turno.
+                        I contatori di partenza sono aggiornati all'ultima chiusura.
                       </div>
                     </div>
                   `
@@ -697,9 +697,6 @@ export class ClosureWizard extends BaseComponent {
   }
 
   private renderStep2(): TemplateResult {
-    const canPartial = true;
-    const isPartialCompleted = isPartiallyClosedShift(this.activeOpening);
-
     return html`
       <div class="section-title">Step 2: Dati Incasso</div>
       <div style="background: #f0f9ff; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem;">
@@ -777,12 +774,10 @@ export class ClosureWizard extends BaseComponent {
         </div>
       </div>
 
-      ${
-        canPartial && !isPartialCompleted
-          ? html`
+      ${html`
               <div class="section-title">Tipo di chiusura</div>
               <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">
-                Sei l'ultimo operatore della giornata?
+                Stai registrando la fine del tuo turno?
               </p>
               <div class="radio-group">
                 <div
@@ -791,7 +786,6 @@ export class ClosureWizard extends BaseComponent {
                 >
                   <i class="fas fa-flag-checkered fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
                   <div style="font-weight: 700;">Sì</div>
-                  <div style="font-size: 0.8rem; opacity: 0.8;">Chiusura finale</div>
                 </div>
                 <div
                   class="radio-option ${!this.isLastOperator ? 'active' : ''}"
@@ -799,26 +793,9 @@ export class ClosureWizard extends BaseComponent {
                 >
                   <i class="fas fa-clock fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
                   <div style="font-weight: 700;">No</div>
-                  <div style="font-size: 0.8rem; opacity: 0.8;">Chiusura parziale</div>
                 </div>
               </div>
-            `
-          : html`
-              <div
-                style="background: #fffbeb; border: 1px solid #fef3c7; padding: 1rem; border-radius: 12px; margin-top: 1.5rem; color: #92400e; display: flex; align-items: center; gap: 0.75rem;"
-              >
-                <i class="fas fa-exclamation-triangle fa-lg"></i>
-                <div>
-                  <strong>Chiusura finale obbligatoria.</strong><br />
-                  ${
-                    isPartialCompleted
-                      ? 'Esiste già una chiusura parziale: è necessario chiudere definitivamente il turno.'
-                      : 'Questa stazione non ammette chiusure parziali.'
-                  }
-                </div>
-              </div>
-            `
-      }
+            `}
 
       <div class="btn-group">
         <button
@@ -916,7 +893,7 @@ export class ClosureWizard extends BaseComponent {
       return null;
     }
 
-    const isFinal = isPartiallyClosedShift(activeOpening) || this.isLastOperator;
+    const isFinal = this.isLastOperator;
 
     // Send raw counters: null means "use opening value" on the server.
     const finalCounters: Record<number, number | null> = {};
@@ -950,7 +927,7 @@ export class ClosureWizard extends BaseComponent {
     const absDiscrepancy = Math.abs(discrepancy);
     const isWarning = absDiscrepancy > 10;
     const isCritical = absDiscrepancy > 50;
-    const isFinal = isPartiallyClosedShift(this.activeOpening) || this.isLastOperator;
+    const isFinal = this.isLastOperator;
 
     if (this.wizardState.mode === 'submitting') {
       return html`<div style="text-align:center; padding: 3rem;">
