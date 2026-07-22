@@ -66,7 +66,11 @@ async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
           readNumber(payload, 'amount'),
           readString(payload, 'type'),
           readString(payload, 'description'),
-          { skipOfflineQueue: true, createdAt: readString(payload, 'createdAt') }
+          {
+            skipOfflineQueue: true,
+            createdAt: readString(payload, 'createdAt'),
+            requestId: action.id
+          }
         );
         return true;
       case 'extra_income_create':
@@ -77,7 +81,11 @@ async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
           readString(payload, 'paymentMethod'),
           readString(payload, 'type'),
           readString(payload, 'description'),
-          { skipOfflineQueue: true, createdAt: readString(payload, 'createdAt') }
+          {
+            skipOfflineQueue: true,
+            createdAt: readString(payload, 'createdAt'),
+            requestId: action.id
+          }
         );
         return true;
       case 'points_redeem':
@@ -106,7 +114,8 @@ async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
             skipOfflineQueue: true,
             createdAt: readString(payload, 'createdAt'),
             invoiceNumber: readString(payload, 'invoiceNumber'),
-            invoiceDate: readString(payload, 'invoiceDate')
+            invoiceDate: readString(payload, 'invoiceDate'),
+            requestId: action.id
           }
         );
         return true;

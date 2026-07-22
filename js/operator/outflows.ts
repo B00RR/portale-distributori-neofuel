@@ -12,6 +12,7 @@ import { createErrorMessage, createFormActions } from './ui-components.js';
 interface PersistOptions {
   skipOfflineQueue?: boolean;
   createdAt?: string;
+  requestId?: string;
 }
 
 function shouldQueue(options?: PersistOptions): boolean {
@@ -139,14 +140,15 @@ export async function processOutflow(
   }
 
   const requestId =
+    options?.requestId ??
     'outflow_' +
-    stationId +
-    '_' +
-    (shiftId ?? 'no-shift') +
-    '_' +
-    Date.now() +
-    '_' +
-    Math.random().toString(36).substring(2, 9);
+      stationId +
+      '_' +
+      (shiftId ?? 'no-shift') +
+      '_' +
+      Date.now() +
+      '_' +
+      Math.random().toString(36).substring(2, 9);
   const { data: result, error } = await supabase.rpc('create_movement_v2', {
     p_station_id: Number(stationId),
     p_shift_id: shiftId ?? undefined,

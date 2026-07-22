@@ -52,7 +52,7 @@
   - Provide both `USING` and `WITH CHECK` for `FOR ALL` and `FOR UPDATE` policies
   - Test that the new policies don't break existing access patterns
 - **NEVER** create `FOR ALL` policies without `WITH CHECK` — users could reassign rows.
-- **NEVER** use `SECURITY DEFINER` functions without `SET search_path = public, pg_temp` to prevent search path hijacking.
+- **NEVER** use `SECURITY DEFINER` functions without `SET search_path = ''` (empty string) to prevent search path hijacking. This is stricter than `public, pg_temp` and is the project standard since 2026-07-14.
 - When consolidating policies, preserve the existing authorization model. Do not accidentally widen access (e.g. `TO authenticated USING (true)` is rarely correct).
 - If the issue mentions `auth_rls_initplan`, ensure the fix actually resolves the initplan — wrapping `auth.uid()` in a subquery does NOT fix initplan; use `SECURITY DEFINER` helper functions or materialized joins instead.
 
@@ -61,7 +61,7 @@
 - When creating or replacing functions like `is_admin()`, `current_user_id()`, `is_station_operator()`:
   - **ALWAYS** check the existing implementation first (read the current `sql/*.sql` files and the live DB if possible)
   - **NEVER** remove roles from authorization checks. If the existing `is_admin()` checks for `role IN ('admin', 'super_admin')`, the replacement must also check for both
-  - **ALWAYS** add `SET search_path = public, pg_temp` to `SECURITY DEFINER` functions
+  - **ALWAYS** add `SET search_path = ''` to `SECURITY DEFINER` functions
   - **NEVER** drop a function without checking for dependent policies, views, or other functions
 
 ## 3. Code Changes
@@ -78,7 +78,7 @@
 - [ ] `npm run type-check` passes
 - [ ] `npm test` passes (all existing tests green)
 - [ ] No hardcoded secrets, API keys, or credentials
-- [ ] No `SECURITY DEFINER` without `SET search_path`
+- [ ] No `SECURITY DEFINER` without `SET search_path = ''`
 - [ ] No `ALTER ... SET NOT NULL` without NULL pre-check
 - [ ] No `ADD CONSTRAINT` without `IF NOT EXISTS` or guard
 - [ ] No `FOR ALL` / `FOR UPDATE` RLS policy without `WITH CHECK`

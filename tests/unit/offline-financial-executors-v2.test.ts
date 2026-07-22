@@ -114,6 +114,7 @@ describe('Offline financial executors bootstrap', () => {
     const executor = await loadExecutor();
 
     const result = await executor({
+      id: 'queued-outflow-id-789',
       payload: {
         kind: 'outflow_create',
         stationId: 123,
@@ -134,7 +135,8 @@ describe('Offline financial executors bootstrap', () => {
       'Prelievo titolare',
       {
         skipOfflineQueue: true,
-        createdAt: '2026-07-05T10:00:00.000Z'
+        createdAt: '2026-07-05T10:00:00.000Z',
+        requestId: 'queued-outflow-id-789'
       }
     );
   });
@@ -143,6 +145,7 @@ describe('Offline financial executors bootstrap', () => {
     const executor = await loadExecutor();
 
     const result = await executor({
+      id: 'queued-extra-income-id-abc',
       payload: {
         kind: 'extra_income_create',
         stationId: 123,
@@ -165,7 +168,8 @@ describe('Offline financial executors bootstrap', () => {
       'Olio motore',
       {
         skipOfflineQueue: true,
-        createdAt: '2026-07-05T10:00:00.000Z'
+        createdAt: '2026-07-05T10:00:00.000Z',
+        requestId: 'queued-extra-income-id-abc'
       }
     );
   });
@@ -174,6 +178,7 @@ describe('Offline financial executors bootstrap', () => {
     const executor = await loadExecutor();
 
     const result = await executor({
+      id: 'queued-invoice-id-def',
       payload: {
         kind: 'invoice_request',
         stationId: 123,
@@ -204,7 +209,8 @@ describe('Offline financial executors bootstrap', () => {
         skipOfflineQueue: true,
         createdAt: '2026-07-05T10:00:00.000Z',
         invoiceNumber: 'REQ-1',
-        invoiceDate: '2026-07-05'
+        invoiceDate: '2026-07-05',
+        requestId: 'queued-invoice-id-def'
       }
     );
   });
