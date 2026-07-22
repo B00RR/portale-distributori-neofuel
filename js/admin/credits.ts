@@ -295,9 +295,7 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
           if (creditsContext.stationId !== null && creditsContext.stationId !== undefined) {
             insertPayload.station_id = creditsContext.stationId;
           }
-          await safeSupabaseQuery(() =>
-            supabase.from('crediti_clienti').insert([insertPayload])
-          );
+          await safeSupabaseQuery(() => supabase.from('crediti_clienti').insert([insertPayload]));
         }
         closeModal();
 
