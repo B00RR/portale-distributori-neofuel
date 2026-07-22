@@ -82,6 +82,7 @@ export async function showPrezziAdminModal(stationId: number | string): Promise<
       .from('prezzi_distributore')
       .select('*')
       .eq('station_id', Number(stationId))
+      .lte('data_validita', new Date().toISOString())
       .order('data_validita', { ascending: false })
       .limit(1)
       .maybeSingle();

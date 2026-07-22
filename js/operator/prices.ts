@@ -25,7 +25,9 @@ export async function showPrezziEditForm(stationId: number): Promise<void> {
       .from('prezzi_distributore')
       .select('*')
       .eq('station_id', stationId)
+      .lte('data_validita', new Date().toISOString())
       .order('data_validita', { ascending: false })
+      .limit(1)
       .maybeSingle()) as { data: PriceRecord | null };
 
     const benzina = current?.prezzo_benzina || 0;
