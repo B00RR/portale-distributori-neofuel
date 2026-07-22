@@ -32,7 +32,8 @@ const {
 
   return {
     mockSupabase: {
-      from: vi.fn(() => queryBuilder)
+      from: vi.fn(() => queryBuilder),
+      rpc: vi.fn(() => Promise.resolve({ data: { success: true }, error: null }))
     },
     mockUI: {
       openModal: vi.fn(),
@@ -645,6 +646,7 @@ describe('Operator Invoices Module', () => {
       mockSupabase.from.mockReturnValue({
         insert: vi.fn().mockResolvedValue({ data: null, error: null })
       });
+      mockSupabase.rpc.mockResolvedValue({ data: { success: true }, error: null });
     });
 
     it('should validate numeric userId', async () => {
@@ -698,7 +700,7 @@ describe('Operator Invoices Module', () => {
       );
     });
 
-    it('should insert invoice when online', async () => {
+    it('should invoke create_invoice_request RPC when online', async () => {
       mockOfflineQueue.isOffline.mockReturnValue(false);
 
       await processInvoiceRequest(
@@ -712,14 +714,24 @@ describe('Operator Invoices Module', () => {
         'test notes'
       );
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('invoices');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'create_invoice_request',
+        expect.objectContaining({
+          p_station_id: 1,
+          p_operator_id: 123,
+          p_cliente_id: 456,
+          p_customer_name: 'Test Customer',
+          p_amount: 100.5,
+          p_payment_method: 'pos',
+          p_product_category: 'benzina',
+          p_description: 'test notes'
+        })
+      );
     });
 
     it('should throw on supabase error', async () => {
       const testError = new Error('Insert failed');
-      mockSupabase.from.mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: testError })
-      });
+      mockSupabase.rpc.mockResolvedValueOnce({ data: null, error: testError });
 
       await expect(
         processInvoiceRequest(1, '123', 456, 'Customer', 100, 'contanti', 'gasolio', 'notes')
@@ -727,10 +739,6 @@ describe('Operator Invoices Module', () => {
     });
 
     it('should handle null cliente_id', async () => {
-      mockSupabase.from.mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: null })
-      });
-
       await processInvoiceRequest(
         1,
         '123',
@@ -742,14 +750,15 @@ describe('Operator Invoices Module', () => {
         'notes'
       );
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('invoices');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'create_invoice_request',
+        expect.objectContaining({
+          p_cliente_id: null
+        })
+      );
     });
 
     it('should handle empty string cliente_id as null', async () => {
-      mockSupabase.from.mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: null })
-      });
-
       await processInvoiceRequest(
         1,
         '123',
@@ -761,25 +770,27 @@ describe('Operator Invoices Module', () => {
         'notes'
       );
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('invoices');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'create_invoice_request',
+        expect.objectContaining({
+          p_cliente_id: null
+        })
+      );
     });
 
     it('should generate invoice number from timestamp', async () => {
-      mockSupabase.from.mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: null })
-      });
-
       await processInvoiceRequest(1, '123', 456, 'Customer', 100, 'contanti', 'gasolio', 'notes');
 
-      // Should have called insert with generated invoice number starting with REQ-
-      expect(mockSupabase.from).toHaveBeenCalled();
+      // Should have called RPC with generated invoice number starting with REQ-
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'create_invoice_request',
+        expect.objectContaining({
+          p_invoice_number: expect.stringMatching(/^REQ-/)
+        })
+      );
     });
 
     it('should use provided options for createdAt and invoiceNumber', async () => {
-      mockSupabase.from.mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: null })
-      });
-
       const customDate = '2024-05-15T10:30:00Z';
       const customInvoiceNumber = 'CUSTOM-123';
 
@@ -788,21 +799,24 @@ describe('Operator Invoices Module', () => {
         invoiceNumber: customInvoiceNumber
       });
 
-      expect(mockSupabase.from).toHaveBeenCalled();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'create_invoice_request',
+        expect.objectContaining({
+          p_created_at: customDate,
+          p_invoice_number: customInvoiceNumber
+        })
+      );
     });
 
     it('should skip offline queue when skipOfflineQueue option is true', async () => {
       mockOfflineQueue.isOffline.mockReturnValue(true);
-      mockSupabase.from.mockReturnValue({
-        insert: vi.fn().mockResolvedValue({ data: null, error: null })
-      });
 
       await processInvoiceRequest(1, '123', 456, 'Customer', 100, 'contanti', 'gasolio', 'notes', {
         skipOfflineQueue: true
       });
 
       // Should not queue when skipOfflineQueue is true
-      expect(mockSupabase.from).toHaveBeenCalledWith('invoices');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('create_invoice_request', expect.any(Object));
     });
   });
 

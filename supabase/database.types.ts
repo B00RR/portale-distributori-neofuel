@@ -1726,6 +1726,23 @@ export type Database = {
         Args: { p_endpoint: string; p_identifier: string };
         Returns: boolean;
       };
+      create_invoice_request: {
+        Args: {
+          p_amount?: number | undefined;
+          p_cliente_id?: number | null | undefined;
+          p_created_at?: string | undefined;
+          p_customer_name?: string | undefined;
+          p_description?: string | undefined;
+          p_invoice_date?: string | undefined;
+          p_invoice_number?: string | undefined;
+          p_operator_id: number;
+          p_payment_method?: string | undefined;
+          p_product_category?: string | undefined;
+          p_request_id: string;
+          p_station_id: number;
+        };
+        Returns: Json;
+      };
       create_movement_v2: {
         Args: {
           p_created_at?: string | undefined;

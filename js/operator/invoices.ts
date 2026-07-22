@@ -31,6 +31,7 @@ interface PersistOptions {
   createdAt?: string;
   invoiceNumber?: string;
   invoiceDate?: string;
+  requestId?: string;
 }
 
 function shouldQueue(options?: PersistOptions): boolean {
@@ -466,24 +467,32 @@ export async function processInvoiceRequest(
     return;
   }
 
-  const { error } = await supabase.from('invoices').insert([
-    {
-      station_id: numericStationId,
-      operator_id: numericUserId,
-      cliente_id: clienteId === null || clienteId === '' ? null : Number(clienteId),
-      customer_name: customerName,
-      amount,
-      payment_method: paymentMethod,
-      product_category: productCategory,
-      description,
-      status: 'pending',
-      created_at: createdAt,
-      invoice_number: invoiceNumber,
-      invoice_date: invoiceDate
-    }
-  ]);
-
-  if (error) {
-    throw error;
+  const requestId =
+    options?.requestId ??
+    'invoice_' +
+      numericStationId +
+      '_' +
+      numericUserId +
+      '_' +
+      Date.now() +
+      '_' +
+      Math.random().toString(36).substring(2, 9);
+  const { data: result, error } = await supabase.rpc('create_invoice_request', {
+    p_request_id: requestId,
+    p_station_id: numericStationId,
+    p_operator_id: numericUserId,
+    p_cliente_id: clienteId === null || clienteId === '' ? null : Number(clienteId),
+    p_customer_name: customerName,
+    p_amount: amount,
+    p_payment_method: paymentMethod,
+    p_product_category: productCategory,
+    p_description: description,
+    p_invoice_number: invoiceNumber,
+    p_invoice_date: invoiceDate,
+    p_created_at: createdAt
+  });
+  if (error) throw error;
+  if (result && typeof result === 'object' && 'success' in result && !result.success) {
+    throw new Error(String(result.error ?? 'Errore durante la registrazione fattura'));
   }
 }
