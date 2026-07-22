@@ -200,6 +200,94 @@ describe('Admin Shifts Module', () => {
       expect(container.innerHTML).toContain('STALE');
       expect(container.innerHTML).toContain('100,00');
     });
+
+    it('should render daily total card with correct sums for current day closures', async () => {
+      const { supabase } = await import('../../js/core/api.js');
+      const now = new Date();
+      const todayISO = now.toISOString();
+
+      const sampleShift1 = {
+        id: 1,
+        created_at: todayISO,
+        closed_at: todayISO,
+        status: 'closed',
+        station_id: 'ST1',
+        operator_id: 'OP1',
+        fuel_stations: { station_name: 'Test Station' },
+        users: { full_name: 'Test User' },
+        closing_data: {
+          computed: {
+            totale_venduto_carburante: 150.5,
+            totale_venduto_extra: 50.25,
+            expected_cash: 200,
+            real_cash: 198.5
+          }
+        }
+      };
+
+      const sampleShift2 = {
+        id: 2,
+        created_at: todayISO,
+        closed_at: todayISO,
+        status: 'closed',
+        station_id: 'ST1',
+        operator_id: 'OP1',
+        fuel_stations: { station_name: 'Test Station' },
+        users: { full_name: 'Test User' },
+        closing_data: {
+          computed: {
+            totale_venduto_carburante: 100,
+            totale_venduto_extra: 20,
+            expected_cash: 120,
+            real_cash: 120
+          }
+        }
+      };
+
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const sampleShiftYesterday = {
+        id: 3,
+        created_at: yesterday.toISOString(),
+        closed_at: yesterday.toISOString(),
+        status: 'closed',
+        station_id: 'ST1',
+        operator_id: 'OP1',
+        fuel_stations: { station_name: 'Test Station' },
+        users: { full_name: 'Test User' },
+        closing_data: {
+          computed: {
+            totale_venduto_carburante: 1000,
+            totale_venduto_extra: 100,
+            expected_cash: 1100,
+            real_cash: 1100
+          }
+        }
+      };
+
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
+        then: (resolve: (value: { data: unknown[]; error: null; count: number }) => unknown) =>
+          resolve({
+            data: [sampleShift1, sampleShift2, sampleShiftYesterday],
+            error: null,
+            count: 3
+          })
+      } as unknown as ReturnType<typeof supabase.from>);
+
+      await showChiusureTab(container, actions);
+
+      expect(container.innerHTML).toContain('daily-total-card');
+      expect(container.innerHTML).toContain('Totale Giornaliero');
+      expect(container.innerHTML).toContain('250,50');
+      expect(container.innerHTML).toContain('70,25');
+      expect(container.innerHTML).toContain('320,75');
+      expect(container.innerHTML).toContain('320,00');
+      expect(container.innerHTML).toContain('318,50');
+      expect(container.innerHTML).toContain('1,50');
+    });
   });
 
   describe('showClosureDetails', () => {

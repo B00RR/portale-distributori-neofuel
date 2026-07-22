@@ -41,6 +41,8 @@ interface ClosingDataSnapshot {
     liters_by_pump?: Record<string, number>;
     fuel_revenue?: number;
     extra_revenue?: number;
+    totale_venduto_carburante?: number;
+    totale_venduto_extra?: number;
     extra_by_method?: { cash?: number; pos?: number; uta_dkv_fine_mese?: number };
     total_sold?: number;
     electronic_total?: number;
@@ -85,6 +87,8 @@ interface ClosingData {
   is_final?: boolean;
   ricavo_teorico?: number;
   totale_atteso?: number;
+  contante_atteso?: number;
+  operator_cash?: number;
   dettaglio_incasso?: DettaglioIncasso;
   scontrino_self?: SelfServiceData;
   extra_incassi?: number;
@@ -318,6 +322,77 @@ export async function showChiusureTab(
 
       html += '</tbody></table></div>';
       setSafeHTML(dataContainer, html);
+
+      // Totale Giornaliero
+      const today = new Date();
+      const todayDateStr = today.toLocaleDateString('it-IT');
+      const todayClosures = filteredClosures.filter(c => {
+        const date = new Date(c.closed_at || c.created_at);
+        return date.toLocaleDateString('it-IT') === todayDateStr;
+      });
+
+      let totale_venduto_carburante = 0;
+      let totale_venduto_extra = 0;
+      let contante_atteso = 0;
+      let contante_reale = 0;
+
+      todayClosures.forEach(c => {
+        totale_venduto_carburante +=
+          c.closing_data?.computed?.totale_venduto_carburante ??
+          c.closing_data?.ricavo_teorico ??
+          0;
+        totale_venduto_extra += c.closing_data?.computed?.totale_venduto_extra ?? 0;
+        contante_atteso +=
+          c.closing_data?.computed?.expected_cash ?? c.closing_data?.contante_atteso ?? 0;
+        contante_reale += c.closing_data?.computed?.real_cash ?? c.closing_data?.operator_cash ?? 0;
+      });
+
+      const totale_venduto = totale_venduto_carburante + totale_venduto_extra;
+      const discrepanza = contante_atteso - contante_reale;
+      const discrepanzaColor =
+        discrepanza >= 0 ? 'var(--success-color, green)' : 'var(--danger-color, red)';
+
+      const cardContainer = document.createElement('div');
+      cardContainer.className = 'daily-total-card';
+      cardContainer.style.marginTop = '20px';
+      cardContainer.style.padding = '15px';
+      cardContainer.style.background = 'var(--bg-secondary, #f8f9fa)';
+      cardContainer.style.borderRadius = '8px';
+      cardContainer.style.border = '1px solid var(--border-color, #dee2e6)';
+
+      setSafeHTML(
+        cardContainer,
+        `
+        <h3 style="margin: 0 0 15px 0; font-size: 1.1em;">📊 Totale Giornaliero (${escapeHtml(todayDateStr)})</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+          <div>
+            <div style="font-size: 0.85em; color: var(--secondary-color);">Venduto Carburante</div>
+            <div style="font-size: 1.1em;">${formatEuro(totale_venduto_carburante)}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.85em; color: var(--secondary-color);">Venduto Extra</div>
+            <div style="font-size: 1.1em;">${formatEuro(totale_venduto_extra)}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.85em; color: var(--secondary-color);">Totale Venduto</div>
+            <div style="font-size: 1.2em; font-weight: bold;">${formatEuro(totale_venduto)}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.85em; color: var(--secondary-color);">Contante Atteso</div>
+            <div style="font-size: 1.1em;">${formatEuro(contante_atteso)}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.85em; color: var(--secondary-color);">Contante Reale</div>
+            <div style="font-size: 1.2em; font-weight: bold;">${formatEuro(contante_reale)}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.85em; color: var(--secondary-color);">Discrepanza</div>
+            <div style="font-size: 1.1em; font-weight: bold; color: ${discrepanzaColor};">${formatEuro(discrepanza)}</div>
+          </div>
+        </div>
+        `
+      );
+      dataContainer.appendChild(cardContainer);
 
       dataContainer.querySelectorAll('.view-closure').forEach(btn => {
         btn.addEventListener('click', () => {
