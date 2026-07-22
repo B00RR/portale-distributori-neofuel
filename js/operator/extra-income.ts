@@ -158,7 +158,7 @@ export async function processExtraIncome(
       type,
       description,
       createdAt
-    });
+    }, { userId: String(userId), stationId: Number(stationId) });
     return;
   }
 

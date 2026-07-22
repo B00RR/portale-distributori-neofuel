@@ -29,6 +29,9 @@ export interface QueuedAction {
    */
   errorType?: 'temporary' | 'permanent' | undefined;
   failedAt?: string | undefined;
+  /** @since #328 — owner metadata for cross-account safety */
+  userId?: string;
+  stationId?: number;
 }
 
 type PermanentErrorClassifier = (message: string) => boolean;
@@ -187,7 +190,8 @@ export async function initOfflineQueue(): Promise<void> {
  */
 export async function queueAction(
   type: QueuedAction['type'],
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  options?: { userId?: string; stationId?: number }
 ): Promise<string> {
   if (!db) {
     await initOfflineQueue();
@@ -204,7 +208,9 @@ export async function queueAction(
     createdAt: new Date().toISOString(),
     retryCount: 0,
     revision: 1,
-    status: 'pending'
+    status: 'pending',
+    ...(options?.userId !== undefined ? { userId: options.userId } : {}),
+    ...(options?.stationId !== undefined ? { stationId: options.stationId } : {})
   };
 
   return new Promise((resolve, reject) => {
@@ -556,6 +562,24 @@ export function registerExecutor(type: QueuedAction['type'], executor: ActionExe
   executors.set(type, executor);
 }
 
+/**
+ * Validate that a queued action belongs to the current user and station.
+ * Prevents cross-account replay after logout/account switch (#328).
+ */
+export function validateActionOwnership(
+  action: QueuedAction,
+  currentUserId: string,
+  currentStationId: number | null
+): { valid: boolean; reason?: string } {
+  if (action.userId && action.userId !== currentUserId) {
+    return { valid: false, reason: 'Utente diverso da quello che ha creato la richiesta' };
+  }
+  if (action.stationId && currentStationId !== null && action.stationId !== currentStationId) {
+    return { valid: false, reason: 'Stazione diversa da quella della richiesta originale' };
+  }
+  return { valid: true };
+}
+
 // ========== SYNC LOGIC ==========
 
 /**
@@ -603,6 +627,21 @@ async function runSync(): Promise<{ success: number; failed: number }> {
 
     if (!isRetryableError(action)) {
       logger.warn('offlineQueue', 'Skipping non-retryable action:', action.id, action.errorType);
+      failed++;
+      continue;
+    }
+
+    // Ownership check: skip actions that don't belong to the current user/station (#328)
+    const currentUserId = localStorage.getItem('userId') ?? undefined;
+    const currentStationId = localStorage.getItem('stationId') ? Number(localStorage.getItem('stationId')) : null;
+    const ownership = validateActionOwnership(action, currentUserId ?? '', currentStationId);
+    if (!ownership.valid) {
+      logger.warn('offlineQueue', 'Skipping action with mismatched ownership:', action.id, ownership.reason);
+      try {
+        await cancelFailedAction(action.id);
+      } catch (cancelErr) {
+        logger.error('offlineQueue', 'Failed to quarantine ownership-mismatched action:', cancelErr);
+      }
       failed++;
       continue;
     }

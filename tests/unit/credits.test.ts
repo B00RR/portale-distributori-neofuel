@@ -155,6 +155,10 @@ describe('Credits Module - Logic and UI Verification', () => {
         amount: 100,
         product: 'Gasolio',
         notes: 'Test note'
+      }),
+      expect.objectContaining({
+        userId: '456',
+        stationId: 123
       })
     );
     const queuedPayload = mockOfflineQueue.queueAction.mock.calls[0][1];
@@ -228,6 +232,10 @@ describe('Credits Module - Logic and UI Verification', () => {
         customerId: 7,
         amount: 50,
         method: 'contanti'
+      }),
+      expect.objectContaining({
+        userId: '456',
+        stationId: 123
       })
     );
     const queuedPayload = mockOfflineQueue.queueAction.mock.calls[0][1];

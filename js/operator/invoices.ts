@@ -463,7 +463,7 @@ export async function processInvoiceRequest(
       createdAt,
       invoiceNumber,
       invoiceDate
-    });
+    }, { userId: String(userId), stationId: numericStationId });
     return;
   }
 

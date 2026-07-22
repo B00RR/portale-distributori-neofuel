@@ -135,7 +135,7 @@ export async function processOutflow(
       type,
       description,
       createdAt
-    });
+    }, { userId: String(userId), stationId: Number(stationId) });
     return;
   }
 

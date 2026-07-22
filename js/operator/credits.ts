@@ -237,16 +237,17 @@ export async function processNewCredit(
   const shiftId = activeOpening?.id ?? null;
 
   if (shouldQueue(options)) {
+    const numericOpId = toNumericId(userId);
     await queueAction('movement_create', {
       kind: 'credit_create',
       stationId: numericStationId,
-      operatorId: String(userId),
+      operatorId: String(numericOpId),
       customerName,
       amount,
       product,
       notes,
       ...(creditDate ? { createdAt: creditDate } : {})
-    });
+    }, { userId: String(numericOpId), stationId: numericStationId });
     return;
   }
 
@@ -459,7 +460,7 @@ export async function processPayment(
       amount,
       method,
       ...(creditDate ? { createdAt: creditDate } : {})
-    });
+    }, { userId: String(userId), stationId: numericStationId });
     return;
   }
 
