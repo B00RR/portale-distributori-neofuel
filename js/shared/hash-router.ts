@@ -65,8 +65,10 @@ export function updateHash(area: RouteArea, view: string): void {
 /**
  * Subscribe to hash changes (browser back/forward or manual URL edits) for
  * one area; routes of other areas or malformed hashes are ignored.
- * Listens to both `hashchange` and `popstate` so back/forward navigation
- * triggers routing even when the app uses `history.pushState` for updates.
+ * Listens to both `hashchange` and `popstate`:
+ *   - `popstate` covers browser back/forward after `history.pushState` updates;
+ *   - `hashchange` covers direct hash edits and deep-link loads where the hash
+ *     is set before/while the app boots (e.g. Playwright `page.goto('/#/admin/vouchers')`).
  * Returns the unsubscribe function.
  */
 export function onHashChange(area: RouteArea, handler: (view: string) => void): () => void {

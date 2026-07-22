@@ -176,7 +176,7 @@ class AdminRouter {
   ): Promise<void> {
     switch (tab) {
       case 'dashboard':
-        showDashboard(content, filter);
+        await showDashboard(content, filter);
         break;
 
       case 'stations':

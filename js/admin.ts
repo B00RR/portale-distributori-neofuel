@@ -8,7 +8,7 @@ import { renderAdminShell, renderBreadcrumbs } from './admin/layout.js';
 import { router, AdminTab, isAdminTab } from './admin/router.js';
 import { supabase, safeSupabaseQuery } from './core/api.js';
 import { logger } from './core/logger.js';
-import { getCurrentRoute, onHashChange } from './shared/hash-router.js';
+import { getCurrentRoute, onHashChange, type HashRoute } from './shared/hash-router.js';
 import { isAdminRole } from './shared/roles.js';
 import { store } from './shared/state.js';
 import { FuelStation } from './types.js';
@@ -143,9 +143,20 @@ export async function showAdminArea(): Promise<void> {
   // cui il deep-link poteva essere sovrascritto dal render della dashboard.
   // Awaiating goToTab garantisce che la tab iniziale sia completamente
   // renderizzata prima di attivare il listener per back/forward.
-  const route = getCurrentRoute();
+  const initialRoute = getCurrentRoute();
   const initialTab: AdminTab =
-    route && route.area === 'admin' && isAdminTab(route.view) ? route.view : 'dashboard';
+    initialRoute && initialRoute.area === 'admin' && isAdminTab(initialRoute.view)
+      ? initialRoute.view
+      : 'dashboard';
+
+  // Se c'e' un deep-link, aggiorniamo immediatamente l'hash sincronamente
+  // prima di caricare la tab, in modo che eventuali handler hashchange
+  // pendenti trovino lo stato consistente.
+  const route = initialRoute as HashRoute | null;
+  if (route && route.area === 'admin' && isAdminTab(route.view) && window.location.hash === '') {
+    window.location.hash = `#/admin/${route.view}`;
+  }
+
   await goToTab(initialTab);
 
   // Register browser back/forward support, avoiding duplicate listeners across repeated showAdminArea() calls

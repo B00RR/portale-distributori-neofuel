@@ -160,7 +160,7 @@ export async function showVoucherAdminTab(
 
   // Load dependencies and render content
   await loadCustomers();
-  renderActiveTab();
+  await renderActiveTab();
 }
 
 function updateTabButtons(): void {
@@ -225,7 +225,7 @@ async function renderActiveTab(): Promise<void> {
       renderGenerator(content);
       break;
     case 'dashboard':
-      renderDashboard(content);
+      await renderDashboard(content);
       break;
   }
 }

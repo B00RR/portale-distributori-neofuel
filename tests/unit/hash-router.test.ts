@@ -131,6 +131,7 @@ describe('Hash Router (shared)', () => {
 
       window.history.pushState(null, '', '#/operator/uscite');
       window.dispatchEvent(new Event('hashchange'));
+      window.dispatchEvent(new Event('popstate'));
 
       expect(handler).not.toHaveBeenCalled();
     });
