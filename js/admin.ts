@@ -14,6 +14,7 @@ import { store } from './shared/state.js';
 import { FuelStation } from './types.js';
 
 let unsubscribeHashListener: (() => void) | null = null;
+let navigationInProgress: AdminTab | null = null;
 
 /**
  * Main entry point for Admin Area
@@ -124,11 +125,31 @@ export async function showAdminArea(): Promise<void> {
     }
   }
 
-  // Tab change routine for use by both shell UI and hash router
+  // Tab change routine for use by both shell UI and hash router.
+  // A navigation lock prevents re-entrancy: if a second goToTab call arrives
+  // while the first is still awaiting loadTab/renderGlobalFilter (e.g. user
+  // clicks a sidebar button while the initial dashboard is still loading),
+  // the first navigation is abandoned and the second one proceeds. Without
+  // this, the stale breadcrumbs from the first call overwrite the fresh ones.
   const goToTab = async (tab: AdminTab): Promise<void> => {
-    await router.navigateTo(tab);
-    renderBreadcrumbs(tab);
-    await renderGlobalFilter();
+    if (navigationInProgress === tab) {
+      return; // same tab already loading, skip
+    }
+    navigationInProgress = tab;
+    try {
+      await router.navigateTo(tab);
+      // If a newer navigation started while we were awaiting, bail out —
+      // the newer call will render breadcrumbs and filter itself.
+      if (navigationInProgress !== tab) {
+        return;
+      }
+      renderBreadcrumbs(tab);
+      await renderGlobalFilter();
+    } finally {
+      if (navigationInProgress === tab) {
+        navigationInProgress = null;
+      }
+    }
   };
 
   // Render the admin shell with the tab change handler FIRST so the DOM is
