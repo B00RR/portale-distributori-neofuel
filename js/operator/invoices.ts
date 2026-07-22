@@ -449,21 +449,25 @@ export async function processInvoiceRequest(
   }
 
   if (shouldQueue(options)) {
-    await queueAction('movement_create', {
-      kind: 'invoice_request',
-      stationId: numericStationId,
-      operatorId: userId,
-      clienteId: clienteId === null || clienteId === '' ? null : Number(clienteId),
-      customerName,
-      amount,
-      paymentMethod,
-      productCategory,
-      description,
-      status: 'pending',
-      createdAt,
-      invoiceNumber,
-      invoiceDate
-    }, { userId: String(userId), stationId: numericStationId });
+    await queueAction(
+      'movement_create',
+      {
+        kind: 'invoice_request',
+        stationId: numericStationId,
+        operatorId: userId,
+        clienteId: clienteId === null || clienteId === '' ? null : Number(clienteId),
+        customerName,
+        amount,
+        paymentMethod,
+        productCategory,
+        description,
+        status: 'pending',
+        createdAt,
+        invoiceNumber,
+        invoiceDate
+      },
+      { userId: String(userId), stationId: numericStationId }
+    );
     return;
   }
 

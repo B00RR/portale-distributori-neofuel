@@ -127,15 +127,19 @@ export async function processOutflow(
   const shiftId = activeOpening?.id ?? null;
 
   if (shouldQueue(options)) {
-    await queueAction('movement_create', {
-      kind: 'outflow_create',
-      stationId: Number(stationId),
-      operatorId: String(userId),
-      amount,
-      type,
-      description,
-      createdAt
-    }, { userId: String(userId), stationId: Number(stationId) });
+    await queueAction(
+      'movement_create',
+      {
+        kind: 'outflow_create',
+        stationId: Number(stationId),
+        operatorId: String(userId),
+        amount,
+        type,
+        description,
+        createdAt
+      },
+      { userId: String(userId), stationId: Number(stationId) }
+    );
     return;
   }
 

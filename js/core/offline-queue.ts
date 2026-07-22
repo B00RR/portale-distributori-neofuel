@@ -633,14 +633,25 @@ async function runSync(): Promise<{ success: number; failed: number }> {
 
     // Ownership check: skip actions that don't belong to the current user/station (#328)
     const currentUserId = localStorage.getItem('userId') ?? undefined;
-    const currentStationId = localStorage.getItem('stationId') ? Number(localStorage.getItem('stationId')) : null;
+    const currentStationId = localStorage.getItem('stationId')
+      ? Number(localStorage.getItem('stationId'))
+      : null;
     const ownership = validateActionOwnership(action, currentUserId ?? '', currentStationId);
     if (!ownership.valid) {
-      logger.warn('offlineQueue', 'Skipping action with mismatched ownership:', action.id, ownership.reason);
+      logger.warn(
+        'offlineQueue',
+        'Skipping action with mismatched ownership:',
+        action.id,
+        ownership.reason
+      );
       try {
         await cancelFailedAction(action.id);
       } catch (cancelErr) {
-        logger.error('offlineQueue', 'Failed to quarantine ownership-mismatched action:', cancelErr);
+        logger.error(
+          'offlineQueue',
+          'Failed to quarantine ownership-mismatched action:',
+          cancelErr
+        );
       }
       failed++;
       continue;
