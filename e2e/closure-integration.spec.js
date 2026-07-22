@@ -189,7 +189,7 @@ test.describe('Integrazione Chiusura Turno (Operatore)', () => {
     // Step 2: Compila dati incasso e seleziona "No" per chiusura parziale
     await page.locator('.input-card:has(label:has-text("Contanti Reali")) input').fill('175');
     await page.locator('.input-card:has(label:has-text("POS (€)")) input').fill('10');
-    await page.locator('.radio-option:has-text("No")').click();
+    await page.locator('.radio-option:has-text("No")').first().click();
     await page.locator('button:has-text("Avanti")').click();
 
     // Step 3: Verifica anteprima e salva

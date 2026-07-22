@@ -785,16 +785,14 @@ export class ClosureWizard extends BaseComponent {
                   @click=${() => (this.isLastOperator = true)}
                 >
                   <i class="fas fa-flag-checkered fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
-                  <div style="font-weight: 700;">Sì, chiudo il turno</div>
-                  <div style="font-size: 0.8rem; opacity: 0.8;">Chiusura finale della giornata</div>
+                  <div style="font-weight: 700;">Sì</div>
                 </div>
                 <div
                   class="radio-option ${!this.isLastOperator ? 'active' : ''}"
                   @click=${() => (this.isLastOperator = false)}
                 >
                   <i class="fas fa-clock fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
-                  <div style="font-weight: 700;">No, è un checkpoint</div>
-                  <div style="font-size: 0.8rem; opacity: 0.8;">Chiusura parziale</div>
+                  <div style="font-weight: 700;">No</div>
                 </div>
               </div>
             `}
