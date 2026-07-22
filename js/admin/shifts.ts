@@ -338,17 +338,25 @@ export async function showChiusureTab(
 
       todayClosures.forEach(c => {
         totale_venduto_carburante +=
+          c.closing_data?.computed?.fuel_revenue ??
           c.closing_data?.computed?.totale_venduto_carburante ??
           c.closing_data?.ricavo_teorico ??
           0;
-        totale_venduto_extra += c.closing_data?.computed?.totale_venduto_extra ?? 0;
+        totale_venduto_extra +=
+          c.closing_data?.computed?.extra_revenue ??
+          c.closing_data?.computed?.totale_venduto_extra ??
+          0;
         contante_atteso +=
           c.closing_data?.computed?.expected_cash ?? c.closing_data?.contante_atteso ?? 0;
-        contante_reale += c.closing_data?.computed?.real_cash ?? c.closing_data?.operator_cash ?? 0;
+        contante_reale +=
+          c.closing_data?.computed?.real_cash ??
+          c.closing_data?.computed?.operator?.cash ??
+          c.closing_data?.operator_cash ??
+          0;
       });
 
       const totale_venduto = totale_venduto_carburante + totale_venduto_extra;
-      const discrepanza = contante_atteso - contante_reale;
+      const discrepanza = contante_reale - contante_atteso;
       const discrepanzaColor =
         discrepanza >= 0 ? 'var(--success-color, green)' : 'var(--danger-color, red)';
 
@@ -387,7 +395,7 @@ export async function showChiusureTab(
           </div>
           <div>
             <div style="font-size: 0.85em; color: var(--secondary-color);">Discrepanza</div>
-            <div style="font-size: 1.1em; font-weight: bold; color: ${discrepanzaColor};">${formatEuro(discrepanza)}</div>
+            <div style="font-size: 1.1em; font-weight: bold; color: ${discrepanzaColor};">${discrepanza > 0 ? '+' : ''}${formatEuro(discrepanza)}</div>
           </div>
         </div>
         `

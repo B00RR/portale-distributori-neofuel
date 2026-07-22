@@ -87,7 +87,7 @@ BEGIN
             'created_at', m.created_at,
             'descrizione', m.descrizione,
             'importo', m.importo,
-            'payment_method', m.payment_method,
+            'tipo', m.tipo,
             'operator_id', m.operator_id,
             'operator_name', u.full_name
         ) ORDER BY m.created_at ASC
@@ -106,7 +106,7 @@ BEGIN
             'created_at', m.created_at,
             'descrizione', m.descrizione,
             'importo', m.importo,
-            'payment_method', m.payment_method,
+            'tipo', m.tipo,
             'operator_id', m.operator_id,
             'operator_name', u.full_name
         ) ORDER BY m.created_at ASC
@@ -203,7 +203,7 @@ BEGIN
     WHERE station_id = p_station_id AND created_at::date = p_date;
 
     v_total_sold := v_fuel_revenue + v_extra_revenue;
-    v_discrepancy := v_expected_cash - v_real_cash;
+    v_discrepancy := v_real_cash - v_expected_cash;
 
     RETURN jsonb_build_object(
         'date', p_date::text,

@@ -132,10 +132,13 @@ class AdminRouter {
                     <i class="fas fa-lock error-icon"></i>
                     <h2>Accesso Negato</h2>
                     <p>Non disponi dei permessi necessari per visualizzare questa sezione.</p>
-                    <button class="menu-button primary" onclick="window.location.reload()">Torna alla Dashboard</button>
+                    <button id="access-denied-reload-btn" class="menu-button primary">Torna alla Dashboard</button>
                 </div>
             `
       );
+      content.querySelector('#access-denied-reload-btn')?.addEventListener('click', () => {
+        window.location.reload();
+      });
     }
   }
 

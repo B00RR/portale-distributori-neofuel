@@ -25,12 +25,17 @@ function isValidPrice(value: unknown, maxPrice: number): value is number {
 
 // Legge il tetto massimo prezzo dalla configurazione della stazione
 async function getMaxPrice(supabase: SupabaseClient, stationId: number): Promise<number> {
-  const { data } = await supabase
-    .from('business_rules')
-    .select('max_price_limit')
-    .eq('station_id', stationId)
-    .maybeSingle();
-  return data?.max_price_limit ?? 2.5; // default 2.5 €/L
+  try {
+    const { data, error } = await supabase
+      .from('business_rules')
+      .select('max_price_limit')
+      .eq('station_id', stationId)
+      .maybeSingle();
+    if (error) return 2.5;
+    return data?.max_price_limit ?? 2.5; // default 2.5 €/L
+  } catch {
+    return 2.5;
+  }
 }
 
 Deno.serve(async req => {
@@ -95,8 +100,8 @@ Deno.serve(async req => {
     }
 
     return jsonResponse({ success: true, data }, 200);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  } catch (error: any) {
+    const message = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
     return jsonResponse({ success: false, error: message }, 500);
   }
 });

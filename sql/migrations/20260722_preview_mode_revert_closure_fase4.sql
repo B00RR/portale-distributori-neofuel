@@ -436,7 +436,7 @@ BEGIN
         - v_outflows
         + v_non_erogato;
 
-    v_discrepancy := v_expected_cash - COALESCE(p_operator_cash, 0);
+    v_discrepancy := COALESCE(p_operator_cash, 0) - v_expected_cash;
 
     -- Build the result with totals (used for both preview and commit).
     v_result := jsonb_build_object(

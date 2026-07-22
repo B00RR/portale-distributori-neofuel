@@ -37,14 +37,8 @@ BEGIN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
-    -- Read max price limit from business_rules
-    SELECT max_price_limit INTO v_max_price
-    FROM public.business_rules
-    WHERE station_id = p_station_id;
-
-    IF NOT FOUND THEN
-        v_max_price := 2.5; -- default
-    END IF;
+    -- Set safety max price limit (2.50 EUR/L)
+    v_max_price := 2.5;
 
     -- Validate prices against ceiling
     IF p_benzina IS NOT NULL AND (p_benzina <= 0 OR p_benzina > v_max_price) THEN
@@ -56,7 +50,7 @@ BEGIN
     END IF;
 
     INSERT INTO public.prezzi_distributore (station_id, prezzo_benzina, prezzo_gasolio, data_validita, modificato_da)
-    VALUES (p_station_id, p_benzina, p_gasolio, p_data_validita, public.current_user_id()::text)
+    VALUES (p_station_id, p_benzina, p_gasolio, p_data_validita, public.current_user_id())
     RETURNING jsonb_build_object('success', true, 'id', id) INTO v_result;
 
     RETURN v_result;

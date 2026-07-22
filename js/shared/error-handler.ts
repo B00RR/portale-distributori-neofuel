@@ -98,12 +98,15 @@ export function handleError(
             <div class="error-state" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
                 <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: var(--danger-color, #dc3545); margin-bottom: 1rem;"></i>
                 <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">${escapeHtml(userMessage)}</p>
-                <button class="menu-button primary" onclick="location.reload()">
+                <button class="menu-button primary error-reload-btn">
                     <i class="fas fa-sync-alt"></i> Ricarica Pagina
                 </button>
             </div>
         `
     );
+    renderTarget.querySelector('.error-reload-btn')?.addEventListener('click', () => {
+      location.reload();
+    });
   }
 }
 
