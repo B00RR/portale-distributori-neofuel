@@ -774,8 +774,7 @@ export class ClosureWizard extends BaseComponent {
         </div>
       </div>
 
-      ${
-        html`
+      ${html`
               <div class="section-title">Tipo di chiusura</div>
               <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">
                 Stai registrando la fine del tuo turno?
@@ -798,8 +797,7 @@ export class ClosureWizard extends BaseComponent {
                   <div style="font-size: 0.8rem; opacity: 0.8;">Chiusura parziale</div>
                 </div>
               </div>
-            `
-      }
+            `}
 
       <div class="btn-group">
         <button
