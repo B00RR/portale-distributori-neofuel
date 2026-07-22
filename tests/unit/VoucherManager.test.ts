@@ -144,4 +144,30 @@ describe('VoucherManager (523 lines)', () => {
     expect(element.activeVoucher).toBeNull();
     expect(element.errorMessage).toBe('Codice non trovato.');
   });
+
+  it('should process points redemption', async () => {
+    element.stationId = '123';
+    element.userId = '456';
+    element.shiftId = '789';
+    element.pointsAmount = '15.50';
+
+    await element.confirmPointsRedeem();
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('register_punti_riscatto', expect.objectContaining({
+      p_station_id: 123,
+      p_shift_id: 789,
+      p_operator_id: 456,
+      p_importo: 15.5
+    }));
+    expect(element.mode).toBe('success');
+  });
+
+  it('should warn on invalid points amount', async () => {
+    element.pointsAmount = '0';
+    await element.confirmPointsRedeem();
+
+    expect(mockToast.show).toHaveBeenCalledWith('Inserire un importo punti valido.', 'warning');
+  });
 });
+

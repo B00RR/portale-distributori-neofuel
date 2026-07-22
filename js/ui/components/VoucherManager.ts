@@ -5,6 +5,7 @@ import { supabase } from '../../core/api.js';
 import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { validateVoucher } from '../../core/rules.js';
+import { processPointsRedeem } from '../../operator/vouchers.js';
 import { handleError, AppError } from '../../shared/error-handler.js';
 import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
 import { escapeLikePattern } from '../../utils/sanitizer.js';
@@ -51,7 +52,8 @@ export class VoucherManager extends BaseComponent {
   @property({ type: String }) shiftId: string = '';
 
   @state() private mode:
-    'menu' | 'scan' | 'manual' | 'loading' | 'verify' | 'result' | 'success' | 'error' = 'menu';
+    'menu' | 'scan' | 'manual' | 'points' | 'loading' | 'verify' | 'result' | 'success' | 'error' =
+    'menu';
   @state() private errorMessage: string = '';
   @state() private activeVoucher: Voucher | null = null;
   @state() private validationResult: {
@@ -61,6 +63,7 @@ export class VoucherManager extends BaseComponent {
     details?: { date?: string | null };
   } | null = null;
   @state() private manualCode: string = '';
+  @state() private pointsAmount: string = '';
 
   // Scanner state
   private html5QrCode: Html5QrcodeInstance | null = null;
@@ -482,6 +485,32 @@ export class VoucherManager extends BaseComponent {
     }
   }
 
+  private async confirmPointsRedeem(): Promise<void> {
+    const amount = parseFloat(this.pointsAmount);
+    if (!amount || amount <= 0) {
+      Toast.show('Inserire un importo punti valido.', 'warning');
+      return;
+    }
+
+    this.mode = 'loading';
+
+    try {
+      await processPointsRedeem(this.stationId, this.userId, amount, this.shiftId);
+      Toast.show('Riscatto punti registrato!', 'success');
+      this.mode = 'success';
+      this.pointsAmount = '';
+      this.emit('points-redeemed', { amount });
+    } catch (e: unknown) {
+      const err =
+        e instanceof AppError
+          ? e
+          : new AppError('Riscatto punti fallito', 'POINTS_REDEEM_ERROR', e);
+      handleError(err, 'VoucherManager.confirmPointsRedeem');
+      this.errorMessage = err.message;
+      this.mode = 'error';
+    }
+  }
+
   override render(): TemplateResult {
     return html` <div class="voucher-manager">${this.renderContent()}</div> `;
   }
@@ -490,7 +519,7 @@ export class VoucherManager extends BaseComponent {
     switch (this.mode) {
       case 'menu':
         return html`
-          <div class="menu-grid">
+          <div class="menu-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
             <button class="action-btn primary" @click=${() => this.startScanner()}>
               <i class="fas fa-camera fa-2x"></i>
               <span>Scan QR</span>
@@ -498,6 +527,40 @@ export class VoucherManager extends BaseComponent {
             <button class="action-btn" @click=${() => (this.mode = 'manual')}>
               <i class="fas fa-keyboard fa-2x"></i>
               <span>Manuale</span>
+            </button>
+            <button class="action-btn" @click=${() => (this.mode = 'points')}>
+              <i class="fas fa-coins fa-2x"></i>
+              <span>Punti</span>
+            </button>
+          </div>
+        `;
+
+      case 'points':
+        return html`
+          <div class="manual-entry">
+            <h3>Riscatto Punti / Fedeltà</h3>
+            <p class="subtitle-gray" style="margin-bottom: 1rem;">Inserisci l'importo riscattato in punti (€)</p>
+            <div class="manual-input-container">
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                .value=${this.pointsAmount}
+                @input=${(e: Event) => (this.pointsAmount = (e.target as HTMLInputElement).value)}
+                @keypress=${(e: KeyboardEvent) => e.key === 'Enter' && this.confirmPointsRedeem()}
+                placeholder="0.00 €"
+                autofocus
+              />
+              <button
+                class="action-btn primary"
+                style="padding: 0 1.5rem"
+                @click=${() => this.confirmPointsRedeem()}
+              >
+                <i class="fas fa-check"></i>
+              </button>
+            </div>
+            <button class="action-btn mt-3 w-100" @click=${() => (this.mode = 'menu')}>
+              Indietro
             </button>
           </div>
         `;
