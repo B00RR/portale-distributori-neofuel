@@ -1722,13 +1722,6 @@ export type Database = {
           closed_at_counter: number;
         }[];
       };
-      get_daily_reconciliation: {
-        Args: {
-          p_station_id: number;
-          p_date?: string;
-        };
-        Returns: Json;
-      };
       reset_rate_limit: {
         Args: { p_endpoint: string; p_identifier: string };
         Returns: boolean;

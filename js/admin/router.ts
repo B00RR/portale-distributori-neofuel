@@ -27,7 +27,6 @@ export type AdminTab =
   | 'crediti'
   | 'invoices'
   | 'vouchers'
-  | 'reconciliation'
   | 'notifiche'
   | 'analytics'
   | 'settings';
@@ -40,7 +39,6 @@ export const ADMIN_TABS: readonly AdminTab[] = [
   'crediti',
   'invoices',
   'vouchers',
-  'reconciliation',
   'notifiche',
   'analytics',
   'settings'
@@ -60,7 +58,6 @@ const TAB_TITLES: Record<AdminTab, string> = {
   crediti: 'Gestione Crediti',
   invoices: 'Richieste Fatture',
   vouchers: 'Gestione Voucher',
-  reconciliation: 'Riconciliazione Giornaliera',
   notifiche: 'Notifiche',
   analytics: 'Analytics',
   settings: 'Impostazioni'
@@ -163,9 +160,6 @@ class AdminRouter {
     if (tab === 'vouchers' && !isFullAdmin && userRole !== 'accounting') {
       return false;
     }
-    if (tab === 'reconciliation' && !isFullAdmin && userRole !== 'accounting') {
-      return false;
-    }
 
     return true;
   }
@@ -228,17 +222,6 @@ class AdminRouter {
           await showVoucherAdminTab(content, headerActions);
         } catch (err) {
           handleError(err, 'Caricamento modulo Voucher', content);
-        }
-        break;
-
-      case 'reconciliation':
-        showLoadingMessage(content);
-        try {
-          const { showReconciliationTab } = await import('./reconciliation.js');
-          const stationId = filter ? parseInt(filter, 10) : null;
-          await showReconciliationTab(content, headerActions, stationId);
-        } catch (err) {
-          handleError(err, 'Caricamento modulo Riconciliazione', content);
         }
         break;
 

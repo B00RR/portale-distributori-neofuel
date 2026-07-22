@@ -48,10 +48,9 @@ describe('Admin Hash Routing', () => {
 
   describe('ADMIN_TABS constant', () => {
     it('exports a readonly array of all tabs', () => {
-      expect(ADMIN_TABS).toHaveLength(11);
+      expect(ADMIN_TABS).toHaveLength(10);
       expect(ADMIN_TABS).toContain('dashboard');
       expect(ADMIN_TABS).toContain('vouchers');
-      expect(ADMIN_TABS).toContain('reconciliation');
       expect(ADMIN_TABS).toContain('settings');
     });
   });

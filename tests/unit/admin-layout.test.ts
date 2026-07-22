@@ -459,7 +459,6 @@ describe('Admin Layout Module', () => {
         'crediti',
         'invoices',
         'vouchers',
-        'reconciliation',
         'notifiche',
         'analytics',
         'settings'
