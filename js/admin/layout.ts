@@ -23,6 +23,7 @@ const TAB_LABELS = new Map<AdminTab, string>([
   ['crediti', 'Crediti'],
   ['invoices', 'Fatture'],
   ['vouchers', 'Voucher'],
+  ['reconciliation', 'Riconciliazione'],
   ['notifiche', 'Notifiche'],
   ['analytics', 'Analytics'],
   ['settings', 'Impostazioni']
@@ -78,6 +79,12 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
       tab: 'vouchers',
       icon: 'fa-ticket-alt',
       label: 'Gestione Voucher',
+      visible: isFullAdmin || userRole === 'accounting'
+    },
+    {
+      tab: 'reconciliation',
+      icon: 'fa-balance-scale',
+      label: 'Riconciliazione',
       visible: isFullAdmin || userRole === 'accounting'
     },
     {
