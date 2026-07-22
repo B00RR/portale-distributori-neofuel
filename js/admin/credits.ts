@@ -280,7 +280,13 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
             supabase.from('crediti_clienti').update({ cliente }).eq('id', customerId)
           );
         } else {
-          const insertPayload: Record<string, unknown> = {
+          const insertPayload: {
+            cliente: string;
+            saldo: number;
+            importo: number;
+            created_at: string;
+            station_id?: number | null;
+          } = {
             cliente,
             saldo,
             importo: saldo, // Initial saldo recorded as importo (required field)
