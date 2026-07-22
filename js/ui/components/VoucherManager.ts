@@ -52,15 +52,8 @@ export class VoucherManager extends BaseComponent {
   @property({ type: String }) shiftId: string = '';
 
   @state() private mode:
-    | 'menu'
-    | 'scan'
-    | 'manual'
-    | 'points'
-    | 'loading'
-    | 'verify'
-    | 'result'
-    | 'success'
-    | 'error' = 'menu';
+    'menu' | 'scan' | 'manual' | 'points' | 'loading' | 'verify' | 'result' | 'success' | 'error' =
+    'menu';
   @state() private errorMessage: string = '';
   @state() private activeVoucher: Voucher | null = null;
   @state() private validationResult: {

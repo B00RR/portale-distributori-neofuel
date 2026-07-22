@@ -105,4 +105,3 @@ export async function processPointsRedeem(
     throw new Error(String((result as { error?: string }).error ?? 'Riscatto punti fallito'));
   }
 }
-
