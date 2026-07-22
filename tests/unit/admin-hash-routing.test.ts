@@ -95,15 +95,15 @@ describe('Admin Hash Routing', () => {
       const pushSpy = vi.spyOn(window.history, 'pushState');
 
       await router.navigateTo('vouchers');
-      expect(pushSpy).toHaveBeenCalledTimes(1);
+      expect(pushSpy).not.toHaveBeenCalled();
 
       // Navigate to same tab again
       await router.navigateTo('vouchers');
-      expect(pushSpy).toHaveBeenCalledTimes(1); // Still 1, not 2
+      expect(pushSpy).not.toHaveBeenCalled();
 
       // Navigate to different tab
       await router.navigateTo('dashboard');
-      expect(pushSpy).toHaveBeenCalledTimes(2);
+      expect(pushSpy).not.toHaveBeenCalled();
     });
 
     it('updates currentTab before writing hash', async () => {

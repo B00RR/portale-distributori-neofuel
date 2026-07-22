@@ -3,8 +3,6 @@ import { property, state } from 'lit/decorators.js';
 
 import { supabase } from '../../core/api.js';
 import type { Json } from '../../core/api.js';
-import { BusinessLogicManager } from '../../core/business-logic-manager.js';
-import { type BusinessRules, DEFAULT_BUSINESS_RULES } from '../../core/business-rules-schema.js';
 import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { handleError, AppError } from '../../shared/error-handler.js';
@@ -17,6 +15,20 @@ import { BaseComponent } from './BaseComponent.js';
 interface RpcResult {
   success: boolean;
   error?: string;
+  totals?: {
+    total_liters?: number;
+    total_fuel_revenue?: number;
+    total_cash_collected?: number;
+    discrepancy?: number;
+    operator_cash?: number;
+    operator_pos?: number;
+    operator_fleet?: number;
+    self_cash_in?: number;
+    self_cash_out?: number;
+    self_pos?: number;
+    self_fleet?: number;
+    self_manager?: number;
+  };
 }
 
 function isRpcResult(value: unknown): value is RpcResult {
@@ -55,6 +67,38 @@ interface ClosureWizardState {
   errorMessage: string;
 }
 
+interface ServerTotals {
+  total_liters: number;
+  total_fuel_revenue: number;
+  total_cash_collected: number;
+  discrepancy: number;
+  operator_cash: number;
+  operator_pos: number;
+  operator_fleet: number;
+  self_cash_in: number;
+  self_cash_out: number;
+  self_pos: number;
+  self_fleet: number;
+  self_manager: number;
+}
+
+function emptyServerTotals(): ServerTotals {
+  return {
+    total_liters: 0,
+    total_fuel_revenue: 0,
+    total_cash_collected: 0,
+    discrepancy: 0,
+    operator_cash: 0,
+    operator_pos: 0,
+    operator_fleet: 0,
+    self_cash_in: 0,
+    self_cash_out: 0,
+    self_pos: 0,
+    self_fleet: 0,
+    self_manager: 0
+  };
+}
+
 export class ClosureWizard extends BaseComponent {
   @property({ type: String }) stationId: string = '';
   @property({ type: String }) userId: string = '';
@@ -79,12 +123,7 @@ export class ClosureWizard extends BaseComponent {
   @state() private pistole: Pistola[] = [];
   @state() private islands: Island[] = [];
   @state() private openingCounters: Record<number, number> = {};
-  @state() private finalCounters: Record<number, number> = {};
-  @state() private prezzi: {
-    prezzo_benzina?: number | null;
-    prezzo_gasolio?: number | null;
-  } | null = null;
-  @state() private stationConfig: { allow_partial_closure?: boolean | null } | null = null;
+  @state() private finalCounters: Record<number, number | null> = {};
 
   // Data from Step 2
   @state() private selfCashIn: string = '';
@@ -95,50 +134,14 @@ export class ClosureWizard extends BaseComponent {
   @state() private operatorCash: string = '';
   @state() private operatorPos: string = '';
   @state() private operatorUta: string = '';
+  @state() private isLastOperator: boolean = true;
 
-  // Calculated Data
-  @state() private totalLitriBenzina: number = 0;
-  @state() private totalLitriGasolio: number = 0;
-  @state() private ricavoTeorico: number = 0;
+  // Server-computed preview
+  @state() private serverTotals: ServerTotals | null = null;
 
   // UI State
-  @state() private closureType: 'partial' | 'final' = 'final';
-  @state() private includeCounters: boolean = true;
-  @state() private businessRules: BusinessRules = DEFAULT_BUSINESS_RULES;
-
-  private get isFinalClosure(): boolean {
-    return this.closureType === 'final' || isPartiallyClosedShift(this.activeOpening);
-  }
-
-  private get shouldSubmitCounters(): boolean {
-    return this.isFinalClosure || this.includeCounters;
-  }
-
-  private selectClosureType(type: 'partial' | 'final'): void {
-    if (isPartiallyClosedShift(this.activeOpening)) {
-      this.closureType = 'final';
-      this.includeCounters = true;
-      return;
-    }
-
-    this.closureType = type;
-    if (type === 'final') {
-      this.includeCounters = true;
-    }
-  }
-
-  private calculateTotalIncasso(): number {
-    return (
-      Number(this.selfCashIn) -
-      Number(this.selfCashOut) +
-      Number(this.operatorCash) +
-      Number(this.selfPos) +
-      Number(this.operatorPos) +
-      Number(this.selfFleet) +
-      Number(this.selfManager) +
-      Number(this.operatorUta)
-    );
-  }
+  @state() private canEditClosure: boolean = false;
+  @state() private isEditingClosure: boolean = false;
 
   static override styles: CSSResultGroup = [
     BaseComponent.styles,
@@ -287,6 +290,10 @@ export class ClosureWizard extends BaseComponent {
         background: #fee2e2;
         color: #b91c1c;
       }
+      .btn-warning {
+        background: #fffbeb;
+        color: #92400e;
+      }
 
       .btn:hover:not(:disabled) {
         transform: translateY(-2px);
@@ -296,6 +303,18 @@ export class ClosureWizard extends BaseComponent {
       .btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+      }
+
+      .preview-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+      }
+
+      .preview-row.highlight {
+        padding-top: 1rem;
+        border-top: 2px solid #e2e8f0;
+        font-size: 1.25rem;
       }
 
       @keyframes slideUp {
@@ -340,49 +359,27 @@ export class ClosureWizard extends BaseComponent {
       }
       const activeOpening = shiftResult;
       this.activeOpening = activeOpening;
-      if (isPartiallyClosedShift(activeOpening)) {
-        this.closureType = 'final';
-        this.includeCounters = true;
-      }
+      this.canEditClosure = this.computeCanEditClosure(activeOpening);
 
       const shiftId = activeOpening.id;
       if (!shiftId) {
         this.wizardState = { mode: 'error', errorMessage: 'Turno senza ID valido.', step: 1 };
         return;
       }
-      const [islandsRes, prezziRes, configRes, countersRes, rules] = await Promise.all([
+      const [islandsRes, countersRes] = await Promise.all([
         supabase
           .from('islands')
           .select('island_id, nome, island_name')
           .eq('station_id', this.numericStationId)
           .order('island_id'),
         supabase
-          .from('prezzi_distributore')
-          .select('*')
-          .eq('station_id', this.numericStationId)
-          .order('data_validita', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('fuel_stations')
-          .select('allow_partial_closure')
-          .eq('station_id', this.numericStationId)
-          .single(),
-        supabase
           .from('shift_pistols')
           .select('pistola_id, opened_at_counter, closed_at_counter')
-          .eq('shift_id', shiftId),
-        BusinessLogicManager.loadRules()
+          .eq('shift_id', shiftId)
       ]);
 
       if (islandsRes.error) {
         throw islandsRes.error;
-      }
-      if (prezziRes.error) {
-        throw prezziRes.error;
-      }
-      if (configRes.error) {
-        throw configRes.error;
       }
       if (countersRes.error) {
         throw countersRes.error;
@@ -398,10 +395,6 @@ export class ClosureWizard extends BaseComponent {
           station_id: this.numericStationId
         })
       );
-
-      this.prezzi = prezziRes.data;
-      this.stationConfig = configRes.data;
-      this.businessRules = rules;
 
       const islandIds = this.islands.map(i => i.island_id);
       const { data: pData, error: pError } = await supabase
@@ -422,6 +415,7 @@ export class ClosureWizard extends BaseComponent {
       })) as unknown as Pistola[];
 
       const countersMap: Record<number, number> = {};
+      const previousClosingCounters: Record<number, number | null> = {};
       // The generated DB types don't model this legacy column selection (see
       // CLAUDE.md: repo types can lag the live DB), so the row shape is asserted.
       const counters = (countersRes.data || []) as Array<{
@@ -429,7 +423,6 @@ export class ClosureWizard extends BaseComponent {
         opened_at_counter: number | string;
         closed_at_counter: number | string | null;
       }>;
-      const previousClosingCounters: Record<number, number> = {};
       counters.forEach(c => {
         const pistolId = Number(c.pistola_id);
         if (!Number.isFinite(pistolId)) {
@@ -437,10 +430,15 @@ export class ClosureWizard extends BaseComponent {
         }
         // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
         countersMap[pistolId] = Number(c.opened_at_counter) || 0;
-        const previousClosingCounter = Number(c.closed_at_counter);
-        if (c.closed_at_counter !== null && Number.isFinite(previousClosingCounter)) {
+        if (c.closed_at_counter !== null) {
+          const previousClosingCounter = Number(c.closed_at_counter);
+          if (Number.isFinite(previousClosingCounter)) {
+            // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
+            previousClosingCounters[pistolId] = previousClosingCounter;
+          }
+        } else {
           // eslint-disable-next-line security/detect-object-injection -- pistolId is a finite numeric database id.
-          previousClosingCounters[pistolId] = previousClosingCounter;
+          previousClosingCounters[pistolId] = null;
         }
       });
       this.openingCounters = countersMap;
@@ -456,6 +454,30 @@ export class ClosureWizard extends BaseComponent {
     }
   }
 
+  private computeCanEditClosure(shift: Shift | null): boolean {
+    if (!shift?.closed_at) {
+      return false;
+    }
+    const closedAt = new Date(shift.closed_at);
+    const now = new Date();
+    const diffMs = now.getTime() - closedAt.getTime();
+    return diffMs >= 0 && diffMs < 60 * 60 * 1000;
+  }
+
+  private get litersByPistol(): Record<number, number> {
+    const result: Record<number, number> = {};
+    this.pistole.forEach(p => {
+      const opening = this.openingCounters[p.id] ?? 0;
+      const closing = this.finalCounters[p.id];
+      if (closing === null || closing === undefined) {
+        result[p.id] = 0;
+        return;
+      }
+      result[p.id] = Math.max(0, closing - opening);
+    });
+    return result;
+  }
+
   override render(): TemplateResult {
     if (this.wizardState.mode === 'loading') {
       return this.renderLoading();
@@ -467,13 +489,35 @@ export class ClosureWizard extends BaseComponent {
     return html`
       <div class="wizard-container">
         <div class="wizard-header">
-          <h2 style="margin:0; color: #0A2342;">Chiusura Turno</h2>
+          <h2 style="margin:0; color: #0A2342;">
+            ${this.isEditingClosure ? 'Modifica Chiusura Turno' : 'Chiusura Turno'}
+          </h2>
           <div class="step-indicator">
             <div class="step-dot ${this.wizardState.step >= 1 ? 'active' : ''}"></div>
             <div class="step-dot ${this.wizardState.step >= 2 ? 'active' : ''}"></div>
             <div class="step-dot ${this.wizardState.step >= 3 ? 'active' : ''}"></div>
           </div>
         </div>
+        ${
+          this.canEditClosure && !this.isEditingClosure
+            ? html`
+              <div
+                style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; color: #1e40af; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;"
+              >
+                <div><i class="fas fa-info-circle fa-lg" style="margin-right: 0.5rem;"></i> Questa
+                  chiusura è ancora modificabile (&lt; 1 ora).
+                </div>
+                <button
+                  class="btn btn-secondary"
+                  style="flex: 0 0 auto;"
+                  @click=${() => (this.isEditingClosure = true)}
+                >
+                  Modifica chiusura
+                </button>
+              </div>
+            `
+            : ''
+        }
         ${this.renderStep()}
       </div>
     `;
@@ -493,12 +537,11 @@ export class ClosureWizard extends BaseComponent {
   }
 
   private renderStep1(): TemplateResult {
-    const canPartial = this.stationConfig?.allow_partial_closure !== false;
     const isPartialCompleted = isPartiallyClosedShift(this.activeOpening);
-    const isFinal = this.isFinalClosure;
+    const liters = this.litersByPistol;
 
     return html`
-      <div class="section-title">Step 1: Configurazione & Contatori</div>
+      <div class="section-title">Step 1: Contatori Pistole</div>
       <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">
         Turno aperto il:
         <strong>${formatDateTimeSafe(this.activeOpening?.opened_at)}</strong>
@@ -520,115 +563,59 @@ export class ClosureWizard extends BaseComponent {
           : ''
       }
 
-      <div class="radio-group" style="${isPartialCompleted ? 'display: none;' : ''}">
-        ${
-          canPartial
-            ? html`
-                        <div
-                          class="radio-option ${this.closureType === 'partial' ? 'active' : ''}"
-                          @click=${() => this.selectClosureType('partial')}
-                        >
-                          <i
-                            class="fas fa-clock fa-2x"
-                            style="margin-bottom: 0.5rem; display: block;"
-                          ></i>
-                          <div style="font-weight: 700;">Parziale</div>
-                          <div style="font-size: 0.8rem; opacity: 0.8;">
-                            Salva incassi senza chiudere il turno
-                          </div>
-                        </div>
-                      `
-            : ''
-        }
-        <div
-          class="radio-option ${isFinal ? 'active' : ''}"
-          @click=${() => this.selectClosureType('final')}
-        >
-          <i class="fas fa-flag-checkered fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
-          <div style="font-weight: 700;">Finale</div>
-          <div style="font-size: 0.8rem; opacity: 0.8;">Chiude definitivamente il turno</div>
-        </div>
-      </div>
-
-      ${
-        !isFinal
-          ? html`
-                    <div style="margin-bottom: 1.5rem;">
-                      <label
-                        style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;"
+      <div class="form-grid">
+        ${this.islands.map(
+          island => html`
+            <div
+              style="grid-column: 1 / -1; font-weight: 700; color: #64748b; font-size: 0.85rem; text-transform: uppercase; margin-top: 1rem;"
+            >
+              ${island.nome}
+            </div>
+            ${this.pistole
+              .filter(p => p.island_id === island.island_id)
+              .map(
+                p => html`
+                  <div class="input-card">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                      <span style="font-weight: 700; color: #0A2342;">${p.nome}</span>
+                      <span
+                        class="badge"
+                        style="background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;"
+                        >${p.tipo_carburante}</span
                       >
-                        <input
-                          type="checkbox"
-                          style="width: auto;"
-                          .checked=${this.includeCounters}
-                          @change=${(e: Event) => (this.includeCounters = (e.target as HTMLInputElement).checked)}
-                        />
-                        Inserisci Numeratori Pistole (Opzionale)
-                      </label>
                     </div>
-                  `
-          : ''
-      }
-      ${
-        this.shouldSubmitCounters
-          ? html`
-                    <div class="form-grid">
-                      ${this.islands.map(
-                        island => html`
-                        <div
-                          style="grid-column: 1 / -1; font-weight: 700; color: #64748b; font-size: 0.85rem; text-transform: uppercase; margin-top: 1rem;"
-                        >
-                          ${island.nome}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                      <div>
+                        <label>Apertura</label>
+                        <div style="font-weight: 700; color: #94a3b8; font-size: 1.1rem;">
+                          ${this.openingCounters[p.id]?.toFixed(2) || '0.00'}
                         </div>
-                        ${this.pistole
-                          .filter(p => p.island_id === island.island_id)
-                          .map(
-                            p => html`
-                              <div class="input-card">
-                                <div
-                                  style="display: flex; justify-content: space-between; margin-bottom: 1rem;"
-                                >
-                                  <span style="font-weight: 700; color: #0A2342;">${p.nome}</span>
-                                  <span
-                                    class="badge"
-                                    style="background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;"
-                                    >${p.tipo_carburante}</span
-                                  >
-                                </div>
-                                <div
-                                  style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;"
-                                >
-                                  <div>
-                                    <label>Apertura</label>
-                                    <div
-                                      style="font-weight: 700; color: #94a3b8; font-size: 1.1rem;"
-                                    >
-                                      ${this.openingCounters[p.id]?.toFixed(2) || '0.00'}
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label>Chiusura</label
-                                    ><input
-                                      type="number"
-                                      name="counter_${p.id}"
-                                      step="0.01"
-                                      min="${Math.max(
-                                        this.openingCounters[p.id] ?? 0,
-                                        this.finalCounters[p.id] ?? this.openingCounters[p.id] ?? 0
-                                      )}"
-                                      .value=${this.finalCounters[p.id] ?? ''}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            `
-                          )}
-                      `
-                      )}
+                      </div>
+                      <div>
+                        <label>Chiusura</label>
+                        <input
+                          type="number"
+                          name="counter_${p.id}"
+                          step="0.01"
+                          .value=${this.finalCounters[p.id] ?? ''}
+                          @input=${(e: Event) => this.handleCounterInput(p.id, e)}
+                        />
+                      </div>
                     </div>
-                  `
-          : ''
-      }
+                    <div
+                      style="margin-top: 0.75rem; text-align: right; font-size: 0.9rem; color: #475569;"
+                    >
+                      Erogati:
+                      <strong style="color: #0A2342;"
+                        >${liters[p.id]?.toFixed(2) || '0.00'} L</strong
+                      >
+                    </div>
+                  </div>
+                `
+              )}
+          `
+        )}
+      </div>
 
       <div class="btn-group">
         <button class="btn btn-secondary" @click=${() => this.emit('cancel')}>Annulla</button>
@@ -639,108 +626,89 @@ export class ClosureWizard extends BaseComponent {
     `;
   }
 
+  private handleCounterInput(pistolId: number, event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    const numericValue = value === '' ? null : Number(value);
+    if (numericValue !== null && !Number.isFinite(numericValue)) {
+      return;
+    }
+    this.finalCounters = {
+      ...this.finalCounters,
+      [pistolId]: numericValue
+    };
+  }
+
   private handleStep1Submit(): void {
-    if (this.shouldSubmitCounters) {
-      const inputs = this.renderRoot.querySelectorAll('input[name^="counter_"]');
-      const counters: Record<number, number> = {};
-      for (const input of Array.from(inputs) as HTMLInputElement[]) {
-        if (!input.value) {
-          handleError(
-            new AppError('Inserisci tutti i contatori', 'VALIDATION_ERROR'),
-            'ClosureWizard.handleStep1Submit'
-          );
-          input.focus();
-          return;
-        }
-        const pId = Number(input.name.replace('counter_', ''));
-        const closingCounter = Number(input.value);
-        if (!Number.isFinite(pId) || !Number.isFinite(closingCounter)) {
-          handleError(
-            new AppError('Inserisci un contatore valido', 'VALIDATION_ERROR'),
-            'ClosureWizard.handleStep1Submit'
-          );
-          input.focus();
-          return;
-        }
-        // eslint-disable-next-line security/detect-object-injection -- pId is a finite numeric id parsed from a controlled input name.
-        const openingCounter = this.openingCounters[pId] ?? 0;
-        // eslint-disable-next-line security/detect-object-injection -- pId is a finite numeric id parsed from a controlled input name.
-        const previousClosingCounter = this.finalCounters[pId] ?? openingCounter;
-        if (closingCounter < Math.max(openingCounter, previousClosingCounter)) {
-          handleError(
-            new AppError(
-              'Il contatore di chiusura non può essere inferiore all’ultimo valore registrato',
-              'VALIDATION_ERROR'
-            ),
-            'ClosureWizard.handleStep1Submit'
-          );
-          input.focus();
-          return;
-        }
-        // eslint-disable-next-line security/detect-object-injection -- pId is a numeric id parsed from a controlled input name, written to a fresh local record
-        counters[pId] = closingCounter;
+    for (const [pId, closing] of Object.entries(this.finalCounters)) {
+      const numericId = Number(pId);
+      if (!Number.isFinite(numericId)) {
+        continue;
       }
-      this.finalCounters = counters;
-      let bLitri = 0,
-        gLitri = 0;
-      this.pistole.forEach(p => {
-        const diff = (this.finalCounters[p.id] || 0) - (this.openingCounters[p.id] || 0);
-        if (p.tipo_carburante === 'benzina') {
-          bLitri += Math.max(0, diff);
-        }
-        if (p.tipo_carburante === 'gasolio') {
-          gLitri += Math.max(0, diff);
-        }
-      });
-      this.totalLitriBenzina = bLitri;
-      this.totalLitriGasolio = gLitri;
-      this.ricavoTeorico =
-        bLitri * (this.prezzi?.prezzo_benzina || 0) + gLitri * (this.prezzi?.prezzo_gasolio || 0);
+      if (closing === null || closing === undefined) {
+        continue;
+      }
+      // eslint-disable-next-line security/detect-object-injection -- numericId is a finite numeric id parsed from a controlled record key.
+      const openingCounter = this.openingCounters[numericId] ?? 0;
+      if (closing < openingCounter) {
+        handleError(
+          new AppError(
+            `Il contatore di chiusura non può essere inferiore all'apertura (pistola ${numericId})`,
+            'VALIDATION_ERROR'
+          ),
+          'ClosureWizard.handleStep1Submit'
+        );
+        const input = this.renderRoot.querySelector(`input[name="counter_${numericId}"]`);
+        (input as HTMLInputElement | null)?.focus();
+        return;
+      }
     }
     this.wizardState = { ...this.wizardState, step: 2 };
   }
 
   private renderStep2(): TemplateResult {
+    const canPartial = true;
+    const isPartialCompleted = isPartiallyClosedShift(this.activeOpening);
+
     return html`
       <div class="section-title">Step 2: Dati Incasso</div>
       <div style="background: #f0f9ff; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem;">
         <h3 style="margin-top:0; color: #0369a1;">Scontrino Self</h3>
         <div class="form-grid">
           <div class="input-card">
-            <label>Incassate (€)</label
-            ><input
+            <label>Incassate (€)</label>
+            <input
               type="number"
               .value=${this.selfCashIn}
               @input=${(e: Event) => (this.selfCashIn = (e.target as HTMLInputElement).value)}
             />
           </div>
           <div class="input-card">
-            <label>Erogate (€)</label
-            ><input
+            <label>Erogate (€)</label>
+            <input
               type="number"
               .value=${this.selfCashOut}
               @input=${(e: Event) => (this.selfCashOut = (e.target as HTMLInputElement).value)}
             />
           </div>
           <div class="input-card">
-            <label>Bancomat (€)</label
-            ><input
+            <label>Bancomat (€)</label>
+            <input
               type="number"
               .value=${this.selfPos}
               @input=${(e: Event) => (this.selfPos = (e.target as HTMLInputElement).value)}
             />
           </div>
           <div class="input-card">
-            <label>UTA/DKV (€)</label
-            ><input
+            <label>UTA/DKV (€)</label>
+            <input
               type="number"
               .value=${this.selfFleet}
               @input=${(e: Event) => (this.selfFleet = (e.target as HTMLInputElement).value)}
             />
           </div>
           <div class="input-card" style="grid-column: 1 / -1;">
-            <label>ID Gestore (€)</label
-            ><input
+            <label>ID Gestore (€)</label>
+            <input
               type="number"
               .value=${this.selfManager}
               @input=${(e: Event) => (this.selfManager = (e.target as HTMLInputElement).value)}
@@ -752,24 +720,24 @@ export class ClosureWizard extends BaseComponent {
         <h3 style="margin-top:0; color: #9d174d;">Operatore</h3>
         <div class="form-grid">
           <div class="input-card">
-            <label>Contanti Reali (€)</label
-            ><input
+            <label>Contanti Reali (€)</label>
+            <input
               type="number"
               .value=${this.operatorCash}
               @input=${(e: Event) => (this.operatorCash = (e.target as HTMLInputElement).value)}
             />
           </div>
           <div class="input-card">
-            <label>POS (€)</label
-            ><input
+            <label>POS (€)</label>
+            <input
               type="number"
               .value=${this.operatorPos}
               @input=${(e: Event) => (this.operatorPos = (e.target as HTMLInputElement).value)}
             />
           </div>
           <div class="input-card" style="grid-column: 1 / -1;">
-            <label>UTA/DKV Manuale (€)</label
-            ><input
+            <label>UTA/DKV Manuale (€)</label>
+            <input
               type="number"
               .value=${this.operatorUta}
               @input=${(e: Event) => (this.operatorUta = (e.target as HTMLInputElement).value)}
@@ -777,6 +745,50 @@ export class ClosureWizard extends BaseComponent {
           </div>
         </div>
       </div>
+
+      ${
+        canPartial && !isPartialCompleted
+          ? html`
+              <div class="section-title">Tipo di chiusura</div>
+              <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">
+                Sei l'ultimo operatore della giornata?
+              </p>
+              <div class="radio-group">
+                <div
+                  class="radio-option ${this.isLastOperator ? 'active' : ''}"
+                  @click=${() => (this.isLastOperator = true)}
+                >
+                  <i class="fas fa-flag-checkered fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
+                  <div style="font-weight: 700;">Sì</div>
+                  <div style="font-size: 0.8rem; opacity: 0.8;">Chiusura finale</div>
+                </div>
+                <div
+                  class="radio-option ${!this.isLastOperator ? 'active' : ''}"
+                  @click=${() => (this.isLastOperator = false)}
+                >
+                  <i class="fas fa-clock fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
+                  <div style="font-weight: 700;">No</div>
+                  <div style="font-size: 0.8rem; opacity: 0.8;">Chiusura parziale</div>
+                </div>
+              </div>
+            `
+          : html`
+              <div
+                style="background: #fffbeb; border: 1px solid #fef3c7; padding: 1rem; border-radius: 12px; margin-top: 1.5rem; color: #92400e; display: flex; align-items: center; gap: 0.75rem;"
+              >
+                <i class="fas fa-exclamation-triangle fa-lg"></i>
+                <div>
+                  <strong>Chiusura finale obbligatoria.</strong><br />
+                  ${
+                    isPartialCompleted
+                      ? 'Esiste già una chiusura parziale: è necessario chiudere definitivamente il turno.'
+                      : 'Questa stazione non ammette chiusure parziali.'
+                  }
+                </div>
+              </div>
+            `
+      }
+
       <div class="btn-group">
         <button
           class="btn btn-secondary"
@@ -784,7 +796,9 @@ export class ClosureWizard extends BaseComponent {
         >
           Indietro
         </button>
-        <button class="btn btn-primary" @click=${this.handleStep2Submit}>Avanti</button>
+        <button class="btn btn-primary" @click=${this.handleStep2Submit}>
+          Avanti <i class="fas fa-arrow-right"></i>
+        </button>
       </div>
     `;
   }
@@ -797,18 +811,125 @@ export class ClosureWizard extends BaseComponent {
       );
       return;
     }
+
+    const isFinal = isPartiallyClosedShift(this.activeOpening) || this.isLastOperator;
+
+    if (isFinal) {
+      const confirmFinal = window.confirm(
+        'Stai per eseguire una CHIUSURA FINALE. Dopo questa operazione il turno verrà chiuso definitivamente e non sarà possibile registrare nuovi incassi. Confermi?'
+      );
+      if (!confirmFinal) {
+        return;
+      }
+    }
+
     this.wizardState = { ...this.wizardState, step: 3 };
+    // Kick off server preview without blocking the step transition.
+    this.fetchServerPreview();
+  }
+
+  private async fetchServerPreview(): Promise<void> {
+    const payload = this.buildPayload();
+    if (!payload) {
+      return;
+    }
+    const isFinal = payload.isFinal;
+    try {
+      const requestId = `closure_preview_${Number(payload.activeOpeningId)}_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 9)}`;
+
+      const { data, error } = await supabase.rpc('submit_shift_closure_v2', {
+        p_shift_id: payload.activeOpeningId,
+        p_station_id: this.numericStationId,
+        p_request_id: requestId,
+        p_final_counters: payload.finalCountersJson,
+        p_tank_usage: [],
+        p_self_cash_in: payload.selfCashIn,
+        p_self_cash_out: payload.selfCashOut,
+        p_self_pos: payload.selfPos,
+        p_self_fleet: payload.selfFleet,
+        p_self_manager: payload.selfManager,
+        p_operator_cash: payload.operatorCash,
+        p_operator_pos: payload.operatorPos,
+        p_operator_fleet: payload.operatorUta,
+        p_closure_type: isFinal ? 'final' : 'partial'
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (isRpcResult(data) && data.totals) {
+        this.serverTotals = {
+          ...emptyServerTotals(),
+          ...data.totals
+        };
+      } else {
+        this.serverTotals = null;
+      }
+    } catch (error: unknown) {
+      logger.error('ClosureWizard', 'Server preview failed', error);
+      this.serverTotals = null;
+    }
+  }
+
+  private buildPayload(): {
+    activeOpeningId: number;
+    finalCountersJson: Json;
+    isFinal: boolean;
+    selfCashIn: number;
+    selfCashOut: number;
+    selfPos: number;
+    selfFleet: number;
+    selfManager: number;
+    operatorCash: number;
+    operatorPos: number;
+    operatorUta: number;
+  } | null {
+    if (!this.activeOpening) {
+      return null;
+    }
+    const activeOpening = this.activeOpening;
+    const activeOpeningId = Number(activeOpening.id);
+    if (!Number.isFinite(activeOpeningId)) {
+      return null;
+    }
+
+    const isFinal = isPartiallyClosedShift(activeOpening) || this.isLastOperator;
+
+    // Send raw counters: null means "use opening value" on the server.
+    const finalCounters: Record<number, number | null> = {};
+    this.pistole.forEach(p => {
+      const closing = this.finalCounters[p.id];
+      if (closing === null || closing === undefined) {
+        finalCounters[p.id] = null;
+      } else {
+        finalCounters[p.id] = closing;
+      }
+    });
+
+    return {
+      activeOpeningId,
+      finalCountersJson: finalCounters as Json,
+      isFinal,
+      selfCashIn: Number(this.selfCashIn) || 0,
+      selfCashOut: Number(this.selfCashOut) || 0,
+      selfPos: Number(this.selfPos) || 0,
+      selfFleet: Number(this.selfFleet) || 0,
+      selfManager: Number(this.selfManager) || 0,
+      operatorCash: Number(this.operatorCash) || 0,
+      operatorPos: Number(this.operatorPos) || 0,
+      operatorUta: Number(this.operatorUta) || 0
+    };
   }
 
   private renderStep3(): TemplateResult {
-    const totalIncassi = this.calculateTotalIncasso();
-    // Senza contatori il teorico non è calcolabile (resta 0): la "discrepanza"
-    // sarebbe l'intero incasso e il warning scatterebbe sempre (#255).
-    const hasTeorico = this.shouldSubmitCounters;
-    const discrepancy = totalIncassi - this.ricavoTeorico;
+    const totals = this.serverTotals ?? emptyServerTotals();
+    const discrepancy = totals.discrepancy ?? 0;
     const absDiscrepancy = Math.abs(discrepancy);
-    const isWarning = hasTeorico && absDiscrepancy > this.businessRules.cash_error_threshold;
-    const isCritical = hasTeorico && absDiscrepancy > this.businessRules.critical_discrepancy_alert;
+    const isWarning = absDiscrepancy > 10;
+    const isCritical = absDiscrepancy > 50;
 
     if (this.wizardState.mode === 'submitting') {
       return html`<div style="text-align:center; padding: 3rem;">
@@ -817,7 +938,23 @@ export class ClosureWizard extends BaseComponent {
       </div>`;
     }
     return html`
-      <div class="section-title">Step 3: Conferma</div>
+      <div class="section-title">Step 3: Anteprima e Conferma</div>
+
+      ${
+        !this.serverTotals
+          ? html`
+                    <div
+                      style="background: #fffbeb; border: 1px solid #fef3c7; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; color: #92400e; display: flex; align-items: center; gap: 0.75rem;"
+                    >
+                      <i class="fas fa-info-circle fa-lg"></i>
+                      <div>
+                        <strong>Anteprima non disponibile.</strong><br />
+                        I totali verranno calcolati dal server al momento del salvataggio.
+                      </div>
+                    </div>
+                  `
+          : ''
+      }
 
       ${
         isWarning
@@ -831,7 +968,7 @@ export class ClosureWizard extends BaseComponent {
                       <div>
                         <strong>Attenzione: Discrepanza Rilevata</strong><br />
                         La differenza di ${formatEuro(discrepancy)} supera la soglia consentita di
-                        ${formatEuro(this.businessRules.cash_error_threshold)}.
+                        ${formatEuro(10)}.
                       </div>
                     </div>
                   `
@@ -841,73 +978,81 @@ export class ClosureWizard extends BaseComponent {
       <div
         style="background: #f8fafc; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid #e2e8f0;"
       >
-        ${
-          hasTeorico
-            ? html`<div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-              <span>Teorico:</span><strong>${formatEuro(this.ricavoTeorico)}</strong>
-            </div>`
-            : ''
-        }
-        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-          <span>Reale:</span><strong>${formatEuro(totalIncassi)}</strong>
+        <div class="preview-row">
+          <span>Totale litri:</span><strong>${totals.total_liters.toFixed(2)} L</strong>
         </div>
-        ${
-          hasTeorico
-            ? html`<div style="display: flex; justify-content: space-between; font-size: 1.25rem;">
-              <span>Differenza:</span
-              ><strong
-                style="color: ${!isWarning ? '#059669' : isCritical ? '#dc2626' : '#d97706'};"
-                >${formatEuro(discrepancy)}</strong
-              >
-            </div>`
-            : ''
-        }
+        <div class="preview-row">
+          <span>Ricavo carburante:</span><strong>${formatEuro(totals.total_fuel_revenue)}</strong>
+        </div>
+        <div class="preview-row">
+          <span>Contanti operatore:</span><strong>${formatEuro(totals.operator_cash)}</strong>
+        </div>
+        <div class="preview-row">
+          <span>POS operatore:</span><strong>${formatEuro(totals.operator_pos)}</strong>
+        </div>
+        <div class="preview-row">
+          <span>UTA/DKV operatore:</span><strong>${formatEuro(totals.operator_fleet)}</strong>
+        </div>
+        <div class="preview-row">
+          <span>Self incassate:</span><strong>${formatEuro(totals.self_cash_in)}</strong>
+        </div>
+        <div class="preview-row">
+          <span>Self erogate:</span><strong>${formatEuro(totals.self_cash_out)}</strong>
+        </div>
+        <div class="preview-row">
+          <span>Self Bancomat:</span><strong>${formatEuro(totals.self_pos)}</strong>
+        </div>
+        <div class="preview-row">
+          <span>Self UTA/DKV:</span><strong>${formatEuro(totals.self_fleet)}</strong>
+        </div>
+        <div class="preview-row">
+          <span>ID Gestore:</span><strong>${formatEuro(totals.self_manager)}</strong>
+        </div>
+        <div class="preview-row highlight">
+          <span>Discrepanza:</span>
+          <strong style="color: ${!isWarning ? '#059669' : isCritical ? '#dc2626' : '#d97706'};"
+            >${formatEuro(discrepancy)}</strong
+          >
+        </div>
       </div>
-      <div class="btn-group">
-        <button
-          class="btn btn-secondary"
-          @click=${() => (this.wizardState = { ...this.wizardState, step: 2 })}
-        >
-          Indietro
-        </button>
-        <button class="btn btn-primary" @click=${this.handleConfirmClosure}>
-          Conferma & Salva
-        </button>
-      </div>
+
+      ${
+        this.isEditingClosure
+          ? html`
+              <div class="btn-group">
+                <button
+                  class="btn btn-secondary"
+                  @click=${() => (this.wizardState = { ...this.wizardState, step: 2 })}
+                >
+                  Indietro
+                </button>
+                <button class="btn btn-warning" @click=${this.handleConfirmClosure}>
+                  Salva modifiche
+                </button>
+              </div>
+            `
+          : html`
+              <div class="btn-group">
+                <button
+                  class="btn btn-secondary"
+                  @click=${() => (this.wizardState = { ...this.wizardState, step: 2 })}
+                >
+                  Indietro
+                </button>
+                <button class="btn btn-primary" @click=${this.handleConfirmClosure}>
+                  Conferma & Salva
+                </button>
+              </div>
+            `
+      }
     `;
   }
 
   private async handleConfirmClosure(): Promise<void> {
     this.wizardState = { ...this.wizardState, mode: 'submitting' };
 
-    const isFinal = this.isFinalClosure;
-    const includeCounters = isFinal || this.includeCounters;
-    const totalIncasso = this.calculateTotalIncasso();
-    const dataJson = {
-      litri_benzina: this.totalLitriBenzina,
-      litri_gasolio: this.totalLitriGasolio,
-      prezzo_benzina: this.prezzi?.prezzo_benzina || 0,
-      prezzo_gasolio: this.prezzi?.prezzo_gasolio || 0,
-      ricavo_teorico: this.ricavoTeorico,
-      incasso_reale: totalIncasso,
-      closure_stage: isFinal ? 'final' : 'partial',
-      scontrino_self: {
-        banconote_incassate: Number(this.selfCashIn),
-        banconote_erogate: Number(this.selfCashOut),
-        bancomat_erogati: Number(this.selfPos),
-        transazioni_uta: Number(this.selfFleet),
-        id_gestore: Number(this.selfManager)
-      },
-      dettaglio_incasso: {
-        contanti_operatore: Number(this.operatorCash),
-        pos_operatore: Number(this.operatorPos),
-        uta_dkv_operatore: Number(this.operatorUta)
-      },
-      discrepanza: totalIncasso - this.ricavoTeorico,
-      is_final: isFinal
-    };
-
-    if (!this.activeOpening) {
+    const payload = this.buildPayload();
+    if (!payload) {
       handleError(
         new AppError('Nessun turno aperto selezionato', 'VALIDATION_ERROR'),
         'ClosureWizard'
@@ -916,8 +1061,19 @@ export class ClosureWizard extends BaseComponent {
       return;
     }
 
-    const activeOpening = this.activeOpening;
-    const activeOpeningId = Number(activeOpening.id);
+    const {
+      activeOpeningId,
+      finalCountersJson,
+      isFinal,
+      selfCashIn,
+      selfCashOut,
+      selfPos,
+      selfFleet,
+      selfManager,
+      operatorCash,
+      operatorPos,
+      operatorUta
+    } = payload;
 
     // Check if offline - queue action for later sync
     if (isOffline()) {
@@ -925,11 +1081,19 @@ export class ClosureWizard extends BaseComponent {
         await queueAction('shift_close', {
           shiftId: activeOpeningId,
           stationId: this.numericStationId,
-          closingData: dataJson,
           isFinal,
-          finalCounters: includeCounters ? this.finalCounters : null
+          finalCounters: finalCountersJson,
+          selfCashIn,
+          selfCashOut,
+          selfPos,
+          selfFleet,
+          selfManager,
+          operatorCash,
+          operatorPos,
+          operatorUta
         });
-        Toast.show('Chiusura salvata. Verrà sincronizzata quando online.', 'info');
+        Toast.show('Chiusura salvata. Verra sincronizzata quando online.', 'info');
+        window.location.hash = '';
         setTimeout(() => window.location.reload(), 2000);
       } catch (err) {
         logger.error('ClosureWizard', 'Impossibile salvare la chiusura offline', err);
@@ -943,22 +1107,31 @@ export class ClosureWizard extends BaseComponent {
     }
 
     try {
-      const closingDataJson: Json = dataJson;
-      const finalCountersJson: Json = includeCounters ? this.finalCounters : null;
       const requestId = `closure_${activeOpeningId}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const { data: res, error } = await supabase.rpc('submit_shift_closure', {
+      const { data: res, error } = await supabase.rpc('submit_shift_closure_v2', {
         p_shift_id: activeOpeningId,
         p_station_id: this.numericStationId,
-        p_closing_data: closingDataJson,
-        p_is_final: isFinal,
+        p_request_id: requestId,
         p_final_counters: finalCountersJson,
         p_tank_usage: [],
-        p_request_id: requestId
+        p_self_cash_in: selfCashIn,
+        p_self_cash_out: selfCashOut,
+        p_self_pos: selfPos,
+        p_self_fleet: selfFleet,
+        p_self_manager: selfManager,
+        p_operator_cash: operatorCash,
+        p_operator_pos: operatorPos,
+        p_operator_fleet: operatorUta,
+        p_closure_type: isFinal ? 'final' : 'partial'
       });
       if (error || (res && isRpcResult(res) && !res.success)) {
         throw new Error(error?.message || getRpcError(res) || 'Errore durante la chiusura');
       }
-      Toast.show('Chiusura completata!', 'success');
+      Toast.show(
+        this.isEditingClosure ? 'Modifica della chiusura completata!' : 'Chiusura completata!',
+        'success'
+      );
+      window.location.hash = '';
       setTimeout(() => window.location.reload(), 2000);
     } catch (error: unknown) {
       handleError(

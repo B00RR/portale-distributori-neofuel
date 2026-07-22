@@ -20,7 +20,7 @@ vi.mock('../../js/core/api.js', () => ({
       })),
       insert: vi.fn(() => Promise.resolve({ data: { id: 1 }, error: null }))
     })),
-    rpc: vi.fn(() => Promise.resolve({ data: null, error: null }))
+    rpc: vi.fn(() => Promise.resolve({ data: { success: true }, error: null }))
   }
 }));
 
@@ -35,35 +35,6 @@ vi.mock('../../js/ui/toast.js', () => ({
 vi.mock('../../js/core/offline-queue.js', () => ({
   isOffline: vi.fn(() => false),
   queueAction: vi.fn(() => Promise.resolve('queued-id'))
-}));
-
-// Mock business rules schema to avoid HTTPS CDN import
-vi.mock('../../js/core/business-rules-schema.js', () => ({
-  BusinessRulesSchema: {},
-  DEFAULT_BUSINESS_RULES: {
-    cash_error_threshold: 10,
-    max_price_limit: 2.5,
-    fuel_reserve_alert_liters: 2000,
-    force_close_hours_threshold: 24,
-    notifications_enabled: true,
-    critical_discrepancy_alert: 50
-  }
-}));
-
-// Mock business logic manager
-vi.mock('../../js/core/business-logic-manager.js', () => ({
-  BusinessLogicManager: {
-    loadRules: vi.fn(() =>
-      Promise.resolve({
-        cash_error_threshold: 10,
-        max_price_limit: 2.5,
-        fuel_reserve_alert_liters: 2000,
-        force_close_hours_threshold: 24,
-        notifications_enabled: true,
-        critical_discrepancy_alert: 50
-      })
-    )
-  }
 }));
 
 describe('ClosureWizard Component', () => {
@@ -118,31 +89,21 @@ describe('ClosureWizard Component', () => {
   });
 
   describe('Closure Types', () => {
-    it('should support partial closure type', async () => {
+    it('should track last-operator flag', async () => {
       const { ClosureWizard } =
         (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
           ClosureWizard: CustomElementConstructor;
         };
       const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
-      // Set closure type
-      (element as unknown as Partial<{ closureType: string }>).closureType = 'partial';
-      expect((element as unknown as Partial<{ closureType: string }>).closureType).toBe('partial');
-    });
-
-    it('should support final closure type', async () => {
-      const { ClosureWizard } =
-        (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
-          ClosureWizard: CustomElementConstructor;
-        };
-      const element = new (ClosureWizard as unknown as CustomElementConstructor)();
-
-      (element as unknown as Partial<{ closureType: string }>).closureType = 'final';
-      expect((element as unknown as Partial<{ closureType: string }>).closureType).toBe('final');
+      (element as unknown as Partial<{ isLastOperator: boolean }>).isLastOperator = true;
+      expect((element as unknown as Partial<{ isLastOperator: boolean }>).isLastOperator).toBe(
+        true
+      );
     });
   });
 
-  describe('Step 3 discrepancy warning (#255)', () => {
+  describe('Step 3 server preview (#321)', () => {
     const buildStep3Container = async (
       overrides: Record<string, unknown>
     ): Promise<HTMLDivElement> => {
@@ -155,8 +116,21 @@ describe('ClosureWizard Component', () => {
       const element = new (ClosureWizard as unknown as CustomElementConstructor)();
       Object.assign(element, {
         operatorCash: '500',
-        ricavoTeorico: 0,
         wizardState: { step: 3, mode: 'form' },
+        serverTotals: {
+          total_liters: 100,
+          total_fuel_revenue: 200,
+          total_cash_collected: 500,
+          discrepancy: 300,
+          operator_cash: 500,
+          operator_pos: 0,
+          operator_fleet: 0,
+          self_cash_in: 0,
+          self_cash_out: 0,
+          self_pos: 0,
+          self_fleet: 0,
+          self_manager: 0
+        },
         ...overrides
       });
 
@@ -170,39 +144,34 @@ describe('ClosureWizard Component', () => {
       return container;
     };
 
-    it('suppresses the warning for a partial closure without counters', async () => {
-      const container = await buildStep3Container({
-        closureType: 'partial',
-        includeCounters: false
-      });
-
-      expect(container.textContent).not.toContain('Discrepanza Rilevata');
-      expect(container.textContent).not.toContain('Teorico');
-      expect(container.textContent).toContain('Reale');
-    });
-
-    it('still flags the discrepancy when counters are included', async () => {
-      const container = await buildStep3Container({
-        closureType: 'partial',
-        includeCounters: true
-      });
+    it('renders the server preview totals', async () => {
+      const container = await buildStep3Container({});
 
       expect(container.textContent).toContain('Discrepanza Rilevata');
-      expect(container.textContent).toContain('Teorico');
+      expect(container.textContent).toContain('Totale litri');
+      expect(container.textContent).toContain('Ricavo carburante');
+      expect(container.textContent).toContain('Contanti operatore');
+    });
+
+    it('shows the fallback when the preview is not available', async () => {
+      const container = await buildStep3Container({ serverTotals: null });
+
+      expect(container.textContent).not.toContain('Discrepanza Rilevata');
+      expect(container.textContent).toContain('Anteprima non disponibile');
+      expect(container.textContent).toContain('Discrepanza');
     });
   });
 
   describe('Revenue Calculations', () => {
-    it('should initialize with zero theoretical revenue', async () => {
+    it('should expose empty totals before preview', async () => {
       const { ClosureWizard } =
         (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
           ClosureWizard: CustomElementConstructor;
         };
       const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
-      // Check initial revenue state
-      const revenue = (element as unknown as Partial<{ ricavoTeorico: number }>).ricavoTeorico || 0;
-      expect(revenue).toBe(0);
+      const totals = (element as unknown as Partial<{ serverTotals: unknown }>).serverTotals;
+      expect(totals).toBeNull();
     });
 
     it('should reject a closing counter lower than its opening counter', async () => {
@@ -221,31 +190,32 @@ describe('ClosureWizard Component', () => {
           tipo_carburante: string;
         }>;
         openingCounters: Record<number, number>;
-        finalCounters: Record<number, number>;
+        finalCounters: Record<number, number | null>;
         handleStep1Submit: () => void;
+        stationConfig: { allow_partial_closure: boolean } | null;
       };
 
       element.loadInitialData = vi.fn();
       element.wizardState = { step: 1, mode: 'form', errorMessage: '' };
-      element.closureType = 'final';
       element.islands = [{ island_id: 1, nome: 'Isola 1', station_id: 1 }];
       element.pistole = [{ id: 7, island_id: 1, nome: 'Pistola 7', tipo_carburante: 'benzina' }];
       element.openingCounters = { 7: 100 };
+      element.finalCounters = { 7: null };
       document.body.appendChild(element);
       await element.updateComplete;
 
       const input = element.renderRoot.querySelector('input[name="counter_7"]') as HTMLInputElement;
       input.value = '99.99';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
       element.handleStep1Submit();
 
       expect(element.wizardState.step).toBe(1);
-      expect(element.finalCounters).toEqual({});
       expect(input).toBe(element.renderRoot.activeElement);
     });
   });
 
   describe('Closure Submission', () => {
-    it('includes final counters and ID Gestore in the submitted totals', async () => {
+    it('calls submit_shift_closure_v2 with raw payload including ID Gestore', async () => {
       const [{ ClosureWizard }, { supabase }] = await Promise.all([
         import('../../js/ui/components/ClosureWizard.js'),
         import('../../js/core/api.js')
@@ -253,9 +223,9 @@ describe('ClosureWizard Component', () => {
       const element = new ClosureWizard() as unknown as {
         stationId: string;
         activeOpening: { id: number; status: string; closing_data: null };
-        closureType: 'partial' | 'final';
-        includeCounters: boolean;
-        finalCounters: Record<number, number>;
+        isLastOperator: boolean;
+        finalCounters: Record<number, number | null>;
+        pistole: Array<{ id: number; island_id: number; nome: string; tipo_carburante: string }>;
         selfCashIn: string;
         selfCashOut: string;
         selfPos: string;
@@ -264,16 +234,15 @@ describe('ClosureWizard Component', () => {
         operatorCash: string;
         operatorPos: string;
         operatorUta: string;
-        ricavoTeorico: number;
         handleConfirmClosure: () => Promise<void>;
       };
 
       Object.assign(element, {
         stationId: '1',
         activeOpening: { id: 42, status: 'open', closing_data: null },
-        closureType: 'final',
-        includeCounters: false,
+        isLastOperator: true,
         finalCounters: { 7: 125 },
+        pistole: [{ id: 7, island_id: 1, nome: 'Pistola 7', tipo_carburante: 'benzina' }],
         selfCashIn: '100',
         selfCashOut: '10',
         selfPos: '20',
@@ -281,28 +250,26 @@ describe('ClosureWizard Component', () => {
         selfManager: '40',
         operatorCash: '50',
         operatorPos: '60',
-        operatorUta: '70',
-        ricavoTeorico: 300
+        operatorUta: '70'
       });
 
-      vi.useFakeTimers();
-      try {
-        await element.handleConfirmClosure();
-      } finally {
-        vi.useRealTimers();
-      }
+      await element.handleConfirmClosure();
 
       expect(supabase.rpc).toHaveBeenCalledWith(
-        'submit_shift_closure',
+        'submit_shift_closure_v2',
         expect.objectContaining({
           p_shift_id: 42,
-          p_is_final: true,
+          p_station_id: 1,
+          p_closure_type: 'final',
           p_final_counters: { 7: 125 },
-          p_closing_data: expect.objectContaining({
-            closure_stage: 'final',
-            incasso_reale: 360,
-            discrepanza: 60
-          })
+          p_self_cash_in: 100,
+          p_self_cash_out: 10,
+          p_self_pos: 20,
+          p_self_fleet: 30,
+          p_self_manager: 40,
+          p_operator_cash: 50,
+          p_operator_pos: 60,
+          p_operator_fleet: 70
         })
       );
     });
@@ -319,9 +286,9 @@ describe('ClosureWizard Component', () => {
           status: string;
           closing_data: { closure_stage: string };
         };
-        closureType: 'partial' | 'final';
-        includeCounters: boolean;
-        finalCounters: Record<number, number>;
+        isLastOperator: boolean;
+        finalCounters: Record<number, number | null>;
+        pistole: Array<{ id: number; island_id: number; nome: string; tipo_carburante: string }>;
         handleConfirmClosure: () => Promise<void>;
       };
 
@@ -332,25 +299,20 @@ describe('ClosureWizard Component', () => {
           status: 'partial',
           closing_data: { closure_stage: 'partial' }
         },
-        closureType: 'partial',
-        includeCounters: false,
-        finalCounters: { 7: 130 }
+        isLastOperator: false,
+        finalCounters: { 7: 130 },
+        pistole: [{ id: 7, island_id: 1, nome: 'Pistola 7', tipo_carburante: 'benzina' }]
       });
 
-      vi.useFakeTimers();
-      try {
-        await element.handleConfirmClosure();
-      } finally {
-        vi.useRealTimers();
-      }
+      await element.handleConfirmClosure();
 
       expect(supabase.rpc).toHaveBeenCalledWith(
-        'submit_shift_closure',
+        'submit_shift_closure_v2',
         expect.objectContaining({
           p_shift_id: 43,
-          p_is_final: true,
-          p_final_counters: { 7: 130 },
-          p_closing_data: expect.objectContaining({ closure_stage: 'final', is_final: true })
+          p_station_id: 1,
+          p_closure_type: 'final',
+          p_final_counters: { 7: 130 }
         })
       );
     });

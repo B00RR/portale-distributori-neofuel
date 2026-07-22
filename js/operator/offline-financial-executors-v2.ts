@@ -34,6 +34,7 @@ async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
       case 'credit_create':
         await processNewCredit(
           readNumber(payload, 'stationId'),
+          readString(payload, 'operatorId'),
           readString(payload, 'customerName'),
           readNumber(payload, 'amount'),
           readString(payload, 'product'),
@@ -47,6 +48,7 @@ async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
       case 'credit_payment':
         await processPayment(
           readNumber(payload, 'stationId'),
+          readString(payload, 'operatorId'),
           readNumber(payload, 'customerId'),
           readNumber(payload, 'amount'),
           readString(payload, 'method'),
@@ -71,6 +73,7 @@ async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
           readNumber(payload, 'stationId'),
           readString(payload, 'operatorId'),
           readNumber(payload, 'amount'),
+          readString(payload, 'paymentMethod'),
           readString(payload, 'type'),
           readString(payload, 'description'),
           { skipOfflineQueue: true, createdAt: readString(payload, 'createdAt') }

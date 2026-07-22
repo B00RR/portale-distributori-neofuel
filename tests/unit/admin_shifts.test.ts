@@ -86,6 +86,7 @@ vi.mock('../../js/shared/state.js', () => ({
     getFilters: vi.fn(() => ({ dateFrom: '', dateTo: '' })),
     getPagination: vi.fn(() => ({ page: 0, pageSize: 10, totalCount: 0 })),
     getFilter: vi.fn(() => 'ST1'),
+    getUser: vi.fn(() => ({ role: 'admin' })),
     setPagination: vi.fn(),
     subscribe: vi.fn(() => () => {})
   }
@@ -225,16 +226,46 @@ describe('Admin Shifts Module', () => {
       const sample = {
         id: 123,
         station_id: 'ST1',
+        status: 'closed',
+        created_at: '2024-01-01T10:00:00Z',
         closed_at: '2024-01-01T10:00:00Z',
-        closing_data: { ricavo_teorico: 500 },
-        fuel_stations: { station_name: 'Test' },
-        users: { full_name: 'Op' }
+        opening_data: {},
+        closing_data: {
+          snapshot: {
+            computed: {
+              fuel_revenue: 500,
+              extra_revenue: 0,
+              total_sold: 500,
+              self: { cash_in: 0, cash_out: 0, pos: 0, fleet: 0, manager: 0 },
+              operator: { cash: 0, pos: 0, fleet: 0 },
+              expected_cash: 0,
+              real_cash: 0,
+              discrepancy: 0,
+              outflows: 0,
+              vouchers: 0,
+              points: 0,
+              new_credits: 0,
+              extra_by_method: { cash: 0, pos: 0, uta_dkv_fine_mese: 0 },
+              credit_payments: { cash: 0, pos: 0, uta_dkv_fine_mese: 0 }
+            }
+          }
+        }
       };
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: sample, error: null })
-      } as unknown as ReturnType<typeof supabase.from>);
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: sample, error: null })
+        } as unknown as ReturnType<typeof supabase.from>)
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          lt: vi.fn().mockReturnThis(),
+          gte: vi.fn().mockReturnThis(),
+          order: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
+        } as unknown as ReturnType<typeof supabase.from>);
 
       await showClosureDetails(123);
       expect(document.body.innerHTML).toContain('500,00');

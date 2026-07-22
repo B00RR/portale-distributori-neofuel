@@ -348,10 +348,16 @@ export function setupLoginForm(): void {
       }
 
       // SECURITY: Clean URL to remove any credentials that may have leaked
-      // (runs in all environments, not just dev)
-      if (window.location.search || window.location.hash) {
+      // (runs in all environments, not just dev).
+      // Preserviamo l'eventuale hash di deep-link (#/admin/...) perche' il
+      // routing iniziale lo usa subito dopo il login.
+      if (window.location.search) {
         const cleanUrl =
-          window.location.protocol + '//' + window.location.host + window.location.pathname;
+          window.location.protocol +
+          '//' +
+          window.location.host +
+          window.location.pathname +
+          window.location.hash;
         window.history.replaceState({}, document.title, cleanUrl);
       }
 

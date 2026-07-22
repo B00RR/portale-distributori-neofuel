@@ -103,8 +103,8 @@ function renderOutflowForm(
       closeModal();
       showInfoModal(
         isOffline()
-          ? `Uscita di € ${amount.toFixed(2)} salvata offline.`
-          : `Uscita di € ${amount.toFixed(2)} registrata correttamente.`
+          ? 'Uscita di ' + amount.toFixed(2) + ' salvata offline.'
+          : 'Uscita di ' + amount.toFixed(2) + ' registrata correttamente.'
       );
     } catch (err: unknown) {
       handleError(err, 'showOutflowMenu_submit');
@@ -122,6 +122,9 @@ export async function processOutflow(
 ): Promise<void> {
   const createdAt = options?.createdAt ?? getItalianBusinessDayEndUtc();
 
+  const activeOpening = await checkOpeningStatus(stationId);
+  const shiftId = activeOpening?.id ?? null;
+
   if (shouldQueue(options)) {
     await queueAction('movement_create', {
       kind: 'outflow_create',
@@ -135,18 +138,31 @@ export async function processOutflow(
     return;
   }
 
-  const { error } = await supabase.from('movimenti_cassa').insert([
-    {
-      station_id: Number(stationId),
-      operator_id: Number(userId),
-      tipo: 'uscita',
-      importo: amount,
-      descrizione: `[${type.toUpperCase()}] ${description}`,
-      created_at: createdAt
-    }
-  ]);
+  const requestId =
+    'outflow_' +
+    stationId +
+    '_' +
+    (shiftId ?? 'no-shift') +
+    '_' +
+    Date.now() +
+    '_' +
+    Math.random().toString(36).substring(2, 9);
+  const { data: result, error } = await supabase.rpc('create_movement_v2', {
+    p_station_id: Number(stationId),
+    p_shift_id: shiftId ?? undefined,
+    p_operator_id: Number(userId),
+    p_tipo: 'uscita',
+    p_payment_method: 'cash',
+    p_importo: amount,
+    p_descrizione: '[' + type.toUpperCase() + '] ' + description,
+    p_request_id: requestId,
+    p_created_at: createdAt
+  });
 
   if (error) {
     throw error;
+  }
+  if (result && typeof result === 'object' && 'success' in result && !result.success) {
+    throw new Error(String(result.error ?? 'Errore durante la registrazione'));
   }
 }

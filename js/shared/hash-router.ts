@@ -42,34 +42,19 @@ export function parseHash(hash: string): HashRoute | null {
 }
 
 /**
- * Route currently encoded in the URL, if any.
- */
-export function getCurrentRoute(): HashRoute | null {
-  return parseHash(window.location.hash);
-}
-
-/**
- * Record a navigation in the URL. Uses pushState so no hashchange event
- * fires: programmatic navigations have already rendered, only back/forward
- * must re-trigger routing. No-ops when the hash is already current so
- * repeated navigations to the same view don't pollute history.
- */
-export function updateHash(area: RouteArea, view: string): void {
-  const target = `${HASH_PREFIX}${area}/${view}`;
-  if (window.location.hash === target) {
-    return;
-  }
-  window.history.pushState(null, '', target);
-}
-
-/**
  * Subscribe to hash changes (browser back/forward or manual URL edits) for
  * one area; routes of other areas or malformed hashes are ignored.
- * Listens to both `hashchange` and `popstate` so back/forward navigation
- * triggers routing even when the app uses `history.pushState` for updates.
+ * Listens to both `hashchange` and `popstate`:
+ *   - `popstate` covers browser back/forward after `history.pushState` updates;
+ *   - `hashchange` covers direct hash edits and deep-link loads where the hash
+ *     is set before/while the app boots (e.g. Playwright `page.goto('/#/admin/vouchers')`).
  * Returns the unsubscribe function.
  */
-export function onHashChange(area: RouteArea, handler: (view: string) => void): () => void {
+export function onHashChange(
+  area: RouteArea,
+  handler: (view: string) => void,
+  options: { immediate?: boolean } = {}
+): () => void {
   const listener = (): void => {
     const route = getCurrentRoute();
     if (route && route.area === area) {
@@ -79,8 +64,37 @@ export function onHashChange(area: RouteArea, handler: (view: string) => void): 
 
   window.addEventListener('hashchange', listener);
   window.addEventListener('popstate', listener);
+
+  if (options.immediate) {
+    listener();
+  }
+
   return (): void => {
     window.removeEventListener('hashchange', listener);
     window.removeEventListener('popstate', listener);
   };
+}
+
+/**
+ * Route currently encoded in the URL, if any.
+ */
+export function getCurrentRoute(): HashRoute | null {
+  return parseHash(window.location.hash);
+}
+
+/**
+ * Record a navigation in the URL. No-ops when the hash is already current so
+ * repeated navigations to the same view don't pollute history.
+ * Usa location.hash anziche' pushState: pushState e' silenzioso per quanto
+ * riguarda hashchange, ma browser diversi (e WebKit in particolare) non
+ * sincronizzano sempre la barra degli indirizzi prima che il test lo legga.
+ * location.hash e' atomico, genera un hashchange, e mantiene coerenti URL e
+ * routing.
+ */
+export function updateHash(area: RouteArea, view: string): void {
+  const target = `${HASH_PREFIX}${area}/${view}`;
+  if (window.location.hash === target) {
+    return;
+  }
+  window.location.hash = target;
 }

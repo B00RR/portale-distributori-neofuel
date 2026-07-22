@@ -1,8 +1,10 @@
 import { supabase } from '../core/api.js';
+import { loggedUser } from '../core/auth.js';
 import { BusinessLogicManager } from '../core/business-logic-manager.js';
 import { logger } from '../core/logger.js';
 import { getStations } from '../core/stations-cache.js';
 import { handleError } from '../shared/error-handler.js';
+import { isAdminRole } from '../shared/roles.js';
 import { store, type Pagination as PaginationType } from '../shared/state.js';
 import { Toast } from '../ui/toast.js';
 import { showLoadingMessage, openModal, closeModal, openConfirmModal } from '../ui/ui.js';
@@ -30,11 +32,44 @@ interface User {
   full_name: string;
 }
 
+interface ClosingDataSnapshot {
+  version?: string;
+  actor?: number;
+  input?: Record<string, unknown>;
+  computed?: {
+    total_liters?: number;
+    liters_by_pump?: Record<string, number>;
+    fuel_revenue?: number;
+    extra_revenue?: number;
+    extra_by_method?: { cash?: number; pos?: number; uta_dkv_fine_mese?: number };
+    total_sold?: number;
+    electronic_total?: number;
+    self?: {
+      cash_in?: number;
+      cash_out?: number;
+      pos?: number;
+      fleet?: number;
+      manager?: number;
+    };
+    operator?: { cash?: number; pos?: number; fleet?: number };
+    vouchers?: number;
+    points?: number;
+    new_credits?: number;
+    outflows?: number;
+    credit_payments?: { cash?: number; pos?: number; uta_dkv_fine_mese?: number };
+    non_erogato?: number;
+    expected_cash?: number;
+    real_cash?: number;
+    discrepancy?: number;
+  };
+  prices_used?: Record<string, number>;
+}
+
 interface SelfServiceData {
-  banconote_erogate?: number;
-  banconote_incassate?: number;
-  bancomat_erogati?: number;
-  transazioni_uta?: number;
+  banconote_erogate?: number | undefined;
+  banconote_incassate?: number | undefined;
+  bancomat_erogati?: number | undefined;
+  transazioni_uta?: number | undefined;
 }
 
 interface DettaglioIncasso {
@@ -53,6 +88,10 @@ interface ClosingData {
   dettaglio_incasso?: DettaglioIncasso;
   scontrino_self?: SelfServiceData;
   extra_incassi?: number;
+  /** Snapshot server-side produced by submit_shift_closure_v2. */
+  snapshot?: ClosingDataSnapshot;
+  /** Legacy compatibility with older computed payloads. */
+  computed?: ClosingDataSnapshot['computed'];
 }
 
 interface Shift {
@@ -66,6 +105,7 @@ interface Shift {
   closing_data: ClosingData;
   fuel_stations?: FuelStation; // Joined
   users?: User; // Joined
+  previous_closing_data?: ClosingData | null;
 }
 
 interface BulkExportOptions {
@@ -380,11 +420,35 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
   showLoadingMessage(target);
 
   try {
-    const closingData = closure.closing_data || {};
-    const openingData = closure.opening_data || {};
-    const dettaglio = isOpen ? {} : closingData.dettaglio_incasso || {};
+    // Fetch the previous closure for the same station/day so the admin can see
+    // the self-service absolute vs incremental values.
+    if (!isOpen && closure.closed_at) {
+      const dayStart = closure.closed_at.slice(0, 10);
+      const { data: prev } = await supabase
+        .from('shifts')
+        .select('closing_data')
+        .eq('station_id', Number(closure.station_id))
+        .lt('closed_at', closure.closed_at)
+        .gte('closed_at', dayStart)
+        .order('closed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    // Mappa dati
+      if (prev) {
+        closure.previous_closing_data = prev.closing_data as unknown as ClosingData | null;
+      }
+    }
+
+    const closingData = closure.closing_data || {};
+    const snapshot = closingData.snapshot || { computed: closingData.computed };
+    const computed = snapshot.computed || {};
+    const openingData = closure.opening_data || {};
+
+    // Prefer the server-authoritative snapshot when present; fall back to the
+    // legacy `closing_data.computed` or flat fields for older closures.
+    const selfSnapshot = computed.self || {};
+    const operatorSnapshot = computed.operator || {};
+
     const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString('it-IT');
 
     let contanti: string,
@@ -399,6 +463,10 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     let cashIn = 0,
       cashOut = 0,
       netCash = 0;
+    let expectedCash = 0,
+      realCash = 0,
+      discrepancy = 0;
+    let selfTotalVal = 0;
 
     if (isOpen) {
       // Turno aperto: mostra i dati di apertura
@@ -415,30 +483,65 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
       extraVal = 0;
       vendutoCarburanteVal = 0;
     } else {
-      // Turno chiuso: mostra i dati di chiusura
-      contanti = formatEuro(dettaglio.contanti_operatore || 0);
-      pos = formatEuro(dettaglio.pos_operatore || 0);
-      crediti = formatEuro(dettaglio.crediti || 0);
-      voucher = formatEuro(dettaglio.voucher || 0);
-      carteUta = formatEuro(dettaglio.uta_dkv_operatore || 0);
-      rimborsi = formatEuro(dettaglio.rimborsi_uscite || 0);
-      selfData = closingData.scontrino_self || {};
-      extraVal = closingData.extra_incassi || 0;
-      vendutoCarburanteVal = closingData.ricavo_teorico || 0;
+      // Server-authoritative values
+      contanti = formatEuro(operatorSnapshot.cash || 0);
+      pos = formatEuro(operatorSnapshot.pos || 0);
+      crediti = formatEuro(
+        (computed.credit_payments?.cash || 0) +
+          (computed.credit_payments?.pos || 0) +
+          (computed.credit_payments?.uta_dkv_fine_mese || 0)
+      );
+      voucher = formatEuro(computed.vouchers || 0);
+      carteUta = formatEuro(operatorSnapshot.fleet || 0);
+      rimborsi = formatEuro(computed.outflows || 0);
+
+      selfData = {
+        banconote_incassate: selfSnapshot.cash_in,
+        banconote_erogate: selfSnapshot.cash_out,
+        bancomat_erogati: selfSnapshot.pos,
+        transazioni_uta: selfSnapshot.fleet
+      };
+      extraVal = computed.extra_revenue || 0;
+      vendutoCarburanteVal = computed.fuel_revenue || 0;
+
+      expectedCash = computed.expected_cash || 0;
+      realCash = computed.real_cash || 0;
+      discrepancy = computed.discrepancy || 0;
+      selfTotalVal = selfTotalErogato(selfData);
     }
 
-    const totaleRealeVal = vendutoCarburanteVal + extraVal;
-    const totaleReale = formatEuro(totaleRealeVal);
+    const totaleVendutoVal = vendutoCarburanteVal + extraVal;
+    const totaleVenduto = formatEuro(totaleVendutoVal);
 
     // Variabili per l'HTML (solo per turni chiusi)
     const banconoteErogate = selfData.banconote_erogate || 0;
     const banconoteIncassate = selfData.banconote_incassate || 0;
     const bancomatSelf = selfData.bancomat_erogati || 0;
     const cardsSelf = selfData.transazioni_uta || 0;
-    const selfTotalVal = selfTotalErogato(selfData);
     const selfTotalFormatted = formatEuro(selfTotalVal);
     const extra = formatEuro(extraVal);
     const vendutoCarburante = formatEuro(vendutoCarburanteVal);
+
+    // Incremento self rispetto alla chiusura precedente dello stesso giorno.
+    let selfIncrementHtml = '';
+    if (!isOpen && closure.previous_closing_data) {
+      const prev = closure.previous_closing_data;
+      const prevComputed = prev.snapshot?.computed || prev.computed || {};
+      const prevSelf = prevComputed.self || {};
+      const prevErogato = selfTotalErogato({
+        banconote_erogate: prevSelf.cash_out,
+        bancomat_erogati: prevSelf.pos,
+        transazioni_uta: prevSelf.fleet
+      });
+      const increment = selfTotalVal - prevErogato;
+      if (Math.abs(increment) > 0.005) {
+        selfIncrementHtml = `
+          <div class="mt-1 pt-1 border-top-dashed" style="font-size: 0.85em; color: var(--secondary-color);">
+              <span>Incremento rispetto alla chiusura precedente:</span>
+              <b>${increment > 0 ? '+' : ''}${formatEuro(increment)}</b>
+          </div>`;
+      }
+    }
 
     let contantiSelfHtml = '';
     if (banconoteErogate === banconoteIncassate) {
@@ -463,15 +566,33 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
         <!-- SEZIONE SELF SERVICE -->
         <div class="closure-section-alt">
             <div class="closure-section-header">Dettaglio Self Service</div>
-            
+
             <p class="closure-row">${contantiSelfHtml}</p>
             <p class="closure-row"><span>Bancomat:</span> <b>${formatEuro(bancomatSelf)}</b></p>
             <p class="closure-row"><span>Icad/DKV/Iscard:</span> <b>${formatEuro(cardsSelf)}</b></p>
-            
+
             <div class="mt-2 pt-2 border-top-dashed d-flex justify-between font-weight-bold">
                 <span>Incasso Totale Self:</span> <span>${selfTotalFormatted}</span>
             </div>
+            ${selfIncrementHtml}
         </div>`;
+    }
+
+    // Admin-only warning: |venduto dai numeratori - (venduto self + ID gestore)| > 10 €.
+    const user = store.getUser();
+    const isFullAdmin = isAdminRole(user?.role || loggedUser?.role || 'operator');
+    let adminWarningHtml = '';
+    if (!isOpen && isFullAdmin) {
+      const managerAmount = selfSnapshot.manager || 0;
+      const selfPlusManager = selfTotalVal + managerAmount;
+      const diff = Math.abs(vendutoCarburanteVal - selfPlusManager);
+      if (diff > 10) {
+        adminWarningHtml = `
+          <div class="closure-alert badge-danger" style="margin: 1rem 0; padding: 0.75rem; border-radius: 8px;">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Attenzione admin:</strong> differenza venduto numeratori vs self + ID gestore di ${formatEuro(diff)}.
+          </div>`;
+      }
     }
 
     let totalSectionHtml = '';
@@ -479,7 +600,41 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
       totalSectionHtml = `
         <div class="closure-total-box">
             <div class="closure-total-label">Totale Venduto (Carburante + Extra)</div>
-            <div class="closure-total-value">${totaleReale}</div>
+            <div class="closure-total-value">${totaleVenduto}</div>
+        </div>
+        <div class="closure-total-box" style="margin-top: 1rem;">
+            <div class="closure-total-label">Contanti</div>
+            <div class="closure-total-value">${formatEuro(realCash)}</div>
+            <div style="font-size: 0.85em; color: var(--secondary-color);">Atteso: ${formatEuro(expectedCash)} — Discrepanza:
+              <span class="${Math.abs(discrepancy) > 0.01 ? (discrepancy > 0 ? 'text-success' : 'text-danger') : ''}">
+                ${discrepancy > 0 ? '+' : ''}${formatEuro(discrepancy)}
+              </span>
+            </div>
+        </div>`;
+    }
+
+    // Movimenti automatici del turno (solo per chiusura finale/parziale)
+    let movementsSectionHtml = '';
+    if (!isOpen) {
+      const extraCash = computed.extra_by_method?.cash || 0;
+      const extraPos = computed.extra_by_method?.pos || 0;
+      const extraUta = computed.extra_by_method?.uta_dkv_fine_mese || 0;
+      const creditCash = computed.credit_payments?.cash || 0;
+      const creditPos = computed.credit_payments?.pos || 0;
+      const creditUta = computed.credit_payments?.uta_dkv_fine_mese || 0;
+      const points = computed.points || 0;
+      const newCredits = computed.new_credits || 0;
+
+      movementsSectionHtml = `
+        <!-- SEZIONE MOVIMENTI TURNO -->
+        <div class="closure-section-alt">
+            <div class="closure-section-header">Movimenti automatici del turno</div>
+            <p class="closure-row"><span>Incassi extra (cash/POS/UTA):</span> <b>${formatEuro(extraCash)} / ${formatEuro(extraPos)} / ${formatEuro(extraUta)}</b></p>
+            <p class="closure-row"><span>Uscite cassa:</span> <b>${formatEuro(computed.outflows || 0)}</b></p>
+            <p class="closure-row"><span>Voucher:</span> <b>${formatEuro(computed.vouchers || 0)}</b></p>
+            <p class="closure-row"><span>Punti riscattati:</span> <b>${formatEuro(points)}</b></p>
+            <p class="closure-row"><span>Crediti nuovi:</span> <b>${formatEuro(newCredits)}</b></p>
+            <p class="closure-row"><span>Pagamenti crediti vecchi:</span> <b>${formatEuro(creditCash)} / ${formatEuro(creditPos)} / ${formatEuro(creditUta)}</b></p>
         </div>`;
     }
 
@@ -487,6 +642,8 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
       target,
       `
       <div class="closure-details">
+        ${adminWarningHtml}
+
         <div class="closure-details-header">
             <span>${idLabel}: <b>${closure.id}</b></span>
             <span>${dateStr} <span class="badge ${isOpen ? 'badge-info' : 'badge-success'}">${statusLabel}</span></span>
@@ -521,8 +678,10 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
             }
         </div>
 
+        ${movementsSectionHtml}
+
         ${totalSectionHtml}
-        
+
         <div class="mt-4 text-center">
              <button class="menu-button primary" id="btn-export-details">
                 <i class="fas fa-file-export"></i> Scarica Excel Dettagliato

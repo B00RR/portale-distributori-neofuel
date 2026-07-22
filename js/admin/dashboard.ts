@@ -19,6 +19,7 @@ import {
 } from './dashboard-charts.js';
 import { loadDashboardConfig, saveDashboardConfig } from './dashboard-config.js';
 import { renderKpiCards, KPIData } from './dashboard-helpers.js';
+import { router } from './router.js';
 
 // window.Chart e window.Sortable sono dichiarati (opzionali) in js/vendor/lazy.ts (#343).
 declare global {
@@ -60,6 +61,16 @@ export async function showDashboard(
   showLoadingMessage(container);
 
   try {
+    // ------------------------------------------------------------------
+    // RACE CONDITION GUARD
+    // ------------------------------------------------------------------
+    // Capture the current tab and combine it with any caller-provided guard
+    // so the render is aborted if the user navigated away while we were
+    // fetching data asynchronously.
+    const currentTabAtStart = router.getCurrentTab();
+    const checkStillActive = (): boolean =>
+      router.getCurrentTab() === currentTabAtStart && (!checkActiveFn || checkActiveFn());
+
     // ------------------------------------------------------------------
     // PARALLEL DATA FETCHING
     // ------------------------------------------------------------------
@@ -134,7 +145,7 @@ export async function showDashboard(
     const todayClosures = todayClosuresRes.data || [];
 
     // RACE CONDITION CHECK (Early)
-    if (checkActiveFn && !checkActiveFn()) {
+    if (!checkStillActive()) {
       return;
     }
 
@@ -319,7 +330,7 @@ export async function showDashboard(
     const kpiHtml = renderKpiCards(dashboardConfig, kpiData);
 
     // RACE CONDITION CHECK: Stop if user switched tab
-    if (checkActiveFn && !checkActiveFn()) {
+    if (!checkStillActive()) {
       return;
     }
 
@@ -367,6 +378,11 @@ export async function showDashboard(
       // Fetch only if needed; Chart.js viene caricato on-demand (#343)
       Promise.all([fetchAnalyticsData(numericStationId), ensureChart()])
         .then(([analyticsData]) => {
+          // Abort chart rendering if the user left the dashboard while
+          // the async fetch was in flight.
+          if (!checkStillActive()) {
+            return;
+          }
           if (visibleKpis.includes('andamento_ricavi')) {
             renderRevenueChart(analyticsData, 'chart-andamento_ricavi');
           }
@@ -431,7 +447,7 @@ export async function showDashboard(
       logger.error('dashboard', 'Chart.js load failed', err);
       return null;
     });
-    if (salesChartLib) {
+    if (salesChartLib && checkStillActive()) {
       await renderSalesChart(stationId);
     }
   } catch (err) {

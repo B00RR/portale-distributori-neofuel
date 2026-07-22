@@ -18,7 +18,7 @@ let unsubscribeHashListener: (() => void) | null = null;
 /**
  * Main entry point for Admin Area
  */
-export function showAdminArea(): void {
+export async function showAdminArea(): Promise<void> {
   const mainContent = document.getElementById('main-content');
   if (!mainContent) {
     return;
@@ -112,7 +112,7 @@ export function showAdminArea(): void {
     select.addEventListener('change', (e: Event) => {
       const val = (e.target as HTMLSelectElement).value;
       store.setStationFilter(val || null);
-      router.navigateTo(router.getCurrentTab());
+      void router.navigateTo(router.getCurrentTab());
     });
   }
 
@@ -131,25 +131,32 @@ export function showAdminArea(): void {
     await renderGlobalFilter();
   };
 
-  // Render the admin shell with the tab change handler
+  // Render the admin shell with the tab change handler FIRST so the DOM is
+  // ready when the hash listener fires.
   renderAdminShell(mainContent, goToTab);
 
   // Initial load: check for deep link first, then fall back to dashboard.
-  // Va usato lo stesso percorso sequenziale del cambio tab (#281/#268): le
-  // chiamate flottanti a navigateTo/renderGlobalFilter creavano una race in
-  // cui il deep-link poteva essere sovrascritto dal render della dashboard.
-  const route = getCurrentRoute();
+  const initialRoute = getCurrentRoute();
   const initialTab: AdminTab =
-    route && route.area === 'admin' && isAdminTab(route.view) ? route.view : 'dashboard';
-  void goToTab(initialTab);
+    initialRoute && initialRoute.area === 'admin' && isAdminTab(initialRoute.view)
+      ? initialRoute.view
+      : 'dashboard';
 
-  // Register browser back/forward support, avoiding duplicate listeners across repeated showAdminArea() calls
+  // Subscribe to browser back/forward and manual hash edits. The immediate
+  // invocation processes the current hash, which is what makes a deep-link
+  // load (e.g. `/#/admin/vouchers`) route to the correct tab on first paint.
   unsubscribeHashListener?.();
-  unsubscribeHashListener = onHashChange('admin', (view: string) => {
-    if (isAdminTab(view) && view !== router.getCurrentTab()) {
-      void goToTab(view);
-    }
-  });
+  unsubscribeHashListener = onHashChange(
+    'admin',
+    (view: string) => {
+      if (isAdminTab(view) && view !== router.getCurrentTab()) {
+        void goToTab(view);
+      }
+    },
+    { immediate: true }
+  );
+
+  await goToTab(initialTab);
 
   // Dashboard configuration listener (delegated)
   const adminContent = document.getElementById('admin-content');
@@ -162,7 +169,7 @@ export function showAdminArea(): void {
   // Listen for dashboard config changes
   document.addEventListener('dashboard-config-changed', () => {
     if (router.getCurrentTab() === 'dashboard') {
-      router.navigateTo('dashboard');
+      void router.navigateTo('dashboard');
     }
   });
 }
