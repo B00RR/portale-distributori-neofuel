@@ -5,6 +5,7 @@ const { mockSupabase, mockToast, mockUI, mockHandleError, mockUtils, mockBusines
         from: vi.fn(() => ({
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
+            lte: vi.fn().mockReturnThis(),
             order: vi.fn().mockReturnThis(),
             limit: vi.fn().mockReturnThis(),
             maybeSingle: vi.fn().mockResolvedValue({ data: { prezzo_benzina: 1.5, prezzo_gasolio: 1.3 }, error: null })
