@@ -1749,7 +1749,7 @@ export type Database = {
           p_importo: number;
           p_operator_id: number;
           p_request_id?: string;
-          p_shift_id: number;
+          p_shift_id?: number | null | undefined;
           p_station_id: number;
         };
         Returns: Json;

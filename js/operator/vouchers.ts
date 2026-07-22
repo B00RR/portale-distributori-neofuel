@@ -57,7 +57,7 @@ export async function processPointsRedeem(
 ): Promise<void> {
   const numericStationId = Number(stationId);
   const numericUserId = Number(userId);
-  const numericShiftId = shiftId ? Number(shiftId) : undefined;
+  const numericShiftId = shiftId ? Number(shiftId) : null;
 
   if (!options?.skipOfflineQueue && isOffline()) {
     await queueAction('movement_create', {
@@ -74,13 +74,24 @@ export async function processPointsRedeem(
     options?.requestId ??
     `points_${numericStationId}_${numericShiftId ?? 'no-shift'}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-  const { data: result, error } = await supabase.rpc('register_punti_riscatto', {
+  const rpcParams: {
+    p_station_id: number;
+    p_operator_id: number;
+    p_importo: number;
+    p_request_id: string;
+    p_shift_id?: number | null;
+  } = {
     p_station_id: numericStationId,
-    p_shift_id: numericShiftId,
     p_operator_id: numericUserId,
     p_importo: amount,
     p_request_id: requestId
-  });
+  };
+
+  if (numericShiftId !== null) {
+    rpcParams.p_shift_id = numericShiftId;
+  }
+
+  const { data: result, error } = await supabase.rpc('register_punti_riscatto', rpcParams);
 
   if (error) {
     throw error;

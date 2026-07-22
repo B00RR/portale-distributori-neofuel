@@ -5,6 +5,7 @@ import { supabase } from '../../core/api.js';
 import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { validateVoucher } from '../../core/rules.js';
+import { processPointsRedeem } from '../../operator/vouchers.js';
 import { handleError, AppError } from '../../shared/error-handler.js';
 import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
 import { escapeLikePattern } from '../../utils/sanitizer.js';
@@ -13,7 +14,6 @@ import { formatEuro, formatDate } from '../../utils/utils.js';
 import { ensureHtml5Qrcode } from '../../vendor/lazy.js';
 import { Toast } from '../toast.js';
 
-import { processPointsRedeem } from '../../operator/vouchers.js';
 import { BaseComponent } from './BaseComponent.js';
 declare const window: Window & { Html5Qrcode?: Html5QrcodeConstructor };
 
