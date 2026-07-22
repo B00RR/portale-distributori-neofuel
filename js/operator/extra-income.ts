@@ -70,7 +70,7 @@ function renderExtraIncomeForm(
       <p class="section-subtitle">Registra una vendita extra carburante</p>
       <form id="extra-income-form">
         <div class="form-group"><label>Importo (&euro;)</label><input type="number" name="amount" step="0.01" min="0.01" class="big-input" required placeholder="0.00"></div>
-        <div class="form-group"><label>Metodo di Pagamento</label><select name="payment_method" class="big-input" required><option value="cash">Contanti</option><option value="pos">POS</option><option value="uta">UTA</option><option value="dkv">DKV</option><option value="fine_mese">Fine Mese</option></select></div>
+        <div class="form-group"><label>Metodo di Pagamento</label><select name="payment_method" class="big-input" required><option value="cash">Contanti</option><option value="pos">POS</option><option value="uta">UTA / DKV / Fine Mese</option></select></div>
         <div class="form-group"><label>Tipo di Prodotto</label><select name="type" id="product-type" class="big-input" required><option value="olio">Olio Motore</option><option value="adblue">AdBlue</option><option value="accessori">Accessori Auto</option><option value="altro_incasso">Altro</option></select></div>
         <div class="form-group"><label>Descrizione / Note <span id="required-indicator" style="display: none; color: var(--danger-color);">*</span></label><textarea name="description" id="description-field" rows="3" class="big-input" placeholder="Dettagli vendita..."></textarea></div>
         ${createFormActions({ confirmText: 'Registra Incasso', confirmClass: 'primary' })}

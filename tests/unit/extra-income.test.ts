@@ -61,13 +61,24 @@ describe('Operator Extra Income Module', () => {
       expect(modalBody?.innerHTML).toContain('Nessun Turno Aperto');
     });
 
-    it('should render form when shift is open', async () => {
+    it('should render form when shift is open and group UTA/DKV/Fine Mese options', async () => {
       mockOpening.checkOpeningStatus.mockResolvedValue({ id: 1 });
 
       await showExtraIncomeMenu('ST-123', 'user-456');
 
       const modalBody = document.getElementById('modal-body');
       expect(modalBody?.querySelector('#extra-income-form')).not.toBeNull();
+
+      const paymentSelect = modalBody?.querySelector(
+        '[name="payment_method"]'
+      ) as HTMLSelectElement;
+      expect(paymentSelect).not.toBeNull();
+      const options = Array.from(paymentSelect.options);
+      expect(options).toHaveLength(3);
+      expect(options[0].value).toBe('cash');
+      expect(options[1].value).toBe('pos');
+      expect(options[2].value).toBe('uta');
+      expect(options[2].textContent).toBe('UTA / DKV / Fine Mese');
     });
 
     it('should handle product type changes and required description', async () => {
