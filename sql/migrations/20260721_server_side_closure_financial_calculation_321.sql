@@ -1465,6 +1465,7 @@ SET search_path = ''
 AS $$
 DECLARE
     v_operator_id integer;
+    v_customer_id integer;
     v_customer_name text;
     v_customer_saldo numeric;
     v_new_balance numeric;

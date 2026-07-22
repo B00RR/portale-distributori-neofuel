@@ -63,10 +63,13 @@ export async function showPricesTab(
         <div class="content-box">
             <h3>Gestione Prezzi</h3>
             <p>Seleziona un distributore dalla sezione "Distributori" per modificarne i prezzi.</p>
-            <button class="menu-button primary" onclick="document.querySelector('[data-tab=\\'stations\\']').click()">Vai a Distributori</button>
+            <button id="go-to-stations-btn" class="menu-button primary">Vai a Distributori</button>
         </div>
     `
   );
+  container.querySelector('#go-to-stations-btn')?.addEventListener('click', () => {
+    (document.querySelector('[data-tab="stations"]') as HTMLElement)?.click();
+  });
 }
 
 export async function showPrezziAdminModal(stationId: number | string): Promise<void> {
