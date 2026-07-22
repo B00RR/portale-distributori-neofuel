@@ -37,9 +37,7 @@ const UsernameSchema = z.string().transform((value, context) => {
   return result.data.username;
 });
 
-export const PasswordPolicySchema = z
-  .string()
-  .min(12, 'Password deve avere almeno 12 caratteri');
+export const PasswordPolicySchema = z.string().min(12, 'Password deve avere almeno 12 caratteri');
 
 export const LoginSchema = z.object({
   username: UsernameSchema,
@@ -53,13 +51,10 @@ export const CreateUserSchema = z
     full_name: z.string().min(2, 'Nome troppo corto').max(100, 'Nome troppo lungo'),
     role: z.enum(USER_ROLES)
   })
-  .refine(
-    data => data.password.trim().toLowerCase() !== data.username.trim().toLowerCase(),
-    {
-      message: 'La password non può essere uguale allo username',
-      path: ['password']
-    }
-  );
+  .refine(data => data.password.trim().toLowerCase() !== data.username.trim().toLowerCase(), {
+    message: 'La password non può essere uguale allo username',
+    path: ['password']
+  });
 
 export const UpdateUserSchema = z.object({
   full_name: z.string().min(2, 'Nome troppo corto').max(100, 'Nome troppo lungo'),
