@@ -8,7 +8,7 @@ import { renderAdminShell, renderBreadcrumbs } from './admin/layout.js';
 import { router, AdminTab, isAdminTab } from './admin/router.js';
 import { supabase, safeSupabaseQuery } from './core/api.js';
 import { logger } from './core/logger.js';
-import { getCurrentRoute, onHashChange, type HashRoute } from './shared/hash-router.js';
+import { getCurrentRoute, onHashChange } from './shared/hash-router.js';
 import { isAdminRole } from './shared/roles.js';
 import { store } from './shared/state.js';
 import { FuelStation } from './types.js';
@@ -112,7 +112,7 @@ export async function showAdminArea(): Promise<void> {
     select.addEventListener('change', (e: Event) => {
       const val = (e.target as HTMLSelectElement).value;
       store.setStationFilter(val || null);
-      router.navigateTo(router.getCurrentTab());
+      void router.navigateTo(router.getCurrentTab());
     });
   }
 
@@ -126,46 +126,37 @@ export async function showAdminArea(): Promise<void> {
 
   // Tab change routine for use by both shell UI and hash router
   const goToTab = async (tab: AdminTab): Promise<void> => {
-    // Serializza le navigazioni: se una tab precedente (es. dashboard) sta
-    // ancora caricando dati asincroni, questo await evita che il suo render
-    // finale sovrascriva la tab appena richiesta.
     await router.navigateTo(tab);
     renderBreadcrumbs(tab);
     await renderGlobalFilter();
   };
 
-  // Render the admin shell with the tab change handler
+  // Render the admin shell with the tab change handler FIRST so the DOM is
+  // ready when the hash listener fires.
   renderAdminShell(mainContent, goToTab);
 
   // Initial load: check for deep link first, then fall back to dashboard.
-  // Va usato lo stesso percorso sequenziale del cambio tab (#281/#268): le
-  // chiamate flottanti a navigateTo/renderGlobalFilter creavano una race in
-  // cui il deep-link poteva essere sovrascritto dal render della dashboard.
-  // Awaiating goToTab garantisce che la tab iniziale sia completamente
-  // renderizzata prima di attivare il listener per back/forward.
   const initialRoute = getCurrentRoute();
   const initialTab: AdminTab =
     initialRoute && initialRoute.area === 'admin' && isAdminTab(initialRoute.view)
       ? initialRoute.view
       : 'dashboard';
 
-  // Se c'e' un deep-link, aggiorniamo immediatamente l'hash sincronamente
-  // prima di caricare la tab, in modo che eventuali handler hashchange
-  // pendenti trovino lo stato consistente.
-  const route = initialRoute as HashRoute | null;
-  if (route && route.area === 'admin' && isAdminTab(route.view) && window.location.hash === '') {
-    window.location.hash = `#/admin/${route.view}`;
-  }
+  // Subscribe to browser back/forward and manual hash edits. The immediate
+  // invocation processes the current hash, which is what makes a deep-link
+  // load (e.g. `/#/admin/vouchers`) route to the correct tab on first paint.
+  unsubscribeHashListener?.();
+  unsubscribeHashListener = onHashChange(
+    'admin',
+    (view: string) => {
+      if (isAdminTab(view) && view !== router.getCurrentTab()) {
+        void goToTab(view);
+      }
+    },
+    { immediate: true }
+  );
 
   await goToTab(initialTab);
-
-  // Register browser back/forward support, avoiding duplicate listeners across repeated showAdminArea() calls
-  unsubscribeHashListener?.();
-  unsubscribeHashListener = onHashChange('admin', (view: string) => {
-    if (isAdminTab(view) && view !== router.getCurrentTab()) {
-      void goToTab(view);
-    }
-  });
 
   // Dashboard configuration listener (delegated)
   const adminContent = document.getElementById('admin-content');
@@ -178,7 +169,7 @@ export async function showAdminArea(): Promise<void> {
   // Listen for dashboard config changes
   document.addEventListener('dashboard-config-changed', () => {
     if (router.getCurrentTab() === 'dashboard') {
-      router.navigateTo('dashboard');
+      void router.navigateTo('dashboard');
     }
   });
 }
