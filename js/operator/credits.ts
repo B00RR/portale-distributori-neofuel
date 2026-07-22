@@ -237,16 +237,21 @@ export async function processNewCredit(
   const shiftId = activeOpening?.id ?? null;
 
   if (shouldQueue(options)) {
-    await queueAction('movement_create', {
-      kind: 'credit_create',
-      stationId: numericStationId,
-      operatorId: String(userId),
-      customerName,
-      amount,
-      product,
-      notes,
-      ...(creditDate ? { createdAt: creditDate } : {})
-    });
+    const numericOpId = toNumericId(userId);
+    await queueAction(
+      'movement_create',
+      {
+        kind: 'credit_create',
+        stationId: numericStationId,
+        operatorId: String(numericOpId),
+        customerName,
+        amount,
+        product,
+        notes,
+        ...(creditDate ? { createdAt: creditDate } : {})
+      },
+      { userId: String(numericOpId), stationId: numericStationId }
+    );
     return;
   }
 
@@ -451,15 +456,19 @@ export async function processPayment(
   const shiftId = activeOpening?.id ?? null;
 
   if (shouldQueue(options)) {
-    await queueAction('movement_create', {
-      kind: 'credit_payment',
-      stationId: numericStationId,
-      operatorId: String(userId),
-      customerId: numericCustomerId,
-      amount,
-      method,
-      ...(creditDate ? { createdAt: creditDate } : {})
-    });
+    await queueAction(
+      'movement_create',
+      {
+        kind: 'credit_payment',
+        stationId: numericStationId,
+        operatorId: String(userId),
+        customerId: numericCustomerId,
+        amount,
+        method,
+        ...(creditDate ? { createdAt: creditDate } : {})
+      },
+      { userId: String(userId), stationId: numericStationId }
+    );
     return;
   }
 

@@ -696,6 +696,10 @@ describe('Operator Invoices Module', () => {
           amount: 100.5,
           paymentMethod: 'contanti',
           productCategory: 'gasolio'
+        }),
+        expect.objectContaining({
+          userId: '123',
+          stationId: 1
         })
       );
     });

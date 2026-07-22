@@ -149,16 +149,20 @@ export async function processExtraIncome(
   const shiftId = activeOpening?.id ?? null;
 
   if (shouldQueue(options)) {
-    await queueAction('movement_create', {
-      kind: 'extra_income_create',
-      stationId: Number(stationId),
-      operatorId: String(userId),
-      amount,
-      paymentMethod,
-      type,
-      description,
-      createdAt
-    });
+    await queueAction(
+      'movement_create',
+      {
+        kind: 'extra_income_create',
+        stationId: Number(stationId),
+        operatorId: String(userId),
+        amount,
+        paymentMethod,
+        type,
+        description,
+        createdAt
+      },
+      { userId: String(userId), stationId: Number(stationId) }
+    );
     return;
   }
 
