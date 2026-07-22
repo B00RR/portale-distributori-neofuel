@@ -692,14 +692,14 @@ export function showResetPasswordForm(): void {
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label for="new-password">Nuova Password</label>
                     <div class="password-wrapper">
-                        <input type="password" id="new-password" name="new-password" required minlength="6" placeholder="Inserisci la nuova password" />
+                        <input type="password" id="new-password" name="new-password" required minlength="12" placeholder="Inserisci la nuova password" />
                         <button type="button" id="toggle-new-password" title="Mostra password" aria-label="Mostra password"><i class="fas fa-eye" id="new-password-icon"></i></button>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label for="confirm-password">Conferma Password</label>
                     <div class="password-wrapper">
-                        <input type="password" id="confirm-password" name="confirm-password" required minlength="6" placeholder="Conferma la nuova password" />
+                        <input type="password" id="confirm-password" name="confirm-password" required minlength="12" placeholder="Conferma la nuova password" />
                         <button type="button" id="toggle-confirm-password" title="Mostra password" aria-label="Mostra password"><i class="fas fa-eye" id="confirm-password-icon"></i></button>
                     </div>
                 </div>
@@ -724,8 +724,8 @@ export function showResetPasswordForm(): void {
     const newPassword = newPasswordInput.value;
     const confirmPassword = confirmPasswordInput.value;
 
-    if (newPassword.length < 6) {
-      errorElement.textContent = 'La password deve essere di almeno 6 caratteri.';
+    if (newPassword.length < 12) {
+      errorElement.textContent = 'La password deve essere di almeno 12 caratteri.';
       return;
     }
     if (newPassword !== confirmPassword) {

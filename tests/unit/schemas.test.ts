@@ -63,11 +63,9 @@ describe('Zod Schemas (real validation)', () => {
       }
     );
 
-    it('rejects a password shorter than 6 chars (boundary)', () => {
-      expect(safeParse(LoginSchema, { username: 'operatore01', password: '12345' }).success).toBe(
-        false
-      );
-      expect(safeParse(LoginSchema, { username: 'operatore01', password: '123456' }).success).toBe(
+    it('rejects an empty password on login', () => {
+      expect(safeParse(LoginSchema, { username: 'operatore01', password: '' }).success).toBe(false);
+      expect(safeParse(LoginSchema, { username: 'operatore01', password: 'secret1' }).success).toBe(
         true
       );
     });
@@ -76,13 +74,24 @@ describe('Zod Schemas (real validation)', () => {
   describe('CreateUserSchema', () => {
     const base = {
       username: 'operatore01',
-      password: '123456',
+      password: 'SuperSecretPassword123!',
       full_name: 'Mario Rossi',
       role: 'operator' as const
     };
 
     it('accepts a valid user', () => {
       expect(safeParse(CreateUserSchema, base).success).toBe(true);
+    });
+
+    it('rejects passwords shorter than 12 characters', () => {
+      expect(safeParse(CreateUserSchema, { ...base, password: 'Short12345!' }).success).toBe(false);
+    });
+
+    it('rejects password equal to normalized username', () => {
+      expect(safeParse(CreateUserSchema, { ...base, password: 'operatore01' }).success).toBe(false);
+      expect(safeParse(CreateUserSchema, { ...base, password: '  OPERATORE01  ' }).success).toBe(
+        false
+      );
     });
 
     it('uses the same trim and lowercase contract as LoginSchema', () => {
