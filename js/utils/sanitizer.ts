@@ -55,24 +55,31 @@ export function setInnerHTML(
 }
 
 /**
- * Sink HTML centralizzato del progetto.
+ * Sink HTML centralizzato ed esclusivo dell'applicazione (Issue #351).
  *
- * Assegna una stringa HTML "fidata" a `innerHTML` passando per un unico punto
- * verificabile (utile per l'audit di sicurezza, issue #17). NON sanitizza ne'
- * fa escape: il chiamante DEVE aver gia' applicato l'escape ai valori dinamici
- * (es. con `escapeHtml()` di utils.ts). Usare solo con markup la cui STRUTTURA
- * e' statica/controllata e i cui dati dinamici sono gia' escaped.
+ * Assegna la stringa HTML fornita a `element.innerHTML` passando per un unico
+ * punto di iniezione verificabile e protetto da regole linter (`no-unsanitized/property`)
+ * e test di architettura (`tests/unit/sanitizer.test.ts`).
+ *
+ * CONTRATTO DI SICUREZZA:
+ * 1. Questa funzione NON sanitizza automaticamente il markup a runtime: l'HTML
+ *    deve rappresentare una struttura statica fidata.
+ * 2. Tutti i valori o dati dinamici dell'utente (es. nomi, note, stringhe di input)
+ *    DEVONO essere preventivamente trattati con `escapeHtml()` prima di essere
+ *    interpolati nella stringa HTML.
+ * 3. Per inserire testo puro senza tag HTML, usare `element.textContent` o
+ *    `setInnerHTML(element, content, false)`.
  *
  * @param element - Elemento DOM di destinazione (no-op se null)
- * @param html - Markup HTML con i valori dinamici gia' escaped
+ * @param html - Markup HTML fidato con valori dinamici gia' convertiti via `escapeHtml()`
  * @example
- * setSafeHTML(container, `<p>${escapeHtml(nomeCliente)}</p>`);
+ * setSafeHTML(container, `<p>Cliente: ${escapeHtml(nomeCliente)}</p>`);
  */
 export function setSafeHTML(element: HTMLElement | null, html: string): void {
   if (!element) {
     return;
   }
-  // eslint-disable-next-line no-unsanitized/property -- sink centralizzato; i valori dinamici sono gia' escaped dal chiamante (vedi JSDoc / issue #17)
+  // eslint-disable-next-line no-unsanitized/property -- sink centralizzato unico; i valori dinamici sono gia' escaped dal chiamante (vedi contratto di sicurezza JSDoc / issue #351)
   element.innerHTML = html;
 }
 

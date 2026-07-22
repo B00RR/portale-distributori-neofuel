@@ -129,13 +129,13 @@ describe('Sanitizer Module (Security)', () => {
             container = document.createElement('div');
         });
 
-        it('should assign HTML content to element', () => {
-            setSafeHTML(container, '<span>Safe Content</span>');
-            expect(container.innerHTML).toBe('<span>Safe Content</span>');
+        it('should set HTML content on valid element', () => {
+            setSafeHTML(container, '<p class="test">Hello World</p>');
+            expect(container.innerHTML).toBe('<p class="test">Hello World</p>');
         });
 
-        it('should handle null element gracefully without throwing', () => {
-            expect(() => setSafeHTML(null, '<div>Test</div>')).not.toThrow();
+        it('should handle null element without throwing', () => {
+            expect(() => setSafeHTML(null, '<div>Content</div>')).not.toThrow();
         });
     });
 
