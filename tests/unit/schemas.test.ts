@@ -64,9 +64,7 @@ describe('Zod Schemas (real validation)', () => {
     );
 
     it('rejects an empty password on login', () => {
-      expect(safeParse(LoginSchema, { username: 'operatore01', password: '' }).success).toBe(
-        false
-      );
+      expect(safeParse(LoginSchema, { username: 'operatore01', password: '' }).success).toBe(false);
       expect(safeParse(LoginSchema, { username: 'operatore01', password: 'secret1' }).success).toBe(
         true
       );
@@ -91,7 +89,9 @@ describe('Zod Schemas (real validation)', () => {
 
     it('rejects password equal to normalized username', () => {
       expect(safeParse(CreateUserSchema, { ...base, password: 'operatore01' }).success).toBe(false);
-      expect(safeParse(CreateUserSchema, { ...base, password: '  OPERATORE01  ' }).success).toBe(false);
+      expect(safeParse(CreateUserSchema, { ...base, password: '  OPERATORE01  ' }).success).toBe(
+        false
+      );
     });
 
     it('uses the same trim and lowercase contract as LoginSchema', () => {
