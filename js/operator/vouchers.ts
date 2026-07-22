@@ -1,3 +1,5 @@
+import { supabase } from '../core/api.js';
+import { isOffline, queueAction } from '../core/offline-queue.js';
 import { openModal } from '../ui/ui.js';
 
 // Import the web component definition to ensure it's registered
@@ -45,3 +47,51 @@ export async function showVoucherMenu(stationId: number | string, userId: string
   // Handle modal close cleanup if needed (Wrapper logic)
   // The component handles its own disconnectedCallback to stop scanner.
 }
+
+export async function processPointsRedeem(
+  stationId: number | string,
+  userId: string,
+  amount: number,
+  shiftId?: number | string | null,
+  options?: { skipOfflineQueue?: boolean; requestId?: string }
+): Promise<void> {
+  const numericStationId = Number(stationId);
+  const numericUserId = Number(userId);
+  const numericShiftId = shiftId ? Number(shiftId) : undefined;
+
+  if (!options?.skipOfflineQueue && isOffline()) {
+    await queueAction('movement_create', {
+      kind: 'points_redeem',
+      stationId: numericStationId,
+      operatorId: String(userId),
+      shiftId: numericShiftId,
+      amount
+    });
+    return;
+  }
+
+  const requestId =
+    options?.requestId ??
+    `points_${numericStationId}_${numericShiftId ?? 'no-shift'}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  const { data: result, error } = await supabase.rpc('register_punti_riscatto', {
+    p_station_id: numericStationId,
+    p_shift_id: numericShiftId,
+    p_operator_id: numericUserId,
+    p_importo: amount,
+    p_request_id: requestId
+  });
+
+  if (error) {
+    throw error;
+  }
+  if (
+    result &&
+    typeof result === 'object' &&
+    'success' in result &&
+    !(result as { success?: boolean }).success
+  ) {
+    throw new Error(String((result as { error?: string }).error ?? 'Riscatto punti fallito'));
+  }
+}
+

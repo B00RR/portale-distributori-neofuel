@@ -6,6 +6,7 @@ import { processNewCredit, processPayment } from './credits.js';
 import { processExtraIncome } from './extra-income.js';
 import { processInvoiceRequest } from './invoices.js';
 import { processOutflow } from './outflows.js';
+import { processPointsRedeem } from './vouchers.js';
 
 type FinancialActionPayload = Record<string, unknown> & { kind?: unknown };
 
@@ -77,6 +78,18 @@ async function executeFinancialAction(action: QueuedAction): Promise<boolean> {
           readString(payload, 'type'),
           readString(payload, 'description'),
           { skipOfflineQueue: true, createdAt: readString(payload, 'createdAt') }
+        );
+        return true;
+      case 'points_redeem':
+        await processPointsRedeem(
+          readNumber(payload, 'stationId'),
+          readString(payload, 'operatorId'),
+          readNumber(payload, 'amount'),
+          payload.shiftId ? readNumber(payload, 'shiftId') : null,
+          {
+            skipOfflineQueue: true,
+            requestId: action.id
+          }
         );
         return true;
       case 'invoice_request':
