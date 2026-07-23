@@ -13,7 +13,8 @@ const {
   mockExtraIncome,
   mockVoucher,
   mockInvoice,
-  mockSummary
+  mockSummary,
+  mockRefund
 } = vi.hoisted(() => ({
   mockStore: {
     getUser: vi.fn()
@@ -26,7 +27,8 @@ const {
   mockExtraIncome: { showExtraIncomeMenu: vi.fn() },
   mockVoucher: { showVoucherMenu: vi.fn() },
   mockInvoice: { showInvoiceMenu: vi.fn() },
-  mockSummary: { showShiftSummary: vi.fn() }
+  mockSummary: { showShiftSummary: vi.fn() },
+  mockRefund: { showCustomerRefundForm: vi.fn() }
 }));
 
 vi.mock('../../js/shared/state.js', () => ({ store: mockStore }));
@@ -39,6 +41,7 @@ vi.mock('../../js/operator/extra-income.js', () => mockExtraIncome);
 vi.mock('../../js/operator/vouchers.js', () => mockVoucher);
 vi.mock('../../js/operator/invoices.js', () => mockInvoice);
 vi.mock('../../js/operator/summary.js', () => mockSummary);
+vi.mock('../../js/operator/refund.js', () => mockRefund);
 
 import { router } from '../../js/operator/router.js';
 
@@ -97,6 +100,10 @@ describe('Operator Router', () => {
     it('should navigate to resoconto', async () => {
       await router.navigateTo('resoconto');
       expect(mockSummary.showShiftSummary).toHaveBeenCalledWith('456', '1');
+    });
+    it('should navigate to rimborso', async () => {
+      await router.navigateTo('rimborso');
+      expect(mockRefund.showCustomerRefundForm).toHaveBeenCalledWith(456, 1);
     });
 
     it('passes the numeric DB user_id to shift flows and the auth UUID only to vouchers (#248)', async () => {

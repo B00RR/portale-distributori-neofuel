@@ -9,7 +9,7 @@ vi.mock('../../js/core/api.js', () => ({
 import {
   canEditShiftItems,
   buildShiftSummaryItems,
-  ShiftSummaryItem,
+  ShiftSummaryItem
 } from '../../js/operator/summary.js';
 
 // ── helpers ──────────────────────────────────────────────────
@@ -29,12 +29,12 @@ function makeShift(overrides: Record<string, unknown> = {}) {
       total_amount: 800,
       uta_dkv_iscard: 50,
       cash_in_minus_out: 400,
-      notes: 'Test note',
+      notes: 'Test note'
     },
     closing_data: null,
     updated_at: '2026-07-22T06:00:00Z',
     created_at: '2026-07-22T06:00:00Z',
-    ...overrides,
+    ...overrides
   };
 }
 
@@ -46,7 +46,7 @@ const emptyData = {
   creditiClienti: [],
   vouchers: [],
   invoices: [],
-  puntiRiscatti: [],
+  puntiRiscatti: []
 };
 
 // ── canEditShiftItems ────────────────────────────────────────
@@ -77,29 +77,25 @@ describe('buildShiftSummaryItems', () => {
     const items = buildShiftSummaryItems({
       shift: shift as any,
       ...emptyData,
-      canEdit: true,
+      canEdit: true
     });
 
-    const openingKinds = items.filter((i) =>
-      i.kind.startsWith('opening_'),
+    const openingKinds = items.filter(
+      i => i.kind.startsWith('opening_') || i.kind === 'non_erogato'
     );
 
     // cash_in, cash_out, cash_in_minus_out, pos_amount, uta_dkv_iscard,
     // total_amount, notes = 7 items
     expect(openingKinds.length).toBe(7);
 
-    const cashIn = openingKinds.find(
-      (i) => i.originalField === 'cash_in',
-    );
+    const cashIn = openingKinds.find(i => i.originalField === 'cash_in');
     expect(cashIn).toBeDefined();
     expect(cashIn!.kind).toBe('opening_cash');
     expect(cashIn!.amount).toBe(500);
     expect(cashIn!.editable).toBe(true);
     expect(cashIn!.deletable).toBe(false);
 
-    const notes = openingKinds.find(
-      (i) => i.originalField === 'notes',
-    );
+    const notes = openingKinds.find(i => i.originalField === 'notes');
     expect(notes).toBeDefined();
     expect(notes!.kind).toBe('opening_notes');
     expect(notes!.amount).toBe(0);
@@ -117,15 +113,13 @@ describe('buildShiftSummaryItems', () => {
           shift_id: 1,
           pistola_id: 5,
           opened_at_counter: 12345,
-          pistole: { id: 5, nome: 'Pistola 1', tipo_carburante: 'benzina' },
-        },
+          pistole: { id: 5, nome: 'Pistola 1', tipo_carburante: 'benzina' }
+        }
       ],
-      canEdit: true,
+      canEdit: true
     });
 
-    const pistolItems = items.filter(
-      (i) => i.kind === 'opening_pistol',
-    );
+    const pistolItems = items.filter(i => i.kind === 'opening_pistol');
     expect(pistolItems.length).toBe(1);
     expect(pistolItems[0]!.amount).toBe(12345);
     expect(pistolItems[0]!.originalTable).toBe('shift_pistols');
@@ -144,15 +138,13 @@ describe('buildShiftSummaryItems', () => {
           shift_id: 1,
           tank_id: 3,
           liters: 5000,
-          tanks: { id: 3, name: 'Cisterna GPL', fuel_type: 'gpl' },
-        },
+          tanks: { id: 3, name: 'Cisterna GPL', fuel_type: 'gpl' }
+        }
       ],
-      canEdit: false,
+      canEdit: false
     });
 
-    const tankItems = items.filter(
-      (i) => i.kind === 'opening_tank',
-    );
+    const tankItems = items.filter(i => i.kind === 'opening_tank');
     expect(tankItems.length).toBe(1);
     expect(tankItems[0]!.amount).toBe(5000);
     expect(tankItems[0]!.editable).toBe(false);
@@ -171,15 +163,13 @@ describe('buildShiftSummaryItems', () => {
           descrizione: 'Benzina auto',
           payment_method: 'contanti',
           operator_id: 42,
-          created_at: '2026-07-22T08:00:00Z',
-        },
+          created_at: '2026-07-22T08:00:00Z'
+        }
       ],
-      canEdit: true,
+      canEdit: true
     });
 
-    const movItems = items.filter(
-      (i) => i.kind === 'movimento_cassa',
-    );
+    const movItems = items.filter(i => i.kind === 'movimento_cassa');
     expect(movItems.length).toBe(1);
     expect(movItems[0]!.amount).toBe(30);
     expect(movItems[0]!.editable).toBe(true);
@@ -201,15 +191,13 @@ describe('buildShiftSummaryItems', () => {
           note: 'Pagamento parziale',
           operator_id: 42,
           created_at: '2026-07-22T09:00:00Z',
-          crediti_clienti: { cliente: 'Mario Rossi' },
-        },
+          crediti_clienti: { cliente: 'Mario Rossi' }
+        }
       ],
-      canEdit: true,
+      canEdit: true
     });
 
-    const credMovItems = items.filter(
-      (i) => i.kind === 'credito_movimento',
-    );
+    const credMovItems = items.filter(i => i.kind === 'credito_movimento');
     expect(credMovItems.length).toBe(1);
     expect(credMovItems[0]!.customerName).toBe('Mario Rossi');
     expect(credMovItems[0]!.editable).toBe(true);
@@ -227,15 +215,13 @@ describe('buildShiftSummaryItems', () => {
           cliente: 'Luigi Verdi',
           importo: 100,
           saldo: 100,
-          created_at: '2026-07-22T10:00:00Z',
-        },
+          created_at: '2026-07-22T10:00:00Z'
+        }
       ],
-      canEdit: true,
+      canEdit: true
     });
 
-    const ccItems = items.filter(
-      (i) => i.kind === 'credito_cliente',
-    );
+    const ccItems = items.filter(i => i.kind === 'credito_cliente');
     expect(ccItems.length).toBe(1);
     expect(ccItems[0]!.editable).toBe(false);
     expect(ccItems[0]!.deletable).toBe(true);
@@ -252,13 +238,13 @@ describe('buildShiftSummaryItems', () => {
           code: 'ABC123',
           amount: 25,
           redeemed_at: '2026-07-22T11:00:00Z',
-          status: 'redeemed',
-        },
+          status: 'redeemed'
+        }
       ],
-      canEdit: true,
+      canEdit: true
     });
 
-    const vItems = items.filter((i) => i.kind === 'voucher');
+    const vItems = items.filter(i => i.kind === 'voucher');
     expect(vItems.length).toBe(1);
     expect(vItems[0]!.editable).toBe(false);
     expect(vItems[0]!.deletable).toBe(true);
@@ -278,13 +264,13 @@ describe('buildShiftSummaryItems', () => {
           product_category: 'carburante',
           description: 'Rifornimento flotta',
           status: 'pending',
-          created_at: '2026-07-22T12:00:00Z',
-        },
+          created_at: '2026-07-22T12:00:00Z'
+        }
       ],
-      canEdit: true,
+      canEdit: true
     });
 
-    const invItems = items.filter((i) => i.kind === 'invoice');
+    const invItems = items.filter(i => i.kind === 'invoice');
     expect(invItems.length).toBe(1);
     expect(invItems[0]!.editable).toBe(true);
     expect(invItems[0]!.deletable).toBe(true);
@@ -300,15 +286,13 @@ describe('buildShiftSummaryItems', () => {
         {
           id: 50,
           importo: 10,
-          created_at: '2026-07-22T13:00:00Z',
-        },
+          created_at: '2026-07-22T13:00:00Z'
+        }
       ],
-      canEdit: true,
+      canEdit: true
     });
 
-    const prItems = items.filter(
-      (i) => i.kind === 'punti_riscatti',
-    );
+    const prItems = items.filter(i => i.kind === 'punti_riscatti');
     expect(prItems.length).toBe(1);
     expect(prItems[0]!.amount).toBe(10);
     expect(prItems[0]!.editable).toBe(true);
@@ -325,26 +309,26 @@ describe('buildShiftSummaryItems', () => {
           id: 10,
           tipo: 'incasso',
           importo: 50,
-          created_at: '2026-07-22T08:00:00Z',
-        },
+          created_at: '2026-07-22T08:00:00Z'
+        }
       ],
       creditiClienti: [
         {
           id: 30,
           cliente: 'Luigi',
           saldo: 100,
-          created_at: '2026-07-22T10:00:00Z',
-        },
+          created_at: '2026-07-22T10:00:00Z'
+        }
       ],
       vouchers: [
         {
           id: 'v-2',
           code: 'XYZ',
           amount: 15,
-          redeemed_at: '2026-07-22T11:00:00Z',
-        },
+          redeemed_at: '2026-07-22T11:00:00Z'
+        }
       ],
-      canEdit: false,
+      canEdit: false
     });
 
     // All items should not be editable or deletable
@@ -365,7 +349,7 @@ describe('buildShiftSummaryItems', () => {
     const items = buildShiftSummaryItems({
       shift: shift as any,
       ...emptyData,
-      canEdit: true,
+      canEdit: true
     });
 
     // Should still produce items (with 0 amounts) or no opening items
@@ -381,21 +365,69 @@ describe('buildShiftSummaryItems', () => {
       movimentiCassa: [
         { id: 1, tipo: 'uscita', importo: 30, created_at: '2026-07-22T08:00:00Z' },
         { id: 2, tipo: 'uscita', importo: 20, created_at: '2026-07-22T08:30:00Z' },
-        { id: 3, tipo: 'incasso', importo: 100, created_at: '2026-07-22T09:00:00Z' },
+        { id: 3, tipo: 'incasso', importo: 100, created_at: '2026-07-22T09:00:00Z' }
       ],
-      canEdit: true,
+      canEdit: true
     });
 
-    const movItems = items.filter(
-      (i) => i.kind === 'movimento_cassa',
-    );
+    const movItems = items.filter(i => i.kind === 'movimento_cassa');
     expect(movItems.length).toBe(3);
 
-    const totalMovimenti = movItems.reduce(
-      (sum, i) => sum + i.amount,
-      0,
-    );
+    const totalMovimenti = movItems.reduce((sum, i) => sum + i.amount, 0);
     expect(totalMovimenti).toBe(150); // 30 + 20 + 100
+  });
+
+  it('produces read-only non_erogato item with cash_in - cash_out fallback when cash_in_minus_out is missing', () => {
+    const shift = makeShift({
+      opening_data: {
+        cash_in: 600,
+        cash_out: 150
+      }
+    });
+    const items = buildShiftSummaryItems({
+      shift: shift as any,
+      ...emptyData,
+      canEdit: true
+    });
+
+    const nonErogato = items.find(i => i.kind === 'non_erogato');
+    expect(nonErogato).toBeDefined();
+    expect(nonErogato!.label).toBe('Non erogato/Residuo');
+    expect(nonErogato!.amount).toBe(450); // 600 - 150
+    expect(nonErogato!.editable).toBe(false);
+    expect(nonErogato!.deletable).toBe(false);
+  });
+
+  it('produces customer_refund items editable and deletable when canEdit is true', () => {
+    const shift = makeShift();
+    const items = buildShiftSummaryItems({
+      shift: shift as any,
+      ...emptyData,
+      customerRefunds: [
+        {
+          id: 500,
+          shift_id: 1,
+          station_id: 10,
+          operator_id: 42,
+          amount: 45,
+          receipt_date: '2026-07-23',
+          method: 'cash',
+          notes: 'Non erogato pompa 2',
+          created_at: '2026-07-23T11:00:00Z'
+        }
+      ],
+      canEdit: true
+    });
+
+    const refundItems = items.filter(i => i.kind === 'customer_refund');
+    expect(refundItems.length).toBe(1);
+    expect(refundItems[0]!.amount).toBe(45);
+    expect(refundItems[0]!.label).toBe('Rimborso cliente');
+    expect(refundItems[0]!.method).toBe('cash');
+    expect(refundItems[0]!.description).toContain('Non erogato pompa 2');
+    expect(refundItems[0]!.description).toContain('Scontrino: 2026-07-23');
+    expect(refundItems[0]!.editable).toBe(true);
+    expect(refundItems[0]!.deletable).toBe(true);
   });
 });
 
@@ -408,25 +440,29 @@ describe('buildShiftSummaryItems grouping', () => {
       shift: shift as any,
       shiftPistols: [
         {
-          id: 100, shift_id: 1, pistola_id: 5, opened_at_counter: 12345,
-          pistole: { id: 5, nome: 'P1', tipo_carburante: 'benzina' },
-        },
+          id: 100,
+          shift_id: 1,
+          pistola_id: 5,
+          opened_at_counter: 12345,
+          pistole: { id: 5, nome: 'P1', tipo_carburante: 'benzina' }
+        }
       ],
       tankReadings: [
         {
-          id: 200, shift_id: 1, tank_id: 3, liters: 5000,
-          tanks: { id: 3, name: 'T1', fuel_type: 'gpl' },
-        },
+          id: 200,
+          shift_id: 1,
+          tank_id: 3,
+          liters: 5000,
+          tanks: { id: 3, name: 'T1', fuel_type: 'gpl' }
+        }
       ],
-      movimentiCassa: [
-        { id: 10, tipo: 'uscita', importo: 30, created_at: '2026-07-22T08:00:00Z' },
-      ],
+      movimentiCassa: [{ id: 10, tipo: 'uscita', importo: 30, created_at: '2026-07-22T08:00:00Z' }],
       creditiMovimenti: [],
       creditiClienti: [],
       vouchers: [],
       invoices: [],
       puntiRiscatti: [],
-      canEdit: true,
+      canEdit: true
     });
 
     // Group by category
