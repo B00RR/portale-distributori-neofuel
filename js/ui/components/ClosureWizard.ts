@@ -6,7 +6,7 @@ import type { Json } from '../../core/api.js';
 import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
 import { handleError, AppError } from '../../shared/error-handler.js';
-import { Pistola, Island, Shift } from '../../types.js';
+import { Pistola, Island, Shift, PrezzoDistributore } from '../../types.js';
 import { formatEuro, formatDateTimeSafe, getErrorMessage } from '../../utils/utils.js';
 import { Toast } from '../toast.js';
 
@@ -134,6 +134,7 @@ export class ClosureWizard extends BaseComponent {
   @state() private activeOpening: Shift | null = null;
   @state() private pistole: Pistola[] = [];
   @state() private islands: Island[] = [];
+  @state() private prezzi: PrezzoDistributore | null = null;
   @state() private openingCounters: Record<number, number> = {};
   @state() private finalCounters: Record<number, number | null> = {};
 
@@ -380,7 +381,7 @@ export class ClosureWizard extends BaseComponent {
         this.wizardState = { mode: 'error', errorMessage: 'Turno senza ID valido.', step: 1 };
         return;
       }
-      const [islandsRes, countersRes] = await Promise.all([
+      const [islandsRes, countersRes, prezziRes] = await Promise.all([
         supabase
           .from('islands')
           .select('island_id, nome, island_name')
@@ -389,7 +390,15 @@ export class ClosureWizard extends BaseComponent {
         supabase
           .from('shift_pistols')
           .select('pistola_id, opened_at_counter, closed_at_counter')
-          .eq('shift_id', shiftId)
+          .eq('shift_id', shiftId),
+        supabase
+          .from('prezzi_distributore')
+          .select('*')
+          .eq('station_id', this.numericStationId)
+          .lte('data_validita', new Date().toISOString())
+          .order('data_validita', { ascending: false })
+          .limit(1)
+          .maybeSingle()
       ]);
 
       if (islandsRes.error) {
@@ -398,6 +407,8 @@ export class ClosureWizard extends BaseComponent {
       if (countersRes.error) {
         throw countersRes.error;
       }
+
+      this.prezzi = (prezziRes.data as PrezzoDistributore | null) ?? null;
 
       this.islands = islandsRes.data.map(
         (
@@ -499,6 +510,23 @@ export class ClosureWizard extends BaseComponent {
     return result;
   }
 
+  private get amountByPistol(): Record<number, number> {
+    const result: Record<number, number> = {};
+    const liters = this.litersByPistol;
+    this.pistole.forEach(p => {
+      const l = liters[p.id] ?? 0;
+      let pricePerLiter = 0;
+      const fuelType = p.tipo_carburante?.toLowerCase();
+      if (fuelType === 'benzina') {
+        pricePerLiter = this.prezzi?.prezzo_benzina || 0;
+      } else if (fuelType === 'gasolio') {
+        pricePerLiter = this.prezzi?.prezzo_gasolio || 0;
+      }
+      result[p.id] = l * pricePerLiter;
+    });
+    return result;
+  }
+
   override render(): TemplateResult {
     if (this.wizardState.mode === 'loading') {
       return this.renderLoading();
@@ -570,6 +598,7 @@ export class ClosureWizard extends BaseComponent {
   private renderStep1(): TemplateResult {
     const isPartialCompleted = isPartiallyClosedShift(this.activeOpening);
     const liters = this.litersByPistol;
+    const amounts = this.amountByPistol;
 
     return html`
       <div class="section-title">Step 1: Contatori Pistole</div>
@@ -634,12 +663,20 @@ export class ClosureWizard extends BaseComponent {
                       </div>
                     </div>
                     <div
-                      style="margin-top: 0.75rem; text-align: right; font-size: 0.9rem; color: #475569;"
+                      style="margin-top: 0.75rem; display: flex; justify-content: space-between; font-size: 0.9rem; color: #475569;"
                     >
-                      Erogati:
-                      <strong style="color: #0A2342;"
-                        >${liters[p.id]?.toFixed(2) || '0.00'} L</strong
-                      >
+                      <div>
+                        Erogati:
+                        <strong style="color: #0A2342;"
+                          >${liters[p.id]?.toFixed(2) || '0.00'} L</strong
+                        >
+                      </div>
+                      <div>
+                        Tot.
+                        <strong style="color: #0A2342;"
+                          >${formatEuro(amounts[p.id] || 0)}</strong
+                        >
+                      </div>
                     </div>
                   </div>
                 `
