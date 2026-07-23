@@ -402,8 +402,9 @@ BEGIN
 
     SELECT COALESCE(SUM(importo), 0)
     INTO v_new_credits
-    FROM public.crediti_clienti
-    WHERE shift_id = p_shift_id;
+    FROM public.crediti_movimenti
+    WHERE shift_id = p_shift_id
+      AND tipo = 'credito';
 
     SELECT
         COALESCE(SUM(CASE WHEN metodo = 'cash' OR metodo IS NULL THEN importo ELSE 0 END), 0),
