@@ -254,7 +254,84 @@ export async function showChiusureTab(
         return;
       }
 
-      let html = `
+      // Totale Giornaliero / Filtered Totals
+      const hasDateFilter = Boolean(filters.dateFrom || filters.dateTo);
+      const todayDateStr = new Date().toLocaleDateString('it-IT');
+
+      const targetClosures = hasDateFilter
+        ? filteredClosures
+        : filteredClosures.filter(c => {
+            const date = new Date(c.closed_at || c.created_at);
+            return date.toLocaleDateString('it-IT') === todayDateStr;
+          });
+
+      let totale_venduto_carburante = 0;
+      let totale_venduto_extra = 0;
+      let totale_venduto = 0;
+      let contante_atteso = 0;
+      let contante_reale = 0;
+      let discrepanza = 0;
+
+      targetClosures.forEach(c => {
+        const closingData = c.closing_data || {};
+        const computed = closingData.snapshot?.computed || closingData.computed || {};
+
+        const fuelRevenue =
+          computed.fuel_revenue ??
+          computed.totale_venduto_carburante ??
+          closingData.ricavo_teorico ??
+          0;
+        const extraRevenue = computed.extra_revenue ?? computed.totale_venduto_extra ?? 0;
+        const totalSold = computed.total_sold ?? fuelRevenue + extraRevenue;
+        const expectedCash = computed.expected_cash ?? closingData.contante_atteso ?? 0;
+        const realCash =
+          computed.real_cash ?? computed.operator?.cash ?? closingData.operator_cash ?? 0;
+        const disc = computed.discrepancy ?? realCash - expectedCash;
+
+        totale_venduto_carburante += fuelRevenue;
+        totale_venduto_extra += extraRevenue;
+        totale_venduto += totalSold;
+        contante_atteso += expectedCash;
+        contante_reale += realCash;
+        discrepanza += disc;
+      });
+
+      const discrepanzaColor =
+        discrepanza >= 0 ? 'var(--success-color, green)' : 'var(--danger-color, red)';
+
+      const cardHtml = `
+        <div class="daily-total-card" style="margin-bottom: 20px; padding: 15px; background: var(--bg-secondary, #f8f9fa); border-radius: 8px; border: 1px solid var(--border-color, #dee2e6);">
+          <h3 style="margin: 0 0 15px 0; font-size: 1.1em;">Totale Giornaliero</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+              <div style="font-size: 0.85em; color: var(--secondary-color);">Venduto Carburante</div>
+              <div style="font-size: 1.1em;">${formatEuro(totale_venduto_carburante)}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.85em; color: var(--secondary-color);">Venduto Extra</div>
+              <div style="font-size: 1.1em;">${formatEuro(totale_venduto_extra)}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.85em; color: var(--secondary-color);">Totale Venduto</div>
+              <div style="font-size: 1.2em; font-weight: bold;">${formatEuro(totale_venduto)}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.85em; color: var(--secondary-color);">Contante Atteso</div>
+              <div style="font-size: 1.1em;">${formatEuro(contante_atteso)}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.85em; color: var(--secondary-color);">Contante Reale</div>
+              <div style="font-size: 1.2em; font-weight: bold;">${formatEuro(contante_reale)}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.85em; color: var(--secondary-color);">Discrepanza</div>
+              <div style="font-size: 1.1em; font-weight: bold; color: ${discrepanzaColor};">${discrepanza > 0 ? '+' : ''}${formatEuro(discrepanza)}</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      let tableHtml = `
               <div class="table-responsive">
                 <table class="admin-table">
                   <thead>
@@ -301,10 +378,16 @@ export async function showChiusureTab(
           closureType = 'Parziale';
           closureClass = 'badge-warning';
         }
-        const totalValue = closingData.ricavo_teorico || closingData.totale_atteso || 0;
+        const computed = closingData.snapshot?.computed || closingData.computed || {};
+        const totalValue =
+          computed.total_sold ??
+          computed.fuel_revenue ??
+          closingData.ricavo_teorico ??
+          closingData.totale_atteso ??
+          0;
         const total = formatEuro(totalValue);
 
-        html += `
+        tableHtml += `
                 <tr>
                   <td>${dateStr}</td>
                   <td>${escapeHtml(stationName)}</td>
@@ -320,87 +403,8 @@ export async function showChiusureTab(
               `;
       });
 
-      html += '</tbody></table></div>';
-      setSafeHTML(dataContainer, html);
-
-      // Totale Giornaliero
-      const today = new Date();
-      const todayDateStr = today.toLocaleDateString('it-IT');
-      const todayClosures = filteredClosures.filter(c => {
-        const date = new Date(c.closed_at || c.created_at);
-        return date.toLocaleDateString('it-IT') === todayDateStr;
-      });
-
-      let totale_venduto_carburante = 0;
-      let totale_venduto_extra = 0;
-      let contante_atteso = 0;
-      let contante_reale = 0;
-
-      todayClosures.forEach(c => {
-        totale_venduto_carburante +=
-          c.closing_data?.computed?.fuel_revenue ??
-          c.closing_data?.computed?.totale_venduto_carburante ??
-          c.closing_data?.ricavo_teorico ??
-          0;
-        totale_venduto_extra +=
-          c.closing_data?.computed?.extra_revenue ??
-          c.closing_data?.computed?.totale_venduto_extra ??
-          0;
-        contante_atteso +=
-          c.closing_data?.computed?.expected_cash ?? c.closing_data?.contante_atteso ?? 0;
-        contante_reale +=
-          c.closing_data?.computed?.real_cash ??
-          c.closing_data?.computed?.operator?.cash ??
-          c.closing_data?.operator_cash ??
-          0;
-      });
-
-      const totale_venduto = totale_venduto_carburante + totale_venduto_extra;
-      const discrepanza = contante_reale - contante_atteso;
-      const discrepanzaColor =
-        discrepanza >= 0 ? 'var(--success-color, green)' : 'var(--danger-color, red)';
-
-      const cardContainer = document.createElement('div');
-      cardContainer.className = 'daily-total-card';
-      cardContainer.style.marginTop = '20px';
-      cardContainer.style.padding = '15px';
-      cardContainer.style.background = 'var(--bg-secondary, #f8f9fa)';
-      cardContainer.style.borderRadius = '8px';
-      cardContainer.style.border = '1px solid var(--border-color, #dee2e6)';
-
-      setSafeHTML(
-        cardContainer,
-        `
-        <h3 style="margin: 0 0 15px 0; font-size: 1.1em;">📊 Totale Giornaliero (${escapeHtml(todayDateStr)})</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-          <div>
-            <div style="font-size: 0.85em; color: var(--secondary-color);">Venduto Carburante</div>
-            <div style="font-size: 1.1em;">${formatEuro(totale_venduto_carburante)}</div>
-          </div>
-          <div>
-            <div style="font-size: 0.85em; color: var(--secondary-color);">Venduto Extra</div>
-            <div style="font-size: 1.1em;">${formatEuro(totale_venduto_extra)}</div>
-          </div>
-          <div>
-            <div style="font-size: 0.85em; color: var(--secondary-color);">Totale Venduto</div>
-            <div style="font-size: 1.2em; font-weight: bold;">${formatEuro(totale_venduto)}</div>
-          </div>
-          <div>
-            <div style="font-size: 0.85em; color: var(--secondary-color);">Contante Atteso</div>
-            <div style="font-size: 1.1em;">${formatEuro(contante_atteso)}</div>
-          </div>
-          <div>
-            <div style="font-size: 0.85em; color: var(--secondary-color);">Contante Reale</div>
-            <div style="font-size: 1.2em; font-weight: bold;">${formatEuro(contante_reale)}</div>
-          </div>
-          <div>
-            <div style="font-size: 0.85em; color: var(--secondary-color);">Discrepanza</div>
-            <div style="font-size: 1.1em; font-weight: bold; color: ${discrepanzaColor};">${discrepanza > 0 ? '+' : ''}${formatEuro(discrepanza)}</div>
-          </div>
-        </div>
-        `
-      );
-      dataContainer.appendChild(cardContainer);
+      tableHtml += '</tbody></table></div>';
+      setSafeHTML(dataContainer, cardHtml + tableHtml);
 
       dataContainer.querySelectorAll('.view-closure').forEach(btn => {
         btn.addEventListener('click', () => {
