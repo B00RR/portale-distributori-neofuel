@@ -77,8 +77,8 @@ describe('Operator Hash Routing', () => {
   });
 
   describe('OPERATOR_VIEWS whitelist', () => {
-    it('contains all 9 operator views', () => {
-      expect(OPERATOR_VIEWS).toHaveLength(9);
+    it('contains all 10 operator views', () => {
+      expect(OPERATOR_VIEWS).toHaveLength(10);
       expect(OPERATOR_VIEWS).toContain('apertura');
       expect(OPERATOR_VIEWS).toContain('chiusura');
       expect(OPERATOR_VIEWS).toContain('prezzi');
@@ -88,6 +88,7 @@ describe('Operator Hash Routing', () => {
       expect(OPERATOR_VIEWS).toContain('voucher');
       expect(OPERATOR_VIEWS).toContain('fatture');
       expect(OPERATOR_VIEWS).toContain('resoconto');
+      expect(OPERATOR_VIEWS).toContain('rimborso');
     });
   });
 
@@ -118,7 +119,7 @@ describe('Operator Hash Routing', () => {
     it('writes correct hashes for all operator views', async () => {
       for (const view of OPERATOR_VIEWS) {
         window.history.pushState(null, '', '/');
-         
+
         await router.navigateTo(view);
         expect(window.location.hash).toBe(`#/operator/${view}`);
       }

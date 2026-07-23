@@ -31,7 +31,9 @@ export interface ShiftSummaryItem {
     | 'credito_cliente'
     | 'voucher'
     | 'invoice'
-    | 'punti_riscatti';
+    | 'punti_riscatti'
+    | 'non_erogato'
+    | 'customer_refund';
   label: string;
   amount: number;
   method?: string | undefined;
@@ -132,7 +134,20 @@ export interface BuildShiftSummaryInput {
   vouchers: VoucherRow[];
   invoices: InvoiceRow[];
   puntiRiscatti: PuntoRiscattoRow[];
+  customerRefunds?: CustomerRefundRow[];
   canEdit: boolean;
+}
+
+interface CustomerRefundRow {
+  id: number;
+  shift_id: number;
+  station_id: number;
+  operator_id?: number | null;
+  amount: number;
+  receipt_date: string;
+  method: string;
+  notes?: string | null;
+  created_at: string;
 }
 
 // ========== PURE FUNCTIONS (testable) ==========
@@ -183,7 +198,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
   const openingFields: OpeningFieldDef[] = [
     { field: 'cash_in', kind: 'opening_cash', label: 'Contanti in cassa' },
     { field: 'cash_out', kind: 'opening_cash', label: 'Contanti usciti' },
-    { field: 'cash_in_minus_out', kind: 'opening_cash', label: 'Contanti netti' },
+    { field: 'cash_in_minus_out', kind: 'non_erogato', label: 'Non erogato/Residuo' },
     { field: 'pos_amount', kind: 'opening_pos', label: 'POS apertura' },
     { field: 'uta_dkv_iscard', kind: 'opening_uta', label: 'UTA / DKV / iSCard' },
     { field: 'total_amount', kind: 'opening_total', label: 'Totale apertura' },
@@ -192,8 +207,22 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
 
   for (const def of openingFields) {
     const raw = openingData ? openingData[def.field] : undefined;
-    const numericValue = def.isNote ? 0 : typeof raw === 'number' ? raw : Number(raw) || 0;
+    let numericValue = def.isNote ? 0 : typeof raw === 'number' ? raw : Number(raw) || 0;
+
+    if (def.field === 'cash_in_minus_out' && (raw === undefined || raw === null)) {
+      const cashIn =
+        typeof openingData?.cash_in === 'number'
+          ? openingData.cash_in
+          : Number(openingData?.cash_in) || 0;
+      const cashOut =
+        typeof openingData?.cash_out === 'number'
+          ? openingData.cash_out
+          : Number(openingData?.cash_out) || 0;
+      numericValue = cashIn - cashOut;
+    }
+
     const descriptionValue = def.isNote ? (typeof raw === 'string' ? raw : '') : undefined;
+    const isNonErogato = def.kind === 'non_erogato';
 
     items.push({
       id: `opening-${def.field}`,
@@ -202,7 +231,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       amount: numericValue,
       description: descriptionValue,
       createdAt: shiftCreated,
-      editable: canEdit,
+      editable: isNonErogato ? false : canEdit,
       deletable: false,
       originalTable: 'shifts',
       originalId: shift.id,
@@ -347,6 +376,28 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       originalId: pr.id
     });
   }
+  // --- 10. Customer refunds ---
+  const customerRefunds = input.customerRefunds ?? [];
+  for (const cr of customerRefunds) {
+    items.push({
+      id: cr.id,
+      kind: 'customer_refund',
+      label: 'Rimborso cliente',
+      amount: cr.amount,
+      method: cr.method,
+      description: cr.notes
+        ? `${cr.notes} — Scontrino: ${cr.receipt_date}`
+        : `Scontrino: ${cr.receipt_date}`,
+      createdAt: cr.created_at,
+      editable: canEdit,
+      deletable: canEdit,
+      originalTable: 'customer_refunds',
+      originalId: cr.id,
+      metadata: {
+        receipt_date: cr.receipt_date
+      }
+    });
+  }
 
   return items;
 }
@@ -364,11 +415,22 @@ const CATEGORIES: CategoryDef[] = [
   {
     title: 'Dati apertura',
     icon: 'fa-door-open',
-    kinds: ['opening_cash', 'opening_pos', 'opening_uta', 'opening_total', 'opening_notes']
+    kinds: [
+      'opening_cash',
+      'opening_pos',
+      'opening_uta',
+      'opening_total',
+      'opening_notes',
+      'non_erogato'
+    ]
   },
   { title: 'Contatori pistole', icon: 'fa-gas-pump', kinds: ['opening_pistol'], unit: 'L' },
   { title: 'Livelli cisterne', icon: 'fa-oil-can', kinds: ['opening_tank'], unit: 'L' },
-  { title: 'Movimenti cassa', icon: 'fa-exchange-alt', kinds: ['movimento_cassa'] },
+  {
+    title: 'Movimenti cassa',
+    icon: 'fa-exchange-alt',
+    kinds: ['movimento_cassa', 'customer_refund']
+  },
   { title: 'Crediti', icon: 'fa-credit-card', kinds: ['credito_movimento', 'credito_cliente'] },
   { title: 'Voucher', icon: 'fa-ticket-alt', kinds: ['voucher'] },
   { title: 'Fatture', icon: 'fa-file-invoice', kinds: ['invoice'] },
@@ -416,7 +478,8 @@ export async function showShiftSummary(
       creditiCliRes,
       vouchersRes,
       invoicesRes,
-      puntiRes
+      puntiRes,
+      customerRefundsRes
     ] = await Promise.all([
       supabase
         .from('shift_pistols')
@@ -460,6 +523,12 @@ export async function showShiftSummary(
       fromTable('punti_riscatti')
         .select('id, importo, created_at')
         .eq('station_id', numericStationId)
+        .eq('shift_id', shift.id),
+      fromTable('customer_refunds')
+        .select(
+          'id, shift_id, station_id, operator_id, amount, receipt_date, method, notes, created_at'
+        )
+        .eq('station_id', numericStationId)
         .eq('shift_id', shift.id)
     ]);
 
@@ -473,6 +542,7 @@ export async function showShiftSummary(
       vouchers: (vouchersRes.data ?? []) as unknown as VoucherRow[],
       invoices: (invoicesRes.data ?? []) as unknown as InvoiceRow[],
       puntiRiscatti: (puntiRes.data ?? []) as unknown as PuntoRiscattoRow[],
+      customerRefunds: (customerRefundsRes.data ?? []) as unknown as CustomerRefundRow[],
       canEdit
     });
 
@@ -566,7 +636,9 @@ function renderSummaryItem(item: ShiftSummaryItem, unit?: string): string {
     credito_cliente: 'fa-user-tag',
     voucher: 'fa-ticket-alt',
     invoice: 'fa-file-invoice',
-    punti_riscatti: 'fa-star'
+    punti_riscatti: 'fa-star',
+    non_erogato: 'fa-hand-holding-usd',
+    customer_refund: 'fa-undo'
   };
 
   const icon = kindIcons[item.kind] ?? 'fa-circle';
@@ -821,6 +893,32 @@ function buildEditForm(item: ShiftSummaryItem): string {
         <input type="number" name="importo" step="0.01" min="0" class="big-input" value="${item.amount}" required>
       </div>
     `;
+  } else if (item.kind === 'customer_refund') {
+    const receiptDate = (item.metadata?.receipt_date as string) || '';
+    const cleanNotes = item.description
+      ? item.description.replace(/ — Scontrino: .*$/, '').replace(/^Scontrino: .*$/, '')
+      : '';
+    fields = `
+      <div class="form-group">
+        <label>Importo (€)</label>
+        <input type="number" name="amount" step="0.01" min="0.01" class="big-input" value="${item.amount}" required>
+      </div>
+      <div class="form-group">
+        <label>Data scontrino</label>
+        <input type="date" name="receipt_date" class="big-input" value="${escapeHtml(receiptDate)}" required>
+      </div>
+      <div class="form-group">
+        <label>Metodo rimborso</label>
+        <select name="method" class="big-input" required>
+          <option value="cash" ${item.method === 'cash' ? 'selected' : ''}>Contanti</option>
+          <option value="erogation" ${item.method === 'erogation' ? 'selected' : ''}>Erogazione carburante</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Note</label>
+        <textarea name="notes" class="big-input" rows="2">${escapeHtml(cleanNotes)}</textarea>
+      </div>
+    `;
   }
 
   return `
@@ -923,6 +1021,16 @@ async function processEdit(
     const importo = parseFloat(fd.get('importo') as string);
     validateNumeric(importo);
     payload.importo = importo;
+  } else if (item.kind === 'customer_refund') {
+    const amount = parseFloat(fd.get('amount') as string);
+    validateNumeric(amount);
+    if (amount <= 0) {
+      throw new Error('Importo non valido');
+    }
+    payload.amount = amount;
+    payload.receipt_date = fd.get('receipt_date') as string;
+    payload.method = fd.get('method') as string;
+    payload.notes = fd.get('notes') as string;
   }
 
   const { error } = await fromTable(item.originalTable)

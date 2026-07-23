@@ -8,6 +8,67 @@ export type Database = {
   };
   public: {
     Tables: {
+      customer_refunds: {
+        Row: {
+          amount: number;
+          created_at: string;
+          id: number;
+          method: string;
+          notes: string | null;
+          operator_id: number | null;
+          receipt_date: string;
+          shift_id: number;
+          station_id: number;
+          updated_at: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          id?: number;
+          method: string;
+          notes?: string | null;
+          operator_id?: number | null;
+          receipt_date: string;
+          shift_id: number;
+          station_id: number;
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          id?: number;
+          method?: string;
+          notes?: string | null;
+          operator_id?: number | null;
+          receipt_date?: string;
+          shift_id?: number;
+          station_id?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'customer_refunds_operator_id_fkey';
+            columns: ['operator_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'customer_refunds_shift_id_fkey';
+            columns: ['shift_id'];
+            isOneToOne: false;
+            referencedRelation: 'shifts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'customer_refunds_station_id_fkey';
+            columns: ['station_id'];
+            isOneToOne: false;
+            referencedRelation: 'fuel_stations';
+            referencedColumns: ['station_id'];
+          }
+        ];
+      };
       apertura_turno_pistole_deprecated: {
         Row: {
           created_at: string | null;
@@ -1814,6 +1875,17 @@ export type Database = {
           p_shift_id: number;
           p_station_id: number;
           p_tank_usage?: Json;
+        };
+        Returns: Json;
+      };
+      create_customer_refund: {
+        Args: {
+          p_shift_id: number;
+          p_station_id: number;
+          p_amount: number;
+          p_receipt_date: string;
+          p_method: string;
+          p_notes?: string;
         };
         Returns: Json;
       };

@@ -33,7 +33,20 @@ export interface ShiftOpeningData {
   pos_amount: number;
   total_amount: number;
   uta_dkv_iscard: number;
-  cash_in_minus_out: number;
+  cash_in_minus_out?: number;
+}
+
+export interface CustomerRefund {
+  id: number;
+  shift_id: number;
+  station_id: number;
+  operator_id?: number | null;
+  amount: number;
+  receipt_date: string;
+  method: 'cash' | 'erogation';
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ShiftClosingData {

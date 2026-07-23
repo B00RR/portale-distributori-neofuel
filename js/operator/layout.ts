@@ -101,6 +101,10 @@ export async function renderOperatorShell(
                             <i class="fas fa-cash-register"></i>
                             <span>Incassi</span>
                         </button>
+                        <button class="op-submenu-item" id="btn-refund" data-testid="btn-refund">
+                            <i class="fas fa-undo"></i>
+                            <span>Rimborso clienti</span>
+                        </button>
                     </div>
                 </div>
 
@@ -340,6 +344,7 @@ function attachEventListeners(handlers: OperatorHandlers): void {
     'btn-voucher': 'voucher',
     'btn-uscite': 'uscite',
     'btn-incassi': 'incassi',
+    'btn-refund': 'rimborso',
     'btn-fatture': 'fatture',
     'btn-prezzi': 'prezzi'
   };
