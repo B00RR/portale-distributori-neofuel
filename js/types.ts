@@ -145,14 +145,17 @@ export interface MovimentoCassa {
 export interface Invoice {
   id: number;
   station_id: number;
-  operator_id: string;
-  cliente_id: number;
-  customer_name: string;
+  operator_id: number | string;
+  cliente_id?: number | null;
+  customer_name?: string | null;
   amount: number;
-  payment_method: 'contanti' | 'pos' | 'bonifico';
-  status: 'pending' | 'sent' | 'paid';
-  invoice_number: string;
-  invoice_date: string;
+  payment_method?: string | null;
+  product_category?: string | null;
+  description?: string | null;
+  status?: string | null;
+  invoice_number?: string | null;
+  invoice_date?: string | null;
+  created_at: string;
 }
 
 export interface PrezzoDistributore {
@@ -162,6 +165,19 @@ export interface PrezzoDistributore {
   prezzo_gasolio: number;
   data_validita: string;
   modificato_da?: string;
+}
+
+// ==========================================
+// PUNTO RISCATTO
+// ==========================================
+
+export interface PuntoRiscatto {
+  id: number;
+  station_id: number;
+  shift_id: number | null;
+  operator_id: number;
+  importo: number;
+  created_at: string;
 }
 
 // ==========================================

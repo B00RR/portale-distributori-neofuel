@@ -15,12 +15,21 @@ import { showAperturaForm } from './opening.js';
 import { showOutflowMenu } from './outflows.js';
 import { showPrezziEditForm } from './prices.js';
 import { getSelectedOperatorStationId } from './station-context.js';
+import { showShiftSummary } from './summary.js';
 import { showVoucherMenu } from './vouchers.js';
 
 // ========== TYPE DEFINITIONS ==========
 
 export type OperatorView =
-  'apertura' | 'chiusura' | 'prezzi' | 'crediti' | 'uscite' | 'incassi' | 'voucher' | 'fatture';
+  | 'apertura'
+  | 'chiusura'
+  | 'prezzi'
+  | 'crediti'
+  | 'uscite'
+  | 'incassi'
+  | 'voucher'
+  | 'fatture'
+  | 'resoconto';
 
 export const OPERATOR_VIEWS: readonly OperatorView[] = [
   'apertura',
@@ -30,7 +39,8 @@ export const OPERATOR_VIEWS: readonly OperatorView[] = [
   'uscite',
   'incassi',
   'voucher',
-  'fatture'
+  'fatture',
+  'resoconto'
 ] as const;
 
 export function isOperatorView(value: string): value is OperatorView {
@@ -98,6 +108,9 @@ class OperatorRouter {
         break;
       case 'fatture':
         showInvoiceMenu(stationId, numericUserId);
+        break;
+      case 'resoconto':
+        showShiftSummary(stationId, numericUserId);
         break;
       default:
         logger.warn('operatorRouter', 'Unknown view:', view);
