@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment happy-dom
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const {
@@ -9,7 +12,8 @@ const {
   mockOutflow,
   mockExtraIncome,
   mockVoucher,
-  mockInvoice
+  mockInvoice,
+  mockSummary
 } = vi.hoisted(() => ({
   mockStore: {
     getUser: vi.fn()
@@ -21,7 +25,8 @@ const {
   mockOutflow: { showOutflowMenu: vi.fn() },
   mockExtraIncome: { showExtraIncomeMenu: vi.fn() },
   mockVoucher: { showVoucherMenu: vi.fn() },
-  mockInvoice: { showInvoiceMenu: vi.fn() }
+  mockInvoice: { showInvoiceMenu: vi.fn() },
+  mockSummary: { showShiftSummary: vi.fn() }
 }));
 
 vi.mock('../../js/shared/state.js', () => ({ store: mockStore }));
@@ -33,6 +38,7 @@ vi.mock('../../js/operator/outflows.js', () => mockOutflow);
 vi.mock('../../js/operator/extra-income.js', () => mockExtraIncome);
 vi.mock('../../js/operator/vouchers.js', () => mockVoucher);
 vi.mock('../../js/operator/invoices.js', () => mockInvoice);
+vi.mock('../../js/operator/summary.js', () => mockSummary);
 
 import { router } from '../../js/operator/router.js';
 
@@ -87,6 +93,10 @@ describe('Operator Router', () => {
     it('should navigate to fatture', async () => {
       await router.navigateTo('fatture');
       expect(mockInvoice.showInvoiceMenu).toHaveBeenCalledWith('456', '1');
+    });
+    it('should navigate to resoconto', async () => {
+      await router.navigateTo('resoconto');
+      expect(mockSummary.showShiftSummary).toHaveBeenCalledWith('456', '1');
     });
 
     it('passes the numeric DB user_id to shift flows and the auth UUID only to vouchers (#248)', async () => {

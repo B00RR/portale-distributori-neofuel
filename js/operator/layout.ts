@@ -73,6 +73,11 @@ export async function renderOperatorShell(
                     <span class="status-badge" id="opening-status"></span>
                 </button>
 
+                <button class="op-menu-item" id="btn-resoconto" data-testid="btn-resoconto">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Resoconto turno</span>
+                </button>
+
                 <div class="op-menu-accordion" data-testid="menu-accordion-movements">
                     <button class="op-menu-item accordion-trigger" id="btn-movimenti" data-testid="btn-movimenti" aria-expanded="false" aria-controls="movimenti-content">
                         <i class="fas fa-exchange-alt"></i>
@@ -330,6 +335,7 @@ function attachEventListeners(handlers: OperatorHandlers): void {
   }
 
   const menuMap: Record<string, OperatorView> = {
+    'btn-resoconto': 'resoconto',
     'btn-crediti': 'crediti',
     'btn-voucher': 'voucher',
     'btn-uscite': 'uscite',

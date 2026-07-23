@@ -9,7 +9,8 @@ const {
   mockOutflow,
   mockExtraIncome,
   mockVoucher,
-  mockInvoice
+  mockInvoice,
+  mockSummary
 } = vi.hoisted(() => ({
   mockStore: {
     getUser: vi.fn()
@@ -21,7 +22,8 @@ const {
   mockOutflow: { showOutflowMenu: vi.fn() },
   mockExtraIncome: { showExtraIncomeMenu: vi.fn() },
   mockVoucher: { showVoucherMenu: vi.fn() },
-  mockInvoice: { showInvoiceMenu: vi.fn() }
+  mockInvoice: { showInvoiceMenu: vi.fn() },
+  mockSummary: { showShiftSummary: vi.fn() }
 }));
 
 vi.mock('../../js/shared/state.js', () => ({ store: mockStore }));
@@ -33,6 +35,7 @@ vi.mock('../../js/operator/outflows.js', () => mockOutflow);
 vi.mock('../../js/operator/extra-income.js', () => mockExtraIncome);
 vi.mock('../../js/operator/vouchers.js', () => mockVoucher);
 vi.mock('../../js/operator/invoices.js', () => mockInvoice);
+vi.mock('../../js/operator/summary.js', () => mockSummary);
 
 import { router, OPERATOR_VIEWS, isOperatorView } from '../../js/operator/router.js';
 
@@ -62,6 +65,7 @@ describe('Operator Hash Routing', () => {
       expect(isOperatorView('incassi')).toBe(true);
       expect(isOperatorView('voucher')).toBe(true);
       expect(isOperatorView('fatture')).toBe(true);
+      expect(isOperatorView('resoconto')).toBe(true);
     });
 
     it('rejects invalid views', () => {
@@ -73,8 +77,8 @@ describe('Operator Hash Routing', () => {
   });
 
   describe('OPERATOR_VIEWS whitelist', () => {
-    it('contains all 8 operator views', () => {
-      expect(OPERATOR_VIEWS).toHaveLength(8);
+    it('contains all 9 operator views', () => {
+      expect(OPERATOR_VIEWS).toHaveLength(9);
       expect(OPERATOR_VIEWS).toContain('apertura');
       expect(OPERATOR_VIEWS).toContain('chiusura');
       expect(OPERATOR_VIEWS).toContain('prezzi');
@@ -83,6 +87,7 @@ describe('Operator Hash Routing', () => {
       expect(OPERATOR_VIEWS).toContain('incassi');
       expect(OPERATOR_VIEWS).toContain('voucher');
       expect(OPERATOR_VIEWS).toContain('fatture');
+      expect(OPERATOR_VIEWS).toContain('resoconto');
     });
   });
 
