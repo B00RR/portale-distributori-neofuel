@@ -3,16 +3,16 @@
 // Issue #412 — Mostra e gestisce modifica/cancellazione voci turno
 // ==========================================
 
-import { supabase, type Json } from '../core/api.js';
+import { supabase, type Json, type AppSupabaseClient } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
+import type { Shift } from '../types.js';
 import { Toast } from '../ui/toast.js';
 import { openModal, closeModal, openConfirmModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
 
 import { checkOpeningStatus } from './opening.js';
-import type { Shift } from '../types.js';
 
 // ========== LOCAL INTERFACES ==========
 
@@ -46,8 +46,8 @@ export interface ShiftSummaryItem {
   metadata?: Record<string, unknown> | undefined;
 }
 
-function fromTable(table: string): any {
-  return supabase.from(table as never);
+function fromTable(table: string): ReturnType<AppSupabaseClient['from']> {
+  return (supabase.from(table as never) as unknown) as ReturnType<AppSupabaseClient['from']>;
 }
 
 interface ShiftPistolRow {
@@ -825,16 +825,22 @@ async function processEdit(
   const fd = new FormData(form);
 
   if (item.kind === 'opening_notes') {
+    if (!item.originalField) {
+      throw new Error('Campo originale mancante');
+    }
     const notes = fd.get('notes') as string;
-    await updateOpeningDataField(shift, item.originalField!, notes);
+    await updateOpeningDataField(shift, item.originalField, notes);
     return;
   }
 
   if (item.kind.startsWith('opening_') && !['opening_pistol', 'opening_tank'].includes(item.kind)) {
+    if (!item.originalField) {
+      throw new Error('Campo originale mancante');
+    }
     const rawVal = fd.get('amount') as string;
     const numVal = parseFloat(rawVal);
     validateNumeric(numVal);
-    await updateOpeningDataField(shift, item.originalField!, numVal);
+    await updateOpeningDataField(shift, item.originalField, numVal);
     return;
   }
 
@@ -902,7 +908,7 @@ async function processEdit(
     payload.importo = importo;
   }
 
-  const { error } = await fromTable(item.originalTable).update(payload).eq('id', item.originalId);
+  const { error } = await fromTable(item.originalTable).update(payload as never).eq('id', item.originalId);
   if (error) {
     throw error;
   }
@@ -913,12 +919,36 @@ async function updateOpeningDataField(
   field: string,
   value: unknown,
 ): Promise<void> {
-  const currentData =
+  const currentData: Record<string, Json> =
     shift.opening_data && typeof shift.opening_data === 'object' && !Array.isArray(shift.opening_data)
       ? { ...(shift.opening_data as Record<string, Json>) }
       : {};
 
-  currentData[field] = value as Json;
+  switch (field) {
+    case 'cash_in':
+      currentData.cash_in = value as Json;
+      break;
+    case 'cash_out':
+      currentData.cash_out = value as Json;
+      break;
+    case 'cash_in_minus_out':
+      currentData.cash_in_minus_out = value as Json;
+      break;
+    case 'pos_amount':
+      currentData.pos_amount = value as Json;
+      break;
+    case 'uta_dkv_iscard':
+      currentData.uta_dkv_iscard = value as Json;
+      break;
+    case 'total_amount':
+      currentData.total_amount = value as Json;
+      break;
+    case 'notes':
+      currentData.notes = value as Json;
+      break;
+    default:
+      throw new Error(`Campo non valido: ${field}`);
+  }
 
   const { error } = await supabase
     .from('shifts')
