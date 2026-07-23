@@ -21,7 +21,15 @@ import { showVoucherMenu } from './vouchers.js';
 // ========== TYPE DEFINITIONS ==========
 
 export type OperatorView =
-  'apertura' | 'chiusura' | 'prezzi' | 'crediti' | 'uscite' | 'incassi' | 'voucher' | 'fatture' | 'resoconto';
+  | 'apertura'
+  | 'chiusura'
+  | 'prezzi'
+  | 'crediti'
+  | 'uscite'
+  | 'incassi'
+  | 'voucher'
+  | 'fatture'
+  | 'resoconto';
 
 export const OPERATOR_VIEWS: readonly OperatorView[] = [
   'apertura',

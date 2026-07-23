@@ -47,7 +47,7 @@ export interface ShiftSummaryItem {
 }
 
 function fromTable(table: string): ReturnType<AppSupabaseClient['from']> {
-  return (supabase.from(table as never) as unknown) as ReturnType<AppSupabaseClient['from']>;
+  return supabase.from(table as never) as unknown as ReturnType<AppSupabaseClient['from']>;
 }
 
 interface ShiftPistolRow {
@@ -150,13 +150,26 @@ export function canEditShiftItems(shift: { status: string }): boolean {
  * Funzione pura: non accede a Supabase né al DOM.
  */
 export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSummaryItem[] {
-  const { shift, shiftPistols, tankReadings, movimentiCassa, creditiMovimenti, creditiClienti, vouchers, invoices, puntiRiscatti, canEdit } = input;
+  const {
+    shift,
+    shiftPistols,
+    tankReadings,
+    movimentiCassa,
+    creditiMovimenti,
+    creditiClienti,
+    vouchers,
+    invoices,
+    puntiRiscatti,
+    canEdit
+  } = input;
   const items: ShiftSummaryItem[] = [];
   const shiftCreated = shift.opened_at || shift.created_at;
 
   // --- 1. Opening data ---
   const openingData =
-    shift.opening_data && typeof shift.opening_data === 'object' && !Array.isArray(shift.opening_data)
+    shift.opening_data &&
+    typeof shift.opening_data === 'object' &&
+    !Array.isArray(shift.opening_data)
       ? (shift.opening_data as Record<string, Json>)
       : null;
 
@@ -174,12 +187,12 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
     { field: 'pos_amount', kind: 'opening_pos', label: 'POS apertura' },
     { field: 'uta_dkv_iscard', kind: 'opening_uta', label: 'UTA / DKV / iSCard' },
     { field: 'total_amount', kind: 'opening_total', label: 'Totale apertura' },
-    { field: 'notes', kind: 'opening_notes', label: 'Note apertura', isNote: true },
+    { field: 'notes', kind: 'opening_notes', label: 'Note apertura', isNote: true }
   ];
 
   for (const def of openingFields) {
     const raw = openingData ? openingData[def.field] : undefined;
-    const numericValue = def.isNote ? 0 : (typeof raw === 'number' ? raw : Number(raw) || 0);
+    const numericValue = def.isNote ? 0 : typeof raw === 'number' ? raw : Number(raw) || 0;
     const descriptionValue = def.isNote ? (typeof raw === 'string' ? raw : '') : undefined;
 
     items.push({
@@ -193,7 +206,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       deletable: false,
       originalTable: 'shifts',
       originalId: shift.id,
-      originalField: def.field,
+      originalField: def.field
     });
   }
 
@@ -210,7 +223,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       deletable: false,
       originalTable: 'shift_pistols',
       originalId: sp.id,
-      metadata: { pistola_id: sp.pistola_id },
+      metadata: { pistola_id: sp.pistola_id }
     });
   }
 
@@ -227,7 +240,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       deletable: false,
       originalTable: 'tank_readings',
       originalId: tr.id,
-      metadata: { tank_id: tr.tank_id },
+      metadata: { tank_id: tr.tank_id }
     });
   }
 
@@ -244,7 +257,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       editable: canEdit,
       deletable: canEdit,
       originalTable: 'movimenti_cassa',
-      originalId: mc.id,
+      originalId: mc.id
     });
   }
 
@@ -262,7 +275,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       editable: canEdit,
       deletable: canEdit,
       originalTable: 'crediti_movimenti',
-      originalId: cm.id,
+      originalId: cm.id
     });
   }
 
@@ -278,7 +291,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       editable: false, // mai modificabile — elimina e reinserisci
       deletable: canEdit,
       originalTable: 'crediti_clienti',
-      originalId: cc.id,
+      originalId: cc.id
     });
   }
 
@@ -294,7 +307,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       editable: false, // mai modificabile
       deletable: canEdit,
       originalTable: 'vouchers',
-      originalId: v.id,
+      originalId: v.id
     });
   }
 
@@ -315,8 +328,8 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       originalId: inv.id,
       metadata: {
         product_category: inv.product_category,
-        status: inv.status,
-      },
+        status: inv.status
+      }
     });
   }
 
@@ -331,7 +344,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       editable: canEdit,
       deletable: canEdit,
       originalTable: 'punti_riscatti',
-      originalId: pr.id,
+      originalId: pr.id
     });
   }
 
@@ -351,7 +364,7 @@ const CATEGORIES: CategoryDef[] = [
   {
     title: 'Dati apertura',
     icon: 'fa-door-open',
-    kinds: ['opening_cash', 'opening_pos', 'opening_uta', 'opening_total', 'opening_notes'],
+    kinds: ['opening_cash', 'opening_pos', 'opening_uta', 'opening_total', 'opening_notes']
   },
   { title: 'Contatori pistole', icon: 'fa-gas-pump', kinds: ['opening_pistol'], unit: 'L' },
   { title: 'Livelli cisterne', icon: 'fa-oil-can', kinds: ['opening_tank'], unit: 'L' },
@@ -359,7 +372,7 @@ const CATEGORIES: CategoryDef[] = [
   { title: 'Crediti', icon: 'fa-credit-card', kinds: ['credito_movimento', 'credito_cliente'] },
   { title: 'Voucher', icon: 'fa-ticket-alt', kinds: ['voucher'] },
   { title: 'Fatture', icon: 'fa-file-invoice', kinds: ['invoice'] },
-  { title: 'Punti riscattati', icon: 'fa-star', kinds: ['punti_riscatti'] },
+  { title: 'Punti riscattati', icon: 'fa-star', kinds: ['punti_riscatti'] }
 ];
 
 // ========== MAIN ENTRY POINT ==========
@@ -370,7 +383,7 @@ const CATEGORIES: CategoryDef[] = [
  */
 export async function showShiftSummary(
   stationId: number | string,
-  userId: string | number,
+  userId: string | number
 ): Promise<void> {
   const container = document.getElementById('operator-content');
   if (!container) {
@@ -380,7 +393,7 @@ export async function showShiftSummary(
 
   setSafeHTML(
     container,
-    '<div class="loading-spinner" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Caricamento resoconto…</div>',
+    '<div class="loading-spinner" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Caricamento resoconto…</div>'
   );
 
   try {
@@ -403,7 +416,7 @@ export async function showShiftSummary(
       creditiCliRes,
       vouchersRes,
       invoicesRes,
-      puntiRes,
+      puntiRes
     ] = await Promise.all([
       supabase
         .from('shift_pistols')
@@ -422,7 +435,9 @@ export async function showShiftSummary(
         .eq('shift_id', shift.id),
       supabase
         .from('crediti_movimenti')
-        .select('id, cliente_id, importo, metodo, note, operator_id, created_at, crediti_clienti(cliente)')
+        .select(
+          'id, cliente_id, importo, metodo, note, operator_id, created_at, crediti_clienti(cliente)'
+        )
         .eq('station_id', numericStationId)
         .eq('shift_id', shift.id),
       supabase
@@ -437,13 +452,15 @@ export async function showShiftSummary(
         .eq('shift_id', shift.id),
       supabase
         .from('invoices')
-        .select('id, customer_name, amount, payment_method, product_category, description, status, created_at')
+        .select(
+          'id, customer_name, amount, payment_method, product_category, description, status, created_at'
+        )
         .eq('station_id', numericStationId)
         .eq('shift_id', shift.id),
       fromTable('punti_riscatti')
         .select('id, importo, created_at')
         .eq('station_id', numericStationId)
-        .eq('shift_id', shift.id),
+        .eq('shift_id', shift.id)
     ]);
 
     const items = buildShiftSummaryItems({
@@ -456,7 +473,7 @@ export async function showShiftSummary(
       vouchers: (vouchersRes.data ?? []) as unknown as VoucherRow[],
       invoices: (invoicesRes.data ?? []) as unknown as InvoiceRow[],
       puntiRiscatti: (puntiRes.data ?? []) as unknown as PuntoRiscattoRow[],
-      canEdit,
+      canEdit
     });
 
     renderSummary(container, items, canEdit, shift, numericStationId, userId);
@@ -479,7 +496,7 @@ function renderNoShiftOpen(container: HTMLElement): void {
         <i class="fas fa-door-open"></i> Apri turno
       </button>
     </div>
-  `,
+  `
   );
 
   document.getElementById('btn-open-shift')?.addEventListener('click', () => {
@@ -497,7 +514,7 @@ function renderSummary(
   canEdit: boolean,
   shift: Shift,
   stationId: number,
-  userId: string | number,
+  userId: string | number
 ): void {
   const readOnlyBanner = !canEdit
     ? `<div class="warning-box" style="margin-bottom:1rem;padding:0.75rem 1rem;border-radius:8px;background:rgba(255,193,7,0.1);border-left:4px solid var(--warning-color,#ffc107);">
@@ -508,7 +525,7 @@ function renderSummary(
   let html = `<div class="content-box summary-resoconto">${readOnlyBanner}`;
 
   for (const cat of CATEGORIES) {
-    const catItems = items.filter((i) => (cat.kinds as string[]).includes(i.kind));
+    const catItems = items.filter(i => (cat.kinds as string[]).includes(i.kind));
     if (catItems.length === 0) {
       continue;
     }
@@ -549,7 +566,7 @@ function renderSummaryItem(item: ShiftSummaryItem, unit?: string): string {
     credito_cliente: 'fa-user-tag',
     voucher: 'fa-ticket-alt',
     invoice: 'fa-file-invoice',
-    punti_riscatti: 'fa-star',
+    punti_riscatti: 'fa-star'
   };
 
   const icon = kindIcons[item.kind] ?? 'fa-circle';
@@ -622,22 +639,22 @@ function attachSummaryActions(
   items: ShiftSummaryItem[],
   shift: Shift,
   stationId: number,
-  userId: string | number,
+  userId: string | number
 ): void {
-  container.querySelectorAll('.btn-edit-item').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
+  container.querySelectorAll('.btn-edit-item').forEach(btn => {
+    btn.addEventListener('click', e => {
       const target = (e.currentTarget as HTMLElement).dataset.itemId;
-      const item = items.find((i) => String(i.id) === target);
+      const item = items.find(i => String(i.id) === target);
       if (item) {
         void editSummaryItem(item, shift, stationId, userId);
       }
     });
   });
 
-  container.querySelectorAll('.btn-delete-item').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
+  container.querySelectorAll('.btn-delete-item').forEach(btn => {
+    btn.addEventListener('click', e => {
       const target = (e.currentTarget as HTMLElement).dataset.itemId;
-      const item = items.find((i) => String(i.id) === target);
+      const item = items.find(i => String(i.id) === target);
       if (item) {
         void deleteSummaryItem(item, stationId, userId);
       }
@@ -651,7 +668,7 @@ function attachSummaryActions(
 async function deleteSummaryItem(
   item: ShiftSummaryItem,
   stationId: number,
-  userId: string | number,
+  userId: string | number
 ): Promise<void> {
   // Opening items non sono eliminabili (guardia)
   if (item.kind.startsWith('opening_')) {
@@ -665,7 +682,7 @@ async function deleteSummaryItem(
   }
 
   const confirmed = await openConfirmModal(
-    `Vuoi eliminare "${item.label}"? Questa azione non può essere annullata.`,
+    `Vuoi eliminare "${item.label}"? Questa azione non può essere annullata.`
   );
   if (!confirmed) {
     return;
@@ -691,7 +708,7 @@ async function editSummaryItem(
   item: ShiftSummaryItem,
   shift: Shift,
   stationId: number,
-  userId: string | number,
+  userId: string | number
 ): Promise<void> {
   openModal(`Modifica: ${item.label}`);
   const modalBody = document.getElementById('modal-body');
@@ -707,7 +724,7 @@ async function editSummaryItem(
     return;
   }
 
-  form.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     try {
       await processEdit(item, shift, form);
@@ -820,7 +837,7 @@ function buildEditForm(item: ShiftSummaryItem): string {
 async function processEdit(
   item: ShiftSummaryItem,
   shift: Shift,
-  form: HTMLFormElement,
+  form: HTMLFormElement
 ): Promise<void> {
   const fd = new FormData(form);
 
@@ -908,19 +925,19 @@ async function processEdit(
     payload.importo = importo;
   }
 
-  const { error } = await fromTable(item.originalTable).update(payload as never).eq('id', item.originalId);
+  const { error } = await fromTable(item.originalTable)
+    .update(payload as never)
+    .eq('id', item.originalId);
   if (error) {
     throw error;
   }
 }
 
-async function updateOpeningDataField(
-  shift: Shift,
-  field: string,
-  value: unknown,
-): Promise<void> {
+async function updateOpeningDataField(shift: Shift, field: string, value: unknown): Promise<void> {
   const currentData: Record<string, Json> =
-    shift.opening_data && typeof shift.opening_data === 'object' && !Array.isArray(shift.opening_data)
+    shift.opening_data &&
+    typeof shift.opening_data === 'object' &&
+    !Array.isArray(shift.opening_data)
       ? { ...(shift.opening_data as Record<string, Json>) }
       : {};
 
