@@ -4,7 +4,8 @@ import {
   showClosureDetails,
   openBulkExportModal,
   handleBulkExport,
-  deleteClosure
+  deleteClosure,
+  computeShiftMetrics
 } from '../../js/admin/shifts.js';
 import { handleError } from '../../js/shared/error-handler.js';
 
@@ -178,20 +179,38 @@ describe('Admin Shifts Module', () => {
         operator_id: 'OP1',
         fuel_stations: { station_name: 'Test Station' },
         users: { full_name: 'Test User' },
+        opening_data: {
+          total_amount: 100,
+          cash_in: 100,
+          cash_out: 100
+        },
         closing_data: {
-          ricavo_teorico: 100,
           is_final: false
         }
       };
 
-      vi.mocked(supabase.from).mockReturnValueOnce({
+      const mockTable = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         range: vi.fn().mockReturnThis(),
         then: (resolve: (value: { data: unknown[]; error: null; count: number }) => unknown) =>
           resolve({ data: [sampleShift], error: null, count: 1 })
-      } as unknown as ReturnType<typeof supabase.from>);
+      };
+      const mockTotals = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
+        then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+          resolve({ data: [sampleShift], error: null })
+      };
+
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(mockTable as unknown as ReturnType<typeof supabase.from>)
+        .mockReturnValueOnce(mockTotals as unknown as ReturnType<typeof supabase.from>);
 
       await showChiusureTab(container, actions);
 
@@ -264,9 +283,11 @@ describe('Admin Shifts Module', () => {
         }
       };
 
-      vi.mocked(supabase.from).mockReturnValueOnce({
+      const mockTable1 = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         range: vi.fn().mockReturnThis(),
         then: (resolve: (value: { data: unknown[]; error: null; count: number }) => unknown) =>
@@ -275,7 +296,22 @@ describe('Admin Shifts Module', () => {
             error: null,
             count: 3
           })
-      } as unknown as ReturnType<typeof supabase.from>);
+      };
+      const mockTotals1 = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
+        then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+          resolve({
+            data: [sampleShift1, sampleShift2],
+            error: null
+          })
+      };
+
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(mockTable1 as unknown as ReturnType<typeof supabase.from>)
+        .mockReturnValueOnce(mockTotals1 as unknown as ReturnType<typeof supabase.from>);
 
       await showChiusureTab(container, actions);
 
@@ -330,9 +366,11 @@ describe('Admin Shifts Module', () => {
         }
       };
 
-      vi.mocked(supabase.from).mockReturnValueOnce({
+      const mockTable2 = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         range: vi.fn().mockReturnThis(),
         then: (resolve: (value: { data: unknown[]; error: null; count: number }) => unknown) =>
@@ -341,7 +379,22 @@ describe('Admin Shifts Module', () => {
             error: null,
             count: 2
           })
-      } as unknown as ReturnType<typeof supabase.from>);
+      };
+      const mockTotals2 = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
+        then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+          resolve({
+            data: [closure1, closure2],
+            error: null
+          })
+      };
+
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(mockTable2 as unknown as ReturnType<typeof supabase.from>)
+        .mockReturnValueOnce(mockTotals2 as unknown as ReturnType<typeof supabase.from>);
 
       await showChiusureTab(container, actions);
 
@@ -516,6 +569,258 @@ describe('Admin Shifts Module', () => {
       await deleteClosure(123);
 
       expect(supabase.rpc).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Task #425 Regression Tests', () => {
+    it('1. Turno aperto live-like: computeShiftMetrics returns correct values from opening_data', () => {
+      const openShift = {
+        status: 'open',
+        opening_data: {
+          cash_in: 300,
+          cash_out: 293.6,
+          total_amount: 545,
+          cash_in_minus_out: 6.4
+        }
+      };
+
+      const metrics = computeShiftMetrics(openShift);
+      expect(metrics.fuelRevenue).toBe(545);
+      expect(metrics.extraRevenue).toBe(0);
+      expect(metrics.totalSold).toBe(545);
+      expect(metrics.expectedCash).toBe(293.6);
+      expect(metrics.realCash).toBe(300);
+      expect(metrics.discrepancy).toBe(6.4);
+    });
+
+    it('2. Se cash_in_minus_out manca, discrepancy = cash_in - cash_out', () => {
+      const openShift = {
+        status: 'open',
+        opening_data: {
+          cash_in: 300,
+          cash_out: 293.6,
+          total_amount: 545
+        }
+      };
+
+      const metrics = computeShiftMetrics(openShift);
+      expect(metrics.discrepancy).toBeCloseTo(6.4);
+    });
+
+    it('3. La riga aperta mostra badge Apertura e Totale € = 545,00, non Aperto e non zero', async () => {
+      const { supabase } = await import('../../js/core/api.js');
+      const openShift = {
+        id: 34,
+        created_at: new Date().toISOString(),
+        closed_at: null,
+        status: 'open',
+        station_id: 'ST1',
+        operator_id: 'OP1',
+        fuel_stations: { station_name: 'Test Station' },
+        users: { full_name: 'Test Operator' },
+        opening_data: {
+          cash_in: 300,
+          cash_out: 293.6,
+          pos_amount: 251.4,
+          uta_dkv_iscard: 0,
+          total_amount: 545,
+          cash_in_minus_out: 6.4
+        },
+        closing_data: {}
+      };
+
+      const mockTable = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
+        then: (resolve: (v: unknown) => unknown) =>
+          resolve({ data: [openShift], error: null, count: 1 })
+      };
+      const mockTotals = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
+        then: (resolve: (v: unknown) => unknown) => resolve({ data: [openShift], error: null })
+      };
+
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(mockTable as unknown as ReturnType<typeof supabase.from>)
+        .mockReturnValueOnce(mockTotals as unknown as ReturnType<typeof supabase.from>);
+
+      await showChiusureTab(container, actions);
+
+      const typeBadge = container.querySelector('tbody .badge');
+      expect(typeBadge?.textContent).toBe('Apertura');
+      expect(container.innerHTML).toContain('545,00');
+      expect(container.innerHTML).not.toContain('>Aperto<');
+    });
+
+    it('4. Parziale/finale continua a leggere correttamente snapshot.computed e i fallback legacy', () => {
+      const shiftSnapshot = {
+        status: 'closed',
+        closing_data: {
+          snapshot: {
+            computed: {
+              fuel_revenue: 400,
+              extra_revenue: 50,
+              total_sold: 450,
+              expected_cash: 200,
+              real_cash: 195,
+              discrepancy: -5
+            }
+          }
+        }
+      };
+      const m1 = computeShiftMetrics(shiftSnapshot);
+      expect(m1.fuelRevenue).toBe(400);
+      expect(m1.extraRevenue).toBe(50);
+      expect(m1.totalSold).toBe(450);
+      expect(m1.expectedCash).toBe(200);
+      expect(m1.realCash).toBe(195);
+      expect(m1.discrepancy).toBe(-5);
+
+      const shiftLegacy = {
+        status: 'closed',
+        closing_data: {
+          ricavo_teorico: 300,
+          contante_atteso: 150,
+          operator_cash: 140,
+          computed: {
+            totale_venduto_carburante: 300,
+            totale_venduto_extra: 20
+          }
+        }
+      };
+      const m2 = computeShiftMetrics(shiftLegacy);
+      expect(m2.fuelRevenue).toBe(300);
+      expect(m2.extraRevenue).toBe(20);
+      expect(m2.totalSold).toBe(320);
+      expect(m2.expectedCash).toBe(150);
+      expect(m2.realCash).toBe(140);
+      expect(m2.discrepancy).toBe(-10);
+    });
+
+    it('5. Valori numerici come stringhe vengono convertiti; valori non finiti/invalidi diventano 0', () => {
+      const stringShift = {
+        status: 'open',
+        opening_data: {
+          cash_in: '300',
+          cash_out: '293.6',
+          total_amount: '545',
+          cash_in_minus_out: '6.4'
+        }
+      };
+      const m1 = computeShiftMetrics(stringShift);
+      expect(m1.totalSold).toBe(545);
+      expect(m1.realCash).toBe(300);
+      expect(m1.expectedCash).toBe(293.6);
+      expect(m1.discrepancy).toBe(6.4);
+
+      const invalidShift = {
+        status: 'open',
+        opening_data: {
+          cash_in: Infinity,
+          cash_out: 'invalid',
+          total_amount: NaN,
+          cash_in_minus_out: null
+        }
+      };
+      const m2 = computeShiftMetrics(invalidShift);
+      expect(m2.totalSold).toBe(0);
+      expect(m2.realCash).toBe(0);
+      expect(m2.expectedCash).toBe(0);
+      expect(m2.discrepancy).toBe(0);
+    });
+
+    it('6. Il Totale Giornaliero usa tutte le righe del periodo e non soltanto le righe della pagina corrente', async () => {
+      const { supabase } = await import('../../js/core/api.js');
+      const now = new Date().toISOString();
+
+      const shiftPage1 = {
+        id: 1,
+        created_at: now,
+        status: 'open',
+        opening_data: { total_amount: 545, cash_in: 300, cash_out: 293.6 }
+      };
+
+      const shiftPage2 = {
+        id: 2,
+        created_at: now,
+        status: 'open',
+        opening_data: { total_amount: 100, cash_in: 100, cash_out: 100 }
+      };
+
+      const mockTable = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
+        then: (resolve: (v: unknown) => unknown) =>
+          resolve({ data: [shiftPage1], error: null, count: 2 })
+      };
+
+      const mockTotals = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
+        then: (resolve: (v: unknown) => unknown) =>
+          resolve({ data: [shiftPage1, shiftPage2], error: null })
+      };
+
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(mockTable as unknown as ReturnType<typeof supabase.from>)
+        .mockReturnValueOnce(mockTotals as unknown as ReturnType<typeof supabase.from>);
+
+      await showChiusureTab(container, actions);
+
+      const rows = container.querySelectorAll('tbody tr');
+      expect(rows.length).toBe(1);
+
+      const card = container.querySelector('.daily-total-card');
+      expect(card?.textContent).toContain('645,00');
+    });
+
+    it('7. Il filtro stazione e i filtri data vengono applicati anche alla query non paginata dei totali', async () => {
+      const { supabase } = await import('../../js/core/api.js');
+      const { store } = await import('../../js/shared/state.js');
+
+      vi.mocked(store.getFilters).mockReturnValue({
+        rangeLabel: 'custom',
+        dateFrom: '2026-07-01',
+        dateTo: '2026-07-24'
+      });
+      vi.mocked(store.getFilter).mockReturnValue('2');
+
+      const eqFn = vi.fn().mockReturnThis();
+      const gteFn = vi.fn().mockReturnThis();
+      const ltFn = vi.fn().mockReturnThis();
+
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        eq: eqFn,
+        gte: gteFn,
+        lt: ltFn,
+        order: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
+        then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null, count: 0 })
+      };
+
+      vi.mocked(supabase.from).mockReturnValue(
+        mockQuery as unknown as ReturnType<typeof supabase.from>
+      );
+
+      await showChiusureTab(container, actions);
+
+      expect(eqFn).toHaveBeenCalledWith('station_id', 2);
+      expect(gteFn).toHaveBeenCalledWith('created_at', '2026-07-01');
+      expect(ltFn).toHaveBeenCalledWith('created_at', '2026-07-25');
     });
   });
 });
