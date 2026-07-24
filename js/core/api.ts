@@ -11,7 +11,7 @@ import { Cache, CACHE_KEYS } from '../utils/cache.js';
 
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 import { logger } from './logger.js';
-import { queueAction, type QueuedAction } from './offline-queue.js';
+import { getSafePayloadOwner, queueAction, type QueuedAction } from './offline-queue.js';
 
 // ========== TYPE DEFINITIONS ==========
 
@@ -40,6 +40,7 @@ export type QueryFunction<T = unknown> = () => PromiseLike<{
 export interface OfflineQueueRequest {
   type: QueuedAction['type'];
   payload: Record<string, unknown>;
+  options?: { userId?: string; stationId?: number };
 }
 
 // ========== SUPABASE CLIENT ==========
@@ -80,12 +81,8 @@ export async function safeSupabaseQuery<T = unknown>(
     return result as SupabaseQueryResult<T>;
   } catch (err) {
     if (offlineAction && isOfflineThrownError(err)) {
-      try {
-        await queueStructuredOfflineAction(offlineAction);
-        return { data: null, error: null, offline: true };
-      } catch (queueErr) {
-        logger.error('api.offlineQueue', queueErr);
-      }
+      await queueStructuredOfflineAction(offlineAction);
+      return { data: null, error: null, offline: true };
     }
     logger.error('api.safeSupabaseQuery', err);
     throw err;
@@ -107,7 +104,12 @@ function isOfflineThrownError(err: unknown): boolean {
 }
 
 async function queueStructuredOfflineAction(action: OfflineQueueRequest): Promise<void> {
-  await queueAction(action.type, action.payload);
+  const owner = action.options?.userId ?? getSafePayloadOwner(action.payload);
+  if (!owner) {
+    throw new Error('Azione offline rifiutata: manca identificatore proprietario (userId)');
+  }
+
+  await queueAction(action.type, action.payload, action.options);
 
   Toast.show(
     "Connessione assente. L'operazione e' stata salvata localmente e verra' sincronizzata appena possibile.",

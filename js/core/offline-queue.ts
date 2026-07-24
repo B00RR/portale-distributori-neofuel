@@ -85,6 +85,47 @@ const MAX_RETRIES = 3;
 let db: IDBDatabase | null = null;
 const executors: Map<string, ActionExecutor> = new Map();
 let syncInFlight: Promise<{ success: number; failed: number }> | null = null;
+let activeUserAliases: Set<string> | null = null;
+
+export function setOfflineQueueUserAliases(aliases: string[] | null | undefined): void {
+  if (!aliases || !Array.isArray(aliases) || aliases.length === 0) {
+    activeUserAliases = null;
+    return;
+  }
+  const valid = aliases.filter(a => typeof a === 'string' && a.trim() !== '').map(a => a.trim());
+  if (valid.length === 0) {
+    activeUserAliases = null;
+  } else {
+    activeUserAliases = new Set(valid);
+  }
+}
+
+export function getOfflineQueueUserAliases(): string[] | null {
+  return activeUserAliases ? Array.from(activeUserAliases) : null;
+}
+
+function normalizeOwnerVal(val: unknown): string | null {
+  if (typeof val === 'string' && val.trim()) {
+    return val.trim();
+  }
+  if (typeof val === 'number' && Number.isFinite(val)) {
+    return String(val);
+  }
+  return null;
+}
+
+function areOwnersEquivalent(ownerA: string | null, ownerB: string | null): boolean {
+  if (!ownerA || !ownerB) {
+    return false;
+  }
+  if (ownerA === ownerB) {
+    return true;
+  }
+  if (activeUserAliases && activeUserAliases.has(ownerA) && activeUserAliases.has(ownerB)) {
+    return true;
+  }
+  return false;
+}
 
 function normalizeDedupeValue(value: unknown): string | null {
   if (typeof value === 'string' && value.trim()) {
@@ -119,12 +160,16 @@ function getUpdateDedupeKey(
 
 function findDuplicateUpdateAction(
   actions: QueuedAction[],
-  dedupeKey: string
+  dedupeKey: string,
+  targetOwner: string
 ): QueuedAction | null {
   return (
     actions.find(
       action =>
-        action.status !== 'failed' && getUpdateDedupeKey(action.type, action.payload) === dedupeKey
+        action.status !== 'failed' &&
+        action.status !== 'quarantined' &&
+        getUpdateDedupeKey(action.type, action.payload) === dedupeKey &&
+        areOwnersEquivalent(getQueuedActionOwner(action), targetOwner)
     ) ?? null
   );
 }
@@ -153,6 +198,48 @@ function isRetryableError(action: QueuedAction): boolean {
     return false;
   }
   return true;
+}
+
+export function getSafePayloadOwner(
+  payload: Record<string, unknown> | null | undefined
+): string | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const opStr = normalizeOwnerVal(payload.operatorId);
+  const userStr = normalizeOwnerVal(payload.userId);
+
+  if (opStr !== null && userStr !== null) {
+    if (opStr === userStr) {
+      return opStr;
+    }
+    return null;
+  }
+  if (opStr !== null) {
+    return opStr;
+  }
+  if (userStr !== null) {
+    return userStr;
+  }
+  return null;
+}
+
+export function getQueuedActionOwner(action: QueuedAction): string | null {
+  const opStr = normalizeOwnerVal(action.payload?.operatorId);
+  const payloadUserStr = normalizeOwnerVal(action.payload?.userId);
+
+  if (opStr !== null && payloadUserStr !== null && opStr !== payloadUserStr) {
+    return null;
+  }
+
+  const payloadOwner = opStr !== null ? opStr : payloadUserStr;
+  const actionUser = normalizeOwnerVal(action.userId);
+
+  if (actionUser !== null && payloadOwner !== null && actionUser !== payloadOwner) {
+    return null;
+  }
+
+  return actionUser !== null ? actionUser : payloadOwner;
 }
 
 // ========== INITIALIZATION ==========
@@ -201,6 +288,35 @@ export async function queueAction(
   }
   const database = db;
 
+  const payloadOp = normalizeOwnerVal(payload?.operatorId);
+  const payloadUser = normalizeOwnerVal(payload?.userId);
+  if (payloadOp !== null && payloadUser !== null && payloadOp !== payloadUser) {
+    throw new Error(
+      "Impossibile accodare un'azione con metadati proprietario contraddittori (operatorId e userId discordanti)"
+    );
+  }
+
+  let resolvedUserId: string | null = null;
+  if (options?.userId && typeof options.userId === 'string' && options.userId.trim()) {
+    resolvedUserId = options.userId.trim();
+  } else {
+    resolvedUserId = getSafePayloadOwner(payload);
+  }
+
+  const payloadOwner = getSafePayloadOwner(payload);
+  if (resolvedUserId && payloadOwner && resolvedUserId !== payloadOwner) {
+    throw new Error(
+      "Impossibile accodare un'azione con metadati proprietario contraddittori (options.userId e payload owner discordanti)"
+    );
+  }
+
+  if (!resolvedUserId) {
+    throw new Error(
+      "Impossibile accodare un'azione senza proprietario (userId non specificato o derivabile)"
+    );
+  }
+  const normalizedOwner = resolvedUserId;
+
   const action: QueuedAction = {
     id: `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
     type,
@@ -209,7 +325,7 @@ export async function queueAction(
     retryCount: 0,
     revision: 1,
     status: 'pending',
-    ...(options?.userId !== undefined ? { userId: options.userId } : {}),
+    userId: normalizedOwner,
     ...(options?.stationId !== undefined ? { stationId: options.stationId } : {})
   };
 
@@ -240,7 +356,11 @@ export async function queueAction(
     const existingRequest = store.getAll();
 
     existingRequest.onsuccess = () => {
-      const duplicate = findDuplicateUpdateAction(existingRequest.result || [], dedupeKey);
+      const duplicate = findDuplicateUpdateAction(
+        existingRequest.result || [],
+        dedupeKey,
+        normalizedOwner
+      );
 
       if (!duplicate) {
         addAction();
@@ -250,6 +370,7 @@ export async function queueAction(
       const mergedAction: QueuedAction = {
         ...duplicate,
         payload,
+        userId: normalizedOwner,
         retryCount: 0,
         revision: getActionRevision(duplicate) + 1,
         status: 'pending',
@@ -368,9 +489,7 @@ export async function retryFailedAction(id: string): Promise<boolean> {
  */
 export async function cancelFailedAction(id: string): Promise<boolean> {
   const actions = await getAllQueuedActions();
-  const action = actions.find(
-    a => a.id === id && (a.status === 'failed' || a.status === 'quarantined')
-  );
+  const action = actions.find(a => a.id === id);
 
   if (!action) {
     return false;
@@ -379,6 +498,7 @@ export async function cancelFailedAction(id: string): Promise<boolean> {
   const updatedAction: QueuedAction = {
     ...action,
     status: 'quarantined',
+    revision: getActionRevision(action) + 1,
     errorType: 'permanent',
     lastError: action.lastError || "Annullata dall'utente",
     failedAt: action.failedAt || new Date().toISOString()
@@ -399,6 +519,94 @@ export async function cancelFailedAction(id: string): Promise<boolean> {
  */
 export async function removeQuarantinedAction(id: string): Promise<void> {
   await removeAction(id);
+}
+
+/**
+ * Quarantine all offline actions belonging to target user aliases (Auth UUID, numeric profile ID).
+ * Uses a single readwrite IndexedDB transaction with a cursor to ensure atomicity
+ * under concurrent deduplication or sync updates.
+ * Includes actions with status 'pending' or 'failed'.
+ * Does not touch actions belonging to other users.
+ * Fail-safe: if a record has no explicit or derivable owner, it is quarantined during deactivation.
+ */
+export async function quarantineUserActions(userAliases: string | string[]): Promise<number> {
+  const aliases = Array.isArray(userAliases) ? userAliases : [userAliases];
+  const targetAliasSet = new Set<string>();
+  for (const alias of aliases) {
+    if (alias && typeof alias === 'string' && alias.trim()) {
+      targetAliasSet.add(alias.trim());
+    }
+  }
+
+  if (targetAliasSet.size === 0) {
+    return 0;
+  }
+  if (!db) {
+    await initOfflineQueue();
+  }
+  if (!db) {
+    return 0;
+  }
+
+  const database = db;
+
+  return new Promise<number>((resolve, reject) => {
+    let transaction: IDBTransaction;
+    try {
+      transaction = database.transaction([STORE_NAME], 'readwrite');
+    } catch (err) {
+      reject(err);
+      return;
+    }
+
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.openCursor();
+    let count = 0;
+
+    request.onsuccess = event => {
+      const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result;
+      if (cursor) {
+        const action = cursor.value as QueuedAction;
+        if (action.status !== 'quarantined') {
+          const owner = getQueuedActionOwner(action);
+          const shouldQuarantine = owner === null || targetAliasSet.has(owner);
+
+          if (shouldQuarantine) {
+            const updatedAction: QueuedAction = {
+              ...action,
+              status: 'quarantined',
+              revision: getActionRevision(action) + 1,
+              errorType: 'permanent',
+              lastError: action.lastError || 'Account disattivato. Azione quarantinata.',
+              failedAt: action.failedAt || new Date().toISOString()
+            };
+            cursor.update(updatedAction);
+            count++;
+          }
+        }
+        cursor.continue();
+      }
+    };
+
+    request.onerror = () => {
+      reject(request.error || new Error('Error opening cursor for quarantine'));
+    };
+
+    transaction.oncomplete = () => {
+      if (count > 0) {
+        dispatchSyncStatusChanged();
+      }
+      resolve(count);
+    };
+
+    transaction.onerror = () => {
+      reject(transaction.error || new Error('Quarantine transaction failed'));
+    };
+
+    transaction.onabort = () => {
+      reject(transaction.error || new Error('Quarantine transaction aborted'));
+    };
+  });
 }
 
 function dispatchSyncStatusChanged(): void {
@@ -568,15 +776,47 @@ export function registerExecutor(type: QueuedAction['type'], executor: ActionExe
  */
 export function validateActionOwnership(
   action: QueuedAction,
-  currentUserId: string,
-  currentStationId: number | null
+  activeAliases?: string | string[] | Set<string> | null,
+  currentStationId?: number | null
 ): { valid: boolean; reason?: string } {
-  if (action.userId && action.userId !== currentUserId) {
-    return { valid: false, reason: 'Utente diverso da quello che ha creato la richiesta' };
+  let aliasSet: Set<string> | null = null;
+  if (activeAliases === undefined) {
+    aliasSet = activeUserAliases;
+  } else if (typeof activeAliases === 'string') {
+    if (activeAliases.trim()) {
+      aliasSet = new Set([activeAliases.trim()]);
+    }
+  } else if (Array.isArray(activeAliases)) {
+    const valid = activeAliases
+      .filter(a => typeof a === 'string' && a.trim() !== '')
+      .map(a => a.trim());
+    if (valid.length > 0) aliasSet = new Set(valid);
+  } else if (activeAliases instanceof Set) {
+    if (activeAliases.size > 0) aliasSet = activeAliases;
   }
-  if (action.stationId && currentStationId !== null && action.stationId !== currentStationId) {
-    return { valid: false, reason: 'Stazione diversa da quella della richiesta originale' };
+
+  if (!aliasSet || aliasSet.size === 0) {
+    return { valid: false, reason: 'no_active_user_context' };
   }
+
+  const owner = getQueuedActionOwner(action);
+  if (owner === null) {
+    return { valid: false, reason: 'ownerless' };
+  }
+
+  if (!aliasSet.has(owner)) {
+    return { valid: false, reason: 'user_mismatch' };
+  }
+
+  if (
+    action.stationId !== undefined &&
+    currentStationId !== undefined &&
+    currentStationId !== null &&
+    action.stationId !== currentStationId
+  ) {
+    return { valid: false, reason: 'station_mismatch' };
+  }
+
   return { valid: true };
 }
 
@@ -612,32 +852,18 @@ async function runSync(): Promise<{ success: number; failed: number }> {
   let manualAttention = 0;
 
   for (const action of pending) {
-    const executor = executors.get(action.type);
-
-    if (!executor) {
-      logger.warn('offlineQueue', 'No executor for action type:', action.type);
-      try {
-        await cancelFailedAction(action.id);
-      } catch (cancelErr) {
-        logger.error('offlineQueue', 'Failed to quarantine action without executor:', cancelErr);
-      }
-      failed++;
-      continue;
-    }
-
-    if (!isRetryableError(action)) {
-      logger.warn('offlineQueue', 'Skipping non-retryable action:', action.id, action.errorType);
-      failed++;
-      continue;
-    }
-
-    // Ownership check: skip actions that don't belong to the current user/station (#328)
-    const currentUserId = localStorage.getItem('userId') ?? undefined;
-    const currentStationId = localStorage.getItem('stationId')
-      ? Number(localStorage.getItem('stationId'))
-      : null;
-    const ownership = validateActionOwnership(action, currentUserId ?? '', currentStationId);
+    // Ownership check: validate action ownership against active user aliases
+    // Pass null for stationId context as global localStorage.stationId is not used by application
+    const ownership = validateActionOwnership(action, activeUserAliases, null);
     if (!ownership.valid) {
+      if (ownership.reason === 'no_active_user_context') {
+        logger.info(
+          'offlineQueue',
+          'Postponing action replay: no active user session context:',
+          action.id
+        );
+        continue;
+      }
       logger.warn(
         'offlineQueue',
         'Skipping action with mismatched ownership:',
@@ -653,6 +879,25 @@ async function runSync(): Promise<{ success: number; failed: number }> {
           cancelErr
         );
       }
+      failed++;
+      continue;
+    }
+
+    const executor = executors.get(action.type);
+
+    if (!executor) {
+      logger.warn('offlineQueue', 'No executor for action type:', action.type);
+      try {
+        await cancelFailedAction(action.id);
+      } catch (cancelErr) {
+        logger.error('offlineQueue', 'Failed to quarantine action without executor:', cancelErr);
+      }
+      failed++;
+      continue;
+    }
+
+    if (!isRetryableError(action)) {
+      logger.warn('offlineQueue', 'Skipping non-retryable action:', action.id, action.errorType);
       failed++;
       continue;
     }
