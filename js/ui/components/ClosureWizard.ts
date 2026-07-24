@@ -20,6 +20,7 @@ interface RpcResult {
     total_fuel_revenue?: number;
     fuel_revenue?: number;
     extra_revenue?: number;
+    new_credits?: number;
     total_sold?: number;
     total_cash_collected?: number;
     expected_cash?: number;
@@ -76,6 +77,7 @@ interface ServerTotals {
   total_fuel_revenue: number;
   fuel_revenue: number;
   extra_revenue: number;
+  new_credits: number;
   total_sold: number;
   total_cash_collected: number;
   expected_cash: number;
@@ -96,6 +98,7 @@ function emptyServerTotals(): ServerTotals {
     total_fuel_revenue: 0,
     fuel_revenue: 0,
     extra_revenue: 0,
+    new_credits: 0,
     total_sold: 0,
     total_cash_collected: 0,
     expected_cash: 0,
@@ -895,7 +898,8 @@ export class ClosureWizard extends BaseComponent {
           ...emptyServerTotals(),
           ...data.totals,
           // Map fuel_revenue to total_fuel_revenue for backward compat
-          total_fuel_revenue: data.totals.fuel_revenue ?? data.totals.total_fuel_revenue ?? 0
+          total_fuel_revenue: data.totals.fuel_revenue ?? data.totals.total_fuel_revenue ?? 0,
+          new_credits: data.totals.new_credits ?? 0
         };
       } else {
         this.serverTotals = null;
@@ -1032,6 +1036,9 @@ export class ClosureWizard extends BaseComponent {
         </div>
         <div class="preview-row">
           <span>Ricavo extra:</span><strong>${formatEuro(totals.extra_revenue)}</strong>
+        </div>
+        <div class="preview-row">
+          <span>Crediti:</span><strong>${formatEuro(totals.new_credits)}</strong>
         </div>
         <div class="preview-row highlight">
           <span>Totale venduto:</span><strong>${formatEuro(totals.total_sold)}</strong>
