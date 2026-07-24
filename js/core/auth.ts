@@ -78,6 +78,7 @@ export function setOnLoginSuccess(callback: LoginSuccessCallback): void {
 }
 
 export function setLoggedUser(user: LoggedUserData): void {
+  userStatusGeneration++;
   loggedUser = user;
   if (user) {
     const aliases: string[] = [];
@@ -613,8 +614,19 @@ export async function loadSession(): Promise<LoggedUserData | null> {
 /**
  * Clear current session and logout
  */
-export async function clearSession(): Promise<void> {
+export async function clearSession(expectedGen?: number, targetUserId?: string): Promise<void> {
+  if (expectedGen !== undefined && expectedGen !== userStatusGeneration) {
+    logger.warn('auth', 'Stale clearSession ignored (generation mismatch)');
+    return;
+  }
+  if (targetUserId && loggedUser && loggedUser.id !== targetUserId) {
+    logger.warn('auth', 'Stale clearSession ignored (user mismatch)');
+    return;
+  }
+
   cleanupUserStatusMonitoring();
+  const genAfterCleanup = userStatusGeneration;
+
   try {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -623,29 +635,45 @@ export async function clearSession(): Promise<void> {
   } catch (err) {
     logger.error('auth', 'Errore nel logout:', err);
   } finally {
-    // Clear Supabase localStorage keys
-    const localKeysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
-        localKeysToRemove.push(key);
+    if (
+      userStatusGeneration !== genAfterCleanup &&
+      loggedUser !== null &&
+      (targetUserId === undefined || loggedUser.id !== targetUserId)
+    ) {
+      logger.warn(
+        'auth',
+        'Stale clearSession finally block skipped (account switched during signOut)'
+      );
+    } else if (targetUserId && loggedUser && loggedUser.id !== targetUserId) {
+      logger.warn(
+        'auth',
+        'Stale clearSession finally block skipped (user mismatch during signOut)'
+      );
+    } else {
+      // Clear Supabase localStorage keys
+      const localKeysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+          localKeysToRemove.push(key);
+        }
       }
-    }
-    localKeysToRemove.forEach(key => localStorage.removeItem(key));
+      localKeysToRemove.forEach(key => localStorage.removeItem(key));
 
-    // Clear sessionStorage
-    const sessionKeysToRemove: string[] = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
-        sessionKeysToRemove.push(key);
+      // Clear sessionStorage
+      const sessionKeysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+          sessionKeysToRemove.push(key);
+        }
       }
-    }
-    sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+      sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
 
-    // Reset loggedUser and offline queue aliases
-    loggedUser = null;
-    setOfflineQueueUserAliases(null);
+      // Reset loggedUser and offline queue aliases
+      loggedUser = null;
+      setOfflineQueueUserAliases(null);
+    }
   }
 }
 
@@ -676,7 +704,7 @@ export async function handleUserDeactivation(userId: string, expectedGen?: numbe
 
   logger.warn('auth', 'Handling user deactivation for:', userId);
 
-  cleanupUserStatusMonitoring();
+  const currentGen = userStatusGeneration;
 
   const aliases: string[] = [];
   if (userId && typeof userId === 'string' && userId.trim()) {
@@ -697,11 +725,27 @@ export async function handleUserDeactivation(userId: string, expectedGen?: numbe
     }
   }
 
+  if (userStatusGeneration !== currentGen || (loggedUser && loggedUser.id !== userId)) {
+    logger.warn('auth', 'Stale deactivation ignored after quarantine (account switched):', userId);
+    return;
+  }
+
   try {
-    await clearSession();
+    await clearSession(currentGen, userId);
   } catch (csErr) {
     logger.error('auth', 'clearSession failed during deactivation:', csErr);
-    loggedUser = null;
+    if (userStatusGeneration === currentGen && loggedUser && loggedUser.id === userId) {
+      loggedUser = null;
+    }
+  }
+
+  if (userStatusGeneration !== currentGen && loggedUser !== null && loggedUser.id !== userId) {
+    logger.warn('auth', 'Stale deactivation ignored before UI update (account switched):', userId);
+    return;
+  }
+  if (loggedUser !== null && loggedUser.id !== userId) {
+    logger.warn('auth', 'Stale deactivation ignored before UI update (user mismatch):', userId);
+    return;
   }
 
   Toast.show('Account disattivato. Contatta un amministratore.', 'error', 7000);
@@ -742,8 +786,25 @@ export async function handleInvalidProfileSession(
 
   logger.warn('auth', 'Handling invalid profile session:', message);
 
-  cleanupUserStatusMonitoring();
-  await clearSession();
+  const currentGen = userStatusGeneration;
+
+  await clearSession(currentGen, userId);
+
+  if (
+    userStatusGeneration !== currentGen &&
+    loggedUser !== null &&
+    (userId === undefined || loggedUser.id !== userId)
+  ) {
+    logger.warn('auth', 'Stale invalid profile session handler ignored after clearSession');
+    return;
+  }
+  if (userId && loggedUser && loggedUser.id !== userId) {
+    logger.warn(
+      'auth',
+      'Stale invalid profile session handler ignored after clearSession (user mismatch)'
+    );
+    return;
+  }
 
   Toast.show(message, 'error', 7000);
 
@@ -983,7 +1044,9 @@ export function cleanupUserStatusMonitoring(): void {
   userStatusMonitoredUserId = null;
   if (userStatusChannel) {
     try {
-      void supabase.removeChannel(userStatusChannel);
+      supabase.removeChannel(userStatusChannel).catch((err: unknown) => {
+        logger.error('auth', 'Error removing userStatusChannel async:', err);
+      });
     } catch (err) {
       logger.error('auth', 'Error removing userStatusChannel:', err);
     }

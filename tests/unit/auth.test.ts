@@ -4,61 +4,74 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // 1. Hoist mock interactions
-const { mockSupabase, mockUI, mockToast, _mockUtils, mockSchemas, mockRateLimiter } = vi.hoisted(
-  () => {
-    const createQueryBuilder = (returnData: unknown = { data: null, error: null }) => {
-      const builder: Record<string, unknown> = {};
-      builder.select = vi.fn().mockReturnValue(builder);
-      builder.eq = vi.fn().mockReturnValue(builder);
-      builder.maybeSingle = vi.fn().mockResolvedValue(returnData);
-      builder.single = vi.fn().mockResolvedValue(returnData);
-      return builder;
-    };
+const {
+  mockSupabase,
+  mockUI,
+  mockToast,
+  _mockUtils,
+  mockSchemas,
+  mockRateLimiter,
+  realtimeChannels
+} = vi.hoisted(() => {
+  const realtimeChannels = new Map<string, Record<string, unknown>>();
 
-    return {
-      mockSupabase: {
-        auth: {
-          signInWithPassword: vi.fn(),
-          signOut: vi.fn(),
-          resetPasswordForEmail: vi.fn(),
-          updateUser: vi.fn(),
-          verifyOtp: vi.fn(),
-          getSession: vi.fn()
-        },
-        from: vi.fn(() => createQueryBuilder()),
-        rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
-        channel: vi.fn(() => {
-          const ch: Record<string, unknown> = {};
-          ch.on = vi.fn().mockReturnValue(ch);
-          ch.subscribe = vi.fn().mockReturnValue(ch);
+  const createQueryBuilder = (returnData: unknown = { data: null, error: null }) => {
+    const builder: Record<string, unknown> = {};
+    builder.select = vi.fn().mockReturnValue(builder);
+    builder.eq = vi.fn().mockReturnValue(builder);
+    builder.maybeSingle = vi.fn().mockResolvedValue(returnData);
+    builder.single = vi.fn().mockResolvedValue(returnData);
+    return builder;
+  };
+
+  return {
+    realtimeChannels,
+    mockSupabase: {
+      auth: {
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn(),
+        resetPasswordForEmail: vi.fn(),
+        updateUser: vi.fn(),
+        verifyOtp: vi.fn(),
+        getSession: vi.fn()
+      },
+      from: vi.fn(() => createQueryBuilder()),
+      rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+      channel: vi.fn((name: string) => {
+        const ch: Record<string, unknown> = { name };
+        ch.on = vi.fn((_event: string, _opts: unknown, callback: (payload: unknown) => void) => {
+          ch.onCallback = callback;
           return ch;
-        }),
-        removeChannel: vi.fn().mockResolvedValue(undefined)
-      },
-      mockUI: {
-        showFullScreenLoader: vi.fn(),
-        hideFullScreenLoader: vi.fn(),
-        setButtonLoading: vi.fn(),
-        showPromptModal: vi.fn()
-      },
-      mockToast: { show: vi.fn() },
-      mockUtils: {
-        isRateLimited: vi.fn().mockReturnValue(false),
-        resetRateLimit: vi.fn(),
-        getRemainingAttempts: vi.fn().mockReturnValue(5)
-      },
-      mockSchemas: {
-        LoginSchema: {},
-        safeParse: vi.fn((schema, data) => ({ success: true, data }))
-      },
-      mockRateLimiter: {
-        isRateLimited: vi.fn(() => false), // Default return
-        resetRateLimit: vi.fn(),
-        getRemainingAttempts: vi.fn(() => 5)
-      }
-    };
-  }
-);
+        });
+        ch.subscribe = vi.fn().mockReturnValue(ch);
+        realtimeChannels.set(name, ch);
+        return ch;
+      }),
+      removeChannel: vi.fn().mockResolvedValue(undefined)
+    },
+    mockUI: {
+      showFullScreenLoader: vi.fn(),
+      hideFullScreenLoader: vi.fn(),
+      setButtonLoading: vi.fn(),
+      showPromptModal: vi.fn()
+    },
+    mockToast: { show: vi.fn() },
+    mockUtils: {
+      isRateLimited: vi.fn().mockReturnValue(false),
+      resetRateLimit: vi.fn(),
+      getRemainingAttempts: vi.fn().mockReturnValue(5)
+    },
+    mockSchemas: {
+      LoginSchema: {},
+      safeParse: vi.fn((schema, data) => ({ success: true, data }))
+    },
+    mockRateLimiter: {
+      isRateLimited: vi.fn(() => false), // Default return
+      resetRateLimit: vi.fn(),
+      getRemainingAttempts: vi.fn(() => 5)
+    }
+  };
+});
 
 // 2. Mock modules
 const mockQuarantineUserActions = vi.fn().mockResolvedValue(1);
@@ -83,6 +96,7 @@ describe('Auth Module', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.resetModules(); // Restored for test isolation
+    realtimeChannels.clear();
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -977,20 +991,9 @@ describe('Auth Module', () => {
       });
     });
 
-    describe('5. Stale Realtime / timer callbacks after account switch (SECURITY/LOGIC)', () => {
-      it('ignores Realtime UPDATE event from old user subscription after account switch', async () => {
-        let oldOnCallback: ((payload: unknown) => void) | null = null;
-        const channelMock: Record<string, unknown> = {};
-        channelMock.on = vi.fn(
-          (_event: string, _opts: unknown, callback: (payload: unknown) => void) => {
-            oldOnCallback = callback;
-            return channelMock;
-          }
-        );
-        channelMock.subscribe = vi.fn().mockReturnValue(channelMock);
-        mockSupabase.channel.mockReturnValue(channelMock);
-
-        // User A logs in
+    describe('5. Stale Realtime / timer callbacks after account switch & TOCTOU race guards (SECURITY/LOGIC)', () => {
+      it('ignores Realtime UPDATE event from old user subscription after account switch (Blocker 3)', async () => {
+        // User A logs in and sets up monitoring
         authModule.setLoggedUser({
           id: 'user-A-uuid',
           user_id: 101,
@@ -1000,8 +1003,12 @@ describe('Auth Module', () => {
         });
         authModule.setupUserStatusMonitoring('user-A-uuid');
 
+        const channelA = realtimeChannels.get('user_status_user-A-uuid');
+        expect(channelA).toBeDefined();
+        const callbackA = channelA?.onCallback as ((payload: unknown) => void) | undefined;
+        expect(callbackA).toBeDefined();
+
         // Account switch to User B occurs (clears previous monitoring & sets new user)
-        authModule.cleanupUserStatusMonitoring();
         authModule.setLoggedUser({
           id: 'user-B-uuid',
           user_id: 202,
@@ -1011,14 +1018,178 @@ describe('Auth Module', () => {
         });
         authModule.setupUserStatusMonitoring('user-B-uuid');
 
-        // Trigger old Realtime callback for User A
-        oldOnCallback?.({ new: { is_active: false } });
+        const channelB = realtimeChannels.get('user_status_user-B-uuid');
+        expect(channelB).toBeDefined();
+        const callbackB = channelB?.onCallback as ((payload: unknown) => void) | undefined;
+        expect(callbackB).toBeDefined();
+
+        // Prove distinct callbacks were captured
+        expect(callbackA).not.toBe(callbackB);
+
+        // Invoke retained A callback after B is current
+        callbackA?.({ new: { is_active: false } });
+        await Promise.resolve();
 
         // Verify User B session is preserved and not deactivated
         expect(authModule.loggedUser?.id).toBe('user-B-uuid');
         expect(mockQuarantineUserActions).not.toHaveBeenCalledWith(
           expect.arrayContaining(['user-A-uuid'])
         );
+        expect(mockSupabase.auth.signOut).not.toHaveBeenCalled();
+        expect(mockToast.show).not.toHaveBeenCalled();
+
+        // Positive control: invoke B's valid inactive callback and assert normal B deactivation works
+        callbackB?.({ new: { is_active: false } });
+        await vi.waitFor(() => {
+          expect(mockQuarantineUserActions).toHaveBeenCalledWith(['user-B-uuid', '202']);
+          expect(mockSupabase.auth.signOut).toHaveBeenCalled();
+          expect(authModule.loggedUser).toBeNull();
+        });
+      });
+
+      it('aborts handleUserDeactivation for A when account B is installed while quarantine is in-flight (Blocker 2)', async () => {
+        let releaseQuarantine!: (count: number) => void;
+        const quarantinePromise = new Promise<number>(resolve => {
+          releaseQuarantine = resolve;
+        });
+        mockQuarantineUserActions.mockReturnValueOnce(quarantinePromise);
+
+        // User A logged in
+        authModule.setLoggedUser({
+          id: 'user-A-uuid',
+          user_id: 100,
+          email: 'usera@neofuel.local',
+          full_name: 'User A',
+          role: 'operator'
+        });
+
+        // Start deactivation for A
+        const deactivationPromise = authModule.handleUserDeactivation('user-A-uuid');
+
+        // Account B installed while quarantine is in-flight
+        authModule.setLoggedUser({
+          id: 'user-B-uuid',
+          user_id: 200,
+          email: 'userb@neofuel.local',
+          full_name: 'User B',
+          role: 'operator'
+        });
+
+        // Release quarantine for A
+        releaseQuarantine(1);
+        await deactivationPromise;
+
+        // Assert B remains logged in, B aliases/session/UI preserved, no post-await destructive effects
+        expect(authModule.loggedUser?.id).toBe('user-B-uuid');
+        expect(mockSupabase.auth.signOut).not.toHaveBeenCalled();
+        expect(mockToast.show).not.toHaveBeenCalled();
+      });
+
+      it('aborts handleInvalidProfileSession for A when account B is installed while signOut is in-flight (Blocker 2)', async () => {
+        let releaseSignOut!: (val: { error: null }) => void;
+        const signOutPromise = new Promise<{ error: null }>(resolve => {
+          releaseSignOut = resolve;
+        });
+        mockSupabase.auth.signOut.mockReturnValueOnce(signOutPromise);
+
+        // User A logged in
+        authModule.setLoggedUser({
+          id: 'user-A-uuid',
+          user_id: 100,
+          email: 'usera@neofuel.local',
+          full_name: 'User A',
+          role: 'operator'
+        });
+
+        // Start invalid profile session cleanup for A
+        const invalidProfilePromise = authModule.handleInvalidProfileSession(
+          'Profilo utente non disponibile',
+          'user-A-uuid'
+        );
+
+        // Account B installed while signOut is in-flight
+        authModule.setLoggedUser({
+          id: 'user-B-uuid',
+          user_id: 200,
+          email: 'userb@neofuel.local',
+          full_name: 'User B',
+          role: 'operator'
+        });
+
+        // Release signOut
+        releaseSignOut({ error: null });
+        await invalidProfilePromise;
+
+        // Assert B is not cleared
+        expect(authModule.loggedUser?.id).toBe('user-B-uuid');
+        expect(mockToast.show).not.toHaveBeenCalled();
+      });
+
+      it('aborts handleUserDeactivation for A when quarantine REJECTS and B is installed (Blocker 2)', async () => {
+        let rejectQuarantine!: (err: Error) => void;
+        const quarantinePromise = new Promise<number>((_, reject) => {
+          rejectQuarantine = reject;
+        });
+        mockQuarantineUserActions.mockReturnValueOnce(quarantinePromise);
+
+        authModule.setLoggedUser({
+          id: 'user-A-uuid',
+          user_id: 100,
+          email: 'usera@neofuel.local',
+          full_name: 'User A',
+          role: 'operator'
+        });
+
+        const deactivationPromise = authModule.handleUserDeactivation('user-A-uuid');
+
+        // Install User B
+        authModule.setLoggedUser({
+          id: 'user-B-uuid',
+          user_id: 200,
+          email: 'userb@neofuel.local',
+          full_name: 'User B',
+          role: 'operator'
+        });
+
+        rejectQuarantine(new Error('IDB failure'));
+        await deactivationPromise;
+
+        expect(authModule.loggedUser?.id).toBe('user-B-uuid');
+        expect(mockSupabase.auth.signOut).not.toHaveBeenCalled();
+        expect(mockToast.show).not.toHaveBeenCalled();
+      });
+
+      it('quarantines both A aliases, signs out, clears A, and shows expected message on valid current-user deactivation (Blocker 2 positive control)', async () => {
+        authModule.setLoggedUser({
+          id: 'user-A-uuid',
+          user_id: 100,
+          email: 'usera@neofuel.local',
+          full_name: 'User A',
+          role: 'operator'
+        });
+
+        await authModule.handleUserDeactivation('user-A-uuid');
+
+        expect(mockQuarantineUserActions).toHaveBeenCalledWith(['user-A-uuid', '100']);
+        expect(mockSupabase.auth.signOut).toHaveBeenCalled();
+        expect(authModule.loggedUser).toBeNull();
+        expect(mockToast.show).toHaveBeenCalledWith(
+          'Account disattivato. Contatta un amministratore.',
+          'error',
+          7000
+        );
+      });
+
+      it('handles removeChannel rejection asynchronously without unhandled promise rejection or breaking cleanup', async () => {
+        mockSupabase.removeChannel.mockRejectedValueOnce(
+          new Error('Realtime removeChannel websocket error')
+        );
+
+        authModule.setupUserStatusMonitoring('user-remove-err');
+        expect(() => authModule.cleanupUserStatusMonitoring()).not.toThrow();
+
+        await Promise.resolve(); // drain microtasks
+        expect(mockSupabase.removeChannel).toHaveBeenCalled();
       });
 
       it('ignores in-flight periodic check from old user that resolves after account switch', async () => {
@@ -1046,7 +1217,6 @@ describe('Auth Module', () => {
         const checkPromise = authModule.checkUserActiveStatus('user-A-uuid');
 
         // Account switch to User B happens while query is in-flight
-        authModule.cleanupUserStatusMonitoring();
         authModule.setLoggedUser({
           id: 'user-B-uuid',
           user_id: 202,
@@ -1090,7 +1260,6 @@ describe('Auth Module', () => {
         const checkPromise = authModule.checkUserActiveStatus('user-A-uuid');
 
         // Account switch to User B happens while query is in-flight
-        authModule.cleanupUserStatusMonitoring();
         authModule.setLoggedUser({
           id: 'user-B-uuid',
           user_id: 202,
@@ -1178,7 +1347,7 @@ describe('Auth Module', () => {
         }
       });
 
-      it('fails closed when profile_missing or PGRST116 is returned or thrown while navigator.onLine=false', async () => {
+      it('fails closed when profile_missing, profile_ambiguous, or PGRST116 is returned or thrown while navigator.onLine=false', async () => {
         const originalOnLine = navigator.onLine;
         Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
 
@@ -1218,7 +1387,42 @@ describe('Auth Module', () => {
 
           vi.clearAllMocks();
 
-          // 3. loadSession returned profile_missing while offline
+          // 3. checkUserActiveStatus returned profile_ambiguous while offline
+          mockSupabase.from.mockReturnValueOnce({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'profile_ambiguous', code: 'P0001' }
+            })
+          });
+          const res3 = await authModule.checkUserActiveStatus('user-ambiguous-offline');
+          expect(res3).toBe(false);
+          expect(mockToast.show).toHaveBeenCalledWith(
+            'Profilo utente non disponibile o non autorizzato.',
+            'error',
+            7000
+          );
+
+          vi.clearAllMocks();
+
+          // 4. checkUserActiveStatus thrown profile_ambiguous while offline
+          mockSupabase.from.mockReturnValueOnce({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockRejectedValue(new Error('profile_ambiguous'))
+          });
+          const res4 = await authModule.checkUserActiveStatus('user-ambiguous-exc-offline');
+          expect(res4).toBe(false);
+          expect(mockToast.show).toHaveBeenCalledWith(
+            'Profilo utente non disponibile o non autorizzato.',
+            'error',
+            7000
+          );
+
+          vi.clearAllMocks();
+
+          // 5. loadSession returned profile_missing while offline
           mockSupabase.auth.getSession.mockResolvedValueOnce({
             data: { session: { user: { id: 'user-load-missing', email: 'u3@test.com' } } },
             error: null
@@ -1231,8 +1435,8 @@ describe('Auth Module', () => {
               error: { message: 'profile_missing', code: 'P0001' }
             })
           });
-          const res3 = await authModule.loadSession();
-          expect(res3).toBeNull();
+          const res5 = await authModule.loadSession();
+          expect(res5).toBeNull();
           expect(mockSupabase.auth.signOut).toHaveBeenCalled();
         } finally {
           Object.defineProperty(navigator, 'onLine', { value: originalOnLine, configurable: true });

@@ -244,6 +244,13 @@ export function getQueuedActionOwner(action: QueuedAction): string | null {
 
 // ========== INITIALIZATION ==========
 
+export function closeOfflineQueue(): void {
+  if (db) {
+    db.close();
+    db = null;
+  }
+}
+
 /**
  * Initialize the IndexedDB database
  */
