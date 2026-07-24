@@ -60,13 +60,20 @@ export async function processPointsRedeem(
   const numericShiftId = shiftId ? Number(shiftId) : null;
 
   if (!options?.skipOfflineQueue && isOffline()) {
-    await queueAction('movement_create', {
-      kind: 'points_redeem',
-      stationId: numericStationId,
-      operatorId: String(userId),
-      shiftId: numericShiftId,
-      amount
-    });
+    await queueAction(
+      'movement_create',
+      {
+        kind: 'points_redeem',
+        stationId: numericStationId,
+        operatorId: String(userId),
+        shiftId: numericShiftId,
+        amount
+      },
+      {
+        userId: String(userId),
+        stationId: numericStationId
+      }
+    );
     return;
   }
 

@@ -3,6 +3,8 @@
  * Handles user authentication, login, logout, and password reset
  */
 
+import type { RealtimeChannel } from '@supabase/supabase-js';
+
 import { deriveAuthAlias } from '../../supabase/functions/_shared/auth-identity.js';
 import { handleError } from '../shared/error-handler.js';
 import { isBackofficeRole, normalizeUserRole, type UserRole } from '../shared/roles.js';
@@ -18,6 +20,7 @@ import { setSafeHTML } from '../utils/sanitizer.js';
 
 import { supabase } from './api.js';
 import { logger } from './logger.js';
+import { quarantineUserActions, setOfflineQueueUserAliases } from './offline-queue.js';
 import { LoginSchema, safeParse } from './schemas.js';
 
 // ========== TYPE DEFINITIONS ==========
@@ -65,14 +68,46 @@ let loginFormInitialized = false;
 export let loggedUser: LoggedUserData | null = null;
 let onLoginSuccessCallback: LoginSuccessCallback | null = null;
 
+let userStatusChannel: RealtimeChannel | null = null;
+let userStatusRevalidationTimer: ReturnType<typeof setInterval> | null = null;
+
 // ========== PUBLIC FUNCTIONS ==========
+
+let signOutInFlight: Promise<void> | null = null;
+
+export function awaitCurrentSignOut(): Promise<void> {
+  return signOutInFlight || Promise.resolve();
+}
 
 export function setOnLoginSuccess(callback: LoginSuccessCallback): void {
   onLoginSuccessCallback = callback;
 }
 
 export function setLoggedUser(user: LoggedUserData): void {
+  const identityChanged = !loggedUser || loggedUser.id !== user.id;
+  if (identityChanged) {
+    if (user) {
+      setupUserStatusMonitoring(user.id);
+    } else {
+      cleanupUserStatusMonitoring();
+    }
+  }
   loggedUser = user;
+  if (user) {
+    const aliases: string[] = [];
+    if (user.id && typeof user.id === 'string' && user.id.trim()) {
+      aliases.push(user.id.trim());
+    }
+    if (user.user_id != null) {
+      const profileIdStr = String(user.user_id).trim();
+      if (profileIdStr && !aliases.includes(profileIdStr)) {
+        aliases.push(profileIdStr);
+      }
+    }
+    setOfflineQueueUserAliases(aliases);
+  } else {
+    setOfflineQueueUserAliases(null);
+  }
 }
 
 /**
@@ -220,6 +255,7 @@ export function setupLoginForm(): void {
 
     let authenticationSucceeded = false;
     try {
+      await awaitCurrentSignOut();
       showFullScreenLoader();
       const submitBtn = loginForm?.querySelector(
         'button[type="submit"]'
@@ -278,19 +314,55 @@ export function setupLoginForm(): void {
           .maybeSingle();
 
         if (userError || !dbUserData) {
+          const isInactive = userError?.message?.includes('account_inactive');
           if (userError) {
             logger.error('auth', 'Unable to load trusted user profile:', userError);
           } else {
             logger.warn('auth', 'Trusted user profile not found');
           }
           loggedUser = null;
+          if (authData.user.id) {
+            try {
+              if (isInactive) {
+                await quarantineUserActions(authData.user.id);
+              }
+            } catch (qErr) {
+              logger.error('auth', 'quarantine failed during login cleanup:', qErr);
+            }
+          }
           try {
             await supabase.auth.signOut();
           } catch (signOutErr) {
             logger.error('auth', 'signOut failed during login cleanup:', signOutErr);
           }
           if (errorElement) {
-            errorElement.textContent = 'Profilo utente non disponibile o non autorizzato.';
+            errorElement.textContent = isInactive
+              ? 'Account disattivato. Contatta un amministratore.'
+              : 'Profilo utente non disponibile o non autorizzato.';
+          }
+          return;
+        }
+
+        if (dbUserData.is_active === false) {
+          logger.warn('auth', 'Trusted user profile is inactive (is_active=false)');
+          loggedUser = null;
+          const inactiveAliases: string[] = [];
+          if (authData.user.id) inactiveAliases.push(authData.user.id);
+          if (dbUserData.user_id != null) inactiveAliases.push(String(dbUserData.user_id));
+          if (inactiveAliases.length > 0) {
+            try {
+              await quarantineUserActions(inactiveAliases);
+            } catch (qErr) {
+              logger.error('auth', 'quarantine failed during inactive login:', qErr);
+            }
+          }
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutErr) {
+            logger.error('auth', 'signOut failed during inactive login:', signOutErr);
+          }
+          if (errorElement) {
+            errorElement.textContent = 'Account disattivato. Contatta un amministratore.';
           }
           return;
         }
@@ -336,6 +408,10 @@ export function setupLoginForm(): void {
       }
 
       loggedUser = userData;
+      const aliases: string[] = [];
+      if (userData.id) aliases.push(userData.id);
+      if (userData.user_id != null) aliases.push(String(userData.user_id));
+      setOfflineQueueUserAliases(aliases);
 
       // [TESTBILITY] Allow role override via query param for E2E testing (dev-only)
       if (import.meta.env.DEV) {
@@ -386,6 +462,8 @@ export function setupLoginForm(): void {
         loggedUser.assignedStations = mapAssignedStations(loggedUser.user_stations);
         onLoginSuccessCallback(loggedUser);
       }
+
+      setupUserStatusMonitoring(loggedUser.id);
     } catch (err: unknown) {
       logger.error('auth', 'Errore durante il login (catch):', err);
       loggedUser = null;
@@ -413,6 +491,7 @@ export function setupLoginForm(): void {
  * Load existing session
  */
 export async function loadSession(): Promise<LoggedUserData | null> {
+  await awaitCurrentSignOut();
   try {
     const isPasswordResetPersistent = localStorage.getItem('password_reset_session');
     if (isPasswordResetPersistent) {
@@ -429,31 +508,76 @@ export async function loadSession(): Promise<LoggedUserData | null> {
 
     const email = session.user.email ?? '';
 
-    const { data: dbUserData, error: profileError } = await supabase
-      .from('users')
-      .select(
-        `
+    let dbUserData: Record<string, unknown> | null = null;
+    let profileError: { message?: string; code?: string; status?: number } | null = null;
+    try {
+      const res = await supabase
+        .from('users')
+        .select(
+          `
                 *,
                 user_stations(
                     station_id,
                     fuel_stations(station_name)
                 )
             `
-      )
-      .eq('created_by_auth', session.user.id)
-      .maybeSingle();
+        )
+        .eq('created_by_auth', session.user.id)
+        .maybeSingle();
 
-    if (profileError || !dbUserData) {
-      if (profileError) {
-        logger.error('auth', 'Unable to load trusted session profile:', profileError);
-      } else {
-        logger.warn('auth', 'Trusted session profile not found');
+      dbUserData = res.data;
+      profileError = res.error;
+    } catch (err) {
+      if (isTransportOrOfflineError(err)) {
+        logger.warn('auth', 'Transport/offline exception loading session profile:', err);
+        return null;
       }
-      try {
-        await supabase.auth.signOut();
-      } catch (signOutErr) {
-        logger.error('auth', 'signOut failed during session recovery:', signOutErr);
+      profileError = err as { message?: string; code?: string; status?: number };
+    }
+
+    if (profileError) {
+      if (isTransportOrOfflineError(profileError)) {
+        logger.warn('auth', 'Transport/offline error loading session profile:', profileError);
+        return null;
       }
+      const isInactive = profileError?.message?.includes('account_inactive');
+      logger.error('auth', 'Unable to load trusted session profile:', profileError);
+      if (session.user.id) {
+        try {
+          if (isInactive) {
+            await quarantineUserActions(session.user.id);
+          }
+        } catch (qErr) {
+          logger.error('auth', 'Failed to quarantine user actions during session recovery:', qErr);
+        }
+      }
+      await clearSession();
+      if (isInactive) {
+        Toast.show('Account disattivato. Contatta un amministratore.', 'error', 7000);
+      }
+      return null;
+    }
+
+    if (!dbUserData) {
+      logger.warn('auth', 'Trusted session profile not found');
+      await clearSession();
+      return null;
+    }
+
+    if (dbUserData.is_active === false) {
+      logger.warn('auth', 'Trusted session profile is inactive (is_active=false)');
+      const inactiveAliases: string[] = [];
+      if (session.user.id) inactiveAliases.push(session.user.id);
+      if (dbUserData.user_id != null) inactiveAliases.push(String(dbUserData.user_id));
+      if (inactiveAliases.length > 0) {
+        try {
+          await quarantineUserActions(inactiveAliases);
+        } catch (qErr) {
+          logger.error('auth', 'Failed to quarantine user actions during session recovery:', qErr);
+        }
+      }
+      await clearSession();
+      Toast.show('Account disattivato. Contatta un amministratore.', 'error', 7000);
       return null;
     }
 
@@ -471,15 +595,29 @@ export async function loadSession(): Promise<LoggedUserData | null> {
       'Operatore';
     const userData: LoggedUserData = {
       id: session.user.id,
-      user_id: dbUserData.user_id,
-      email: dbUserData.email,
-      full_name: fullName,
+      user_id: dbUserData.user_id as number,
+      email: (dbUserData.email as string) || email,
+      full_name: String(fullName),
       role: trustedRole,
-      user_stations: dbUserData.user_stations,
-      assignedStations: mapAssignedStations(dbUserData.user_stations)
+      ...(dbUserData.user_stations
+        ? { user_stations: dbUserData.user_stations as UserStationData[] }
+        : {}),
+      assignedStations: mapAssignedStations(
+        dbUserData.user_stations as UserStationData[] | undefined
+      )
     };
 
-    userData.assignedStations = mapAssignedStations(userData.user_stations);
+    // Install loggedUser FIRST
+    loggedUser = userData;
+
+    // Install offline queue user aliases SECOND
+    const sessionAliases: string[] = [];
+    if (userData.id) sessionAliases.push(userData.id);
+    if (userData.user_id != null) sessionAliases.push(String(userData.user_id));
+    setOfflineQueueUserAliases(sessionAliases);
+
+    // Setup user status monitoring THIRD
+    setupUserStatusMonitoring(userData.id);
 
     return userData;
   } catch (err) {
@@ -491,29 +629,471 @@ export async function loadSession(): Promise<LoggedUserData | null> {
 /**
  * Clear current session and logout
  */
-export async function clearSession(): Promise<void> {
+export async function clearSession(expectedGen?: number, targetUserId?: string): Promise<void> {
+  if (expectedGen !== undefined && expectedGen !== userStatusGeneration) {
+    logger.warn('auth', 'Stale clearSession ignored (generation mismatch)');
+    return;
+  }
+  if (targetUserId && loggedUser && loggedUser.id !== targetUserId) {
+    logger.warn('auth', 'Stale clearSession ignored (user mismatch)');
+    return;
+  }
+
+  if (signOutInFlight) {
+    await signOutInFlight;
+  }
+
+  if (expectedGen !== undefined && expectedGen !== userStatusGeneration) {
+    logger.warn('auth', 'Stale clearSession ignored after awaiting (generation mismatch)');
+    return;
+  }
+  if (targetUserId && loggedUser && loggedUser.id !== targetUserId) {
+    logger.warn('auth', 'Stale clearSession ignored after awaiting (user mismatch)');
+    return;
+  }
+
+  cleanupUserStatusMonitoring();
+  const genAfterCleanup = userStatusGeneration;
+
+  const signOutPromise = (async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        logger.error('auth', 'Errore nel logout:', error);
+      }
+    } catch (err) {
+      logger.error('auth', 'Errore nel logout:', err);
+    } finally {
+      if (
+        userStatusGeneration !== genAfterCleanup &&
+        loggedUser !== null &&
+        (targetUserId === undefined || loggedUser.id !== targetUserId)
+      ) {
+        logger.warn(
+          'auth',
+          'Stale clearSession finally block skipped (account switched during signOut)'
+        );
+      } else if (targetUserId && loggedUser && loggedUser.id !== targetUserId) {
+        logger.warn(
+          'auth',
+          'Stale clearSession finally block skipped (user mismatch during signOut)'
+        );
+      } else {
+        // Clear Supabase localStorage keys
+        const localKeysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+            localKeysToRemove.push(key);
+          }
+        }
+        localKeysToRemove.forEach(key => localStorage.removeItem(key));
+
+        // Clear sessionStorage
+        const sessionKeysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+            sessionKeysToRemove.push(key);
+          }
+        }
+        sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+
+        // Reset loggedUser and offline queue aliases
+        loggedUser = null;
+        setOfflineQueueUserAliases(null);
+      }
+    }
+  })();
+
+  signOutInFlight = signOutPromise.finally(() => {
+    signOutInFlight = null;
+  });
+
+  await signOutPromise;
+}
+
+let userStatusGeneration = 0;
+let userStatusMonitoredUserId: string | null = null;
+
+function isMonitoringSessionValid(monitoredUserId: string, gen: number): boolean {
+  return (
+    userStatusGeneration === gen &&
+    userStatusMonitoredUserId === monitoredUserId &&
+    loggedUser !== null &&
+    loggedUser.id === monitoredUserId
+  );
+}
+
+/**
+ * Handle immediate account deactivation on event or verification check
+ */
+export async function handleUserDeactivation(userId: string, expectedGen?: number): Promise<void> {
+  if (expectedGen !== undefined && expectedGen !== userStatusGeneration) {
+    logger.warn('auth', 'Stale deactivation ignored (generation mismatch):', userId);
+    return;
+  }
+  if (loggedUser && loggedUser.id !== userId) {
+    logger.warn('auth', 'Stale deactivation ignored (user mismatch):', userId);
+    return;
+  }
+
+  logger.warn('auth', 'Handling user deactivation for:', userId);
+
+  const currentGen = userStatusGeneration;
+
+  const aliases: string[] = [];
+  if (userId && typeof userId === 'string' && userId.trim()) {
+    aliases.push(userId.trim());
+  }
+  if (loggedUser && loggedUser.id === userId && loggedUser.user_id != null) {
+    const profileIdStr = String(loggedUser.user_id).trim();
+    if (profileIdStr && !aliases.includes(profileIdStr)) {
+      aliases.push(profileIdStr);
+    }
+  }
+
+  if (aliases.length > 0) {
+    try {
+      await quarantineUserActions(aliases);
+    } catch (qErr) {
+      logger.error('auth', 'Failed to quarantine user actions during deactivation:', qErr);
+    }
+  }
+
+  if (userStatusGeneration !== currentGen || (loggedUser && loggedUser.id !== userId)) {
+    logger.warn('auth', 'Stale deactivation ignored after quarantine (account switched):', userId);
+    return;
+  }
+
   try {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      logger.error('auth', 'Errore nel logout:', error);
+    await clearSession(currentGen, userId);
+  } catch (csErr) {
+    logger.error('auth', 'clearSession failed during deactivation:', csErr);
+    if (userStatusGeneration === currentGen && loggedUser && loggedUser.id === userId) {
+      loggedUser = null;
+    }
+  }
+
+  if (userStatusGeneration !== currentGen && loggedUser !== null && loggedUser.id !== userId) {
+    logger.warn('auth', 'Stale deactivation ignored before UI update (account switched):', userId);
+    return;
+  }
+  if (loggedUser !== null && loggedUser.id !== userId) {
+    logger.warn('auth', 'Stale deactivation ignored before UI update (user mismatch):', userId);
+    return;
+  }
+
+  Toast.show('Account disattivato. Contatta un amministratore.', 'error', 7000);
+
+  const errorElement = document.getElementById('login-error');
+  if (errorElement) {
+    errorElement.textContent = 'Account disattivato. Contatta un amministratore.';
+  }
+
+  const loginContainer = document.getElementById('login-container');
+  const appContainer = document.getElementById('app-container');
+  if (loginContainer) {
+    loginContainer.style.display = 'block';
+    loginContainer.classList.remove('hidden');
+  }
+  if (appContainer) {
+    appContainer.style.display = 'none';
+    appContainer.classList.add('hidden');
+  }
+}
+
+/**
+ * Handle session clearance for missing or ambiguous user profile
+ */
+export async function handleInvalidProfileSession(
+  message: string,
+  userId?: string,
+  expectedGen?: number
+): Promise<void> {
+  if (expectedGen !== undefined && expectedGen !== userStatusGeneration) {
+    logger.warn('auth', 'Stale invalid profile session handler ignored (generation mismatch)');
+    return;
+  }
+  if (userId && loggedUser && loggedUser.id !== userId) {
+    logger.warn('auth', 'Stale invalid profile session handler ignored (user mismatch)');
+    return;
+  }
+
+  logger.warn('auth', 'Handling invalid profile session:', message);
+
+  const currentGen = userStatusGeneration;
+
+  await clearSession(currentGen, userId);
+
+  if (
+    userStatusGeneration !== currentGen &&
+    loggedUser !== null &&
+    (userId === undefined || loggedUser.id !== userId)
+  ) {
+    logger.warn('auth', 'Stale invalid profile session handler ignored after clearSession');
+    return;
+  }
+  if (userId && loggedUser && loggedUser.id !== userId) {
+    logger.warn(
+      'auth',
+      'Stale invalid profile session handler ignored after clearSession (user mismatch)'
+    );
+    return;
+  }
+
+  Toast.show(message, 'error', 7000);
+
+  const errorElement = document.getElementById('login-error');
+  if (errorElement) {
+    errorElement.textContent = message;
+  }
+
+  const loginContainer = document.getElementById('login-container');
+  const appContainer = document.getElementById('app-container');
+  if (loginContainer) {
+    loginContainer.style.display = 'block';
+    loginContainer.classList.remove('hidden');
+  }
+  if (appContainer) {
+    appContainer.style.display = 'none';
+    appContainer.classList.add('hidden');
+  }
+}
+
+function isAuthoritativeSemanticError(err: unknown): boolean {
+  if (!err) {
+    return false;
+  }
+  const errorObj = err as { message?: string; name?: string; status?: number; code?: string };
+  const msg = (errorObj.message || String(err)).toLowerCase();
+  const code = (errorObj.code || '').toLowerCase();
+
+  return (
+    msg.includes('account_inactive') ||
+    msg.includes('profile_missing') ||
+    msg.includes('profile_ambiguous') ||
+    msg.includes('pgrst116') ||
+    code === 'pgrst116'
+  );
+}
+
+function isTransportOrOfflineError(err: unknown): boolean {
+  if (isAuthoritativeSemanticError(err)) {
+    return false;
+  }
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return true;
+  }
+  if (!err) {
+    return false;
+  }
+  const errorObj = err as { message?: string; name?: string; status?: number; code?: string };
+  const msg = (errorObj.message || String(err)).toLowerCase();
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('networkerror') ||
+    msg.includes('network error') ||
+    msg.includes('fetch failed') ||
+    (errorObj.name === 'TypeError' && msg.includes('fetch')) ||
+    errorObj.status === 0 ||
+    errorObj.code === 'FetchError'
+  );
+}
+
+/**
+ * Check if the active user profile remains active (is_active !== false)
+ */
+export async function checkUserActiveStatus(
+  userId: string,
+  expectedGen?: number
+): Promise<boolean> {
+  if (expectedGen !== undefined && expectedGen !== userStatusGeneration) {
+    return true;
+  }
+  if (loggedUser && loggedUser.id !== userId) {
+    return true;
+  }
+
+  try {
+    const { data: dbUserData, error } = await supabase
+      .from('users')
+      .select('is_active')
+      .eq('created_by_auth', userId)
+      .maybeSingle();
+
+    if (expectedGen !== undefined && expectedGen !== userStatusGeneration) {
+      return true;
+    }
+    if (loggedUser && loggedUser.id !== userId) {
+      return true;
     }
 
-    // Clear Supabase localStorage keys
-    const supabaseKeys = Object.keys(localStorage).filter(
-      key => key.startsWith('sb-') || key.includes('supabase')
-    );
-    supabaseKeys.forEach(key => localStorage.removeItem(key));
+    if (error) {
+      if (isTransportOrOfflineError(error)) {
+        logger.warn('auth', 'Transport/offline error checking user active status:', error);
+        return true;
+      }
 
-    // Clear sessionStorage
-    const supabaseSessionKeys = Object.keys(sessionStorage).filter(
-      key => key.startsWith('sb-') || key.includes('supabase')
-    );
-    supabaseSessionKeys.forEach(key => sessionStorage.removeItem(key));
+      const msg = error.message || '';
+      const code = error.code || '';
+      if (msg.includes('account_inactive')) {
+        await handleUserDeactivation(userId, expectedGen);
+        return false;
+      }
+      if (
+        msg.includes('profile_missing') ||
+        msg.includes('profile_ambiguous') ||
+        code === 'PGRST116' ||
+        msg.includes('PGRST116')
+      ) {
+        await handleInvalidProfileSession(
+          'Profilo utente non disponibile o non autorizzato.',
+          userId,
+          expectedGen
+        );
+        return false;
+      }
 
-    // Reset loggedUser
-    loggedUser = null;
+      logger.error('auth', 'Semantic/unknown error checking user active status:', error);
+      await handleInvalidProfileSession(
+        'Profilo utente non disponibile o non autorizzato.',
+        userId,
+        expectedGen
+      );
+      return false;
+    }
+
+    if (!dbUserData) {
+      logger.warn('auth', 'User active status check returned null data without error');
+      await handleInvalidProfileSession(
+        'Profilo utente non disponibile o non autorizzato.',
+        userId,
+        expectedGen
+      );
+      return false;
+    }
+
+    if (dbUserData.is_active === false) {
+      await handleUserDeactivation(userId, expectedGen);
+      return false;
+    }
+
+    return true;
   } catch (err) {
-    logger.error('auth', 'Errore nel logout:', err);
+    if (expectedGen !== undefined && expectedGen !== userStatusGeneration) {
+      return true;
+    }
+    if (loggedUser && loggedUser.id !== userId) {
+      return true;
+    }
+
+    if (isTransportOrOfflineError(err)) {
+      logger.warn('auth', 'Transport/offline exception checking user active status:', err);
+      return true;
+    }
+
+    const errorObj = err as { message?: string; code?: string };
+    const msg = (errorObj?.message || String(err)).toLowerCase();
+    if (msg.includes('account_inactive')) {
+      await handleUserDeactivation(userId, expectedGen);
+      return false;
+    }
+
+    logger.error('auth', 'Exception checking user active status:', err);
+    await handleInvalidProfileSession(
+      'Profilo utente non disponibile o non autorizzato.',
+      userId,
+      expectedGen
+    );
+    return false;
+  }
+}
+
+/**
+ * Subscribe to Realtime postgres_changes on users table for the active user
+ * and set up fallback periodic revalidation.
+ */
+export function setupUserStatusMonitoring(userId: string): void {
+  if (userStatusMonitoredUserId === userId && userStatusChannel !== null) {
+    return;
+  }
+  cleanupUserStatusMonitoring();
+
+  if (!userId) {
+    return;
+  }
+
+  const currentGen = userStatusGeneration;
+  userStatusMonitoredUserId = userId;
+
+  try {
+    userStatusChannel = supabase
+      .channel(`user_status_${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `created_by_auth=eq.${userId}`
+        },
+        async payload => {
+          if (!isMonitoringSessionValid(userId, currentGen)) {
+            logger.warn('auth', 'Ignoring stale Realtime update event for:', userId);
+            return;
+          }
+          const updatedUser = payload.new as { is_active?: boolean | null } | undefined;
+          if (updatedUser && updatedUser.is_active === false) {
+            logger.warn('auth', 'Realtime update: user is_active set to false');
+            if (!isMonitoringSessionValid(userId, currentGen)) {
+              logger.warn('auth', 'Ignoring stale Realtime update event after check for:', userId);
+              return;
+            }
+            await handleUserDeactivation(userId, currentGen);
+          }
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || err) {
+          logger.error('auth', 'Realtime user status subscription error:', err || status);
+        }
+      });
+  } catch (err) {
+    logger.error('auth', 'Failed to subscribe to user status realtime:', err);
+  }
+
+  userStatusRevalidationTimer = setInterval(async () => {
+    if (!isMonitoringSessionValid(userId, currentGen)) {
+      cleanupUserStatusMonitoring();
+      return;
+    }
+    await checkUserActiveStatus(userId, currentGen);
+    if (!isMonitoringSessionValid(userId, currentGen)) {
+      return;
+    }
+  }, 60000);
+}
+
+/**
+ * Clean up active user status Realtime channel and revalidation timer
+ */
+export function cleanupUserStatusMonitoring(): void {
+  userStatusGeneration++;
+  userStatusMonitoredUserId = null;
+  if (userStatusChannel) {
+    try {
+      supabase.removeChannel(userStatusChannel).catch((err: unknown) => {
+        logger.error('auth', 'Error removing userStatusChannel async:', err);
+      });
+    } catch (err) {
+      logger.error('auth', 'Error removing userStatusChannel:', err);
+    }
+    userStatusChannel = null;
+  }
+  if (userStatusRevalidationTimer !== null) {
+    clearInterval(userStatusRevalidationTimer);
+    userStatusRevalidationTimer = null;
   }
 }
 

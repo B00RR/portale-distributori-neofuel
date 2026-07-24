@@ -1117,20 +1117,28 @@ export class ClosureWizard extends BaseComponent {
     // Check if offline - queue action for later sync
     if (isOffline()) {
       try {
-        await queueAction('shift_close', {
-          shiftId: activeOpeningId,
-          stationId: this.numericStationId,
-          isFinal: false,
-          finalCounters: finalCountersJson,
-          selfCashIn,
-          selfCashOut,
-          selfPos,
-          selfFleet,
-          selfManager,
-          operatorCash,
-          operatorPos,
-          operatorUta
-        });
+        const currentUserId = this.userId || localStorage.getItem('userId') || undefined;
+        await queueAction(
+          'shift_close',
+          {
+            shiftId: activeOpeningId,
+            stationId: this.numericStationId,
+            isFinal: false,
+            finalCounters: finalCountersJson,
+            selfCashIn,
+            selfCashOut,
+            selfPos,
+            selfFleet,
+            selfManager,
+            operatorCash,
+            operatorPos,
+            operatorUta
+          },
+          {
+            ...(currentUserId ? { userId: currentUserId } : {}),
+            stationId: this.numericStationId
+          }
+        );
         Toast.show('Chiusura salvata. Verra sincronizzata quando online.', 'info');
         window.location.hash = '';
         setTimeout(() => window.location.reload(), 2000);

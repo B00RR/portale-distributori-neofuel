@@ -432,12 +432,19 @@ export class VoucherManager extends BaseComponent {
     // Check if offline - queue action for later sync
     if (isOffline()) {
       try {
-        await queueAction('voucher_redeem', {
-          voucherCode: this.activeVoucher.code,
-          stationId: this.stationId,
-          operatorId: this.userId,
-          voucherAmount: this.activeVoucher.amount
-        });
+        await queueAction(
+          'voucher_redeem',
+          {
+            voucherCode: this.activeVoucher.code,
+            stationId: this.stationId,
+            operatorId: this.userId,
+            voucherAmount: this.activeVoucher.amount
+          },
+          {
+            userId: String(this.userId),
+            stationId: Number(this.stationId)
+          }
+        );
         this.mode = 'success';
         this.emit('voucher-redeemed', { voucher: this.activeVoucher, queued: true });
       } catch (err) {
