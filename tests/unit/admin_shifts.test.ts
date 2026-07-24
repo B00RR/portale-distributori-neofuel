@@ -288,6 +288,71 @@ describe('Admin Shifts Module', () => {
       expect(container.innerHTML).toContain('318,50');
       expect(container.innerHTML).toContain('1,50');
     });
+
+    it('should render each closure as a separate row in the table when an operator has multiple closures on the same day', async () => {
+      const { supabase } = await import('../../js/core/api.js');
+      const now = new Date();
+      const todayISO = now.toISOString();
+
+      const closure1 = {
+        id: 101,
+        created_at: todayISO,
+        closed_at: todayISO,
+        status: 'closed',
+        station_id: 'ST1',
+        operator_id: 'OP1',
+        fuel_stations: { station_name: 'Stazione Nord' },
+        users: { full_name: 'Mario Rossi' },
+        closing_data: {
+          computed: {
+            totale_venduto_carburante: 100,
+            expected_cash: 100,
+            real_cash: 100
+          }
+        }
+      };
+
+      const closure2 = {
+        id: 102,
+        created_at: todayISO,
+        closed_at: todayISO,
+        status: 'closed',
+        station_id: 'ST1',
+        operator_id: 'OP1',
+        fuel_stations: { station_name: 'Stazione Nord' },
+        users: { full_name: 'Mario Rossi' },
+        closing_data: {
+          computed: {
+            totale_venduto_carburante: 200,
+            expected_cash: 200,
+            real_cash: 200
+          }
+        }
+      };
+
+      vi.mocked(supabase.from).mockReturnValueOnce({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
+        then: (resolve: (value: { data: unknown[]; error: null; count: number }) => unknown) =>
+          resolve({
+            data: [closure1, closure2],
+            error: null,
+            count: 2
+          })
+      } as unknown as ReturnType<typeof supabase.from>);
+
+      await showChiusureTab(container, actions);
+
+      const tableRows = container.querySelectorAll('tbody tr');
+      expect(tableRows.length).toBe(2);
+
+      const viewButtons = container.querySelectorAll('.view-closure');
+      expect(viewButtons.length).toBe(2);
+      expect((viewButtons[0] as HTMLElement).dataset.id).toBe('101');
+      expect((viewButtons[1] as HTMLElement).dataset.id).toBe('102');
+    });
   });
 
   describe('showClosureDetails', () => {
