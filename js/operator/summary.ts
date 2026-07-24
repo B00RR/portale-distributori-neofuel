@@ -130,7 +130,7 @@ export interface BuildShiftSummaryInput {
   tankReadings: TankReadingRow[];
   movimentiCassa: MovimentoCassaRow[];
   creditiMovimenti: CreditoMovimentoRow[];
-  creditiClienti: CreditoClienteRow[];
+  creditiClienti?: CreditoClienteRow[];
   vouchers: VoucherRow[];
   invoices: InvoiceRow[];
   puntiRiscatti: PuntoRiscattoRow[];
@@ -171,7 +171,6 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
     tankReadings,
     movimentiCassa,
     creditiMovimenti,
-    creditiClienti,
     vouchers,
     invoices,
     puntiRiscatti,
@@ -275,6 +274,9 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
 
   // --- 4. Movimenti cassa ---
   for (const mc of movimentiCassa) {
+    if (mc.tipo?.trim().toLowerCase() === 'credito') {
+      continue;
+    }
     items.push({
       id: mc.id,
       kind: 'movimento_cassa',
@@ -292,14 +294,15 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
 
   // --- 5. Crediti movimenti ---
   for (const cm of creditiMovimenti) {
+    const rawMethod = cm.metodo?.trim().toLowerCase();
     items.push({
       id: cm.id,
       kind: 'credito_movimento',
-      label: 'Pagamento credito',
+      label: cm.crediti_clienti?.cliente || 'Credito',
       amount: cm.importo,
-      method: cm.metodo ?? undefined,
+      method: cm.metodo && rawMethod !== 'credito' ? cm.metodo : undefined,
       description: cm.note ?? undefined,
-      customerName: cm.crediti_clienti?.cliente ?? undefined,
+      customerName: undefined,
       createdAt: cm.created_at,
       editable: canEdit,
       deletable: canEdit,
@@ -308,23 +311,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
     });
   }
 
-  // --- 6. Crediti clienti ---
-  for (const cc of creditiClienti) {
-    items.push({
-      id: cc.id,
-      kind: 'credito_cliente',
-      label: cc.cliente || 'Credito cliente',
-      amount: cc.importo ?? cc.saldo ?? 0,
-      customerName: cc.cliente,
-      createdAt: cc.created_at,
-      editable: false, // mai modificabile — elimina e reinserisci
-      deletable: canEdit,
-      originalTable: 'crediti_clienti',
-      originalId: cc.id
-    });
-  }
-
-  // --- 7. Voucher ---
+  // --- 6. Voucher ---
   for (const v of vouchers) {
     items.push({
       id: v.id,
@@ -340,7 +327,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
     });
   }
 
-  // --- 8. Invoices ---
+  // --- 7. Invoices ---
   for (const inv of invoices) {
     items.push({
       id: inv.id,
@@ -362,7 +349,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
     });
   }
 
-  // --- 9. Punti riscattati ---
+  // --- 8. Punti riscattati ---
   for (const pr of puntiRiscatti) {
     items.push({
       id: pr.id,
@@ -376,7 +363,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       originalId: pr.id
     });
   }
-  // --- 10. Customer refunds ---
+  // --- 9. Customer refunds ---
   const customerRefunds = input.customerRefunds ?? [];
   for (const cr of customerRefunds) {
     items.push({
@@ -431,7 +418,7 @@ const CATEGORIES: CategoryDef[] = [
     icon: 'fa-exchange-alt',
     kinds: ['movimento_cassa', 'customer_refund']
   },
-  { title: 'Crediti', icon: 'fa-credit-card', kinds: ['credito_movimento', 'credito_cliente'] },
+  { title: 'Crediti', icon: 'fa-credit-card', kinds: ['credito_movimento'] },
   { title: 'Voucher', icon: 'fa-ticket-alt', kinds: ['voucher'] },
   { title: 'Fatture', icon: 'fa-file-invoice', kinds: ['invoice'] },
   { title: 'Punti riscattati', icon: 'fa-star', kinds: ['punti_riscatti'] }
@@ -441,15 +428,16 @@ const CATEGORIES: CategoryDef[] = [
 
 /**
  * Mostra il resoconto del turno corrente.
- * Renderizza in #operator-content.
+ * Renderizza in modale condivisa (#modal-body).
  */
 export async function showShiftSummary(
   stationId: number | string,
   userId: string | number
 ): Promise<void> {
-  const container = document.getElementById('operator-content');
+  openModal('Resoconto turno');
+  const container = document.getElementById('modal-body');
   if (!container) {
-    logger.error('summary', 'Container #operator-content non trovato');
+    logger.error('summary', 'Container #modal-body non trovato');
     return;
   }
 
@@ -475,7 +463,6 @@ export async function showShiftSummary(
       tanksRes,
       movimentiRes,
       creditiMovRes,
-      creditiCliRes,
       vouchersRes,
       invoicesRes,
       puntiRes,
@@ -501,11 +488,6 @@ export async function showShiftSummary(
         .select(
           'id, cliente_id, importo, metodo, note, operator_id, created_at, crediti_clienti(cliente)'
         )
-        .eq('station_id', numericStationId)
-        .eq('shift_id', shift.id),
-      supabase
-        .from('crediti_clienti')
-        .select('id, cliente, importo, saldo, created_at')
         .eq('station_id', numericStationId)
         .eq('shift_id', shift.id),
       supabase
@@ -538,7 +520,6 @@ export async function showShiftSummary(
       tankReadings: (tanksRes.data ?? []) as unknown as TankReadingRow[],
       movimentiCassa: (movimentiRes.data ?? []) as unknown as MovimentoCassaRow[],
       creditiMovimenti: (creditiMovRes.data ?? []) as unknown as CreditoMovimentoRow[],
-      creditiClienti: (creditiCliRes.data ?? []) as unknown as CreditoClienteRow[],
       vouchers: (vouchersRes.data ?? []) as unknown as VoucherRow[],
       invoices: (invoicesRes.data ?? []) as unknown as InvoiceRow[],
       puntiRiscatti: (puntiRes.data ?? []) as unknown as PuntoRiscattoRow[],
@@ -809,7 +790,7 @@ async function editSummaryItem(
   });
 
   document.getElementById('btn-cancel-edit')?.addEventListener('click', () => {
-    closeModal();
+    void showShiftSummary(stationId, userId);
   });
 }
 
