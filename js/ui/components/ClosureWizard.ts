@@ -150,7 +150,7 @@ export class ClosureWizard extends BaseComponent {
   @state() private operatorCash: string = '';
   @state() private operatorPos: string = '';
   @state() private operatorUta: string = '';
-  @state() private isLastOperator: boolean = true;
+  @state() private isLastOperator: boolean = false;
 
   // Server-computed preview
   @state() private serverTotals: ServerTotals | null = null;
@@ -814,28 +814,6 @@ export class ClosureWizard extends BaseComponent {
         </div>
       </div>
 
-      ${html`
-              <div class="section-title">Tipo di chiusura</div>
-              <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">
-                Stai registrando la fine del tuo turno?
-              </p>
-              <div class="radio-group">
-                <div
-                  class="radio-option ${this.isLastOperator ? 'active' : ''}"
-                  @click=${() => (this.isLastOperator = true)}
-                >
-                  <i class="fas fa-flag-checkered fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
-                  <div style="font-weight: 700;">Sì</div>
-                </div>
-                <div
-                  class="radio-option ${!this.isLastOperator ? 'active' : ''}"
-                  @click=${() => (this.isLastOperator = false)}
-                >
-                  <i class="fas fa-clock fa-2x" style="margin-bottom: 0.5rem; display: block;"></i>
-                  <div style="font-weight: 700;">No</div>
-                </div>
-              </div>
-            `}
 
       <div class="btn-group">
         <button
