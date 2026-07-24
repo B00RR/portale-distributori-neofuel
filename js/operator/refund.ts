@@ -1,9 +1,10 @@
 import { supabase } from '../core/api.js';
 import { Toast } from '../ui/toast.js';
+import { openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 
 import { checkOpeningStatus } from './opening.js';
-import { router } from './router.js';
+import { showShiftSummary } from './summary.js';
 
 /**
  * Mostra il form per registrare un rimborso cliente.
@@ -11,8 +12,8 @@ import { router } from './router.js';
  * @param operatorId ID dell'operatore
  */
 export async function showCustomerRefundForm(stationId: number, operatorId: number): Promise<void> {
-  void operatorId;
-  const container = document.getElementById('operator-content');
+  openModal('Rimborso Cliente');
+  const container = document.getElementById('modal-body');
   if (!container) {
     return;
   }
@@ -27,7 +28,7 @@ export async function showCustomerRefundForm(stationId: number, operatorId: numb
     setSafeHTML(
       container,
       `
-        <div class="content-box warning-box" style="max-width: 500px; margin: 40px auto; padding: 20px; text-align: center;">
+        <div class="content-box warning-box" style="padding: 20px; text-align: center;">
           <h2><i class="fas fa-exclamation-triangle"></i> Nessun Turno Aperto</h2>
           <p style="margin: 15px 0;">Devi aprire un turno prima di poter registrare un rimborso cliente.</p>
           <button id="btn-cancel-refund" data-testid="btn-cancel-refund" class="menu-button primary" style="width: auto; min-width: 150px;">Torna indietro</button>
@@ -35,11 +36,7 @@ export async function showCustomerRefundForm(stationId: number, operatorId: numb
       `
     );
     document.getElementById('btn-cancel-refund')?.addEventListener('click', () => {
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        router.navigateTo('resoconto');
-      }
+      closeModal();
     });
     return;
   }
@@ -49,7 +46,7 @@ export async function showCustomerRefundForm(stationId: number, operatorId: numb
   setSafeHTML(
     container,
     `
-      <div class="content-box" style="max-width: 600px; margin: 20px auto;" data-testid="customer-refund-form-container">
+      <div class="content-box" style="padding: 10px;" data-testid="customer-refund-form-container">
         <h2><i class="fas fa-undo"></i> Rimborso Cliente</h2>
         <p class="section-subtitle">Registra un rimborso per banconote incassate ma non erogate</p>
         <form id="customer-refund-form" data-testid="customer-refund-form">
@@ -85,11 +82,7 @@ export async function showCustomerRefundForm(stationId: number, operatorId: numb
   const btnCancel = document.getElementById('btn-cancel-refund');
 
   btnCancel?.addEventListener('click', () => {
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      router.navigateTo('resoconto');
-    }
+    closeModal();
   });
 
   form?.addEventListener('submit', async e => {
@@ -124,7 +117,7 @@ export async function showCustomerRefundForm(stationId: number, operatorId: numb
       }
 
       Toast.show('Rimborso cliente registrato con successo', 'success');
-      router.navigateTo('resoconto');
+      void showShiftSummary(stationId, operatorId);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : 'Errore durante la registrazione del rimborso';

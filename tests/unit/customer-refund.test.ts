@@ -3,18 +3,18 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockSupabase, mockCheckOpeningStatus, mockToast, mockRouter } = vi.hoisted(() => ({
-  mockSupabase: {
-    rpc: vi.fn()
-  },
-  mockCheckOpeningStatus: vi.fn(),
-  mockToast: {
-    show: vi.fn()
-  },
-  mockRouter: {
-    navigateTo: vi.fn()
-  }
-}));
+const { mockSupabase, mockCheckOpeningStatus, mockToast, mockShowShiftSummary } = vi.hoisted(
+  () => ({
+    mockSupabase: {
+      rpc: vi.fn()
+    },
+    mockCheckOpeningStatus: vi.fn(),
+    mockToast: {
+      show: vi.fn()
+    },
+    mockShowShiftSummary: vi.fn()
+  })
+);
 
 vi.mock('../../js/core/api.js', () => ({
   supabase: mockSupabase
@@ -28,66 +28,79 @@ vi.mock('../../js/ui/toast.js', () => ({
   Toast: mockToast
 }));
 
-vi.mock('../../js/operator/router.js', () => ({
-  router: mockRouter
+vi.mock('../../js/operator/summary.js', () => ({
+  showShiftSummary: mockShowShiftSummary
 }));
 
 import { showCustomerRefundForm } from '../../js/operator/refund.js';
 
-describe('Customer Refund Form', () => {
+describe('Customer Refund Form in Modal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.body.innerHTML = '<div id="operator-content"></div>';
   });
 
-  it('renders warning if no shift is open', async () => {
-    mockCheckOpeningStatus.mockResolvedValue(null);
-
-    await showCustomerRefundForm(1, 10);
-
-    const container = document.getElementById('operator-content');
-    expect(container?.innerHTML).toContain('Nessun Turno Aperto');
-    expect(mockSupabase.rpc).not.toHaveBeenCalled();
-  });
-
-  it('renders customer refund form when shift is open', async () => {
+  it('4. showCustomerRefundForm() opens modal and uses #modal-body, preserving fields and buttons', async () => {
     mockCheckOpeningStatus.mockResolvedValue({ id: 100, status: 'open' });
 
     await showCustomerRefundForm(1, 10);
 
-    const form = document.querySelector('[data-testid="customer-refund-form"]');
+    // Should open modal (#app-modal) and render in #modal-body
+    const modalBody = document.getElementById('modal-body');
+    expect(modalBody).not.toBeNull();
+
+    // #operator-content should NOT be written to
+    const operatorContent = document.getElementById('operator-content');
+    expect(operatorContent?.innerHTML).toBe('');
+
+    const form = modalBody?.querySelector('[data-testid="customer-refund-form"]');
     expect(form).not.toBeNull();
 
-    const amountInput = document.querySelector('[data-testid="refund-amount"]');
-    const dateInput = document.querySelector('[data-testid="refund-receipt-date"]');
-    const methodSelect = document.querySelector('[data-testid="refund-method"]');
-    const notesInput = document.querySelector('[data-testid="refund-notes"]');
-    const submitBtn = document.querySelector('[data-testid="btn-confirm-refund"]');
+    const amountInput = modalBody?.querySelector('[data-testid="refund-amount"]');
+    const dateInput = modalBody?.querySelector('[data-testid="refund-receipt-date"]');
+    const methodSelect = modalBody?.querySelector('[data-testid="refund-method"]');
+    const notesInput = modalBody?.querySelector('[data-testid="refund-notes"]');
+    const submitBtn = modalBody?.querySelector('[data-testid="btn-confirm-refund"]');
+    const cancelBtn = modalBody?.querySelector('[data-testid="btn-cancel-refund"]');
 
     expect(amountInput).not.toBeNull();
     expect(dateInput).not.toBeNull();
     expect(methodSelect).not.toBeNull();
     expect(notesInput).not.toBeNull();
     expect(submitBtn).not.toBeNull();
+    expect(cancelBtn).not.toBeNull();
   });
 
-  it('submits refund successfully via RPC', async () => {
+  it('renders warning in #modal-body if no shift is open', async () => {
+    mockCheckOpeningStatus.mockResolvedValue(null);
+
+    await showCustomerRefundForm(1, 10);
+
+    const modalBody = document.getElementById('modal-body');
+    expect(modalBody?.innerHTML).toContain('Nessun Turno Aperto');
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('submits refund successfully via RPC and triggers showShiftSummary popup', async () => {
     mockCheckOpeningStatus.mockResolvedValue({ id: 100, status: 'open' });
     mockSupabase.rpc.mockResolvedValue({ data: { id: 5 }, error: null });
 
     await showCustomerRefundForm(1, 10);
 
-    const amountInput = document.querySelector('[data-testid="refund-amount"]') as HTMLInputElement;
-    const dateInput = document.querySelector(
+    const modalBody = document.getElementById('modal-body')!;
+    const amountInput = modalBody.querySelector(
+      '[data-testid="refund-amount"]'
+    ) as HTMLInputElement;
+    const dateInput = modalBody.querySelector(
       '[data-testid="refund-receipt-date"]'
     ) as HTMLInputElement;
-    const methodSelect = document.querySelector(
+    const methodSelect = modalBody.querySelector(
       '[data-testid="refund-method"]'
     ) as HTMLSelectElement;
-    const notesInput = document.querySelector(
+    const notesInput = modalBody.querySelector(
       '[data-testid="refund-notes"]'
     ) as HTMLTextAreaElement;
-    const form = document.querySelector('#customer-refund-form') as HTMLFormElement;
+    const form = modalBody.querySelector('#customer-refund-form') as HTMLFormElement;
 
     amountInput.value = '25.50';
     dateInput.value = '2026-07-23';
@@ -112,7 +125,7 @@ describe('Customer Refund Form', () => {
       'Rimborso cliente registrato con successo',
       'success'
     );
-    expect(mockRouter.navigateTo).toHaveBeenCalledWith('resoconto');
+    expect(mockShowShiftSummary).toHaveBeenCalledWith(1, 10);
   });
 
   it('shows warning toast if amount is invalid', async () => {
@@ -120,8 +133,11 @@ describe('Customer Refund Form', () => {
 
     await showCustomerRefundForm(1, 10);
 
-    const amountInput = document.querySelector('[data-testid="refund-amount"]') as HTMLInputElement;
-    const form = document.querySelector('#customer-refund-form') as HTMLFormElement;
+    const modalBody = document.getElementById('modal-body')!;
+    const amountInput = modalBody.querySelector(
+      '[data-testid="refund-amount"]'
+    ) as HTMLInputElement;
+    const form = modalBody.querySelector('#customer-refund-form') as HTMLFormElement;
 
     amountInput.value = '0';
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -138,11 +154,14 @@ describe('Customer Refund Form', () => {
 
     await showCustomerRefundForm(1, 10);
 
-    const amountInput = document.querySelector('[data-testid="refund-amount"]') as HTMLInputElement;
-    const dateInput = document.querySelector(
+    const modalBody = document.getElementById('modal-body')!;
+    const amountInput = modalBody.querySelector(
+      '[data-testid="refund-amount"]'
+    ) as HTMLInputElement;
+    const dateInput = modalBody.querySelector(
       '[data-testid="refund-receipt-date"]'
     ) as HTMLInputElement;
-    const form = document.querySelector('#customer-refund-form') as HTMLFormElement;
+    const form = modalBody.querySelector('#customer-refund-form') as HTMLFormElement;
 
     amountInput.value = '10.00';
     dateInput.value = '2026-07-23';

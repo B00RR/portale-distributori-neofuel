@@ -10,10 +10,12 @@ const {
   mockExtraIncome,
   mockVoucher,
   mockInvoice,
-  mockSummary
+  mockSummary,
+  mockRefund
 } = vi.hoisted(() => ({
   mockStore: {
-    getUser: vi.fn()
+    getUser: vi.fn(),
+    setBusy: vi.fn()
   },
   mockApertura: { showAperturaForm: vi.fn() },
   mockClosure: { startClosureWizard: vi.fn() },
@@ -23,7 +25,8 @@ const {
   mockExtraIncome: { showExtraIncomeMenu: vi.fn() },
   mockVoucher: { showVoucherMenu: vi.fn() },
   mockInvoice: { showInvoiceMenu: vi.fn() },
-  mockSummary: { showShiftSummary: vi.fn() }
+  mockSummary: { showShiftSummary: vi.fn() },
+  mockRefund: { showCustomerRefundForm: vi.fn() }
 }));
 
 vi.mock('../../js/shared/state.js', () => ({ store: mockStore }));
@@ -36,6 +39,7 @@ vi.mock('../../js/operator/extra-income.js', () => mockExtraIncome);
 vi.mock('../../js/operator/vouchers.js', () => mockVoucher);
 vi.mock('../../js/operator/invoices.js', () => mockInvoice);
 vi.mock('../../js/operator/summary.js', () => mockSummary);
+vi.mock('../../js/operator/refund.js', () => mockRefund);
 
 import { router, OPERATOR_VIEWS, isOperatorView } from '../../js/operator/router.js';
 

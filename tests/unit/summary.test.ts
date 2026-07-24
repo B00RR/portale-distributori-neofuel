@@ -177,7 +177,7 @@ describe('buildShiftSummaryItems', () => {
     expect(movItems[0]!.originalTable).toBe('movimenti_cassa');
   });
 
-  it('produces credito_movimento items with customer name', () => {
+  it('produces credito_movimento items with customer name as label and no method badge for credito', () => {
     const shift = makeShift();
     const items = buildShiftSummaryItems({
       shift: shift as any,
@@ -187,7 +187,7 @@ describe('buildShiftSummaryItems', () => {
           id: 20,
           cliente_id: 5,
           importo: 50,
-          metodo: 'contanti',
+          metodo: 'credito',
           note: 'Pagamento parziale',
           operator_id: 42,
           created_at: '2026-07-22T09:00:00Z',
@@ -199,12 +199,14 @@ describe('buildShiftSummaryItems', () => {
 
     const credMovItems = items.filter(i => i.kind === 'credito_movimento');
     expect(credMovItems.length).toBe(1);
-    expect(credMovItems[0]!.customerName).toBe('Mario Rossi');
+    expect(credMovItems[0]!.label).toBe('Mario Rossi');
+    expect(credMovItems[0]!.customerName).toBeUndefined();
+    expect(credMovItems[0]!.method).toBeUndefined();
     expect(credMovItems[0]!.editable).toBe(true);
     expect(credMovItems[0]!.deletable).toBe(true);
   });
 
-  it('credito_cliente is NOT editable but IS deletable when canEdit', () => {
+  it('does NOT produce credito_cliente items from creditiClienti table', () => {
     const shift = makeShift();
     const items = buildShiftSummaryItems({
       shift: shift as any,
@@ -221,10 +223,8 @@ describe('buildShiftSummaryItems', () => {
       canEdit: true
     });
 
-    const ccItems = items.filter(i => i.kind === 'credito_cliente');
-    expect(ccItems.length).toBe(1);
-    expect(ccItems[0]!.editable).toBe(false);
-    expect(ccItems[0]!.deletable).toBe(true);
+    const ccItems = items.filter(i => (i.kind as string) === 'credito_cliente');
+    expect(ccItems.length).toBe(0);
   });
 
   it('voucher is NOT editable but IS deletable when canEdit', () => {
@@ -478,5 +478,79 @@ describe('buildShiftSummaryItems grouping', () => {
     expect(groups.has('opening_pistol')).toBe(true);
     expect(groups.has('opening_tank')).toBe(true);
     expect(groups.has('movimento_cassa')).toBe(true);
+  });
+});
+
+// ── Issue #423 Mandatory Verification Tests ──────────────────
+
+describe('Issue #423 mandatory requirements', () => {
+  it('1. movimenti_cassa with tipo: "credito" produces no movimento_cassa item while incasso/uscita remain', () => {
+    const shift = makeShift();
+    const items = buildShiftSummaryItems({
+      shift: shift as any,
+      ...emptyData,
+      movimentiCassa: [
+        { id: 1, tipo: 'credito', importo: 50, created_at: '2026-07-24T08:00:00Z' },
+        { id: 2, tipo: ' Credito ', importo: 75, created_at: '2026-07-24T08:10:00Z' },
+        { id: 3, tipo: 'incasso', importo: 100, created_at: '2026-07-24T08:20:00Z' },
+        { id: 4, tipo: 'uscita', importo: 20, created_at: '2026-07-24T08:30:00Z' }
+      ],
+      canEdit: true
+    });
+
+    const movItems = items.filter(i => i.kind === 'movimento_cassa');
+    expect(movItems.length).toBe(2);
+    expect(movItems.map(i => i.label)).toEqual(['incasso', 'uscita']);
+  });
+
+  it('2. creditiMovimenti with Cimmino, gasolio note, and creditiClienti with €0 produces single correct credit item', () => {
+    const shift = makeShift();
+    const items = buildShiftSummaryItems({
+      shift: shift as any,
+      ...emptyData,
+      creditiMovimenti: [
+        {
+          id: 10,
+          cliente_id: 1,
+          importo: 45.5,
+          metodo: 'credito',
+          note: 'gasolio',
+          operator_id: 42,
+          created_at: '2026-07-24T09:00:00Z',
+          crediti_clienti: { cliente: 'Cimmino' }
+        }
+      ],
+      creditiClienti: [
+        {
+          id: 99,
+          cliente: 'Cimmino',
+          saldo: 0,
+          created_at: '2026-07-24T06:00:00Z'
+        }
+      ],
+      canEdit: true
+    });
+
+    const creditItems = items.filter(
+      i => i.kind === 'credito_movimento' || (i.kind as string) === 'credito_cliente'
+    );
+
+    // Esiste una sola voce credito
+    expect(creditItems.length).toBe(1);
+
+    const item = creditItems[0]!;
+    // Label = Cimmino, non "Pagamento credito"
+    expect(item.label).toBe('Cimmino');
+    // Description contiene gasolio
+    expect(item.description).toBe('gasolio');
+    // Amount è corretto
+    expect(item.amount).toBe(45.5);
+    // Non esiste un item credito_cliente
+    const creditoClienteItem = items.find(i => (i.kind as string) === 'credito_cliente');
+    expect(creditoClienteItem).toBeUndefined();
+    // Non compare customerName duplicato
+    expect(item.customerName).toBeUndefined();
+    // Non viene impostato il badge metodo credito
+    expect(item.method).toBeUndefined();
   });
 });
