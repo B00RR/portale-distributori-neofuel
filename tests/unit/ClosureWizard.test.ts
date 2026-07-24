@@ -93,16 +93,16 @@ describe('ClosureWizard Component', () => {
   });
 
   describe('Closure Types', () => {
-    it('should default last-operator flag to false (partial closure)', async () => {
+    it('should operate in partial closure mode by default', async () => {
       const { ClosureWizard } =
         (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
           ClosureWizard: CustomElementConstructor;
         };
       const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
-      expect((element as unknown as Partial<{ isLastOperator: boolean }>).isLastOperator).toBe(
-        false
-      );
+      expect(
+        (element as unknown as Partial<{ isLastOperator: boolean }>).isLastOperator
+      ).toBeUndefined();
     });
   });
 
@@ -186,19 +186,8 @@ describe('ClosureWizard Component', () => {
       expect(container.textContent).toContain('Calcolo anteprima dal server');
     });
 
-    it('shows final closure warning when isLastOperator is true', async () => {
+    it('does not show final closure warning for operator closure', async () => {
       const container = await buildStep3Container({
-        isLastOperator: true,
-        activeOpening: { id: 1, status: 'open', closing_data: null }
-      });
-
-      expect(container.textContent).toContain('Chiusura Finale');
-      expect(container.textContent).toContain('ultima chiusura della giornata');
-    });
-
-    it('does not show final closure warning for partial closure', async () => {
-      const container = await buildStep3Container({
-        isLastOperator: false,
         activeOpening: { id: 1, status: 'open', closing_data: null }
       });
 
@@ -516,8 +505,8 @@ describe('ClosureWizard Component', () => {
     });
   });
 
-  describe('Final closure confirmation', () => {
-    it('does not submit if user cancels the final closure confirm', async () => {
+  describe('Operator closure confirmation', () => {
+    it('always submits partial closure type without prompting for end of day', async () => {
       const [{ ClosureWizard }, { supabase }] = await Promise.all([
         import('../../js/ui/components/ClosureWizard.js'),
         import('../../js/core/api.js')
@@ -525,54 +514,6 @@ describe('ClosureWizard Component', () => {
       const element = new ClosureWizard() as unknown as {
         stationId: string;
         activeOpening: { id: number; status: string; closing_data: null };
-        isLastOperator: boolean;
-        finalCounters: Record<number, number | null>;
-        pistole: Array<{ id: number; island_id: number; nome: string; tipo_carburante: string }>;
-        operatorCash: string;
-        operatorPos: string;
-        operatorUta: string;
-        selfCashIn: string;
-        selfCashOut: string;
-        selfPos: string;
-        selfFleet: string;
-        selfManager: string;
-        handleConfirmClosure: () => Promise<void>;
-      };
-
-      // User cancels the confirm dialog
-      vi.spyOn(window, 'confirm').mockReturnValue(false);
-
-      Object.assign(element, {
-        stationId: '1',
-        activeOpening: { id: 42, status: 'open', closing_data: null },
-        isLastOperator: true,
-        finalCounters: { 7: 125 },
-        pistole: [{ id: 7, island_id: 1, nome: 'Pistola 7', tipo_carburante: 'benzina' }],
-        operatorCash: '50',
-        operatorPos: '60',
-        operatorUta: '70',
-        selfCashIn: '100',
-        selfCashOut: '10',
-        selfPos: '20',
-        selfFleet: '30',
-        selfManager: '40'
-      });
-
-      await element.handleConfirmClosure();
-
-      // RPC should NOT have been called
-      expect(supabase.rpc).not.toHaveBeenCalled();
-    });
-
-    it('does not show confirm dialog for partial closure', async () => {
-      const [{ ClosureWizard }, { supabase }] = await Promise.all([
-        import('../../js/ui/components/ClosureWizard.js'),
-        import('../../js/core/api.js')
-      ]);
-      const element = new ClosureWizard() as unknown as {
-        stationId: string;
-        activeOpening: { id: number; status: string; closing_data: null };
-        isLastOperator: boolean;
         finalCounters: Record<number, number | null>;
         pistole: Array<{ id: number; island_id: number; nome: string; tipo_carburante: string }>;
         operatorCash: string;
@@ -591,7 +532,6 @@ describe('ClosureWizard Component', () => {
       Object.assign(element, {
         stationId: '1',
         activeOpening: { id: 42, status: 'open', closing_data: null },
-        isLastOperator: false,
         finalCounters: { 7: 125 },
         pistole: [{ id: 7, island_id: 1, nome: 'Pistola 7', tipo_carburante: 'benzina' }],
         operatorCash: '50',
@@ -606,9 +546,7 @@ describe('ClosureWizard Component', () => {
 
       await element.handleConfirmClosure();
 
-      // Confirm should NOT have been called for partial closures
       expect(confirmSpy).not.toHaveBeenCalled();
-      // But RPC should have been called
       expect(supabase.rpc).toHaveBeenCalledWith(
         'submit_shift_closure_v2',
         expect.objectContaining({ p_closure_type: 'partial' })

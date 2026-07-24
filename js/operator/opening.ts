@@ -1,10 +1,7 @@
-// ==========================================
-// OPERATOR OPENING SHIFT MANAGEMENT
-// Gestione apertura turno con caricamento contatori
-// ==========================================
 import { supabase, type Json } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { Shift, type CustomWindow } from '../types.js';
+import { Toast } from '../ui/toast.js';
 import { closeModal, openModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml } from '../utils/utils.js';
@@ -129,9 +126,14 @@ export async function showAperturaForm(stationId: number | string): Promise<void
     opener.addEventListener('cancel', () => closeModal());
 
     // Listen for success event
-    opener.addEventListener('success', () => {
-      // Il componente mostra già un messaggio di successo con reload
-      // ma possiamo aggiornare lo status nel menu se necessario
+    opener.addEventListener('success', async () => {
+      closeModal();
+      Toast.show(
+        'Nuovo turno aperto — Ora puoi registrare le operazioni della nuova giornata.',
+        'success',
+        4000
+      );
+      await updateOpeningStatus(stationId);
       const refreshFn = (window as unknown as CustomWindow).refreshUiIcons;
       if (typeof refreshFn === 'function') {
         refreshFn();

@@ -2,12 +2,16 @@ import { logger } from '../core/logger.js';
 import { openModal, closeModal } from '../ui/ui.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { escapeHtml, getErrorMessage } from '../utils/utils.js';
+
+import { checkOpeningStatus, showAperturaForm } from './opening.js';
+
 // Import the component to register it
 import '../ui/components/ClosureWizard.js';
 
 /**
  * Entry point for the closure wizard.
- * Mounts the <closure-wizard> component into the global modal.
+ * Mounts the <closure-wizard> component into the global modal,
+ * or opens shift-opener if no active shift exists.
  * @param stationId The station identifier.
  * @param userId The operator identifier.
  */
@@ -16,6 +20,12 @@ export async function startClosureWizard(
   userId: string | number
 ): Promise<void> {
   try {
+    const activeOpening = await checkOpeningStatus(stationId);
+    if (!activeOpening) {
+      await showAperturaForm(stationId);
+      return;
+    }
+
     openModal('Chiusura Turno');
     const modalBody = document.getElementById('modal-body');
     if (!modalBody) {
