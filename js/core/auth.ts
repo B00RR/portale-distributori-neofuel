@@ -73,12 +73,25 @@ let userStatusRevalidationTimer: ReturnType<typeof setInterval> | null = null;
 
 // ========== PUBLIC FUNCTIONS ==========
 
+let signOutInFlight: Promise<void> | null = null;
+
+export function awaitCurrentSignOut(): Promise<void> {
+  return signOutInFlight || Promise.resolve();
+}
+
 export function setOnLoginSuccess(callback: LoginSuccessCallback): void {
   onLoginSuccessCallback = callback;
 }
 
 export function setLoggedUser(user: LoggedUserData): void {
-  userStatusGeneration++;
+  const identityChanged = !loggedUser || loggedUser.id !== user.id;
+  if (identityChanged) {
+    if (user) {
+      setupUserStatusMonitoring(user.id);
+    } else {
+      cleanupUserStatusMonitoring();
+    }
+  }
   loggedUser = user;
   if (user) {
     const aliases: string[] = [];
@@ -242,6 +255,7 @@ export function setupLoginForm(): void {
 
     let authenticationSucceeded = false;
     try {
+      await awaitCurrentSignOut();
       showFullScreenLoader();
       const submitBtn = loginForm?.querySelector(
         'button[type="submit"]'
@@ -477,6 +491,7 @@ export function setupLoginForm(): void {
  * Load existing session
  */
 export async function loadSession(): Promise<LoggedUserData | null> {
+  await awaitCurrentSignOut();
   try {
     const isPasswordResetPersistent = localStorage.getItem('password_reset_session');
     if (isPasswordResetPersistent) {
@@ -624,57 +639,78 @@ export async function clearSession(expectedGen?: number, targetUserId?: string):
     return;
   }
 
+  if (signOutInFlight) {
+    await signOutInFlight;
+  }
+
+  if (expectedGen !== undefined && expectedGen !== userStatusGeneration) {
+    logger.warn('auth', 'Stale clearSession ignored after awaiting (generation mismatch)');
+    return;
+  }
+  if (targetUserId && loggedUser && loggedUser.id !== targetUserId) {
+    logger.warn('auth', 'Stale clearSession ignored after awaiting (user mismatch)');
+    return;
+  }
+
   cleanupUserStatusMonitoring();
   const genAfterCleanup = userStatusGeneration;
 
-  try {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      logger.error('auth', 'Errore nel logout:', error);
-    }
-  } catch (err) {
-    logger.error('auth', 'Errore nel logout:', err);
-  } finally {
-    if (
-      userStatusGeneration !== genAfterCleanup &&
-      loggedUser !== null &&
-      (targetUserId === undefined || loggedUser.id !== targetUserId)
-    ) {
-      logger.warn(
-        'auth',
-        'Stale clearSession finally block skipped (account switched during signOut)'
-      );
-    } else if (targetUserId && loggedUser && loggedUser.id !== targetUserId) {
-      logger.warn(
-        'auth',
-        'Stale clearSession finally block skipped (user mismatch during signOut)'
-      );
-    } else {
-      // Clear Supabase localStorage keys
-      const localKeysToRemove: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
-          localKeysToRemove.push(key);
-        }
+  const signOutPromise = (async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        logger.error('auth', 'Errore nel logout:', error);
       }
-      localKeysToRemove.forEach(key => localStorage.removeItem(key));
-
-      // Clear sessionStorage
-      const sessionKeysToRemove: string[] = [];
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
-          sessionKeysToRemove.push(key);
+    } catch (err) {
+      logger.error('auth', 'Errore nel logout:', err);
+    } finally {
+      if (
+        userStatusGeneration !== genAfterCleanup &&
+        loggedUser !== null &&
+        (targetUserId === undefined || loggedUser.id !== targetUserId)
+      ) {
+        logger.warn(
+          'auth',
+          'Stale clearSession finally block skipped (account switched during signOut)'
+        );
+      } else if (targetUserId && loggedUser && loggedUser.id !== targetUserId) {
+        logger.warn(
+          'auth',
+          'Stale clearSession finally block skipped (user mismatch during signOut)'
+        );
+      } else {
+        // Clear Supabase localStorage keys
+        const localKeysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+            localKeysToRemove.push(key);
+          }
         }
-      }
-      sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+        localKeysToRemove.forEach(key => localStorage.removeItem(key));
 
-      // Reset loggedUser and offline queue aliases
-      loggedUser = null;
-      setOfflineQueueUserAliases(null);
+        // Clear sessionStorage
+        const sessionKeysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+            sessionKeysToRemove.push(key);
+          }
+        }
+        sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+
+        // Reset loggedUser and offline queue aliases
+        loggedUser = null;
+        setOfflineQueueUserAliases(null);
+      }
     }
-  }
+  })();
+
+  signOutInFlight = signOutPromise.finally(() => {
+    signOutInFlight = null;
+  });
+
+  await signOutPromise;
 }
 
 let userStatusGeneration = 0;
@@ -979,6 +1015,9 @@ export async function checkUserActiveStatus(
  * and set up fallback periodic revalidation.
  */
 export function setupUserStatusMonitoring(userId: string): void {
+  if (userStatusMonitoredUserId === userId && userStatusChannel !== null) {
+    return;
+  }
   cleanupUserStatusMonitoring();
 
   if (!userId) {

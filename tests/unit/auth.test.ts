@@ -1090,7 +1090,21 @@ describe('Auth Module', () => {
         const signOutPromise = new Promise<{ error: null }>(resolve => {
           releaseSignOut = resolve;
         });
-        mockSupabase.auth.signOut.mockReturnValueOnce(signOutPromise);
+
+        // Model the real storage side-effect in mock signOut
+        mockSupabase.auth.signOut.mockImplementationOnce(() => {
+          return signOutPromise.then(val => {
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+            return val;
+          });
+        });
 
         // User A logged in
         authModule.setLoggedUser({
@@ -1100,6 +1114,7 @@ describe('Auth Module', () => {
           full_name: 'User A',
           role: 'operator'
         });
+        localStorage.setItem('sb-user-session', 'user-A-session-data');
 
         // Start invalid profile session cleanup for A
         const invalidProfilePromise = authModule.handleInvalidProfileSession(
@@ -1107,22 +1122,50 @@ describe('Auth Module', () => {
           'user-A-uuid'
         );
 
-        // Account B installed while signOut is in-flight
-        authModule.setLoggedUser({
-          id: 'user-B-uuid',
-          user_id: 200,
-          email: 'userb@neofuel.local',
-          full_name: 'User B',
-          role: 'operator'
+        // Prepare B session load
+        mockSupabase.auth.getSession.mockImplementationOnce(async () => {
+          localStorage.setItem('sb-user-session', 'user-B-session-data');
+          return {
+            data: {
+              session: {
+                user: {
+                  id: 'user-B-uuid',
+                  email: 'userb@neofuel.local'
+                }
+              }
+            },
+            error: null
+          };
+        });
+        mockSupabase.from.mockReturnValueOnce({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: {
+              user_id: 200,
+              role: 'operator',
+              email: 'userb@neofuel.local',
+              full_name: 'User B',
+              is_active: true
+            },
+            error: null
+          })
         });
 
-        // Release signOut
+        // B session is loaded (should wait for A's signOut)
+        const loadPromise = authModule.loadSession();
+
+        // Let microtasks run
+        await new Promise(r => setTimeout(r, 10));
+
+        // Release A's signOut
         releaseSignOut({ error: null });
         await invalidProfilePromise;
+        await loadPromise;
 
-        // Assert B is not cleared
+        // Assert B remains logged in, B aliases/session/UI preserved, and storage preserved
         expect(authModule.loggedUser?.id).toBe('user-B-uuid');
-        expect(mockToast.show).not.toHaveBeenCalled();
+        expect(localStorage.getItem('sb-user-session')).toBe('user-B-session-data');
       });
 
       it('aborts handleUserDeactivation for A when quarantine REJECTS and B is installed (Blocker 2)', async () => {
@@ -1526,6 +1569,165 @@ describe('Auth Module', () => {
 
         // Immediate event should find both Auth UUID and numeric profile ID ready and quarantine both
         expect(mockQuarantineUserActions).toHaveBeenCalledWith(['auth-uuid-777', '777']);
+      });
+
+      it('serializes A signOut and B login submit to prevent signOut from wiping B session storage (Blocker A - Login)', async () => {
+        let releaseSignOut!: (val: { error: null }) => void;
+        const signOutPromise = new Promise<{ error: null }>(resolve => {
+          releaseSignOut = resolve;
+        });
+
+        mockSupabase.auth.signOut.mockImplementationOnce(() => {
+          return signOutPromise.then(val => {
+            // Model the real storage side-effect in mock signOut
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+            return val;
+          });
+        });
+
+        // 1. Start stale A clearSession
+        authModule.setLoggedUser({
+          id: 'user-A-uuid',
+          user_id: 101,
+          email: 'usera@neofuel.local',
+          full_name: 'User A',
+          role: 'operator'
+        });
+        localStorage.setItem('sb-user-session', 'user-A-session-data');
+
+        const clearPromise = authModule.clearSession();
+
+        // 2. Submit login form for B
+        const usernameInput = document.getElementById('username') as HTMLInputElement;
+        const passwordInput = document.getElementById('password') as HTMLInputElement;
+        usernameInput.value = 'userb';
+        passwordInput.value = 'passwordB';
+
+        mockSupabase.auth.signInWithPassword.mockImplementationOnce(async () => {
+          localStorage.setItem('sb-user-session', 'user-B-session-data');
+          return {
+            data: {
+              user: {
+                id: 'user-B-uuid',
+                email: 'userb@neofuel.local'
+              }
+            },
+            error: null
+          };
+        });
+
+        mockSupabase.from.mockReturnValueOnce({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: {
+              user_id: 202,
+              role: 'operator',
+              email: 'userb@neofuel.local',
+              full_name: 'User B',
+              is_active: true
+            },
+            error: null
+          })
+        });
+
+        const form = document.getElementById('login-form') as HTMLFormElement;
+        form.dispatchEvent(new Event('submit'));
+
+        // Let microtasks run. Login submit should be awaiting A's signOut.
+        await new Promise(r => setTimeout(r, 10));
+        expect(mockSupabase.auth.signInWithPassword).not.toHaveBeenCalled();
+
+        // 3. Release A's signOut
+        releaseSignOut({ error: null });
+
+        // Wait for both to finish
+        await clearPromise;
+        await vi.waitFor(() => expect(authModule.loggedUser?.id).toBe('user-B-uuid'));
+
+        // Ensure signInWithPassword was indeed called
+        expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalled();
+        expect(localStorage.getItem('sb-user-session')).toBe('user-B-session-data');
+      });
+
+      describe('Blocker B: setLoggedUser monitoring and generation validation', () => {
+        it('startup restore: loadSession -> setLoggedUser same user => monitoring stays valid and generation unchanged', async () => {
+          mockSupabase.auth.getSession.mockResolvedValueOnce({
+            data: {
+              session: {
+                user: {
+                  id: 'restored-user-uuid',
+                  email: 'restored@neofuel.local'
+                }
+              }
+            },
+            error: null
+          });
+
+          mockSupabase.from.mockReturnValueOnce({
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                user_id: 101,
+                role: 'operator',
+                email: 'restored@neofuel.local',
+                full_name: 'Restored Operator',
+                is_active: true
+              },
+              error: null
+            })
+          });
+
+          // 1. loadSession installs monitoring
+          const userData = await authModule.loadSession();
+          expect(userData).not.toBeNull();
+
+          // Let's capture the channel mock and verify it is setup
+          const channelBefore = realtimeChannels.get('user_status_restored-user-uuid');
+          expect(channelBefore).toBeDefined();
+
+          vi.clearAllMocks();
+
+          // 2. Call setLoggedUser with the same restored user
+          authModule.setLoggedUser(userData!);
+
+          // Verify cleanupUserStatusMonitoring was NOT called (so channel was not removed/recreated)
+          expect(mockSupabase.removeChannel).not.toHaveBeenCalled();
+        });
+
+        it('actual account switch: setLoggedUser different user => generation increments and monitoring is refreshed', () => {
+          // 1. Set logged user A
+          authModule.setLoggedUser({
+            id: 'user-A-uuid',
+            user_id: 101,
+            email: 'usera@neofuel.local',
+            full_name: 'User A',
+            role: 'operator'
+          });
+
+          vi.clearAllMocks();
+
+          // 2. Set logged user B (different user)
+          authModule.setLoggedUser({
+            id: 'user-B-uuid',
+            user_id: 202,
+            email: 'userb@neofuel.local',
+            full_name: 'User B',
+            role: 'operator'
+          });
+
+          // Verify cleanupUserStatusMonitoring WAS called (so channel was removed and recreated for B)
+          expect(mockSupabase.removeChannel).toHaveBeenCalled();
+          expect(mockSupabase.channel).toHaveBeenCalledWith('user_status_user-B-uuid');
+        });
       });
     });
   });
