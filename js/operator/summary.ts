@@ -603,6 +603,10 @@ function renderSummary(
   attachSummaryActions(container, items, shift, stationId, userId);
 }
 
+function summaryItemKey(item: ShiftSummaryItem): string {
+  return `${item.kind}:${String(item.id)}`;
+}
+
 function renderSummaryItem(item: ShiftSummaryItem, unit?: string): string {
   const kindIcons: Record<string, string> = {
     opening_cash: 'fa-coins',
@@ -646,14 +650,15 @@ function renderSummaryItem(item: ShiftSummaryItem, unit?: string): string {
       : '';
 
   let actions = '';
+  const itemKey = escapeHtml(summaryItemKey(item));
   if (item.editable || item.deletable) {
     actions = '<span class="summary-item-actions" style="display:flex;gap:0.35rem;flex-shrink:0;">';
     if (item.editable) {
-      actions += `<button class="btn-edit-item icon-btn" data-item-id="${escapeHtml(String(item.id))}" title="Modifica" aria-label="Modifica"><i class="fas fa-pencil-alt"></i></button>`;
+      actions += `<button class="btn-edit-item icon-btn" data-item-key="${itemKey}" title="Modifica" aria-label="Modifica"><i class="fas fa-pencil-alt"></i></button>`;
     }
     if (item.deletable) {
       const deleteLabel = item.kind === 'credito_cliente' ? 'Elimina e reinserisci' : 'Elimina';
-      actions += `<button class="btn-delete-item icon-btn" data-item-id="${escapeHtml(String(item.id))}" title="${escapeHtml(deleteLabel)}" aria-label="${escapeHtml(deleteLabel)}"><i class="fas fa-trash-alt"></i></button>`;
+      actions += `<button class="btn-delete-item icon-btn" data-item-key="${itemKey}" title="${escapeHtml(deleteLabel)}" aria-label="${escapeHtml(deleteLabel)}"><i class="fas fa-trash-alt"></i></button>`;
     }
     actions += '</span>';
   } else if (!item.editable && !item.deletable && !item.kind.startsWith('opening_')) {
@@ -661,7 +666,7 @@ function renderSummaryItem(item: ShiftSummaryItem, unit?: string): string {
   }
 
   return `
-    <div class="summary-item" data-item-id="${escapeHtml(String(item.id))}" style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.75rem;border-radius:6px;background:var(--bg-body);border:1px solid var(--border-color);">
+    <div class="summary-item" data-item-id="${escapeHtml(String(item.id))}" data-item-key="${itemKey}" style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.75rem;border-radius:6px;background:var(--bg-body);border:1px solid var(--border-color);">
       <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
         <i class="fas ${escapeHtml(icon)}" style="color:var(--info-color);width:1.25rem;text-align:center;flex-shrink:0;"></i>
         <div style="flex:1;min-width:0;">
@@ -696,8 +701,8 @@ function attachSummaryActions(
 ): void {
   container.querySelectorAll('.btn-edit-item').forEach(btn => {
     btn.addEventListener('click', e => {
-      const target = (e.currentTarget as HTMLElement).dataset.itemId;
-      const item = items.find(i => String(i.id) === target);
+      const target = (e.currentTarget as HTMLElement).dataset.itemKey;
+      const item = items.find(i => summaryItemKey(i) === target);
       if (item) {
         void editSummaryItem(item, shift, stationId, userId);
       }
@@ -706,8 +711,8 @@ function attachSummaryActions(
 
   container.querySelectorAll('.btn-delete-item').forEach(btn => {
     btn.addEventListener('click', e => {
-      const target = (e.currentTarget as HTMLElement).dataset.itemId;
-      const item = items.find(i => String(i.id) === target);
+      const target = (e.currentTarget as HTMLElement).dataset.itemKey;
+      const item = items.find(i => summaryItemKey(i) === target);
       if (item) {
         void deleteSummaryItem(item, stationId, userId);
       }
@@ -742,9 +747,18 @@ async function deleteSummaryItem(
   }
 
   try {
-    const { error } = await fromTable(item.originalTable).delete().eq('id', item.originalId);
-    if (error) {
-      throw error;
+    if (item.kind === 'invoice') {
+      const { error } = await supabase.rpc('delete_shift_invoice', {
+        p_invoice_id: Number(item.originalId)
+      });
+      if (error) {
+        throw error;
+      }
+    } else {
+      const { error } = await fromTable(item.originalTable).delete().eq('id', item.originalId);
+      if (error) {
+        throw error;
+      }
     }
     Toast.show('Voce eliminata con successo.', 'success');
     // Ricarica il resoconto
@@ -853,14 +867,20 @@ function buildEditForm(item: ShiftSummaryItem): string {
       </div>
     `;
   } else if (item.kind === 'invoice') {
+    const paymentMethod = item.method ?? '';
     fields = `
       <div class="form-group">
         <label>Importo (€)</label>
-        <input type="number" name="amount" step="0.01" min="0" class="big-input" value="${item.amount}" required>
+        <input type="number" name="amount" step="0.01" min="0.01" class="big-input" value="${item.amount}" required>
       </div>
       <div class="form-group">
         <label>Metodo di pagamento</label>
-        <input type="text" name="payment_method" class="big-input" value="${escapeHtml(item.method ?? '')}">
+        <select name="payment_method" class="big-input" required>
+          <option value="">Seleziona…</option>
+          <option value="contanti" ${paymentMethod === 'contanti' ? 'selected' : ''}>Contanti</option>
+          <option value="pos" ${paymentMethod === 'pos' ? 'selected' : ''}>POS</option>
+          <option value="bonifico" ${paymentMethod === 'bonifico' ? 'selected' : ''}>Bonifico</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Descrizione</label>
@@ -994,10 +1014,24 @@ async function processEdit(
     payload.note = fd.get('note') as string;
   } else if (item.kind === 'invoice') {
     const amount = parseFloat(fd.get('amount') as string);
-    validateNumeric(amount);
-    payload.amount = amount;
-    payload.payment_method = fd.get('payment_method') as string;
-    payload.description = fd.get('description') as string;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('Importo non valido');
+    }
+    const paymentMethod = String(fd.get('payment_method') ?? '').trim();
+    if (!paymentMethod) {
+      throw new Error('Metodo di pagamento obbligatorio');
+    }
+    const description = String(fd.get('description') ?? '').trim() || null;
+    const { error } = await supabase.rpc('update_shift_invoice', {
+      p_invoice_id: Number(item.originalId),
+      p_amount: amount,
+      p_payment_method: paymentMethod,
+      p_description: description
+    });
+    if (error) {
+      throw error;
+    }
+    return;
   } else if (item.kind === 'punti_riscatti') {
     const importo = parseFloat(fd.get('importo') as string);
     validateNumeric(importo);

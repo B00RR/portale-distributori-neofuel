@@ -294,7 +294,10 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
 
 async function toggleInvoiceStatus(id: number, newStatus: InvoiceStatus): Promise<void> {
   try {
-    const { error } = await supabase.from('invoices').update({ status: newStatus }).eq('id', id);
+    const { error } = await supabase.rpc('set_invoice_status', {
+      p_invoice_id: id,
+      p_new_status: newStatus
+    });
 
     if (error) {
       throw error;

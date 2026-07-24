@@ -673,6 +673,7 @@ export type Database = {
           operator_id: number | null;
           payment_method: string | null;
           product_category: string | null;
+          shift_id: number | null;
           station_id: number | null;
           status: string | null;
           updated_at: string | null;
@@ -689,6 +690,7 @@ export type Database = {
           operator_id?: number | null;
           payment_method?: string | null;
           product_category?: string | null;
+          shift_id?: number | null;
           station_id?: number | null;
           status?: string | null;
           updated_at?: string | null;
@@ -705,6 +707,7 @@ export type Database = {
           operator_id?: number | null;
           payment_method?: string | null;
           product_category?: string | null;
+          shift_id?: number | null;
           station_id?: number | null;
           status?: string | null;
           updated_at?: string | null;
@@ -730,6 +733,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'fuel_stations';
             referencedColumns: ['station_id'];
+          },
+          {
+            foreignKeyName: 'fk_invoices_shift_id';
+            columns: ['shift_id'];
+            isOneToOne: false;
+            referencedRelation: 'shifts';
+            referencedColumns: ['id'];
           }
         ];
       };
@@ -1800,7 +1810,7 @@ export type Database = {
           p_cliente_id?: number | null | undefined;
           p_created_at?: string | undefined;
           p_customer_name?: string | undefined;
-          p_description?: string | undefined;
+          p_description?: string | null | undefined;
           p_invoice_date?: string | undefined;
           p_invoice_number?: string | undefined;
           p_operator_id: number;
@@ -1808,6 +1818,28 @@ export type Database = {
           p_product_category?: string | undefined;
           p_request_id: string;
           p_station_id: number;
+        };
+        Returns: Json;
+      };
+      update_shift_invoice: {
+        Args: {
+          p_invoice_id: number;
+          p_amount: number;
+          p_payment_method: string;
+          p_description: string | null;
+        };
+        Returns: Json;
+      };
+      delete_shift_invoice: {
+        Args: {
+          p_invoice_id: number;
+        };
+        Returns: Json;
+      };
+      set_invoice_status: {
+        Args: {
+          p_invoice_id: number;
+          p_new_status: string;
         };
         Returns: Json;
       };
