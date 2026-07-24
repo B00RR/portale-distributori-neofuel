@@ -93,16 +93,15 @@ describe('ClosureWizard Component', () => {
   });
 
   describe('Closure Types', () => {
-    it('should track last-operator flag', async () => {
+    it('should default last-operator flag to false (partial closure)', async () => {
       const { ClosureWizard } =
         (await import('../../js/ui/components/ClosureWizard.js')) as unknown as {
           ClosureWizard: CustomElementConstructor;
         };
       const element = new (ClosureWizard as unknown as CustomElementConstructor)();
 
-      (element as unknown as Partial<{ isLastOperator: boolean }>).isLastOperator = true;
       expect((element as unknown as Partial<{ isLastOperator: boolean }>).isLastOperator).toBe(
-        true
+        false
       );
     });
   });
@@ -311,7 +310,7 @@ describe('ClosureWizard Component', () => {
       Object.assign(element, {
         stationId: '1',
         activeOpening: { id: 42, status: 'open', closing_data: null },
-        isLastOperator: true,
+        isLastOperator: false,
         finalCounters: { 7: 125 },
         pistole: [{ id: 7, island_id: 1, nome: 'Pistola 7', tipo_carburante: 'benzina' }],
         selfCashIn: '100',
@@ -331,7 +330,7 @@ describe('ClosureWizard Component', () => {
         expect.objectContaining({
           p_shift_id: 42,
           p_station_id: 1,
-          p_closure_type: 'final',
+          p_closure_type: 'partial',
           p_final_counters: { 7: 125 },
           p_self_cash_in: 100,
           p_self_cash_out: 10,
