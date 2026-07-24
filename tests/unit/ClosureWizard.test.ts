@@ -126,6 +126,7 @@ describe('ClosureWizard Component', () => {
           total_fuel_revenue: 200,
           fuel_revenue: 200,
           extra_revenue: 50,
+          new_credits: 0,
           total_sold: 250,
           total_cash_collected: 500,
           expected_cash: 180,
@@ -169,12 +170,13 @@ describe('ClosureWizard Component', () => {
       expect(container.textContent).toContain('Discrepanza');
     });
 
-    it('renders total_sold, expected_cash, and extra_revenue in preview', async () => {
+    it('renders total_sold, expected_cash, extra_revenue, and crediti in preview', async () => {
       const container = await buildStep3Container({});
 
       expect(container.textContent).toContain('Totale venduto');
       expect(container.textContent).toContain('Contante atteso');
       expect(container.textContent).toContain('Ricavo extra');
+      expect(container.textContent).toContain('Crediti');
     });
 
     it('shows loading spinner when previewLoading is true', async () => {
