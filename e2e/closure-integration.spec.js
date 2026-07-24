@@ -152,10 +152,10 @@ test.describe('Integrazione Chiusura Turno (Operatore)', () => {
     await login(page, { role: 'operator' });
     await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
 
-    // 2. Naviga al form di apertura turno (clicca il pulsante che inizialmente dice "Apertura")
+    // 2. Naviga al form di apertura turno (clicca il pulsante che ora dice sempre "Chiusura")
     const btnTurno = page.locator('#btn-turno');
     await expect(btnTurno).toBeVisible();
-    await expect(btnTurno).toContainText('Apertura');
+    await expect(btnTurno).toContainText('Chiusura');
     await btnTurno.click();
 
     // 3. Verifica che il form di apertura sia visibile
@@ -169,9 +169,6 @@ test.describe('Integrazione Chiusura Turno (Operatore)', () => {
 
     // Invia il form (open_shift RPC)
     await page.locator('#apertura-form button[type="submit"]').click();
-
-    // Clicca "Vai al Dashboard" sul successo dell'apertura
-    await page.locator('button:has-text("Vai al Dashboard")').click();
 
     // 4. Verifica che dopo l'apertura, il dashboard operatore sia visibile con il pulsante che ora dice "Chiusura" e badge "Aperto"
     await expect(page.locator('.operator-menu')).toBeVisible({ timeout: 15000 });
