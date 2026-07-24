@@ -17,7 +17,7 @@ import {
 } from '../utils/export_utils.js';
 import { setSafeHTML } from '../utils/sanitizer.js';
 import { selfTotalErogato } from '../utils/self-service.js';
-import { escapeHtml, formatEuro } from '../utils/utils.js';
+import { escapeHtml, formatEuro, getItalianBusinessDate } from '../utils/utils.js';
 
 import { FilterBar } from './components/FilterBar.js';
 import { Pagination } from './components/Pagination.js';
@@ -133,6 +133,88 @@ function getExclusiveNextDay(date: string): string {
   return parsed.toISOString().slice(0, 10);
 }
 
+export interface ShiftMetrics {
+  fuelRevenue: number;
+  extraRevenue: number;
+  totalSold: number;
+  expectedCash: number;
+  realCash: number;
+  discrepancy: number;
+}
+
+function parseOptionalNum(val: unknown): number | undefined {
+  if (val === null || val === undefined || val === '') return undefined;
+  const n = typeof val === 'number' ? val : Number(val);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+export function computeShiftMetrics(shift: {
+  status?: string;
+  opening_data?: Record<string, unknown>;
+  closing_data?: ClosingData;
+}): ShiftMetrics {
+  if (shift.status === 'open') {
+    const openingData = shift.opening_data || {};
+    const totalAmt = parseOptionalNum(openingData.total_amount) ?? 0;
+    const cashIn = parseOptionalNum(openingData.cash_in) ?? 0;
+    const cashOut = parseOptionalNum(openingData.cash_out) ?? 0;
+    const cashInMinusOut = parseOptionalNum(openingData.cash_in_minus_out);
+
+    const fuelRevenue = totalAmt;
+    const extraRevenue = 0;
+    const totalSold = totalAmt;
+    const expectedCash = cashOut;
+    const realCash = cashIn;
+    const discrepancy = cashInMinusOut ?? cashIn - cashOut;
+
+    return {
+      fuelRevenue,
+      extraRevenue,
+      totalSold,
+      expectedCash,
+      realCash,
+      discrepancy
+    };
+  }
+
+  const closingData = shift.closing_data || {};
+  const computed = closingData.snapshot?.computed || closingData.computed || {};
+  const operator = computed.operator || {};
+
+  const fuelRevenue =
+    parseOptionalNum(computed.fuel_revenue) ??
+    parseOptionalNum(computed.totale_venduto_carburante) ??
+    parseOptionalNum(closingData.ricavo_teorico) ??
+    0;
+
+  const extraRevenue =
+    parseOptionalNum(computed.extra_revenue) ??
+    parseOptionalNum(computed.totale_venduto_extra) ??
+    0;
+
+  const totalSold = parseOptionalNum(computed.total_sold) ?? fuelRevenue + extraRevenue;
+
+  const expectedCash =
+    parseOptionalNum(computed.expected_cash) ?? parseOptionalNum(closingData.contante_atteso) ?? 0;
+
+  const realCash =
+    parseOptionalNum(computed.real_cash) ??
+    parseOptionalNum(operator.cash) ??
+    parseOptionalNum(closingData.operator_cash) ??
+    0;
+
+  const discrepancy = parseOptionalNum(computed.discrepancy) ?? realCash - expectedCash;
+
+  return {
+    fuelRevenue,
+    extraRevenue,
+    totalSold,
+    expectedCash,
+    realCash,
+    discrepancy
+  };
+}
+
 // ========== MODULE ==========
 
 // Module-level subscription disposer to prevent leaked listeners when the tab is
@@ -205,7 +287,7 @@ export async function showChiusureTab(
       // Load business rules
       const businessRules = await BusinessLogicManager.loadRules();
 
-      // Build Query
+      // Build Query for Table Rows (Paginated)
       let query = supabase.from('shifts').select(
         `
                     *,
@@ -233,10 +315,39 @@ export async function showChiusureTab(
       const to = from + pagState.pageSize - 1;
       query = query.range(from, to).order('created_at', { ascending: false });
 
-      const { data: closures, error, count } = await query;
+      // Build Query for Totali Card (Unpaginated - all rows matching the period / today)
+      let totalsQuery = supabase
+        .from('shifts')
+        .select('status, opening_data, closing_data, created_at, closed_at');
+
+      if (stationId) {
+        totalsQuery = totalsQuery.eq('station_id', Number(stationId));
+      }
+
+      const hasDateFilter = Boolean(filters.dateFrom || filters.dateTo);
+
+      if (filters.dateFrom) {
+        totalsQuery = totalsQuery.gte('created_at', filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        totalsQuery = totalsQuery.lt('created_at', getExclusiveNextDay(filters.dateTo));
+      }
+
+      if (!hasDateFilter) {
+        const todayDateStr = getItalianBusinessDate();
+        totalsQuery = totalsQuery
+          .gte('created_at', todayDateStr)
+          .lt('created_at', getExclusiveNextDay(todayDateStr));
+      }
+
+      const [{ data: closures, error, count }, { data: totalsData, error: totalsError }] =
+        await Promise.all([query, totalsQuery]);
 
       if (error) {
         throw error;
+      }
+      if (totalsError) {
+        throw totalsError;
       }
 
       // Update totalCount if changed
@@ -248,6 +359,7 @@ export async function showChiusureTab(
       pagination.render();
 
       const filteredClosures: Shift[] = (closures as unknown as Shift[]) || [];
+      const totalsClosures: Shift[] = (totalsData as unknown as Shift[]) || [];
 
       if (filteredClosures.length === 0) {
         setSafeHTML(dataContainer, '<p>Nessuna chiusura trovata.</p>');
@@ -255,16 +367,6 @@ export async function showChiusureTab(
       }
 
       // Totale Giornaliero / Filtered Totals
-      const hasDateFilter = Boolean(filters.dateFrom || filters.dateTo);
-      const todayDateStr = new Date().toLocaleDateString('it-IT');
-
-      const targetClosures = hasDateFilter
-        ? filteredClosures
-        : filteredClosures.filter(c => {
-            const date = new Date(c.closed_at || c.created_at);
-            return date.toLocaleDateString('it-IT') === todayDateStr;
-          });
-
       let totale_venduto_carburante = 0;
       let totale_venduto_extra = 0;
       let totale_venduto = 0;
@@ -272,28 +374,14 @@ export async function showChiusureTab(
       let contante_reale = 0;
       let discrepanza = 0;
 
-      targetClosures.forEach(c => {
-        const closingData = c.closing_data || {};
-        const computed = closingData.snapshot?.computed || closingData.computed || {};
-
-        const fuelRevenue =
-          computed.fuel_revenue ??
-          computed.totale_venduto_carburante ??
-          closingData.ricavo_teorico ??
-          0;
-        const extraRevenue = computed.extra_revenue ?? computed.totale_venduto_extra ?? 0;
-        const totalSold = computed.total_sold ?? fuelRevenue + extraRevenue;
-        const expectedCash = computed.expected_cash ?? closingData.contante_atteso ?? 0;
-        const realCash =
-          computed.real_cash ?? computed.operator?.cash ?? closingData.operator_cash ?? 0;
-        const disc = computed.discrepancy ?? realCash - expectedCash;
-
-        totale_venduto_carburante += fuelRevenue;
-        totale_venduto_extra += extraRevenue;
-        totale_venduto += totalSold;
-        contante_atteso += expectedCash;
-        contante_reale += realCash;
-        discrepanza += disc;
+      totalsClosures.forEach(c => {
+        const m = computeShiftMetrics(c);
+        totale_venduto_carburante += m.fuelRevenue;
+        totale_venduto_extra += m.extraRevenue;
+        totale_venduto += m.totalSold;
+        contante_atteso += m.expectedCash;
+        contante_reale += m.realCash;
+        discrepanza += m.discrepancy;
       });
 
       const discrepanzaColor =
@@ -369,7 +457,7 @@ export async function showChiusureTab(
         let closureType: string;
         let closureClass: string;
         if (isOpen) {
-          closureType = 'Aperto';
+          closureType = 'Apertura';
           closureClass = 'badge-info';
         } else if (isFinal) {
           closureType = 'Finale';
@@ -378,14 +466,8 @@ export async function showChiusureTab(
           closureType = 'Parziale';
           closureClass = 'badge-warning';
         }
-        const computed = closingData.snapshot?.computed || closingData.computed || {};
-        const totalValue =
-          computed.total_sold ??
-          computed.fuel_revenue ??
-          closingData.ricavo_teorico ??
-          closingData.totale_atteso ??
-          0;
-        const total = formatEuro(totalValue);
+        const metrics = computeShiftMetrics(c);
+        const total = formatEuro(metrics.totalSold);
 
         tableHtml += `
                 <tr>

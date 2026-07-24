@@ -3,40 +3,51 @@ import { showChiusureTab, showClosureDetails, deleteClosure } from '../../js/adm
 
 // --- MOCKS ---
 
-vi.mock('../../js/core/api.js', () => ({
-  supabase: {
-    from: vi.fn(() => {
-      const mockChain = {
-        select: vi.fn(() => mockChain),
-        eq: vi.fn(() => mockChain),
-        gt: vi.fn(() => mockChain),
-        gte: vi.fn(() => mockChain),
-        lte: vi.fn(() => mockChain),
-        range: vi.fn(() => mockChain),
-        order: vi.fn(() => Promise.resolve({ data: [], error: null, count: 0 })),
-        limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
-        single: vi.fn(() => Promise.resolve({ data: {}, error: null }))
-      };
-      return mockChain;
-    }),
-    rpc: vi.fn(() => Promise.resolve({ error: null }))
-  },
-  Cache: {
-    getOrFetch: vi.fn((key, fetchFn) => fetchFn()),
-    invalidate: vi.fn(),
-    invalidateByPrefix: vi.fn(),
-    clear: vi.fn(),
-    get: vi.fn(),
-    set: vi.fn(),
-    getStats: vi.fn(() => ({ total: 0, valid: 0, expired: 0 }))
-  },
-  CACHE_KEYS: {
-    STATIONS: 'stations',
-    CUSTOMERS: 'customers',
-    FUEL_TYPES: 'fuel_types',
-    STATION_PREFIX: 'station_'
-  }
-}));
+vi.mock('../../js/core/api.js', () => {
+  const mockChain: Record<string, unknown> = {};
+  const methods = [
+    'select',
+    'eq',
+    'gt',
+    'gte',
+    'lt',
+    'lte',
+    'range',
+    'order',
+    'limit',
+    'single',
+    'maybeSingle',
+    'not',
+    'in'
+  ];
+  methods.forEach(m => {
+    mockChain[m] = vi.fn(() => mockChain);
+  });
+  mockChain.then = (resolve: (v: unknown) => unknown) =>
+    resolve({ data: [], error: null, count: 0 });
+
+  return {
+    supabase: {
+      from: vi.fn(() => mockChain),
+      rpc: vi.fn(() => Promise.resolve({ error: null }))
+    },
+    Cache: {
+      getOrFetch: vi.fn((key, fetchFn) => fetchFn()),
+      invalidate: vi.fn(),
+      invalidateByPrefix: vi.fn(),
+      clear: vi.fn(),
+      get: vi.fn(),
+      set: vi.fn(),
+      getStats: vi.fn(() => ({ total: 0, valid: 0, expired: 0 }))
+    },
+    CACHE_KEYS: {
+      STATIONS: 'stations',
+      CUSTOMERS: 'customers',
+      FUEL_TYPES: 'fuel_types',
+      STATION_PREFIX: 'station_'
+    }
+  };
+});
 
 vi.mock('../../js/shared/error-handler.js', () => ({
   handleError: vi.fn()
@@ -81,7 +92,8 @@ vi.mock('../../js/utils/export_utils.js', () => ({
 
 vi.mock('../../js/utils/utils.js', () => ({
   escapeHtml: vi.fn(text => String(text || '')),
-  formatEuro: vi.fn(val => `€ ${val}`)
+  formatEuro: vi.fn(val => `€ ${val}`),
+  getItalianBusinessDate: vi.fn(() => '2026-07-24')
 }));
 
 vi.mock('../../js/admin/components/FilterBar.js', () => ({
@@ -146,10 +158,12 @@ describe('Shifts Module', () => {
         select: vi.fn(() => mockChain),
         eq: vi.fn(() => mockChain),
         gte: vi.fn(() => mockChain),
+        lt: vi.fn(() => mockChain),
         lte: vi.fn(() => mockChain),
         range: vi.fn(() => mockChain),
         order: vi.fn(() => Promise.resolve({ data: [], error: null, count: 0 })),
-        limit: vi.fn(() => Promise.resolve({ data: [], error: null }))
+        limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null, count: 0 })
       };
 
       vi.mocked(supabase.from).mockReturnValue(
@@ -167,31 +181,31 @@ describe('Shifts Module', () => {
       const { supabase } = await import('../../js/core/api.js');
       // Mock shift created 25 hours ago (threshold is 24)
       const staleDate = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+      const staleShift = {
+        id: 101,
+        station_id: 1,
+        operator_id: 'op1',
+        status: 'open',
+        created_at: staleDate,
+        closed_at: null,
+        closing_data: { is_final: false }
+      };
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn(() => ({
-          // Simplified chain for default checks
-          range: vi.fn(() => ({
-            order: vi.fn(() =>
-              Promise.resolve({
-                data: [
-                  {
-                    id: 101,
-                    station_id: 1,
-                    operator_id: 'op1',
-                    status: 'open',
-                    created_at: staleDate,
-                    closed_at: null,
-                    closing_data: { is_final: false }
-                  }
-                ],
-                error: null,
-                count: 1
-              })
-            )
-          }))
-        }))
-      } as unknown as ReturnType<typeof supabase.from>);
+      const mockChain = {
+        select: vi.fn(() => mockChain),
+        eq: vi.fn(() => mockChain),
+        gte: vi.fn(() => mockChain),
+        lt: vi.fn(() => mockChain),
+        lte: vi.fn(() => mockChain),
+        range: vi.fn(() => mockChain),
+        order: vi.fn(() => Promise.resolve({ data: [staleShift], error: null, count: 1 })),
+        then: (resolve: (v: unknown) => unknown) =>
+          resolve({ data: [staleShift], error: null, count: 1 })
+      };
+
+      vi.mocked(supabase.from).mockReturnValue(
+        mockChain as unknown as ReturnType<typeof supabase.from>
+      );
 
       await showChiusureTab(container, null);
 
@@ -207,27 +221,28 @@ describe('Shifts Module', () => {
       const { supabase } = await import('../../js/core/api.js');
       // Mock shift created 10 hours ago
       const recentDate = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
+      const recentShift = {
+        id: 102,
+        status: 'open',
+        created_at: recentDate,
+        closing_data: { is_final: false }
+      };
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn(() => ({
-          range: vi.fn(() => ({
-            order: vi.fn(() =>
-              Promise.resolve({
-                data: [
-                  {
-                    id: 102,
-                    status: 'open',
-                    created_at: recentDate,
-                    closing_data: { is_final: false }
-                  }
-                ],
-                error: null,
-                count: 1
-              })
-            )
-          }))
-        }))
-      } as unknown as ReturnType<typeof supabase.from>);
+      const mockChain = {
+        select: vi.fn(() => mockChain),
+        eq: vi.fn(() => mockChain),
+        gte: vi.fn(() => mockChain),
+        lt: vi.fn(() => mockChain),
+        lte: vi.fn(() => mockChain),
+        range: vi.fn(() => mockChain),
+        order: vi.fn(() => Promise.resolve({ data: [recentShift], error: null, count: 1 })),
+        then: (resolve: (v: unknown) => unknown) =>
+          resolve({ data: [recentShift], error: null, count: 1 })
+      };
+
+      vi.mocked(supabase.from).mockReturnValue(
+        mockChain as unknown as ReturnType<typeof supabase.from>
+      );
 
       await showChiusureTab(container, null);
       await new Promise(r => setTimeout(r, 0));
