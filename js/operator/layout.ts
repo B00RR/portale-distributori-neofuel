@@ -3,7 +3,7 @@
  * Handles rendering of operator shell and shared UI components
  */
 
-import { getStationName } from '../core/api.js';
+import { getStationName, supabase } from '../core/api.js';
 import { clearSession } from '../core/auth.js';
 import { logger } from '../core/logger.js';
 import { getFailedCount, getPendingCount } from '../core/offline-queue.js';
@@ -27,6 +27,59 @@ export interface OperatorHandlers {
 
 interface ExtendedUser extends User {
   assignedStations?: Array<{ id: string | number; name?: string }>;
+}
+
+let activeShiftsChannel: ReturnType<typeof supabase.channel> | null = null;
+let activeSubscribedStationId: string | null = null;
+
+export function unsubscribeShiftsRealtime(): void {
+  if (activeShiftsChannel) {
+    try {
+      void supabase.removeChannel(activeShiftsChannel);
+    } catch (err) {
+      logger.error('operatorLayout', 'Errore rimozione canale realtime shifts:', err);
+    }
+    activeShiftsChannel = null;
+    activeSubscribedStationId = null;
+  }
+}
+
+export function setupShiftsRealtimeSubscription(
+  stationId: string | number,
+  userId: string | number,
+  handlers: OperatorHandlers
+): void {
+  const normalizedId = String(stationId).trim();
+  if (activeSubscribedStationId === normalizedId && activeShiftsChannel) {
+    return;
+  }
+
+  unsubscribeShiftsRealtime();
+
+  activeSubscribedStationId = normalizedId;
+  try {
+    activeShiftsChannel = supabase
+      .channel(`shifts_realtime_${normalizedId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'shifts',
+          filter: `station_id=eq.${normalizedId}`
+        },
+        () => {
+          void updateTurnoButton(normalizedId, userId, handlers);
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || err) {
+          logger.error('operatorLayout', 'Realtime shifts subscription error:', err || status);
+        }
+      });
+  } catch (err) {
+    logger.error('operatorLayout', 'Errore configurazione realtime shifts:', err);
+  }
 }
 
 // ========== FUNCTIONS ==========
@@ -68,8 +121,8 @@ export async function renderOperatorShell(
             
             <div class="operator-menu" data-testid="operator-menu">
                 <button class="op-menu-item primary" id="btn-turno" data-testid="btn-turno">
-                    <i class="fas fa-door-open" id="turno-icon"></i>
-                    <span id="turno-text">Apertura</span>
+                    <i class="fas fa-door-closed" id="turno-icon"></i>
+                    <span id="turno-text">Chiusura</span>
                     <span class="status-badge" id="opening-status"></span>
                 </button>
 
@@ -137,6 +190,7 @@ export async function renderOperatorShell(
   if (stationId && userId) {
     updateStationBadge(stationId);
     updateTurnoButton(stationId, String(userId), handlers);
+    setupShiftsRealtimeSubscription(stationId, String(userId), handlers);
   }
 
   attachEventListeners(handlers);
@@ -187,6 +241,7 @@ function renderStationSelector(
 
     updateStationBadge(selectedStationId);
     updateTurnoButton(selectedStationId, userId, handlers);
+    setupShiftsRealtimeSubscription(selectedStationId, userId, handlers);
     handlers.onStationChange?.(selectedStationId);
   });
 
@@ -234,18 +289,18 @@ export async function updateTurnoButton(
     logger.error('operatorLayout', 'Badge opening-status NOT FOUND in DOM.');
   }
 
-  if (opening) {
-    if (turnoIcon) {
-      turnoIcon.className = 'fas fa-door-closed';
-    }
-    if (turnoText) {
-      turnoText.textContent = 'Chiusura';
-    }
+  if (turnoIcon) {
+    turnoIcon.className = 'fas fa-door-closed';
+  }
+  if (turnoText) {
+    turnoText.textContent = 'Chiusura';
+  }
 
-    // Remove old listeners by using onclick property (safest simple way)
-    btnTurno.onclick = () => handlers.onClosure(String(stationId), String(userId));
+  // Always invoke onClosure; startClosureWizard determines opening vs closure flow
+  btnTurno.onclick = () => handlers.onClosure(String(stationId), String(userId));
 
-    if (badge) {
+  if (badge) {
+    if (opening) {
       const hasPartial =
         opening.closing_data !== null &&
         typeof opening.closing_data === 'object' &&
@@ -255,25 +310,12 @@ export async function updateTurnoButton(
       badge.textContent = text;
       badge.className = `status-badge ${hasPartial ? 'status-partial' : 'status-open'}`;
       badge.title = `Aperto da ${opening.users?.full_name || 'Operatore'} il ${new Date(opening.opened_at).toLocaleString('it-IT')}`;
-      // Force visibility
-      badge.style.display = 'inline-block';
-    }
-  } else {
-    if (turnoIcon) {
-      turnoIcon.className = 'fas fa-door-open';
-    }
-    if (turnoText) {
-      turnoText.textContent = 'Apertura';
-    }
-
-    btnTurno.onclick = () => handlers.onOpening(String(stationId), String(userId));
-
-    if (badge) {
+    } else {
       badge.textContent = 'Chiuso';
       badge.className = 'status-badge status-closed';
       badge.title = 'Nessuna apertura attiva';
-      badge.style.display = 'inline-block';
     }
+    badge.style.display = 'inline-block';
   }
 }
 

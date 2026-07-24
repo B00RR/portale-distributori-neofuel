@@ -18,7 +18,16 @@ const {
 }));
 
 vi.mock('../../js/shared/state.js', () => ({ store: mockStore }));
-vi.mock('../../js/core/api.js', () => ({ getStationName: mockGetStationName }));
+vi.mock('../../js/core/api.js', () => ({
+  getStationName: mockGetStationName,
+  supabase: {
+    channel: vi.fn(() => ({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn().mockReturnThis(),
+      unsubscribe: vi.fn()
+    }))
+  }
+}));
 vi.mock('../../js/core/auth.js', () => ({ clearSession: vi.fn() }));
 vi.mock('../../js/core/logger.js', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() }
@@ -28,7 +37,9 @@ vi.mock('../../js/core/offline-queue.js', () => ({
   getFailedCount: mockGetFailedCount
 }));
 vi.mock('../../js/ui/ui.js', () => ({ openConfirmModal: vi.fn() }));
-vi.mock('../../js/operator/opening.js', () => ({ checkOpeningStatus: mockCheckOpeningStatus }));
+vi.mock('../../js/operator/opening.js', () => ({
+  checkOpeningStatus: mockCheckOpeningStatus
+}));
 
 import { renderOperatorShell } from '../../js/operator/layout.js';
 

@@ -150,7 +150,6 @@ export class ClosureWizard extends BaseComponent {
   @state() private operatorCash: string = '';
   @state() private operatorPos: string = '';
   @state() private operatorUta: string = '';
-  @state() private isLastOperator: boolean = false;
 
   // Server-computed preview
   @state() private serverTotals: ServerTotals | null = null;
@@ -863,7 +862,7 @@ export class ClosureWizard extends BaseComponent {
         p_operator_cash: payload.operatorCash,
         p_operator_pos: payload.operatorPos,
         p_operator_fleet: payload.operatorUta,
-        p_closure_type: payload.isFinal ? 'final' : 'partial',
+        p_closure_type: 'partial',
         p_preview: true
       });
 
@@ -912,7 +911,7 @@ export class ClosureWizard extends BaseComponent {
       return null;
     }
 
-    const isFinal = this.isLastOperator;
+    const isFinal = false;
 
     // Send raw counters: null means "use opening value" on the server.
     const finalCounters: Record<number, number | null> = {};
@@ -946,7 +945,6 @@ export class ClosureWizard extends BaseComponent {
     const absDiscrepancy = Math.abs(discrepancy);
     const isWarning = absDiscrepancy > 10;
     const isCritical = absDiscrepancy > 50;
-    const isFinal = this.isLastOperator;
 
     if (this.wizardState.mode === 'submitting') {
       return html`<div style="text-align:center; padding: 3rem;">
@@ -1057,23 +1055,6 @@ export class ClosureWizard extends BaseComponent {
       </div>
 
       ${
-        isFinal
-          ? html`
-              <div
-                style="background: #fef2f2; border: 1px solid #fecaca; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; color: #991b1b; display: flex; align-items: center; gap: 0.75rem;"
-              >
-                <i class="fas fa-exclamation-triangle fa-lg"></i>
-                <div>
-                  <strong>Chiusura Finale</strong><br />
-                  Questa è l'ultima chiusura della giornata. Il distributore resterà senza turno
-                  aperto fino all'apertura di domani mattina.
-                </div>
-              </div>
-            `
-          : ''
-      }
-
-      ${
         this.isEditingClosure
           ? html`
               <div class="btn-group">
@@ -1118,16 +1099,6 @@ export class ClosureWizard extends BaseComponent {
       return;
     }
 
-    const isFinal = payload.isFinal;
-    if (isFinal) {
-      const confirmFinal = window.confirm(
-        "Questa è l'ultima chiusura della giornata. Il distributore resterà senza turno aperto fino all'apertura di domani mattina. Confermi?"
-      );
-      if (!confirmFinal) {
-        return;
-      }
-    }
-
     this.wizardState = { ...this.wizardState, mode: 'submitting' };
 
     const {
@@ -1149,7 +1120,7 @@ export class ClosureWizard extends BaseComponent {
         await queueAction('shift_close', {
           shiftId: activeOpeningId,
           stationId: this.numericStationId,
-          isFinal,
+          isFinal: false,
           finalCounters: finalCountersJson,
           selfCashIn,
           selfCashOut,
@@ -1190,7 +1161,7 @@ export class ClosureWizard extends BaseComponent {
         p_operator_cash: operatorCash,
         p_operator_pos: operatorPos,
         p_operator_fleet: operatorUta,
-        p_closure_type: isFinal ? 'final' : 'partial',
+        p_closure_type: 'partial',
         p_preview: false
       });
       if (error || (res && isRpcResult(res) && !res.success)) {
