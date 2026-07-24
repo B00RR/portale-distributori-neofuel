@@ -1,55 +1,74 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockSupabase, mockUI, mockUtils, mockToast, mockErrorHandler } = vi.hoisted(() => {
-    const queryBuilder: any = {};
-    const chain = vi.fn((...args) => queryBuilder);
-    const updateResult = { data: { status: 'paid' }, error: null };
+interface InvoiceRow {
+  id: number;
+  created_at: string;
+  amount: number;
+  payment_method: string;
+  product_category: string;
+  status: string;
+  user: { full_name: string };
+}
 
-    Object.assign(queryBuilder, {
-        select: chain, eq: chain, gte: chain, lte: chain, order: chain, in: chain,
-        update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-                then: (resolve: any) => resolve(updateResult)
-            }))
-        })),
-        then: (resolve: any) => resolve({
-            data: [
-                {
-                    id: 1,
-                    created_at: '2024-01-01',
-                    amount: 100,
-                    product_category: 'Gasolio',
-                    status: 'completed', // Emit status so toggle button appears
-                    user: { full_name: 'Test' }
-                }
-            ],
-            error: null
-        })
+interface QueryResult {
+  data: InvoiceRow[];
+  error: null;
+}
+
+type QueryBuilder = {
+  select: ReturnType<typeof vi.fn>;
+  eq: ReturnType<typeof vi.fn>;
+  order: ReturnType<typeof vi.fn>;
+  in: ReturnType<typeof vi.fn>;
+  then: (resolve: (value: QueryResult) => unknown) => unknown;
+};
+
+const { mockSupabase, mockUI, mockUtils, mockToast, mockErrorHandler, queryBuilder } = vi.hoisted(
+  () => {
+    const rows: InvoiceRow[] = [
+      {
+        id: 1,
+        created_at: '2024-01-01',
+        amount: 100,
+        payment_method: 'contanti',
+        product_category: 'Gasolio',
+        status: 'completed',
+        user: { full_name: 'Test' }
+      }
+    ];
+
+    const builder = {} as QueryBuilder;
+    const chain = vi.fn(() => builder);
+    Object.assign(builder, {
+      select: chain,
+      eq: chain,
+      order: chain,
+      in: chain,
+      then: (resolve: (value: QueryResult) => unknown) => resolve({ data: rows, error: null })
     });
 
     return {
-        mockSupabase: {
-            from: vi.fn(() => queryBuilder)
-        },
-        mockUI: {
-            showLoadingMessage: vi.fn(),
-            showErrorMessage: vi.fn(),
-            openConfirmModal: vi.fn().mockResolvedValue(true)
-        },
-        mockUtils: {
-            formatEuro: vi.fn(v => `€${v}`),
-            formatLitri: vi.fn(v => `${v}L`),
-            getISODate: vi.fn(() => '2024-01-01'),
-            escapeHtml: vi.fn(v => v)
-        },
-        mockToast: {
-            show: vi.fn()
-        },
-        mockErrorHandler: {
-            handleError: vi.fn()
-        }
+      queryBuilder: builder,
+      mockSupabase: {
+        from: vi.fn(() => builder),
+        rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null })
+      },
+      mockUI: {
+        showLoadingMessage: vi.fn(),
+        showErrorMessage: vi.fn(),
+        openConfirmModal: vi.fn().mockResolvedValue(true)
+      },
+      mockUtils: {
+        formatEuro: vi.fn((value: number) => `€${value}`),
+        formatLitri: vi.fn((value: number) => `${value}L`),
+        getISODate: vi.fn(() => '2024-01-01'),
+        escapeHtml: vi.fn((value: string) => value)
+      },
+      mockToast: { show: vi.fn() },
+      mockErrorHandler: { handleError: vi.fn() }
     };
-});
+  }
+);
 
 vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
 vi.mock('../../js/ui/ui.js', () => mockUI);
@@ -57,38 +76,55 @@ vi.mock('../../js/utils/utils.js', () => mockUtils);
 vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
 vi.mock('../../js/shared/error-handler.js', () => mockErrorHandler);
 
-import { showFattureTab } from '../../js/admin/invoices.js'; // Only import exported function
+import { showFattureTab } from '../../js/admin/invoices.js';
 
 describe('Admin Invoices Module', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        vi.resetModules();
-        document.body.innerHTML = `
-            <div id="invoices-container"></div>
-            <button class="nav-btn active">Tab</button>
-        `;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSupabase.from.mockReturnValue(queryBuilder);
+    mockSupabase.rpc.mockResolvedValue({ data: { success: true }, error: null });
+    document.body.innerHTML = `
+      <div id="invoices-container"></div>
+      <button class="nav-btn active">Tab</button>
+    `;
+  });
+
+  it('updates status through the RPC and refreshes the active tab on success', async () => {
+    const container = document.getElementById('invoices-container');
+    const activeTab = document.querySelector('.nav-btn.active') as HTMLButtonElement;
+    const refreshSpy = vi.spyOn(activeTab, 'click');
+    expect(container).not.toBeNull();
+
+    await showFattureTab(container!);
+    const button = container!.querySelector('.toggle-status') as HTMLButtonElement;
+    button.click();
+
+    await vi.waitFor(() => {
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('set_invoice_status', {
+        p_invoice_id: 1,
+        p_new_status: 'pending'
+      });
+      expect(mockToast.show).toHaveBeenCalledWith('Stato fattura aggiornato', 'success');
+      expect(refreshSpy).toHaveBeenCalledOnce();
     });
+  });
 
-    it('should load table and toggle invoice status via click', async () => {
-        const container = document.getElementById('invoices-container')!;
-        await showFattureTab(container);
+  it('handles an RPC error without showing success or refreshing the tab', async () => {
+    const rpcError = new Error('RPC failed');
+    mockSupabase.rpc.mockResolvedValue({ data: null, error: rpcError });
+    const container = document.getElementById('invoices-container');
+    const activeTab = document.querySelector('.nav-btn.active') as HTMLButtonElement;
+    const refreshSpy = vi.spyOn(activeTab, 'click');
+    expect(container).not.toBeNull();
 
-        await new Promise(r => setTimeout(r, 10)); // Render
+    await showFattureTab(container!);
+    const button = container!.querySelector('.toggle-status') as HTMLButtonElement;
+    button.click();
 
-        expect(mockSupabase.from).toHaveBeenCalledWith('invoices');
-        expect(container.innerHTML).toContain('table');
-
-        // Find toggle button
-        const btn = container.querySelector('.toggle-status') as HTMLElement;
-        expect(btn).toBeTruthy();
-
-        // Click it
-        btn.click();
-
-        await new Promise(r => setTimeout(r, 10)); // Async action
-
-        expect(mockSupabase.from).toHaveBeenCalledWith('invoices');
-        // Check log or second call for update
-        expect(mockToast.show).toHaveBeenCalledWith('Stato fattura aggiornato', 'success');
+    await vi.waitFor(() => {
+      expect(mockErrorHandler.handleError).toHaveBeenCalledWith(rpcError, 'toggleInvoiceStatus');
     });
+    expect(mockToast.show).not.toHaveBeenCalled();
+    expect(refreshSpy).not.toHaveBeenCalled();
+  });
 });
