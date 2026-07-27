@@ -74,6 +74,14 @@ ON CONFLICT (id) DO NOTHING;
 ALTER SEQUENCE public.users_user_id_seq RESTART WITH 10;
 
 -- 3. Sample Domain Data for Isolation Testing
+-- Open Shifts
+INSERT INTO public.shifts (id, station_id, operator_id, opened_at, status, opened_by)
+VALUES
+  (401, 1, 2, NOW(), 'open', 2),
+  (402, 2, 3, NOW(), 'open', 3);
+
+ALTER SEQUENCE public.shifts_id_seq RESTART WITH 500;
+
 -- Invoices
 INSERT INTO public.invoices (id, station_id, operator_id, invoice_number, invoice_date, customer_name, amount, status, payment_method)
 VALUES
@@ -97,14 +105,6 @@ VALUES
   (302, 2, 3, 'inflow', 40.00, 'Incasso cassa Sud', 'cash', 402);
 
 ALTER SEQUENCE public.movimenti_cassa_id_seq RESTART WITH 400;
-
--- Open Shifts
-INSERT INTO public.shifts (id, station_id, operator_id, opened_at, status, opened_by)
-VALUES
-  (401, 1, 2, NOW(), 'open', 2),
-  (402, 2, 3, NOW(), 'open', 3);
-
-ALTER SEQUENCE public.shifts_id_seq RESTART WITH 500;
 
 -- Pistole & Tanks
 INSERT INTO public.pistole (id, station_id, numero_pistola, tipo_carburante, ultima_lettura)
