@@ -160,6 +160,182 @@ AS $$
   SELECT true;
 $$;
 
+-- Baseline authorization functions
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE user_id = public.current_user_id()
+      AND role IN ('admin', 'super_admin', 'full_admin')
+      AND is_active = true
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_operator()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE created_by_auth = auth.uid()
+      AND role IN ('operator', 'admin', 'super_admin', 'full_admin')
+      AND is_active = true
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_station_operator(p_station_id bigint)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_user_id integer;
+BEGIN
+  IF public.is_admin() THEN
+    RETURN true;
+  END IF;
+
+  v_user_id := public.current_user_id();
+  IF v_user_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  RETURN EXISTS (
+    SELECT 1 FROM public.user_stations us
+    WHERE us.user_id = v_user_id
+      AND us.station_id = p_station_id
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_current_user_role()
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT role FROM public.users WHERE created_by_auth = auth.uid() LIMIT 1;
+$$;
+
+-- Baseline trigger and utility helper functions
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.set_created_by_auth()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF NEW.created_by_auth IS NULL THEN
+    NEW.created_by_auth := auth.uid();
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.set_users_created_by_auth()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF NEW.created_by_auth IS NULL THEN
+    NEW.created_by_auth := auth.uid();
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.notify_admin_crediti_modifica()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.delete_voucher_photo()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN OLD;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.calculate_liters_dispensed()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.create_index_if_column_exists(
+  p_table_reg regclass,
+  p_column_name text,
+  p_index_name text
+)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.update_daily_closure_totals()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+
 
 
 CREATE TABLE IF NOT EXISTS public.islands (
@@ -391,6 +567,22 @@ CREATE TABLE IF NOT EXISTS public.calculation_logs (
   log_data jsonb,
   created_at timestamptz DEFAULT now()
 );
+
+CREATE OR REPLACE VIEW public.calculation_modules_with_active AS
+SELECT
+  m.id::text AS module_id,
+  m.name,
+  NULL::text AS description,
+  NULL::text AS scope,
+  NULL::text AS status,
+  v.id::text AS active_version_id,
+  1::integer AS version,
+  now() AS published_at,
+  NULL::text AS created_by,
+  m.created_at
+FROM public.calculation_modules m
+LEFT JOIN public.calculation_versions v ON v.module_id = m.id AND v.is_active = true;
+
 
 CREATE TABLE IF NOT EXISTS public.user_dashboard_config (
   user_id uuid PRIMARY KEY REFERENCES auth.users(id),
