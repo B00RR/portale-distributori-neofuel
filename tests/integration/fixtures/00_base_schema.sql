@@ -486,12 +486,11 @@ CREATE TABLE IF NOT EXISTS public.movimenti_cassa (
 
 CREATE TABLE IF NOT EXISTS public.crediti_clienti (
   id serial PRIMARY KEY,
+  cliente text NOT NULL,
+  importo numeric DEFAULT 0,
+  saldo numeric DEFAULT 0,
   station_id integer REFERENCES public.fuel_stations(station_id),
-  ragione_sociale text NOT NULL,
-  codice_fiscale text,
-  partita_iva text,
-  saldo_attuale numeric DEFAULT 0,
-  is_active boolean DEFAULT true,
+  shift_id bigint REFERENCES public.shifts(id),
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -499,11 +498,13 @@ CREATE TABLE IF NOT EXISTS public.crediti_clienti (
 CREATE TABLE IF NOT EXISTS public.crediti_movimenti (
   id serial PRIMARY KEY,
   cliente_id integer REFERENCES public.crediti_clienti(id),
-  station_id integer REFERENCES public.fuel_stations(station_id),
-  shift_id integer REFERENCES public.shifts(id),
-  tipo_movimento text,
   importo numeric,
+  metodo text,
+  station_id integer REFERENCES public.fuel_stations(station_id),
+  operator_id integer REFERENCES public.users(user_id),
+  tipo text,
   note text,
+  shift_id bigint REFERENCES public.shifts(id),
   created_at timestamptz DEFAULT now()
 );
 

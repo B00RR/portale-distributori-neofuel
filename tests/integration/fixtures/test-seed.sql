@@ -7,7 +7,8 @@ BEGIN;
 TRUNCATE TABLE public.customer_refunds, public.movimenti_cassa, public.invoice_requests,
   public.invoices, public.shift_pistols, public.shifts, public.tank_pump_usages,
   public.tank_readings, public.tank_pump_links, public.pistole, public.tanks,
-  public.user_stations, public.users, public.fuel_stations CASCADE;
+  public.user_stations, public.users, public.fuel_stations, public.crediti_movimenti,
+  public.crediti_clienti CASCADE;
 
 DELETE FROM auth.users WHERE email LIKE '%@neofuel.test';
 
