@@ -191,7 +191,7 @@ AS $$
   );
 $$;
 
-CREATE OR REPLACE FUNCTION public.is_station_operator(p_station_id bigint)
+CREATE OR REPLACE FUNCTION public.is_station_operator(station_id bigint)
 RETURNS boolean
 LANGUAGE plpgsql
 STABLE
@@ -213,7 +213,7 @@ BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.user_stations us
     WHERE us.user_id = v_user_id
-      AND us.station_id = p_station_id
+      AND us.station_id = is_station_operator.station_id
   );
 END;
 $$;
