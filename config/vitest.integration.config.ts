@@ -10,6 +10,7 @@ export default defineConfig({
     testTimeout: 30000,
     hookTimeout: 60000,
     reporters: ['verbose'],
+    globalSetup: [resolve(__dirname, '../tests/integration/global-setup.ts')],
     setupFiles: [resolve(__dirname, '../tests/integration/setup.ts')],
     mockReset: false,
     restoreMocks: false,

@@ -82,24 +82,6 @@ export async function runSqlFile(filepath: string): Promise<void> {
   await pool.query(content);
 }
 
-export async function applyAllMigrations(): Promise<string[]> {
-  const migrationsDir = path.resolve(process.cwd(), 'sql', 'migrations');
-  const files = fs
-    .readdirSync(migrationsDir)
-    .filter(f => f.endsWith('.sql'))
-    .sort();
-
-  const applied: string[] = [];
-  if (!isDbAvailable) return applied;
-
-  for (const filename of files) {
-    const filepath = path.join(migrationsDir, filename);
-    await runSqlFile(filepath);
-    applied.push(filename);
-  }
-  return applied;
-}
-
 export async function resetDatabaseState(): Promise<void> {
   if (!isDbAvailable) return;
   const seedFile = path.resolve(process.cwd(), 'tests', 'integration', 'fixtures', 'test-seed.sql');
@@ -107,6 +89,14 @@ export async function resetDatabaseState(): Promise<void> {
 }
 
 beforeAll(async () => {
+  if (process.env.INTEGRATION_DB_AVAILABLE === 'false') {
+    isDbAvailable = false;
+    if (process.env.CI) {
+      throw new Error(`Failed to connect to ephemeral database at ${DB_URL} during CI run.`);
+    }
+    return;
+  }
+
   pool = new Pool({
     connectionString: DB_URL,
     connectionTimeoutMillis: 2000
@@ -121,19 +111,8 @@ beforeAll(async () => {
       throw new Error(`Failed to connect to ephemeral database at ${DB_URL} during CI run.`);
     } else {
       console.warn('⚠️ Ephemeral DB connection unavailable locally. Integration tests will be skipped locally.');
-      return;
     }
   }
-
-  // 1. Base schema setup
-  const baseSchemaFile = path.resolve(process.cwd(), 'tests', 'integration', 'fixtures', '00_base_schema.sql');
-  await runSqlFile(baseSchemaFile);
-
-  // 2. Apply all canonical migrations
-  await applyAllMigrations();
-
-  // 3. Populate test seed
-  await resetDatabaseState();
 });
 
 beforeEach(async () => {
