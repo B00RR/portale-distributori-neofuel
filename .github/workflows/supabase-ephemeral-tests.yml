@@ -1,0 +1,36 @@
+name: 🗄️ Supabase Ephemeral DB Integration Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, develop]
+
+jobs:
+  ephemeral-db-tests:
+    name: 🧪 Ephemeral Database Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Start Ephemeral Supabase Environment
+        run: npx supabase start
+
+      - name: Run Ephemeral DB Integration Tests
+        run: npm run test:integration
+        env:
+          SUPABASE_URL: 'http://127.0.0.1:54321'
+          SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IjEyNzA0MSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNTc5ODgwODAwLCJleHAiOjE5MDU0NTY4MDB9.0'
+          SUPABASE_SERVICE_ROLE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IjEyNzA0MSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE1Nzk4ODA4MDAsImV4cCI6MTkwNTQ1NjgwMH0.0'
+          DATABASE_URL: 'postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres'
+          SUPABASE_JWT_SECRET: 'super-secret-jwt-token-with-at-least-32-characters-long'
