@@ -89,6 +89,41 @@ CREATE TABLE IF NOT EXISTS public.user_stations (
   assigned_at timestamptz DEFAULT now()
 );
 
+-- User context helper functions (stubs for RLS/migrations)
+CREATE OR REPLACE FUNCTION public.current_user_id()
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT user_id FROM public.users WHERE created_by_auth = auth.uid() LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_current_user_id()
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT public.current_user_id();
+$$;
+
+CREATE OR REPLACE FUNCTION public.current_user_station_ids()
+RETURNS integer[]
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT ARRAY(
+    SELECT station_id FROM public.user_stations
+    WHERE user_id = public.current_user_id()
+  );
+$$;
+
+
 CREATE TABLE IF NOT EXISTS public.islands (
   id serial PRIMARY KEY,
   station_id integer REFERENCES public.fuel_stations(station_id),
