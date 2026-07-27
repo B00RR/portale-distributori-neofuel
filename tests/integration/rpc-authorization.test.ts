@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isDbAvailable,
+  pool,
   getAdminClient,
   getOperator1Client,
   getInactiveClient,
@@ -132,6 +133,48 @@ describe('RPC Authorization Integration Tests', () => {
       });
       expect(secondCall.error).toBeNull();
       expect(secondCall.data).toEqual(firstCall.data);
+    });
+
+    it('handles concurrent identical requests with exactly-once execution and verifies DB state', async () => {
+      if (!isDbAvailable) return;
+      const client = getOperator1Client();
+      const requestId = 'req-concurrent-exactly-once-337';
+      const fixedCreatedAt = '2026-07-27T12:00:00.000Z';
+      const description = 'Concurrent test movement #337';
+
+      const payload = {
+        p_station_id: 1,
+        p_shift_id: 401,
+        p_operator_id: 2,
+        p_tipo: 'inflow',
+        p_payment_method: 'cash',
+        p_importo: 75.50,
+        p_descrizione: description,
+        p_request_id: requestId,
+        p_created_at: fixedCreatedAt
+      };
+
+      const [res1, res2] = await Promise.all([
+        client.rpc('create_movement_v2', payload),
+        client.rpc('create_movement_v2', payload)
+      ]);
+
+      expect(res1.error).toBeNull();
+      expect(res2.error).toBeNull();
+      expect(res1.data?.success).toBe(true);
+      expect(res2.data?.success).toBe(true);
+
+      const reqCheck = await pool.query(
+        'SELECT * FROM public.processed_requests WHERE request_id = $1 AND action_type = $2',
+        [requestId, 'create_movement_v2']
+      );
+      expect(reqCheck.rows.length).toBe(1);
+
+      const movCheck = await pool.query(
+        'SELECT * FROM public.movimenti_cassa WHERE descrizione = $1',
+        [description]
+      );
+      expect(movCheck.rows.length).toBe(1);
     });
 
     it('blocks operator 1 from creating movement for station 2', async () => {
