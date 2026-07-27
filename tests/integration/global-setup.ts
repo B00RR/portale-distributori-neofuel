@@ -24,7 +24,12 @@ export async function applyAllMigrations(pool: pg.Pool): Promise<string[]> {
   const applied: string[] = [];
   for (const filename of files) {
     const filepath = path.join(migrationsDir, filename);
-    await runSqlFile(pool, filepath);
+    try {
+      await runSqlFile(pool, filepath);
+    } catch (err: any) {
+      const message = err?.message || String(err);
+      throw new Error(`Migration ${filename} failed: ${message}`, { cause: err });
+    }
     applied.push(filename);
   }
   return applied;

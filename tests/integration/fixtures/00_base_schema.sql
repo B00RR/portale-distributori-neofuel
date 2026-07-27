@@ -339,9 +339,12 @@ $$;
 
 
 CREATE TABLE IF NOT EXISTS public.islands (
-  id serial PRIMARY KEY,
+  island_id serial PRIMARY KEY,
+  id integer,
   station_id integer REFERENCES public.fuel_stations(station_id),
-  name text,
+  island_name text,
+  nome text,
+  is_active boolean DEFAULT true,
   created_at timestamptz DEFAULT now()
 );
 
@@ -360,9 +363,12 @@ CREATE TABLE IF NOT EXISTS public.tanks (
 CREATE TABLE IF NOT EXISTS public.pistole (
   id serial PRIMARY KEY,
   station_id integer REFERENCES public.fuel_stations(station_id),
+  island_id integer REFERENCES public.islands(island_id),
+  nome text,
   numero_pistola integer,
   tipo_carburante text,
   ultima_lettura numeric DEFAULT 0,
+  numero_litri numeric DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 
@@ -382,19 +388,29 @@ CREATE TABLE IF NOT EXISTS public.shifts (
   status text DEFAULT 'open',
   opening_notes text,
   closing_notes text,
+  opening_data jsonb,
   closing_data jsonb,
   opened_by integer REFERENCES public.users(user_id),
-  closed_by integer REFERENCES public.users(user_id)
+  closed_by integer REFERENCES public.users(user_id),
+  payment_method text,
+  shift_id integer,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.shift_pistols (
   id serial PRIMARY KEY,
   shift_id integer REFERENCES public.shifts(id),
+  pistola_id integer REFERENCES public.pistole(id),
   pistol_id integer REFERENCES public.pistole(id),
+  opened_at_counter numeric,
+  closed_at_counter numeric,
+  liters_dispensed numeric,
   initial_counter numeric,
   final_counter numeric,
   total_liters numeric,
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.tank_readings (
@@ -406,15 +422,22 @@ CREATE TABLE IF NOT EXISTS public.tank_readings (
   start_level numeric,
   end_level numeric,
   water_level numeric,
+  level_mm numeric,
+  liters numeric,
   reading_type text,
-  reading_time timestamptz DEFAULT now()
+  reading_time timestamptz DEFAULT now(),
+  created_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.tank_pump_usages (
   id serial PRIMARY KEY,
   shift_id integer REFERENCES public.shifts(id),
-  tank_id integer REFERENCES public.tanks(id),
+  station_id integer REFERENCES public.fuel_stations(station_id),
   pump_id integer REFERENCES public.pistole(id),
+  tank_id integer REFERENCES public.tanks(id),
+  liters numeric,
+  mode text,
+  ratio numeric,
   liters_dispensed numeric,
   created_at timestamptz DEFAULT now()
 );
