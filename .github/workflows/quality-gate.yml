@@ -29,6 +29,7 @@ jobs:
         run: >-
           npx --yes prettier --check
           "js/**/*.{js,ts}"
+          "config/playwright.global-*.js"
           "e2e/auth.spec.js"
           "e2e/helpers/mock-supabase.js"
           "scripts/e2e-live-seed.mjs"

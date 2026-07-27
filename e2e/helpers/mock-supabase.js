@@ -12,20 +12,51 @@
  */
 
 import { expect } from '@playwright/test';
+import { deriveSeedAuthIdentity } from '../../scripts/e2e-live-seed.mjs';
 
 const E2E_ENV = globalThis.process?.env || {};
-const isLiveSupabaseE2E = () => E2E_ENV.E2E_SUPABASE_MODE === 'live';
+export const isLiveSupabaseE2E = (env = E2E_ENV) => env.E2E_SUPABASE_MODE === 'live';
 
-const TEST_CREDENTIALS = {
-  admin: {
-    username: E2E_ENV.TEST_ADMIN_USERNAME || 'e2e-admin',
-    password: E2E_ENV.TEST_ADMIN_PASSWORD || E2E_ENV.TEST_USER_PASS || 'password-e2e-admin'
-  },
-  operator: {
-    username: E2E_ENV.TEST_OPERATOR_USERNAME || 'e2e-operator',
-    password: E2E_ENV.TEST_OPERATOR_PASSWORD || E2E_ENV.TEST_USER_PASS || 'password-e2e-operator'
+export function resolveE2ECredentials(role = 'admin', env = E2E_ENV) {
+  const isLive = isLiveSupabaseE2E(env);
+  if (isLive) {
+    const rawUsername = role === 'operator' ? env.TEST_OPERATOR_USERNAME : env.TEST_ADMIN_USERNAME;
+    const rawPassword = role === 'operator' ? env.TEST_OPERATOR_PASSWORD : env.TEST_ADMIN_PASSWORD;
+    const runId = env.E2E_RUN_ID;
+
+    if (!rawUsername || !rawUsername.trim()) {
+      throw new Error(
+        `TEST_${role === 'operator' ? 'OPERATOR' : 'ADMIN'}_USERNAME is required for live E2E login`
+      );
+    }
+    if (!rawPassword || !rawPassword.trim()) {
+      throw new Error(
+        `TEST_${role === 'operator' ? 'OPERATOR' : 'ADMIN'}_PASSWORD is required for live E2E login`
+      );
+    }
+    if (!runId || !runId.trim()) {
+      throw new Error('E2E_RUN_ID is required for live E2E login');
+    }
+
+    const { username } = deriveSeedAuthIdentity(rawUsername, undefined, runId);
+    return {
+      username,
+      password: rawPassword.trim()
+    };
   }
-};
+
+  if (role === 'operator') {
+    return {
+      username: env.TEST_OPERATOR_USERNAME || 'e2e-operator',
+      password: env.TEST_OPERATOR_PASSWORD || env.TEST_USER_PASS || 'password-e2e-operator'
+    };
+  }
+
+  return {
+    username: env.TEST_ADMIN_USERNAME || 'e2e-admin',
+    password: env.TEST_ADMIN_PASSWORD || env.TEST_USER_PASS || 'password-e2e-admin'
+  };
+}
 
 const AUTH_USER = {
   id: '00000000-0000-0000-0000-000000000001',
@@ -216,7 +247,7 @@ export async function openSidebarIfMobile(page) {
 export async function login(page, { role = 'admin' } = {}) {
   const query = role === 'operator' ? '/?test_role=operator' : '/';
   await page.goto(query);
-  const credentials = TEST_CREDENTIALS[role] || TEST_CREDENTIALS.admin;
+  const credentials = resolveE2ECredentials(role, E2E_ENV);
   await page.fill('#username', credentials.username);
   await page.fill('#password', credentials.password);
   await page.click('button[type="submit"]');

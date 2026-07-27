@@ -9,8 +9,9 @@ export default async function globalSetup() {
     return;
   }
 
-  const result = await seedLiveE2EData({ force: true });
-  console.log(
-    `[E2E live seed] ready: station=${result.stationId}, admin=${result.adminUserId}, operator=${result.operatorUserId}`
-  );
+  const result = await seedLiveE2EData();
+  if (result.skipped) {
+    return;
+  }
+  console.log(`[E2E live seed] ready (runId: ${result.runId})`);
 }

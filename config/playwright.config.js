@@ -41,6 +41,7 @@ const supabaseE2EEnv = resolveSupabaseE2EEnv();
 export default defineConfig({
   testDir: '../e2e',
   globalSetup: './playwright.global-setup.js',
+  globalTeardown: './playwright.global-teardown.js',
 
   // Test timeout
   timeout: 30 * 1000,
