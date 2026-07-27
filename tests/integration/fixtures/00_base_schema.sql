@@ -556,55 +556,67 @@ CREATE TABLE IF NOT EXISTS public.vouchers (
 );
 
 CREATE TABLE IF NOT EXISTS public.calculation_modules (
-  id serial PRIMARY KEY,
-  module_key text,
-  name text,
-  is_active boolean DEFAULT true,
-  created_at timestamptz DEFAULT now()
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  scope text NOT NULL,
+  description text,
+  active_version_id uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid
 );
 
 CREATE TABLE IF NOT EXISTS public.calculation_versions (
-  id serial PRIMARY KEY,
-  module_id integer REFERENCES public.calculation_modules(id),
-  version text,
-  code text,
-  is_active boolean DEFAULT true,
-  created_at timestamptz DEFAULT now()
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  module_id uuid NOT NULL REFERENCES public.calculation_modules(id) ON DELETE CASCADE,
+  version integer NOT NULL,
+  status text NOT NULL,
+  dsl jsonb NOT NULL,
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid,
+  published_at timestamptz,
+  metadata jsonb
 );
 
+ALTER TABLE public.calculation_modules
+  ADD CONSTRAINT calculation_modules_active_version_fk
+  FOREIGN KEY (active_version_id) REFERENCES public.calculation_versions(id)
+  ON DELETE SET NULL;
+
 CREATE TABLE IF NOT EXISTS public.calculation_tests (
-  id serial PRIMARY KEY,
-  module_id integer REFERENCES public.calculation_modules(id),
-  name text,
-  input_data jsonb,
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  version_id uuid NOT NULL REFERENCES public.calculation_versions(id) ON DELETE CASCADE,
+  description text,
+  input_payload jsonb NOT NULL,
   expected_output jsonb,
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid
 );
 
 CREATE TABLE IF NOT EXISTS public.calculation_logs (
-  id serial PRIMARY KEY,
-  module_id integer REFERENCES public.calculation_modules(id),
-  version_id integer REFERENCES public.calculation_versions(id),
-  execution_time numeric,
-  status text,
-  log_data jsonb,
-  created_at timestamptz DEFAULT now()
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  module_id uuid REFERENCES public.calculation_modules(id) ON DELETE SET NULL,
+  version_id uuid REFERENCES public.calculation_versions(id) ON DELETE SET NULL,
+  action text NOT NULL,
+  details jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid
 );
 
 CREATE OR REPLACE VIEW public.calculation_modules_with_active AS
 SELECT
-  m.id::text AS module_id,
+  m.id AS module_id,
   m.name,
-  NULL::text AS description,
-  NULL::text AS scope,
-  NULL::text AS status,
-  v.id::text AS active_version_id,
-  1::integer AS version,
-  now() AS published_at,
-  NULL::text AS created_by,
-  m.created_at
+  m.scope,
+  m.description,
+  m.created_at,
+  m.created_by,
+  v.id AS active_version_id,
+  v.version,
+  v.status,
+  v.published_at
 FROM public.calculation_modules m
-LEFT JOIN public.calculation_versions v ON v.module_id = m.id AND v.is_active = true;
+LEFT JOIN public.calculation_versions v ON v.id = m.active_version_id;
 
 
 CREATE TABLE IF NOT EXISTS public.user_dashboard_config (
@@ -701,6 +713,9 @@ ALTER TABLE public.operator_menu_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ui_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customer_refunds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.punti_riscatti ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calculation_modules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calculation_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calculation_tests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calculation_logs ENABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role;
