@@ -235,6 +235,35 @@ jobs:
           name: database-types-diff-report
           path: /tmp/database-types-diff.report
 
+  migration-chain-check:
+    name: 📜 Migration Chain Check
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Verify Migrations Chain
+        run: npm run db:migrations:verify > migration-report.txt 2>&1 || true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Archive Migration Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-report
+          path: migration-report.txt
+
   build-check:
     runs-on: ubuntu-latest
     needs: [lint, type-check, deno-check, unit-tests, security-scan]
