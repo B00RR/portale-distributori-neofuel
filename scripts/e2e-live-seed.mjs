@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 dotenv.config({ quiet: true });
 
 const INTERNAL_AUTH_DOMAIN = 'neofuel.local';
+const IMMUTABLE_PRODUCTION_PROJECT_REFS = new Set(['ahlmgafaurossyghimxc']);
 
 const PLACEHOLDER_PATTERNS = [
   'your-project-url-here',
@@ -76,11 +77,14 @@ export function validateLiveE2EConfig(env = process.env) {
   let parsedUrl;
   try {
     parsedUrl = new URL(rawUrl);
-    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      throw new Error('Invalid URL protocol');
+    if (parsedUrl.protocol !== 'https:') {
+      throw new Error('VITE_SUPABASE_URL must use HTTPS');
     }
-  } catch {
-    throw new Error('VITE_SUPABASE_URL must be a valid HTTP or HTTPS URL');
+  } catch (error) {
+    if (error instanceof Error && error.message === 'VITE_SUPABASE_URL must use HTTPS') {
+      throw error;
+    }
+    throw new Error('VITE_SUPABASE_URL must be a valid HTTPS URL');
   }
 
   const hostname = parsedUrl.hostname.toLowerCase();
@@ -98,7 +102,7 @@ export function validateLiveE2EConfig(env = process.env) {
   }
 
   const prodRef = declaredProdRef.toLowerCase();
-  if (targetRef === prodRef) {
+  if (targetRef === prodRef || IMMUTABLE_PRODUCTION_PROJECT_REFS.has(targetRef)) {
     throw new Error('Execution rejected: target project ref is identified as production');
   }
 
@@ -211,6 +215,14 @@ async function findStationByName(supabase, stationName) {
     throw error;
   }
   return data;
+}
+
+async function listStationAssignments(supabase) {
+  const { data, error } = await supabase.from('user_stations').select('station_id, user_id');
+  if (error) {
+    throw error;
+  }
+  return data || [];
 }
 
 export function deriveSeedAuthIdentity(input, configuredEmail, runId) {
@@ -715,6 +727,9 @@ function createCleanupOperations(supabase) {
     async findStationByName(name) {
       return findStationByName(supabase, name);
     },
+    async listStationAssignments() {
+      return listStationAssignments(supabase);
+    },
     async deleteExactStationAssignment(stationId, userId) {
       return deleteExactStationAssignment(supabase, stationId, userId);
     },
@@ -859,6 +874,33 @@ export async function cleanupLiveE2EData(options = {}) {
   const adminProfile = adminProfiles[0];
   const operatorProfile = operatorProfiles[0];
 
+  let stationAssignments;
+  try {
+    stationAssignments = await operations.listStationAssignments();
+  } catch {
+    throw new Error('E2E cleanup inventory failed');
+  }
+
+  const expectedUserIds = [adminProfile.user_id, operatorProfile.user_id];
+  const expectedAssignmentKeys = new Set(
+    expectedUserIds.map(userId => `${station.station_id}:${userId}`)
+  );
+  const relevantAssignments = stationAssignments.filter(
+    assignment =>
+      assignment.station_id === station.station_id || expectedUserIds.includes(assignment.user_id)
+  );
+  const actualAssignmentKeys = relevantAssignments.map(
+    assignment => `${assignment.station_id}:${assignment.user_id}`
+  );
+
+  if (
+    relevantAssignments.length !== expectedAssignmentKeys.size ||
+    new Set(actualAssignmentKeys).size !== expectedAssignmentKeys.size ||
+    actualAssignmentKeys.some(key => !expectedAssignmentKeys.has(key))
+  ) {
+    throw new Error('Cleanup preflight failed: station assignment graph mismatch');
+  }
+
   let deletedStation = false;
   let deletedProfileCount = 0;
   let deletedAuthCount = 0;
@@ -892,10 +934,11 @@ export async function cleanupLiveE2EData(options = {}) {
     await operations.deleteAuthUser(operatorAuth.id);
     deletedAuthCount += 1;
 
-    const [remAuth, remProfiles, remStation] = await Promise.all([
+    const [remAuth, remProfiles, remStation, remAssignments] = await Promise.all([
       operations.listAuthUsers(),
       operations.listAppUsers(),
-      operations.findStationByName(stationNameWithRun)
+      operations.findStationByName(stationNameWithRun),
+      operations.listStationAssignments()
     ]);
 
     const lingeringAuth = remAuth.filter(
@@ -908,8 +951,17 @@ export async function cleanupLiveE2EData(options = {}) {
         targetEmails.includes(normalizedEmail(p.email)) ||
         targetUsernames.includes(normalizedLooseUsername(p.username))
     );
+    const lingeringAssignments = remAssignments.filter(
+      assignment =>
+        assignment.station_id === station.station_id || expectedUserIds.includes(assignment.user_id)
+    );
 
-    if (lingeringAuth.length > 0 || lingeringProfiles.length > 0 || remStation) {
+    if (
+      lingeringAuth.length > 0 ||
+      lingeringProfiles.length > 0 ||
+      remStation ||
+      lingeringAssignments.length > 0
+    ) {
       throw new Error('E2E cleanup post-condition failed: fixtures still linger after deletion');
     }
   } catch (cleanupError) {

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -85,7 +88,7 @@ describe('Issue #309 live E2E seed preflight safety guards', () => {
         VITE_SUPABASE_URL: invalidUrl
       };
       expect(() => validateLiveE2EConfig(env)).toThrow(
-        /Supabase URL host must be a valid \*\.supabase\.co domain|Target project ref mismatch/
+        /VITE_SUPABASE_URL must use HTTPS|Supabase URL host must be a valid \*\.supabase\.co domain|Target project ref mismatch/
       );
     }
   });
@@ -146,6 +149,29 @@ describe('Issue #309 live E2E seed preflight safety guards', () => {
     expect(() => validateLiveE2EConfig(env)).toThrow(
       'Execution rejected: target project ref is identified as production'
     );
+  });
+
+  it('rejects the immutable production project even when the configured production ref is wrong', () => {
+    const env = {
+      ...createValidBaseEnv(),
+      E2E_TARGET_PROJECT_REF: 'ahlmgafaurossyghimxc',
+      VITE_SUPABASE_URL: 'https://ahlmgafaurossyghimxc.supabase.co',
+      PRODUCTION_SUPABASE_PROJECT_REF: 'typo-not-production',
+      E2E_ALLOWED_PROJECT_REFS: 'ahlmgafaurossyghimxc'
+    };
+
+    expect(() => validateLiveE2EConfig(env)).toThrow(
+      'Execution rejected: target project ref is identified as production'
+    );
+  });
+
+  it('requires HTTPS even for an otherwise valid Supabase host', () => {
+    const env = {
+      ...createValidBaseEnv(),
+      VITE_SUPABASE_URL: 'http://disposable-ref.supabase.co'
+    };
+
+    expect(() => validateLiveE2EConfig(env)).toThrow('VITE_SUPABASE_URL must use HTTPS');
   });
 
   it('rejects missing admin or operator credentials without applying fallbacks', () => {
@@ -574,6 +600,10 @@ describe('Issue #309 Finding 3: Strict cleanup safety & preflight validation', (
       listAuthUsers: vi.fn().mockResolvedValue(authUsers),
       listAppUsers: vi.fn().mockResolvedValue(profiles),
       findStationByName: vi.fn().mockResolvedValue(station),
+      listStationAssignments: vi.fn().mockResolvedValue([
+        { station_id: 42, user_id: 1 },
+        { station_id: 42, user_id: 2 }
+      ]),
       deleteExactStationAssignment: vi.fn(),
       deleteStation: vi.fn(),
       deleteProfile: vi
@@ -632,6 +662,10 @@ describe('Issue #309 Finding 3: Strict cleanup safety & preflight validation', (
       location: 'E2E [E2E_RUN:run-alpha-101]'
     };
 
+    let assignmentStore = [
+      { station_id: 42, user_id: 1 },
+      { station_id: 42, user_id: 2 }
+    ];
     const deletedAssignments = [];
 
     const mockCleanupOperations = {
@@ -642,8 +676,12 @@ describe('Issue #309 Finding 3: Strict cleanup safety & preflight validation', (
         .mockImplementation(async name =>
           stationStore?.station_name === name ? stationStore : null
         ),
+      listStationAssignments: vi.fn().mockImplementation(async () => assignmentStore),
       deleteExactStationAssignment: vi.fn().mockImplementation(async (sId, uId) => {
         deletedAssignments.push({ sId, uId });
+        assignmentStore = assignmentStore.filter(
+          assignment => assignment.station_id !== sId || assignment.user_id !== uId
+        );
       }),
       deleteStation: vi.fn().mockImplementation(async () => {
         stationStore = null;
@@ -669,6 +707,60 @@ describe('Issue #309 Finding 3: Strict cleanup safety & preflight validation', (
     expect(deletedAssignments).toHaveLength(2);
     expect(deletedAssignments).toContainEqual({ sId: 42, uId: 1 });
     expect(deletedAssignments).toContainEqual({ sId: 42, uId: 2 });
+  });
+
+  it('fails before deletes when the station has an unknown assignment', async () => {
+    const env = createValidBaseEnv();
+    const authUsers = [
+      {
+        id: 'auth-admin-id',
+        email: 'e2e-admin_run-alpha-101@neofuel.local',
+        user_metadata: { e2e_run_id: 'run-alpha-101' }
+      },
+      {
+        id: 'auth-operator-id',
+        email: 'e2e-operator_run-alpha-101@neofuel.local',
+        user_metadata: { e2e_run_id: 'run-alpha-101' }
+      }
+    ];
+    const profiles = [
+      {
+        user_id: 1,
+        username: 'e2e-admin_run-alpha-101',
+        email: 'e2e-admin_run-alpha-101@neofuel.local',
+        created_by_auth: 'auth-admin-id'
+      },
+      {
+        user_id: 2,
+        username: 'e2e-operator_run-alpha-101',
+        email: 'e2e-operator_run-alpha-101@neofuel.local',
+        created_by_auth: 'auth-operator-id'
+      }
+    ];
+    const operations = {
+      listAuthUsers: vi.fn().mockResolvedValue(authUsers),
+      listAppUsers: vi.fn().mockResolvedValue(profiles),
+      findStationByName: vi.fn().mockResolvedValue({
+        station_id: 42,
+        station_name: 'Stazione E2E [run-alpha-101]',
+        location: 'E2E [E2E_RUN:run-alpha-101]'
+      }),
+      listStationAssignments: vi.fn().mockResolvedValue([
+        { station_id: 42, user_id: 1 },
+        { station_id: 42, user_id: 2 },
+        { station_id: 42, user_id: 999 }
+      ]),
+      deleteExactStationAssignment: vi.fn(),
+      deleteStation: vi.fn(),
+      deleteProfile: vi.fn(),
+      deleteAuthUser: vi.fn()
+    };
+
+    await expect(cleanupLiveE2EData({ env, operations })).rejects.toThrow(
+      'Cleanup preflight failed: station assignment graph mismatch'
+    );
+    expect(operations.deleteExactStationAssignment).not.toHaveBeenCalled();
+    expect(operations.deleteStation).not.toHaveBeenCalled();
   });
 });
 
@@ -926,5 +1018,15 @@ describe('Issue #309 Finding 3: Secret and PII Sanitization Tests', () => {
     expect(seedMsg).not.toContain('my-project-ref');
     expect(seedMsg).not.toContain('user@domain.com');
     expect(seedMsg).not.toContain('12345678-1234-1234-1234-1234567890ab');
+  });
+});
+
+describe('Issue #309 live command scope', () => {
+  it('runs only the deterministic live shell smoke specification', () => {
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'));
+
+    expect(packageJson.scripts['test:e2e:live']).toContain('critical-flows.spec.js');
+    expect(packageJson.scripts['test:e2e:live']).not.toContain('data-driven.spec.js');
+    expect(packageJson.scripts['test:e2e:live']).not.toContain('closure-integration.spec.js');
   });
 });
