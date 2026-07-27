@@ -319,6 +319,82 @@ CREATE TABLE IF NOT EXISTS public.calculation_logs (
   created_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.user_dashboard_config (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id),
+  kpi_layout jsonb DEFAULT '[]'::jsonb,
+  grid_columns integer DEFAULT 4,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.processed_requests (
+  request_id text PRIMARY KEY,
+  endpoint text,
+  action_type text,
+  payload jsonb,
+  response jsonb,
+  payload_fingerprint text,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rate_limit_attempts (
+  id serial PRIMARY KEY,
+  identifier text NOT NULL,
+  endpoint text NOT NULL,
+  attempts integer DEFAULT 0,
+  window_start timestamptz DEFAULT now(),
+  last_attempt timestamptz DEFAULT now(),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.notifiche (
+  id serial PRIMARY KEY,
+  tipo text NOT NULL,
+  titolo text,
+  messaggio text,
+  letta boolean DEFAULT false,
+  operatore_id integer REFERENCES public.users(user_id),
+  soggetto_id integer,
+  data_creazione timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.operator_menu_options (
+  id serial PRIMARY KEY,
+  function_key text NOT NULL,
+  label text NOT NULL,
+  created_by_auth uuid REFERENCES auth.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS public.ui_settings (
+  key text PRIMARY KEY,
+  value text,
+  updated_at timestamptz DEFAULT now(),
+  updated_by integer REFERENCES public.users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.customer_refunds (
+  id serial PRIMARY KEY,
+  shift_id integer REFERENCES public.shifts(id) ON DELETE CASCADE,
+  station_id integer REFERENCES public.fuel_stations(station_id),
+  operator_id integer REFERENCES public.users(user_id),
+  amount numeric(12,2) NOT NULL,
+  receipt_date date NOT NULL,
+  method text NOT NULL,
+  notes text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.punti_riscatti (
+  id serial PRIMARY KEY,
+  station_id integer REFERENCES public.fuel_stations(station_id),
+  shift_id integer REFERENCES public.shifts(id),
+  operator_id integer REFERENCES public.users(user_id),
+  importo numeric(12,2) NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
 -- Basic RLS enablement
 ALTER TABLE public.fuel_stations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -329,6 +405,14 @@ ALTER TABLE public.movimenti_cassa ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crediti_clienti ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crediti_movimenti ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shifts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_dashboard_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.processed_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rate_limit_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifiche ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.operator_menu_options ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ui_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_refunds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.punti_riscatti ENABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
