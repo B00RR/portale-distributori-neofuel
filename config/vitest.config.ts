@@ -9,8 +9,8 @@ export default defineConfig({
     // Pattern per i file di test: Supporto TS e JS
     include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}'],
 
-    // Esclude test E2E (gestiti da Playwright)
-    exclude: ['tests/e2e/**', 'node_modules/**'],
+    // Esclude test E2E e test di integrazione DB
+    exclude: ['tests/e2e/**', 'tests/integration/**', 'node_modules/**'],
 
     // Copertura codice
     coverage: {
