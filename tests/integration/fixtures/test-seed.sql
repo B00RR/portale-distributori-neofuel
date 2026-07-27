@@ -75,26 +75,26 @@ ALTER SEQUENCE public.users_user_id_seq RESTART WITH 10;
 
 -- 3. Sample Domain Data for Isolation Testing
 -- Invoices
-INSERT INTO public.invoices (id, station_id, number, date, customer_name, amount, vat_amount, status, created_by)
+INSERT INTO public.invoices (id, station_id, operator_id, invoice_number, invoice_date, customer_name, amount, status, payment_method)
 VALUES
-  (101, 1, 'INV-NORD-001', CURRENT_DATE, 'Cliente Nord Srl', 100.00, 22.00, 'issued', 2),
-  (102, 2, 'INV-SUD-001', CURRENT_DATE, 'Cliente Sud Srl', 200.00, 44.00, 'issued', 3);
+  (101, 1, 2, 'INV-NORD-001', CURRENT_DATE, 'Cliente Nord Srl', 100.00, 'issued', 'cash'),
+  (102, 2, 3, 'INV-SUD-001', CURRENT_DATE, 'Cliente Sud Srl', 200.00, 'issued', 'cash');
 
 ALTER SEQUENCE public.invoices_id_seq RESTART WITH 200;
 
 -- Invoice Requests
-INSERT INTO public.invoice_requests (id, station_id, request_date, customer_name, amount, status)
+INSERT INTO public.invoice_requests (id, station_id, operator_id, customer_name, amount, status)
 VALUES
-  (201, 1, NOW(), 'Richiesta Nord', 50.00, 'pending'),
-  (202, 2, NOW(), 'Richiesta Sud', 75.00, 'pending');
+  (201, 1, 2, 'Richiesta Nord', 50.00, 'pending'),
+  (202, 2, 3, 'Richiesta Sud', 75.00, 'pending');
 
 ALTER SEQUENCE public.invoice_requests_id_seq RESTART WITH 300;
 
 -- Movimenti Cassa
-INSERT INTO public.movimenti_cassa (id, station_id, operator_id, tipo_movimento, importo, causale, note)
+INSERT INTO public.movimenti_cassa (id, station_id, operator_id, tipo, importo, descrizione, payment_method, shift_id)
 VALUES
-  (301, 1, 2, 'inflow', 30.00, 'Incasso cassa Nord', 'Nota Nord'),
-  (302, 2, 3, 'inflow', 40.00, 'Incasso cassa Sud', 'Nota Sud');
+  (301, 1, 2, 'inflow', 30.00, 'Incasso cassa Nord', 'cash', 401),
+  (302, 2, 3, 'inflow', 40.00, 'Incasso cassa Sud', 'cash', 402);
 
 ALTER SEQUENCE public.movimenti_cassa_id_seq RESTART WITH 400;
 

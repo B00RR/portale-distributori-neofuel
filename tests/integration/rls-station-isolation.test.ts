@@ -53,36 +53,31 @@ describe('RLS Station Isolation Integration Tests', () => {
   });
 
   describe('Invoice Requests RLS Isolation', () => {
-    it('operator 1 can only see invoice requests from station 1', async () => {
+    it('denies operator 1 direct select on invoice_requests (42501)', async () => {
       if (!isDbAvailable) return;
       const client = getOperator1Client();
       const { data, error } = await client.from('invoice_requests').select('*');
 
-      expect(error).toBeNull();
-      expect(data).not.toBeNull();
-      expect(data!.every(req => req.station_id === 1)).toBe(true);
+      expect(error).not.toBeNull();
+      expect(error!.code).toBe('42501');
     });
 
-    it('operator 2 can only see invoice requests from station 2', async () => {
+    it('denies operator 2 direct select on invoice_requests (42501)', async () => {
       if (!isDbAvailable) return;
       const client = getOperator2Client();
       const { data, error } = await client.from('invoice_requests').select('*');
 
-      expect(error).toBeNull();
-      expect(data).not.toBeNull();
-      expect(data!.every(req => req.station_id === 2)).toBe(true);
+      expect(error).not.toBeNull();
+      expect(error!.code).toBe('42501');
     });
 
-    it('admin can see all invoice requests', async () => {
+    it('denies admin (authenticated role) direct select on invoice_requests (42501)', async () => {
       if (!isDbAvailable) return;
       const client = getAdminClient();
       const { data, error } = await client.from('invoice_requests').select('*');
 
-      expect(error).toBeNull();
-      expect(data).not.toBeNull();
-      const stationIds = new Set(data!.map(req => req.station_id));
-      expect(stationIds.has(1)).toBe(true);
-      expect(stationIds.has(2)).toBe(true);
+      expect(error).not.toBeNull();
+      expect(error!.code).toBe('42501');
     });
   });
 
@@ -128,7 +123,7 @@ describe('RLS Station Isolation Integration Tests', () => {
       const client = getOperator1Client();
       const { error } = await client.from('invoices').insert({
         station_id: 2,
-        number: 'FORGED-001',
+        invoice_number: 'FORGED-001',
         amount: 999.00,
         status: 'draft'
       });
@@ -142,29 +137,27 @@ describe('RLS Station Isolation Integration Tests', () => {
       const { error } = await client.from('movimenti_cassa').insert({
         station_id: 1,
         importo: 500.00,
-        tipo_movimento: 'inflow',
-        causale: 'Hack attempt'
+        tipo: 'inflow',
+        descrizione: 'Hack attempt'
       });
 
       expect(error).not.toBeNull();
     });
 
-    it('allows operator 1 to insert an invoice for station 1', async () => {
+    it('blocks operator 1 from direct insert on invoices even for station 1 (42501)', async () => {
       if (!isDbAvailable) return;
       const client = getOperator1Client();
-      const { data, error } = await client
+      const { error } = await client
         .from('invoices')
         .insert({
           station_id: 1,
-          number: 'VALID-NORD-002',
+          invoice_number: 'VALID-NORD-002',
           amount: 150.00,
           status: 'draft'
-        })
-        .select();
+        });
 
-      expect(error).toBeNull();
-      expect(data).not.toBeNull();
-      expect(data![0].station_id).toBe(1);
+      expect(error).not.toBeNull();
+      expect(error!.code).toBe('42501');
     });
   });
 });

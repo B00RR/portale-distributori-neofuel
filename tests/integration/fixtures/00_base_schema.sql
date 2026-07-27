@@ -444,44 +444,44 @@ CREATE TABLE IF NOT EXISTS public.tank_pump_usages (
 
 CREATE TABLE IF NOT EXISTS public.invoices (
   id serial PRIMARY KEY,
+  operator_id integer REFERENCES public.users(user_id),
   station_id integer REFERENCES public.fuel_stations(station_id),
-  number text,
-  date date DEFAULT current_date,
-  customer_name text,
-  customer_piva text,
-  customer_cf text,
+  invoice_number text,
+  invoice_date date DEFAULT current_date,
   amount numeric,
-  vat_amount numeric,
-  status text DEFAULT 'draft',
-  notes text,
+  description text,
   created_at timestamptz DEFAULT now(),
+  cliente_id integer,
+  payment_method varchar,
+  product_category varchar,
+  status varchar DEFAULT 'pending',
   updated_at timestamptz DEFAULT now(),
-  created_by integer REFERENCES public.users(user_id)
+  customer_name varchar,
+  shift_id bigint REFERENCES public.shifts(id)
 );
 
 CREATE TABLE IF NOT EXISTS public.invoice_requests (
   id serial PRIMARY KEY,
   station_id integer REFERENCES public.fuel_stations(station_id),
-  request_date timestamptz DEFAULT now(),
+  operator_id integer REFERENCES public.users(user_id),
   customer_name text,
-  customer_piva text,
-  customer_cf text,
   amount numeric,
-  status text DEFAULT 'pending',
   notes text,
+  status text DEFAULT 'pending',
   created_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.movimenti_cassa (
   id serial PRIMARY KEY,
-  station_id integer REFERENCES public.fuel_stations(station_id),
-  shift_id integer REFERENCES public.shifts(id),
-  operator_id integer REFERENCES public.users(user_id),
-  tipo_movimento text,
+  tipo text,
+  descrizione text,
   importo numeric,
-  causale text,
-  note text,
-  created_at timestamptz DEFAULT now()
+  station_id integer REFERENCES public.fuel_stations(station_id),
+  operator_id integer REFERENCES public.users(user_id),
+  foto_url text,
+  created_at timestamptz DEFAULT now(),
+  shift_id bigint REFERENCES public.shifts(id),
+  payment_method text
 );
 
 CREATE TABLE IF NOT EXISTS public.crediti_clienti (

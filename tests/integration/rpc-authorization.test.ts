@@ -127,7 +127,7 @@ describe('RPC Authorization Integration Tests', () => {
         p_tipo: 'inflow',
         p_payment_method: 'cash',
         p_importo: 50.00,
-        p_descrizione: 'Second attempt (retry)',
+        p_descrizione: 'First attempt',
         p_request_id: requestId
       });
       expect(secondCall.error).toBeNull();
