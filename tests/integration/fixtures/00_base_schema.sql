@@ -9,27 +9,54 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- 1. Setup auth schema & helpers
 CREATE SCHEMA IF NOT EXISTS auth;
 
-CREATE OR REPLACE FUNCTION auth.uid()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
-$$;
+GRANT USAGE, CREATE ON SCHEMA auth TO postgres, service_role;
 
-CREATE OR REPLACE FUNCTION auth.role()
-RETURNS text
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT NULLIF(current_setting('request.jwt.claim.role', true), '')::text;
-$$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'auth' AND p.proname = 'uid'
+  ) THEN
+    EXECUTE '
+      CREATE FUNCTION auth.uid()
+      RETURNS uuid
+      LANGUAGE sql
+      STABLE
+      AS $func$
+        SELECT NULLIF(current_setting(''request.jwt.claim.sub'', true), '''')::uuid;
+      $func$;
+    ';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'auth' AND p.proname = 'role'
+  ) THEN
+    EXECUTE '
+      CREATE FUNCTION auth.role()
+      RETURNS text
+      LANGUAGE sql
+      STABLE
+      AS $func$
+        SELECT NULLIF(current_setting(''request.jwt.claim.role'', true), '''')::text;
+      $func$;
+    ';
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text UNIQUE,
   created_at timestamptz DEFAULT now()
 );
+
+GRANT ALL ON ALL TABLES IN SCHEMA auth TO postgres, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA auth TO postgres, service_role;
 
 -- 2. Core domain tables
 CREATE TABLE IF NOT EXISTS public.fuel_stations (

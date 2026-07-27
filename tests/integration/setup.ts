@@ -11,7 +11,7 @@ const { Pool } = pg;
 export const DB_URL =
   process.env.DATABASE_URL ||
   process.env.POSTGRES_URL ||
-  'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+  'postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres';
 
 export const SUPABASE_URL = process.env.SUPABASE_URL || 'http://127.0.0.1:54321';
 export const SUPABASE_ANON_KEY =

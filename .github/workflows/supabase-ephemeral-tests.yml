@@ -32,5 +32,5 @@ jobs:
           SUPABASE_URL: 'http://127.0.0.1:54321'
           SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IjEyNzA0MSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNTc5ODgwODAwLCJleHAiOjE5MDU0NTY4MDB9.0'
           SUPABASE_SERVICE_ROLE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IjEyNzA0MSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE1Nzk4ODA4MDAsImV4cCI6MTkwNTQ1NjgwMH0.0'
-          DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+          DATABASE_URL: 'postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres'
           SUPABASE_JWT_SECRET: 'super-secret-jwt-token-with-at-least-32-characters-long'
