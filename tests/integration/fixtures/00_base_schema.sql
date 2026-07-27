@@ -123,6 +123,44 @@ AS $$
   );
 $$;
 
+-- Migration-helper stubs
+CREATE OR REPLACE FUNCTION public.check_rate_limit(p_action text, p_key text, p_window_seconds integer, p_max_attempts integer)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT false;
+$$;
+
+CREATE OR REPLACE FUNCTION public.reset_rate_limit(p_action text, p_key text)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+$$;
+
+CREATE OR REPLACE FUNCTION public.cleanup_old_rate_limits()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_write_table(p_table_name text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT true;
+$$;
+
+
 
 CREATE TABLE IF NOT EXISTS public.islands (
   id serial PRIMARY KEY,
@@ -448,6 +486,7 @@ ALTER TABLE public.operator_menu_options ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ui_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customer_refunds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.punti_riscatti ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calculation_logs ENABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
