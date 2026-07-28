@@ -2,40 +2,40 @@ name: Lighthouse CI
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version-file: '.nvmrc'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build app
-      run: npm run build
-      env:
-        VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
 
-    - name: Run Lighthouse CI
-      uses: treosh/lighthouse-ci-action@v12
-      env:
-        VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
-      with:
-        uploadArtifacts: true
-        temporaryPublicStorage: true
-        budgetPath: ./config/lighthouse/lighthouse-budget.json
-        configPath: ./config/lighthouse/lighthouserc.json
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://stub-project.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdWJhYmFzZSIsInJlZiI6InN0dWItcHJvamVjdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzA0MDY3MjAwLCJleHAiOjIwMTk2NDMyMDB9.stub-anon-key
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        env:
+          VITE_SUPABASE_URL: https://stub-project.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdWJhYmFzZSIsInJlZiI6InN0dWItcHJvamVjdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzA0MDY3MjAwLCJleHAiOjIwMTk2NDMyMDB9.stub-anon-key
+        with:
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          budgetPath: ./config/lighthouse/lighthouse-budget.json
+          configPath: ./config/lighthouse/lighthouserc.json
