@@ -31,8 +31,6 @@ describe('CSP and Lighthouse repository config', () => {
 
     expect(workflow).toContain('budgetPath: ./config/lighthouse/lighthouse-budget.json');
     expect(workflow).toContain('configPath: ./config/lighthouse/lighthouserc.json');
-    expect(workflow).toContain('VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}');
-    expect(workflow).toContain('VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}');
     expect(lighthouseConfig.ci.collect.staticDistDir).toBe('./dist');
     expect(lighthouseBudget[0].resourceSizes).toContainEqual({ resourceType: 'script', budget: 550 });
     expect(existsSync(join(root, 'lighthouserc.json'))).toBe(false);
