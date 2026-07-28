@@ -271,4 +271,156 @@ describe('Operators Module', () => {
       expect(Toast.show).toHaveBeenCalledWith(expect.stringContaining('salvata'), 'success');
     });
   });
+
+  describe('Station display formatting', () => {
+    it('should format user_stations as array', async () => {
+      const mockUsers = [
+        {
+          user_id: 'u1',
+          full_name: 'Operator Array',
+          email: 'array@test.com',
+          role: 'operator',
+          created_at: '2026-01-01',
+          user_stations: [
+            {
+              station_id: 1,
+              fuel_stations: { station_name: 'Stazione Array' }
+            }
+          ]
+        }
+      ];
+      usersBuilder.order.mockResolvedValue({ data: mockUsers, error: null });
+      const container = document.getElementById('admin-content') as HTMLElement;
+      await showOperatorsTab(container, null);
+      expect(container.innerHTML).toContain('Stazione Array');
+    });
+
+    it('should format user_stations as single object', async () => {
+      const mockUsers = [
+        {
+          user_id: 'u2',
+          full_name: 'Operator Single',
+          email: 'single@test.com',
+          role: 'operator',
+          created_at: '2026-01-01',
+          user_stations: {
+            station_id: 2,
+            fuel_stations: { station_name: 'Stazione Single' }
+          }
+        }
+      ];
+      usersBuilder.order.mockResolvedValue({ data: mockUsers, error: null });
+      const container = document.getElementById('admin-content') as HTMLElement;
+      await showOperatorsTab(container, null);
+      expect(container.innerHTML).toContain('Stazione Single');
+    });
+
+    it('should format fuel_stations as array [{ station_name }] (live-like shape)', async () => {
+      const mockUsers = [
+        {
+          user_id: 'u3',
+          full_name: 'Andrea',
+          email: 'andrea@test.com',
+          role: 'operator',
+          created_at: '2026-01-01',
+          user_stations: [
+            {
+              station_id: 3,
+              fuel_stations: [{ station_name: 'Sant’Antimo' }]
+            }
+          ]
+        }
+      ];
+      usersBuilder.order.mockResolvedValue({ data: mockUsers, error: null });
+      const container = document.getElementById('admin-content') as HTMLElement;
+      await showOperatorsTab(container, null);
+      expect(container.innerHTML).toContain('Sant’Antimo');
+    });
+
+    it('should format multiple station assignments deterministically and separated', async () => {
+      const mockUsers = [
+        {
+          user_id: 'u4',
+          full_name: 'Multi Operator',
+          email: 'multi@test.com',
+          role: 'operator',
+          created_at: '2026-01-01',
+          user_stations: [
+            {
+              station_id: 41,
+              fuel_stations: { station_name: 'Stazione Z' }
+            },
+            {
+              station_id: 42,
+              fuel_stations: [{ station_name: 'Stazione A' }]
+            }
+          ]
+        }
+      ];
+      usersBuilder.order.mockResolvedValue({ data: mockUsers, error: null });
+      const container = document.getElementById('admin-content') as HTMLElement;
+      await showOperatorsTab(container, null);
+      expect(container.innerHTML).toContain('Stazione A, Stazione Z');
+    });
+
+    it('should show "Tutti i distributori" for global admin roles regardless of user_stations', async () => {
+      const mockUsers = [
+        {
+          user_id: 'u5',
+          full_name: 'Admin One',
+          email: 'admin1@test.com',
+          role: 'admin',
+          created_at: '2026-01-01',
+          user_stations: []
+        },
+        {
+          user_id: 'u6',
+          full_name: 'Super Admin',
+          email: 'admin2@test.com',
+          role: 'super_admin',
+          created_at: '2026-01-01',
+          user_stations: null
+        },
+        {
+          user_id: 'u7',
+          full_name: 'Full Admin',
+          email: 'admin3@test.com',
+          role: 'full_admin',
+          created_at: '2026-01-01',
+          user_stations: [
+            {
+              station_id: 99,
+              fuel_stations: { station_name: 'Ignored Station' }
+            }
+          ]
+        }
+      ];
+      usersBuilder.order.mockResolvedValue({ data: mockUsers, error: null });
+      const container = document.getElementById('admin-content') as HTMLElement;
+      await showOperatorsTab(container, null);
+
+      const rows = container.querySelectorAll('tbody tr');
+      expect(rows.length).toBe(3);
+      rows.forEach(row => {
+        expect(row.innerHTML).toContain('Tutti i distributori');
+      });
+    });
+
+    it('should show "Non assegnato" for an operator with no station assignments', async () => {
+      const mockUsers = [
+        {
+          user_id: 'u8',
+          full_name: 'Unassigned Operator',
+          email: 'unassigned@test.com',
+          role: 'operator',
+          created_at: '2026-01-01',
+          user_stations: []
+        }
+      ];
+      usersBuilder.order.mockResolvedValue({ data: mockUsers, error: null });
+      const container = document.getElementById('admin-content') as HTMLElement;
+      await showOperatorsTab(container, null);
+      expect(container.innerHTML).toContain('Non assegnato');
+    });
+  });
 });

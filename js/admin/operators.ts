@@ -2,7 +2,7 @@ import { supabase, safeSupabaseQuery } from '../core/api.js';
 import { CreateUserSchema, UpdateUserSchema, safeParse } from '../core/schemas.js';
 import { getStations } from '../core/stations-cache.js';
 import { handleError } from '../shared/error-handler.js';
-import type { UserRole } from '../shared/roles.js';
+import { isAdminRole, type UserRole } from '../shared/roles.js';
 import { Toast } from '../ui/toast.js';
 import {
   showLoadingMessage,
@@ -22,7 +22,7 @@ interface FuelStationNested {
 
 interface UserStation {
   station_id: number;
-  fuel_stations?: FuelStationNested;
+  fuel_stations?: FuelStationNested | FuelStationNested[] | null;
 }
 
 interface User {
@@ -34,12 +34,61 @@ interface User {
   created_at: string;
 
   // Joins
-  user_stations?: UserStation | UserStation[]; // Can be array or single depending on query
+  user_stations?: UserStation | UserStation[] | null;
 }
 
 interface FuelStation {
   station_id: number;
   station_name: string;
+}
+
+// --- HELPER FUNCTIONS ---
+
+export function formatUserStations(user: Pick<User, 'role' | 'user_stations'>): string {
+  if (isAdminRole(user.role)) {
+    return 'Tutti i distributori';
+  }
+
+  const rawUserStations = user.user_stations;
+  if (!rawUserStations) {
+    return 'Non assegnato';
+  }
+
+  const stationList: UserStation[] = Array.isArray(rawUserStations)
+    ? rawUserStations
+    : [rawUserStations];
+
+  const stationNames: string[] = [];
+
+  for (const item of stationList) {
+    if (!item || !item.fuel_stations) {
+      continue;
+    }
+    const fuelStations = item.fuel_stations;
+    if (Array.isArray(fuelStations)) {
+      for (const fs of fuelStations) {
+        if (fs && typeof fs.station_name === 'string' && fs.station_name.trim()) {
+          stationNames.push(fs.station_name.trim());
+        }
+      }
+    } else if (
+      fuelStations &&
+      typeof fuelStations.station_name === 'string' &&
+      fuelStations.station_name.trim()
+    ) {
+      stationNames.push(fuelStations.station_name.trim());
+    }
+  }
+
+  if (stationNames.length === 0) {
+    return 'Non assegnato';
+  }
+
+  const uniqueNames = Array.from(new Set(stationNames)).sort((a, b) =>
+    a.localeCompare(b, 'it', { sensitivity: 'base' })
+  );
+
+  return uniqueNames.join(', ');
 }
 
 // --- MAIN FUNCTION ---
@@ -102,15 +151,7 @@ export async function showOperatorsTab(
     `;
 
     users.forEach(u => {
-      // Handle array or single object from join
-      let firstLink: UserStation | undefined;
-      if (Array.isArray(u.user_stations)) {
-        firstLink = u.user_stations[0];
-      } else {
-        firstLink = u.user_stations;
-      }
-
-      const stationName = firstLink?.fuel_stations?.station_name || '-';
+      const stationName = formatUserStations(u);
 
       const roleLabels: Record<string, string> = {
         admin: 'Admin',
