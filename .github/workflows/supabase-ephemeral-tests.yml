@@ -26,11 +26,25 @@ jobs:
       - name: Start Ephemeral Supabase Environment
         run: npx supabase start
 
+      - name: Export Supabase Ephemeral Credentials
+        run: |
+          TMP_ENV="$(mktemp)"
+          trap 'rm -f "$TMP_ENV"' EXIT
+          npx supabase status -o env > "$TMP_ENV"
+          set -a
+          source "$TMP_ENV"
+          set +a
+          : "${API_URL:?API_URL missing from supabase status}"
+          : "${ANON_KEY:?ANON_KEY missing from supabase status}"
+          : "${SERVICE_ROLE_KEY:?SERVICE_ROLE_KEY missing from supabase status}"
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
       - name: Run Ephemeral DB Integration Tests
         run: npm run test:integration
         env:
-          SUPABASE_URL: 'http://127.0.0.1:54321'
-          SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IjEyNzA0MSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNTc5ODgwODAwLCJleHAiOjE5MDU0NTY4MDB9.0'
-          SUPABASE_SERVICE_ROLE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IjEyNzA0MSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE1Nzk4ODA4MDAsImV4cCI6MTkwNTQ1NjgwMH0.0'
           DATABASE_URL: 'postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres'
           SUPABASE_JWT_SECRET: 'super-secret-jwt-token-with-at-least-32-characters-long'

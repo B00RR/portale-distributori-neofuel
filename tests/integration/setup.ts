@@ -17,9 +17,7 @@ export const SUPABASE_URL = process.env.SUPABASE_URL || 'http://127.0.0.1:54321'
 export const SUPABASE_ANON_KEY =
   process.env.SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IjEyNzA0MSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNTc5ODgwODAwLCJleHAiOjE5MDU0NTY4MDB9.0';
-export const SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IjEyNzA0MSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE1Nzk4ODA4MDAsImV4cCI6MTkwNTQ1NjgwMH0.0';
+export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 export const SUPABASE_JWT_SECRET =
   process.env.SUPABASE_JWT_SECRET || 'super-secret-jwt-token-with-at-least-32-characters-long';
 
@@ -32,7 +30,11 @@ export const NOPROFILE_UUID = '55555555-5555-5555-5555-555555555555';
 export let pool: pg.Pool;
 export let isDbAvailable = false;
 
-export function createTestJwt(userUuid: string, role: string = 'authenticated', email?: string): string {
+export function createTestJwt(
+  userUuid: string,
+  role: string = 'authenticated',
+  email?: string
+): string {
   return jwt.sign(
     {
       sub: userUuid,
@@ -69,12 +71,18 @@ export const getInactiveClient = (): SupabaseClient<Database> =>
   createTestSupabaseClient(createTestJwt(INACTIVE_UUID, 'authenticated', 'inactive@neofuel.test'));
 
 export const getNoProfileClient = (): SupabaseClient<Database> =>
-  createTestSupabaseClient(createTestJwt(NOPROFILE_UUID, 'authenticated', 'noprofile@neofuel.test'));
+  createTestSupabaseClient(
+    createTestJwt(NOPROFILE_UUID, 'authenticated', 'noprofile@neofuel.test')
+  );
 
-export const getServiceRoleClient = (): SupabaseClient<Database> =>
-  createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+export const getServiceRoleClient = (): SupabaseClient<Database> => {
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is required but not set.');
+  }
+  return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false }
   });
+};
 
 export async function runSqlFile(filepath: string): Promise<void> {
   if (!isDbAvailable) return;
@@ -110,7 +118,9 @@ beforeAll(async () => {
     if (process.env.CI) {
       throw new Error(`Failed to connect to ephemeral database at ${DB_URL} during CI run.`);
     } else {
-      console.warn('⚠️ Ephemeral DB connection unavailable locally. Integration tests will be skipped locally.');
+      console.warn(
+        '⚠️ Ephemeral DB connection unavailable locally. Integration tests will be skipped locally.'
+      );
     }
   }
 });
