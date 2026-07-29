@@ -18,7 +18,8 @@ vi.mock('../../js/core/api.js', () => {
     'single',
     'maybeSingle',
     'not',
-    'in'
+    'in',
+    'or'
   ];
   methods.forEach(m => {
     mockChain[m] = vi.fn(() => mockChain);
@@ -161,6 +162,7 @@ describe('Shifts Module', () => {
         lt: vi.fn(() => mockChain),
         lte: vi.fn(() => mockChain),
         range: vi.fn(() => mockChain),
+        or: vi.fn(() => mockChain),
         order: vi.fn(() => Promise.resolve({ data: [], error: null, count: 0 })),
         limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
         then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null, count: 0 })
@@ -198,6 +200,7 @@ describe('Shifts Module', () => {
         lt: vi.fn(() => mockChain),
         lte: vi.fn(() => mockChain),
         range: vi.fn(() => mockChain),
+        or: vi.fn(() => mockChain),
         order: vi.fn(() => Promise.resolve({ data: [staleShift], error: null, count: 1 })),
         then: (resolve: (v: unknown) => unknown) =>
           resolve({ data: [staleShift], error: null, count: 1 })
@@ -235,6 +238,7 @@ describe('Shifts Module', () => {
         lt: vi.fn(() => mockChain),
         lte: vi.fn(() => mockChain),
         range: vi.fn(() => mockChain),
+        or: vi.fn(() => mockChain),
         order: vi.fn(() => Promise.resolve({ data: [recentShift], error: null, count: 1 })),
         then: (resolve: (v: unknown) => unknown) =>
           resolve({ data: [recentShift], error: null, count: 1 })
