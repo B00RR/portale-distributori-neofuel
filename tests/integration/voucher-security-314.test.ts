@@ -3,6 +3,7 @@ import {
   isDbAvailable,
   pool,
   getAdminClient,
+  getServiceRoleClient,
   getOperator1Client,
   getInactiveClient,
   getAnonClient
@@ -641,22 +642,24 @@ describe('Voucher Security & Direct Access Limits (#314)', () => {
 
     it('replays original success response when request_id is re-submitted after shift is closed', async () => {
       if (!isDbAvailable) return;
-      const admin = getAdminClient();
+      const serviceRole = getServiceRoleClient();
       const op1 = getOperator1Client();
       const op1AuthUid = '22222222-2222-2222-2222-222222222222';
 
       // Seed shift 499 as open
-      const { data: shift } = await admin
+      const { data: shift, error: shiftError } = await serviceRole
         .from('shifts')
         .insert({ id: 499, station_id: 1, operator_id: 1, status: 'open' })
         .select()
         .single();
+      expect(shiftError).toBeNull();
 
-      const { data: voucher } = await admin
+      const { data: voucher, error: voucherError } = await serviceRole
         .from('vouchers')
         .insert({ code: 'REPLAY-AFTER-CLOSE', amount: 45, status: 'active', station_id: 1 })
         .select()
         .single();
+      expect(voucherError).toBeNull();
 
       const reqId = 'req-replay-close-499';
 
@@ -671,7 +674,11 @@ describe('Voucher Security & Direct Access Limits (#314)', () => {
       expect(res1.data?.success).toBe(true);
 
       // Close shift
-      await admin.from('shifts').update({ status: 'closed' }).eq('id', 499);
+      const { error: closeError } = await serviceRole
+        .from('shifts')
+        .update({ status: 'closed' })
+        .eq('id', 499);
+      expect(closeError).toBeNull();
 
       // Re-submit identical request after shift is closed -> must return original SUCCESS response replay!
       const res2 = await op1.rpc('redeem_voucher_validated', {
@@ -697,9 +704,9 @@ describe('Voucher Security & Direct Access Limits (#314)', () => {
       expect(resNew.data?.error).toBe('Turno non aperto');
 
       // Cleanup
-      await admin.from('movimenti_cassa').delete().eq('shift_id', 499);
-      await admin.from('vouchers').delete().eq('id', voucher!.id);
-      await admin.from('shifts').delete().eq('id', shift!.id);
+      await serviceRole.from('movimenti_cassa').delete().eq('shift_id', 499);
+      await serviceRole.from('vouchers').delete().eq('id', voucher!.id);
+      await serviceRole.from('shifts').delete().eq('id', shift!.id);
     });
 
     it('handles concurrent identical calls exactly-once without duplicate side effects', async () => {
