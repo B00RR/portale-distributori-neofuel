@@ -89,6 +89,10 @@ describe('Issue #315 - RLS isolation migration', () => {
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.is_admin()');
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.is_operator()');
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.current_user_station_ids()');
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.shifts_match_current_user_station(');
+    expect(sql).toContain(
+      'REVOKE ALL ON FUNCTION public.shifts_match_current_user_station(bigint, bigint) FROM PUBLIC, anon;'
+    );
     expect(sql).toContain("SET search_path = ''");
   });
 

@@ -59,10 +59,35 @@ AS $$
   );
 $$;
 
+-- Policy subqueries run with the caller's RLS context. Resolve the shift
+-- relation in a bounded helper so valid rows are not hidden by shifts RLS,
+-- while still refusing probes for stations not assigned to the caller.
+CREATE OR REPLACE FUNCTION public.shifts_match_current_user_station(
+  p_shift_id bigint,
+  p_station_id bigint
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT
+    p_station_id = ANY (public.current_user_station_ids())
+    AND EXISTS (
+      SELECT 1
+      FROM public.shifts s
+      WHERE s.id = p_shift_id
+        AND s.station_id = p_station_id
+    );
+$$;
+
 -- Preserve execute grants on helpers
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_operator() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_user_station_ids() TO authenticated;
+REVOKE ALL ON FUNCTION public.shifts_match_current_user_station(bigint, bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.shifts_match_current_user_station(bigint, bigint) TO authenticated;
 
 -- ============================================================================
 -- 1. FAIL-CLOSED PRE-CHECK: no existing cross-station conflicts
@@ -342,11 +367,9 @@ CREATE POLICY "tank_pump_usages_operator_select"
         public.is_admin()
         OR (
             station_id = ANY (public.current_user_station_ids())
-            AND EXISTS (
-                SELECT 1
-                FROM public.shifts s
-                WHERE s.id = tank_pump_usages.shift_id
-                  AND s.station_id = tank_pump_usages.station_id
+            AND public.shifts_match_current_user_station(
+                tank_pump_usages.shift_id,
+                tank_pump_usages.station_id
             )
             AND EXISTS (
                 SELECT 1
@@ -375,11 +398,9 @@ CREATE POLICY "tank_pump_usages_operator_insert"
     WITH CHECK (
         public.is_operator()
         AND station_id = ANY (public.current_user_station_ids())
-        AND EXISTS (
-            SELECT 1
-            FROM public.shifts s
-            WHERE s.id = tank_pump_usages.shift_id
-              AND s.station_id = tank_pump_usages.station_id
+        AND public.shifts_match_current_user_station(
+            tank_pump_usages.shift_id,
+            tank_pump_usages.station_id
         )
         AND EXISTS (
             SELECT 1
@@ -431,16 +452,13 @@ CREATE POLICY "tank_readings_operator_select"
             )
             AND (
                 tank_readings.shift_id IS NULL
-                OR EXISTS (
-                    SELECT 1
-                    FROM public.shifts s
-                    WHERE s.id = tank_readings.shift_id
-                      AND s.station_id = ANY (public.current_user_station_ids())
-                      AND s.station_id = (
-                          SELECT t2.station_id
-                          FROM public.tanks t2
-                          WHERE t2.id = tank_readings.tank_id
-                      )
+                OR public.shifts_match_current_user_station(
+                    tank_readings.shift_id,
+                    (
+                        SELECT t2.station_id
+                        FROM public.tanks t2
+                        WHERE t2.id = tank_readings.tank_id
+                    )
                 )
             )
         )

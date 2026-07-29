@@ -314,7 +314,7 @@ describe('Issue #315 — Infrastructure RLS Station Isolation', () => {
           shift_id: 401,
           level_mm: 1200,
           liters: 100,
-          reading_type: 'opening'
+          reading_type: `blocked_${makeUniqueSuffix()}`
         })
       }
     ] as const;
@@ -337,8 +337,13 @@ describe('Issue #315 — Infrastructure RLS Station Isolation', () => {
           query = query.eq('nome', payload.nome);
         } else if (tbl.name === 'tanks') {
           query = query.eq('name', payload.name);
-        } else if (tbl.name === 'tank_pump_links' || tbl.name === 'tank_readings') {
+        } else if (tbl.name === 'tank_pump_links') {
           query = query.eq('tank_id', payload.tank_id).eq('shift_id', payload.shift_id);
+        } else if (tbl.name === 'tank_readings') {
+          query = query
+            .eq('tank_id', payload.tank_id)
+            .eq('shift_id', payload.shift_id)
+            .eq('reading_type', payload.reading_type);
         }
         const { data } = await query;
         expect(data?.length ?? 0).toBe(0);
