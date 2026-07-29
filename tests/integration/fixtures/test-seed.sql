@@ -7,16 +7,16 @@ BEGIN;
 TRUNCATE TABLE public.customer_refunds, public.movimenti_cassa, public.invoice_requests,
   public.invoices, public.shift_pistols, public.shifts, public.tank_pump_usages,
   public.tank_readings, public.tank_pump_links, public.pistole, public.tanks,
-  public.user_stations, public.users, public.fuel_stations, public.crediti_movimenti,
-  public.crediti_clienti CASCADE;
+  public.islands, public.user_stations, public.users, public.fuel_stations,
+  public.crediti_movimenti, public.crediti_clienti CASCADE;
 
 DELETE FROM auth.users WHERE email LIKE '%@neofuel.test';
 
 -- 1. Create Stations
-INSERT INTO public.fuel_stations (station_id, station_name, address, city, cap, provincia)
+INSERT INTO public.fuel_stations (station_id, station_name, location, is_active, allow_partial_closure)
 VALUES
-  (1, 'Stazione Test Nord', 'Via Nord 1', 'Milano', '20100', 'MI'),
-  (2, 'Stazione Test Sud', 'Via Sud 2', 'Roma', '00100', 'RM')
+  (1, 'Stazione Test Nord', 'Milano', true, false),
+  (2, 'Stazione Test Sud', 'Roma', true, false)
 ON CONFLICT (station_id) DO UPDATE SET station_name = EXCLUDED.station_name;
 
 ALTER SEQUENCE public.fuel_stations_station_id_seq RESTART WITH 10;
@@ -29,6 +29,15 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.users (user_id, username, email, role, is_active, created_by_auth)
 VALUES (1, 'admin_user', 'admin@neofuel.test', 'admin', true, '11111111-1111-1111-1111-111111111111')
+ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_active = EXCLUDED.is_active;
+
+-- Super Admin
+INSERT INTO auth.users (id, email)
+VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'super@neofuel.test')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.users (user_id, username, email, role, is_active, created_by_auth)
+VALUES (10, 'super_admin_user', 'super@neofuel.test', 'super_admin', true, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
 ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_active = EXCLUDED.is_active;
 
 -- Operator Station 1
@@ -55,6 +64,15 @@ ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_active = EXCLUDED.i
 INSERT INTO public.user_stations (user_id, station_id)
 VALUES (3, 2);
 
+-- Active operator without station assignments
+INSERT INTO auth.users (id, email)
+VALUES ('66666666-6666-6666-6666-666666666666', 'opnoassign@neofuel.test')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.users (user_id, username, email, role, is_active, created_by_auth)
+VALUES (6, 'operator_no_assignments', 'opnoassign@neofuel.test', 'operator', true, '66666666-6666-6666-6666-666666666666')
+ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_active = EXCLUDED.is_active;
+
 -- Inactive User (Station 1)
 INSERT INTO auth.users (id, email)
 VALUES ('44444444-4444-4444-4444-444444444444', 'inactive@neofuel.test')
@@ -72,7 +90,7 @@ INSERT INTO auth.users (id, email)
 VALUES ('55555555-5555-5555-5555-555555555555', 'noprofile@neofuel.test')
 ON CONFLICT (id) DO NOTHING;
 
-ALTER SEQUENCE public.users_user_id_seq RESTART WITH 10;
+ALTER SEQUENCE public.users_user_id_seq RESTART WITH 100;
 
 -- 3. Sample Domain Data for Isolation Testing
 -- Open Shifts
@@ -107,19 +125,55 @@ VALUES
 
 ALTER SEQUENCE public.movimenti_cassa_id_seq RESTART WITH 400;
 
--- Pistole & Tanks
-INSERT INTO public.pistole (id, station_id, numero_pistola, tipo_carburante, ultima_lettura)
+-- Infrastructure seed for issue #315
+-- Islands (one per station)
+INSERT INTO public.islands (island_id, station_id, island_name, nome, is_active)
 VALUES
-  (501, 1, 1, 'benzina', 1000.00),
-  (502, 2, 1, 'benzina', 1000.00);
+  (1001, 1, 'Isola Nord 1', 'Isola Nord 1', true),
+  (1002, 2, 'Isola Sud 1', 'Isola Sud 1', true);
+
+ALTER SEQUENCE public.islands_island_id_seq RESTART WITH 2000;
+
+-- Tanks (one per station)
+INSERT INTO public.tanks (id, station_id, name, fuel_type, capacity)
+VALUES
+  (601, 1, 'Tank Nord 1', 'benzina', 10000.00),
+  (602, 2, 'Tank Sud 1', 'benzina', 10000.00);
+
+ALTER SEQUENCE public.tanks_id_seq RESTART WITH 700;
+
+-- Pistole (linked to islands; station_id is nullable legacy)
+INSERT INTO public.pistole (id, station_id, island_id, nome, tipo_carburante, numero_litri)
+VALUES
+  (501, NULL, 1001, 'Pistola Nord 1', 'benzina', 0),
+  (502, NULL, 1002, 'Pistola Sud 1', 'benzina', 0),
+  -- Cross-station adversarial pump: station_id 1 but island belongs to station 2
+  (503, 1, 1002, 'Pistola Adversarial', 'benzina', 0);
 
 ALTER SEQUENCE public.pistole_id_seq RESTART WITH 600;
 
-INSERT INTO public.tanks (id, station_id, name, fuel_type, capacity, current_level, water_level)
+-- Tank-pump links
+INSERT INTO public.tank_pump_links (id, station_id, tank_id, pump_id, mode, ratio, is_active)
 VALUES
-  (601, 1, 'Tank Nord 1', 'benzina', 10000.00, 5000.00, 0.00),
-  (602, 2, 'Tank Sud 1', 'benzina', 10000.00, 5000.00, 0.00);
+  (701, 1, 601, 501, 'primary', 1.0, true),
+  (702, 2, 602, 502, 'primary', 1.0, true);
 
-ALTER SEQUENCE public.tanks_id_seq RESTART WITH 700;
+ALTER SEQUENCE public.tank_pump_links_id_seq RESTART WITH 800;
+
+-- Tank pump usages
+INSERT INTO public.tank_pump_usages (id, shift_id, station_id, pump_id, tank_id, liters, mode, ratio)
+VALUES
+  (801, 401, 1, 501, 601, 100.00, 'dispensed', 1.0),
+  (802, 402, 2, 502, 602, 100.00, 'dispensed', 1.0);
+
+ALTER SEQUENCE public.tank_pump_usages_id_seq RESTART WITH 900;
+
+-- Tank readings
+INSERT INTO public.tank_readings (id, tank_id, shift_id, level_mm, liters, reading_type)
+VALUES
+  (901, 601, 401, 1200, 100.00, 'opening'),
+  (902, 602, 402, 1200, 100.00, 'opening');
+
+ALTER SEQUENCE public.tank_readings_id_seq RESTART WITH 1000;
 
 COMMIT;

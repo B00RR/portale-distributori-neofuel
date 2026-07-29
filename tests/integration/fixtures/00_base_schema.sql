@@ -62,10 +62,9 @@ GRANT ALL ON ALL FUNCTIONS IN SCHEMA auth TO postgres, service_role;
 CREATE TABLE IF NOT EXISTS public.fuel_stations (
   station_id serial PRIMARY KEY,
   station_name text NOT NULL,
-  address text,
-  city text,
-  cap text,
-  provincia text,
+  location text,
+  is_active boolean DEFAULT true,
+  allow_partial_closure boolean DEFAULT false,
   created_by_auth uuid,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
@@ -351,11 +350,9 @@ CREATE TABLE IF NOT EXISTS public.islands (
 CREATE TABLE IF NOT EXISTS public.tanks (
   id serial PRIMARY KEY,
   station_id integer REFERENCES public.fuel_stations(station_id),
-  name text,
-  fuel_type text,
+  name text NOT NULL,
+  fuel_type text NOT NULL,
   capacity numeric,
-  current_level numeric,
-  water_level numeric,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -364,18 +361,22 @@ CREATE TABLE IF NOT EXISTS public.pistole (
   id serial PRIMARY KEY,
   station_id integer REFERENCES public.fuel_stations(station_id),
   island_id integer REFERENCES public.islands(island_id),
-  nome text,
-  numero_pistola integer,
+  nome text NOT NULL,
   tipo_carburante text,
-  ultima_lettura numeric DEFAULT 0,
   numero_litri numeric DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.tank_pump_links (
   id serial PRIMARY KEY,
-  tank_id integer REFERENCES public.tanks(id),
-  pump_id integer REFERENCES public.pistole(id),
+  station_id integer NOT NULL REFERENCES public.fuel_stations(station_id),
+  tank_id integer NOT NULL REFERENCES public.tanks(id),
+  pump_id integer NOT NULL REFERENCES public.pistole(id),
+  mode text NOT NULL,
+  ratio numeric,
+  priority smallint,
+  is_active boolean DEFAULT true,
+  notes text,
   created_at timestamptz DEFAULT now()
 );
 
@@ -415,13 +416,8 @@ CREATE TABLE IF NOT EXISTS public.shift_pistols (
 
 CREATE TABLE IF NOT EXISTS public.tank_readings (
   id serial PRIMARY KEY,
-  station_id integer REFERENCES public.fuel_stations(station_id),
   tank_id integer REFERENCES public.tanks(id),
   shift_id integer REFERENCES public.shifts(id),
-  operator_id integer REFERENCES public.users(user_id),
-  start_level numeric,
-  end_level numeric,
-  water_level numeric,
   level_mm numeric,
   liters numeric,
   reading_type text,
@@ -718,6 +714,12 @@ ALTER TABLE public.calculation_modules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calculation_versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calculation_tests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calculation_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.islands ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tanks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pistole ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tank_pump_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tank_pump_usages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tank_readings ENABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
