@@ -10,7 +10,7 @@ describe('Admin Hash Routing', () => {
   });
 
   describe('isAdminTab type guard', () => {
-    it('accepts all 10 known admin tabs', () => {
+    it('accepts all 10 known admin tabs (analytics removed #444)', () => {
       const tabs = [
         'dashboard',
         'stations',
@@ -20,7 +20,7 @@ describe('Admin Hash Routing', () => {
         'invoices',
         'vouchers',
         'notifiche',
-        'analytics',
+        'reconciliation',
         'settings'
       ];
 
@@ -36,6 +36,10 @@ describe('Admin Hash Routing', () => {
       expect(isAdminTab('')).toBe(false);
     });
 
+    it('rejects analytics after removal (#444)', () => {
+      expect(isAdminTab('analytics')).toBe(false);
+    });
+
     it('narrows type for TypeScript', () => {
       const value: string = 'vouchers';
       if (isAdminTab(value)) {
@@ -47,12 +51,13 @@ describe('Admin Hash Routing', () => {
   });
 
   describe('ADMIN_TABS constant', () => {
-    it('exports a readonly array of all tabs', () => {
-      expect(ADMIN_TABS).toHaveLength(11);
+    it('exports a readonly array of all tabs without analytics (#444)', () => {
+      expect(ADMIN_TABS).toHaveLength(10);
       expect(ADMIN_TABS).toContain('dashboard');
       expect(ADMIN_TABS).toContain('vouchers');
       expect(ADMIN_TABS).toContain('reconciliation');
       expect(ADMIN_TABS).toContain('settings');
+      expect(ADMIN_TABS).not.toContain('analytics');
     });
   });
 
@@ -130,12 +135,12 @@ describe('Admin Hash Routing', () => {
     });
 
     it('navigates to tab specified in URL hash on load', async () => {
-      window.history.pushState(null, '', '#/admin/analytics');
+      window.history.pushState(null, '', '#/admin/vouchers');
 
-      await router.navigateTo('analytics');
+      await router.navigateTo('vouchers');
 
-      expect(router.getCurrentTab()).toBe('analytics');
-      expect(window.location.hash).toBe('#/admin/analytics');
+      expect(router.getCurrentTab()).toBe('vouchers');
+      expect(window.location.hash).toBe('#/admin/vouchers');
     });
 
     it('handles deep link to protected tabs based on permissions', async () => {
@@ -275,10 +280,10 @@ describe('Admin Hash Routing', () => {
     it('maintains hash and tab in sync after rapid navigations', async () => {
       await router.navigateTo('invoices');
       await router.navigateTo('crediti');
-      await router.navigateTo('analytics');
+      await router.navigateTo('reconciliation');
 
-      expect(router.getCurrentTab()).toBe('analytics');
-      expect(window.location.hash).toBe('#/admin/analytics');
+      expect(router.getCurrentTab()).toBe('reconciliation');
+      expect(window.location.hash).toBe('#/admin/reconciliation');
     });
   });
 });
