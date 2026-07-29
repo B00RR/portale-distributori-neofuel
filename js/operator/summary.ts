@@ -321,7 +321,7 @@ export function buildShiftSummaryItems(input: BuildShiftSummaryInput): ShiftSumm
       description: v.status ?? undefined,
       createdAt: v.redeemed_at ?? '',
       editable: false, // mai modificabile
-      deletable: canEdit,
+      deletable: false, // voucher non eliminabili dal resoconto (#314)
       originalTable: 'vouchers',
       originalId: v.id
     });
@@ -490,11 +490,10 @@ export async function showShiftSummary(
         )
         .eq('station_id', numericStationId)
         .eq('shift_id', shift.id),
-      supabase
-        .from('vouchers')
-        .select('id, code, amount, redeemed_at, status')
-        .eq('station_id', numericStationId)
-        .eq('shift_id', shift.id),
+      supabase.rpc('get_shift_vouchers', {
+        p_station_id: numericStationId,
+        p_shift_id: shift.id
+      }),
       supabase
         .from('invoices')
         .select(
@@ -520,7 +519,9 @@ export async function showShiftSummary(
       tankReadings: (tanksRes.data ?? []) as unknown as TankReadingRow[],
       movimentiCassa: (movimentiRes.data ?? []) as unknown as MovimentoCassaRow[],
       creditiMovimenti: (creditiMovRes.data ?? []) as unknown as CreditoMovimentoRow[],
-      vouchers: (vouchersRes.data ?? []) as unknown as VoucherRow[],
+      vouchers: Array.isArray(vouchersRes.data)
+        ? (vouchersRes.data as unknown as VoucherRow[])
+        : [],
       invoices: (invoicesRes.data ?? []) as unknown as InvoiceRow[],
       puntiRiscatti: (puntiRes.data ?? []) as unknown as PuntoRiscattoRow[],
       customerRefunds: (customerRefundsRes.data ?? []) as unknown as CustomerRefundRow[],
@@ -728,9 +729,13 @@ async function deleteSummaryItem(
   stationId: number,
   userId: string | number
 ): Promise<void> {
-  // Opening items non sono eliminabili (guardia)
+  // Opening items e Voucher non sono eliminabili (guardia)
   if (item.kind.startsWith('opening_')) {
     Toast.show('Le voci di apertura non possono essere eliminate.', 'warning');
+    return;
+  }
+  if (item.kind === 'voucher') {
+    Toast.show('I voucher non possono essere eliminati dal resoconto.', 'warning');
     return;
   }
 

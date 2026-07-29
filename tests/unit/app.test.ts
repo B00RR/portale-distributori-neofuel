@@ -109,7 +109,7 @@ describe('App offline RPC executors', () => {
     document.body.innerHTML = '';
   });
 
-  it('passes the queued action id as p_request_id when redeeming a voucher offline', async () => {
+  it('passes queued action id as p_request_id and shiftId as p_shift_id when redeeming a voucher offline', async () => {
     const executor = await importAppAndGetExecutor('voucher_redeem');
 
     await expect(
@@ -118,7 +118,8 @@ describe('App offline RPC executors', () => {
         payload: {
           voucherCode: 'ABCD1234',
           stationId: '7',
-          operatorId: 'operator-auth-id'
+          operatorId: 'operator-auth-id',
+          shiftId: '42'
         }
       })
     ).resolves.toBe(true);
@@ -129,9 +130,27 @@ describe('App offline RPC executors', () => {
         p_voucher_code: 'ABCD1234',
         p_station_id: 7,
         p_operator_id: 'operator-auth-id',
-        p_request_id: 'voucher_redeem_1700000000000_abc1234'
+        p_request_id: 'voucher_redeem_1700000000000_abc1234',
+        p_shift_id: 42
       })
     );
+  });
+
+  it('fails closed when redeeming a voucher offline with missing or invalid shiftId', async () => {
+    const executor = await importAppAndGetExecutor('voucher_redeem');
+
+    await expect(
+      executor({
+        id: 'voucher_redeem_no_shift',
+        payload: {
+          voucherCode: 'ABCD1234',
+          stationId: '7',
+          operatorId: 'operator-auth-id'
+        }
+      })
+    ).resolves.toBe(false);
+
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
   });
 
   it('passes the queued action id as p_request_id when closing a shift offline', async () => {

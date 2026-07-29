@@ -4,11 +4,9 @@ import { property, state } from 'lit/decorators.js';
 import { supabase } from '../../core/api.js';
 import { logger } from '../../core/logger.js';
 import { isOffline, queueAction } from '../../core/offline-queue.js';
-import { validateVoucher } from '../../core/rules.js';
 import { processPointsRedeem } from '../../operator/vouchers.js';
 import { handleError, AppError } from '../../shared/error-handler.js';
 import type { Html5QrcodeConstructor, Html5QrcodeInstance } from '../../types.js';
-import { escapeLikePattern } from '../../utils/sanitizer.js';
 import { createRateLimiter } from '../../utils/utils.js';
 import { formatEuro, formatDate } from '../../utils/utils.js';
 import { ensureHtml5Qrcode } from '../../vendor/lazy.js';
@@ -376,40 +374,62 @@ export class VoucherManager extends BaseComponent {
     }
 
     try {
-      // Online query for validation
-      let query = supabase.from('vouchers').select('*, voucher_batches(customer_name)');
+      // Online RPC for validation preview without direct SELECT on vouchers
+      const { data: res, error } = await supabase.rpc('validate_voucher_for_preview', {
+        p_voucher_code: code,
+        p_station_id: Number(this.stationId)
+      });
 
-      if (code.length === 4) {
-        query = query.like('code', `${escapeLikePattern(code)}%`);
-      } else {
-        query = query.eq('code', code);
-      }
-
-      const { data: vouchers, error } = await query;
-
-      if (error || !vouchers || vouchers.length === 0) {
-        throw new AppError('Codice non trovato.', 'VOUCHER_NOT_FOUND');
-      }
-
-      // Prefisso condiviso da più voucher: non riscattare arbitrariamente il
-      // primo risultato, serve il codice completo (#251).
-      if (vouchers.length > 1) {
+      if (error) {
         throw new AppError(
-          'Più voucher corrispondono al codice: inserisci il codice completo.',
-          'VOUCHER_AMBIGUOUS'
+          error.message || 'Errore di controllo voucher',
+          'VOUCHER_CHECK_ERROR',
+          error
         );
       }
 
-      const voucher = vouchers[0] ?? null;
-      const validation = validateVoucher(voucher);
+      const result = res as unknown as {
+        success: boolean;
+        error?: string;
+        reason?: string;
+        code?: string;
+        amount?: number;
+        status?: string;
+        expiration_date?: string;
+        redeemed_at?: string;
+        customer_name?: string;
+      } | null;
 
-      if (!validation.valid) {
-        this.activeVoucher = voucher;
-        this.validationResult = validation;
-        this.mode = 'error'; // Show specific validation error
-      } else {
-        this.activeVoucher = voucher;
+      if (!result) {
+        throw new AppError('Codice non trovato.', 'VOUCHER_NOT_FOUND');
+      }
+
+      if (result.success) {
+        this.activeVoucher = {
+          code: result.code || code,
+          amount: result.amount || 0,
+          voucher_batches: result.customer_name ? { customer_name: result.customer_name } : null,
+          status: result.status ?? null,
+          expiration_date: result.expiration_date ?? null
+        };
         this.mode = 'verify';
+      } else {
+        if (result.reason) {
+          this.activeVoucher = {
+            code: result.code || code,
+            amount: result.amount || 0,
+            voucher_batches: result.customer_name ? { customer_name: result.customer_name } : null
+          };
+          this.validationResult = {
+            valid: false,
+            error: result.error || 'Voucher non valido',
+            reason: result.reason,
+            details: { date: result.redeemed_at || result.expiration_date || null }
+          };
+          this.mode = 'error';
+        } else {
+          throw new AppError(result.error || 'Codice non trovato.', 'VOUCHER_NOT_FOUND');
+        }
       }
     } catch (e: unknown) {
       const err =
@@ -438,7 +458,8 @@ export class VoucherManager extends BaseComponent {
             voucherCode: this.activeVoucher.code,
             stationId: this.stationId,
             operatorId: this.userId,
-            voucherAmount: this.activeVoucher.amount
+            voucherAmount: this.activeVoucher.amount,
+            shiftId: this.shiftId
           },
           {
             userId: String(this.userId),

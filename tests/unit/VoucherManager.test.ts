@@ -1,25 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockSupabase, mockToast, mockUtils, mockOfflineQueue, mockRules } = vi.hoisted(() => {
-  const chain: any = {};
-  const defaultRes = { data: [], error: null };
-
-  // Explicit return to avoid "this" context issues
-  Object.assign(chain, {
-    select: vi.fn(() => chain),
-    eq: vi.fn(() => chain),
-    like: vi.fn(() => chain),
-    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-    insert: vi.fn().mockResolvedValue({ error: null }),
-    update: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })), // Nested chain for update
-    then: (resolve: any) => resolve(defaultRes) // Default thenable
-  });
-
+const { mockSupabase, mockToast, mockUtils, mockOfflineQueue } = vi.hoisted(() => {
   return {
     mockSupabase: {
-      from: vi.fn(() => chain),
-      rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
-      chain // Export to access in tests
+      from: vi.fn(() => ({})),
+      rpc: vi.fn().mockResolvedValue({ data: { success: true }, error: null })
     },
     mockToast: { show: vi.fn() },
     mockUtils: {
@@ -30,9 +15,6 @@ const { mockSupabase, mockToast, mockUtils, mockOfflineQueue, mockRules } = vi.h
     mockOfflineQueue: {
       isOffline: vi.fn(() => false),
       queueAction: vi.fn()
-    },
-    mockRules: {
-      validateVoucher: vi.fn(() => ({ valid: true }))
     }
   };
 });
@@ -51,60 +33,51 @@ vi.mock('../../js/core/api.js', () => ({ supabase: mockSupabase }));
 vi.mock('../../js/ui/toast.js', () => ({ Toast: mockToast }));
 vi.mock('../../js/utils/utils.js', () => mockUtils);
 vi.mock('../../js/core/offline-queue.js', () => mockOfflineQueue);
-vi.mock('../../js/core/rules.js', () => mockRules);
 
 import '../../js/ui/components/VoucherManager.js';
 
-describe('VoucherManager (523 lines)', () => {
+describe('VoucherManager Component', () => {
   let element: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    // Reset default then behavior
-    mockSupabase.chain.then = (resolve: any) => resolve({ data: [], error: null });
-    mockSupabase.rpc.mockResolvedValue({ data: { success: true }, error: null });
+    mockSupabase.rpc.mockResolvedValue({
+      data: { success: true, code: 'V123', amount: 50 },
+      error: null
+    });
 
-    document.body.innerHTML = `<voucher-manager stationId="ST-123" userId="user-456"></voucher-manager>`;
+    document.body.innerHTML = `<voucher-manager stationId="1" userId="user-456"></voucher-manager>`;
     element = document.querySelector('voucher-manager');
     await new Promise(resolve => setTimeout(resolve, 10));
   });
 
-  it('should process valid voucher', async () => {
-    const voucherData = {
-      id: 1,
-      code: 'V123',
-      amount: 50,
-      status: 'active',
-      expires_at: '2025-12-31'
-    };
-
-    // Override then for this test
-    mockSupabase.chain.then = (resolve: any) => resolve({ data: [voucherData], error: null });
+  it('should process valid voucher via validate_voucher_for_preview RPC', async () => {
+    mockSupabase.rpc.mockResolvedValueOnce({
+      data: { success: true, code: 'V123', amount: 50, status: 'active' },
+      error: null
+    });
 
     await element.processCode('V123');
     await new Promise(r => setTimeout(r, 10));
 
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('validate_voucher_for_preview', {
+      p_voucher_code: 'V123',
+      p_station_id: 1
+    });
+
     expect(element.activeVoucher).toBeDefined();
-    if (element.activeVoucher) {
-      expect(element.activeVoucher.code).toBe('V123');
-    } else {
-      throw new Error(`activeVoucher is null. Error: ${element.errorMessage}`);
-    }
+    expect(element.activeVoucher?.code).toBe('V123');
+    expect(element.mode).toBe('verify');
   });
 
-  it('escapes LIKE wildcards in manual 4-char codes (#251)', async () => {
-    await element.processCode('%%%%');
-    await new Promise(r => setTimeout(r, 10));
-
-    expect(mockSupabase.chain.like).toHaveBeenCalledWith('code', '\\%\\%\\%\\%%');
-  });
-
-  it('rejects ambiguous prefixes matching multiple vouchers (#251)', async () => {
-    const vouchers = [
-      { id: 1, code: 'V123A', amount: 50, status: 'active' },
-      { id: 2, code: 'V123B', amount: 75, status: 'active' }
-    ];
-    mockSupabase.chain.then = (resolve: any) => resolve({ data: vouchers, error: null });
+  it('handles ambiguous prefixes error returned by validate_voucher_for_preview RPC', async () => {
+    mockSupabase.rpc.mockResolvedValueOnce({
+      data: {
+        success: false,
+        error: 'Più voucher corrispondono al codice: inserisci il codice completo.'
+      },
+      error: null
+    });
 
     await element.processCode('V123');
     await new Promise(r => setTimeout(r, 10));
@@ -114,30 +87,43 @@ describe('VoucherManager (523 lines)', () => {
     expect(element.activeVoucher).toBeNull();
   });
 
-  it('should redeem voucher', async () => {
+  it('should redeem voucher via redeem_voucher_validated RPC', async () => {
     element.activeVoucher = { id: 1, code: 'V123', amount: 100 };
-    element.stationId = 'ST-123';
+    element.stationId = '1';
     element.userId = 'user-456';
 
     await element.confirmRedeem();
     await new Promise(r => setTimeout(r, 10));
 
-    expect(mockSupabase.rpc).toHaveBeenCalled();
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'redeem_voucher_validated',
+      expect.objectContaining({
+        p_voucher_code: 'V123',
+        p_station_id: 1,
+        p_operator_id: 'user-456'
+      })
+    );
   });
 
   it('should clear a stale validation error before processing another code', async () => {
-    const invalidVoucher = { id: 1, code: 'OLD1', amount: 50, status: 'redeemed' };
-    mockSupabase.chain.then = (resolve: any) => resolve({ data: [invalidVoucher], error: null });
-    mockRules.validateVoucher.mockReturnValueOnce({
-      valid: false,
-      error: 'Voucher già utilizzato',
-      reason: 'redeemed'
+    mockSupabase.rpc.mockResolvedValueOnce({
+      data: {
+        success: false,
+        error: 'Voucher già riscattato',
+        reason: 'redeemed',
+        code: 'OLD1',
+        amount: 50
+      },
+      error: null
     });
 
     await element.processCode('OLD1');
     expect(element.validationResult).toMatchObject({ valid: false, reason: 'redeemed' });
 
-    mockSupabase.chain.then = (resolve: any) => resolve({ data: [], error: null });
+    mockSupabase.rpc.mockResolvedValueOnce({
+      data: { success: false, error: 'Codice non trovato.' },
+      error: null
+    });
     await element.processCode('MISS');
 
     expect(element.validationResult).toBeNull();
@@ -154,12 +140,15 @@ describe('VoucherManager (523 lines)', () => {
     await element.confirmPointsRedeem();
     await new Promise(r => setTimeout(r, 10));
 
-    expect(mockSupabase.rpc).toHaveBeenCalledWith('register_punti_riscatto', expect.objectContaining({
-      p_station_id: 123,
-      p_shift_id: 789,
-      p_operator_id: 456,
-      p_importo: 15.5
-    }));
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'register_punti_riscatto',
+      expect.objectContaining({
+        p_station_id: 123,
+        p_shift_id: 789,
+        p_operator_id: 456,
+        p_importo: 15.5
+      })
+    );
     expect(element.mode).toBe('success');
   });
 
@@ -169,5 +158,26 @@ describe('VoucherManager (523 lines)', () => {
 
     expect(mockToast.show).toHaveBeenCalledWith('Inserire un importo punti valido.', 'warning');
   });
-});
 
+  it('includes shiftId when queueing voucher_redeem offline', async () => {
+    mockOfflineQueue.isOffline.mockReturnValue(true);
+    element.activeVoucher = { id: 1, code: 'OFFLINE1', amount: 30 };
+    element.stationId = '1';
+    element.userId = 'user-456';
+    element.shiftId = '999';
+
+    await element.confirmRedeem();
+
+    expect(mockOfflineQueue.queueAction).toHaveBeenCalledWith(
+      'voucher_redeem',
+      expect.objectContaining({
+        voucherCode: 'OFFLINE1',
+        stationId: '1',
+        operatorId: 'user-456',
+        voucherAmount: 30,
+        shiftId: '999'
+      }),
+      expect.anything()
+    );
+  });
+});

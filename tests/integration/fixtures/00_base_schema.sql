@@ -536,8 +536,10 @@ CREATE TABLE IF NOT EXISTS public.prezzi_distributore (
 );
 
 CREATE TABLE IF NOT EXISTS public.voucher_batches (
-  batch_id serial PRIMARY KEY,
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  station_id bigint,
   customer_name text,
+  description text,
   total_quantity integer,
   amount_per_voucher numeric,
   expiration_date date,
@@ -545,16 +547,22 @@ CREATE TABLE IF NOT EXISTS public.voucher_batches (
 );
 
 CREATE TABLE IF NOT EXISTS public.vouchers (
-  id serial PRIMARY KEY,
-  batch_id integer REFERENCES public.voucher_batches(batch_id),
-  code text UNIQUE,
-  amount numeric,
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  batch_id uuid REFERENCES public.voucher_batches(id) ON DELETE CASCADE,
+  code text UNIQUE NOT NULL,
+  amount numeric NOT NULL,
   status text DEFAULT 'active',
   expiration_date date,
+  station_id bigint,
+  shift_id bigint,
+  redeemed_by uuid,
   redeemed_at timestamptz,
-  redeemed_by_station integer REFERENCES public.fuel_stations(station_id),
+  serial_number integer,
   created_at timestamptz DEFAULT now()
 );
+
+ALTER TABLE public.voucher_batches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vouchers ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS public.calculation_modules (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

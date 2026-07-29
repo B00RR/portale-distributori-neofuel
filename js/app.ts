@@ -186,8 +186,9 @@ async function initializeApp(): Promise<void> {
     registerExecutor('voucher_redeem', async action => {
       const payload = action.payload as {
         voucherCode: string;
-        stationId: string;
+        stationId: string | number;
         operatorId: string;
+        shiftId?: string | number;
       };
 
       // Ensure stationId is a number
@@ -197,11 +198,19 @@ async function initializeApp(): Promise<void> {
         return false;
       }
 
+      // Ensure shiftId is a valid positive number
+      const shiftIdNum = Number(payload.shiftId);
+      if (!payload.shiftId || isNaN(shiftIdNum) || shiftIdNum <= 0) {
+        logger.error('OfflineQueue', 'Invalid or missing shift ID:', payload.shiftId);
+        return false;
+      }
+
       const { data: result, error } = await supabase.rpc('redeem_voucher_validated', {
         p_voucher_code: payload.voucherCode,
         p_station_id: stationIdNum,
         p_operator_id: payload.operatorId,
-        p_request_id: action.id
+        p_request_id: action.id,
+        p_shift_id: shiftIdNum
       });
       if (error || (result && isRpcResult(result) && !result.success)) {
         logger.error('OfflineQueue', 'Voucher redeem failed:', error || getRpcError(result));
