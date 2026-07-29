@@ -86,7 +86,7 @@ RETURNS TABLE (
     status text,
     expiration_date date,
     redeemed_at timestamptz,
-    station_id integer,
+    station_id bigint,
     batch_id uuid,
     match_count integer
 )
@@ -104,7 +104,7 @@ BEGIN
     -- Reject empty input or codes containing wildcards (%), (_), spaces, or invalid chars.
     -- Allowed characters: uppercase A-Z, 0-9, hyphen '-'
     IF v_clean_code = '' OR v_clean_code ~ '[%_\s]' OR v_clean_code !~ '^[A-Z0-9-]+$' THEN
-        RETURN QUERY SELECT NULL::uuid, NULL::text, NULL::numeric, NULL::text, NULL::date, NULL::timestamptz, NULL::integer, NULL::uuid, 0;
+        RETURN QUERY SELECT NULL::uuid, NULL::text, NULL::numeric, NULL::text, NULL::date, NULL::timestamptz, NULL::bigint, NULL::uuid, 0;
         RETURN;
     END IF;
 
@@ -157,12 +157,12 @@ BEGIN
             RETURN QUERY SELECT v_rec.id, v_rec.code, v_rec.amount, v_rec.status, v_rec.expiration_date, v_rec.redeemed_at, v_rec.station_id, v_rec.batch_id, 1;
             RETURN;
         ELSIF v_count > 1 THEN
-            RETURN QUERY SELECT NULL::uuid, NULL::text, NULL::numeric, NULL::text, NULL::date, NULL::timestamptz, NULL::integer, NULL::uuid, v_count;
+            RETURN QUERY SELECT NULL::uuid, NULL::text, NULL::numeric, NULL::text, NULL::date, NULL::timestamptz, NULL::bigint, NULL::uuid, v_count;
             RETURN;
         END IF;
     END IF;
 
-    RETURN QUERY SELECT NULL::uuid, NULL::text, NULL::numeric, NULL::text, NULL::date, NULL::timestamptz, NULL::integer, NULL::uuid, 0;
+    RETURN QUERY SELECT NULL::uuid, NULL::text, NULL::numeric, NULL::text, NULL::date, NULL::timestamptz, NULL::bigint, NULL::uuid, 0;
     RETURN;
 END;
 $$;
