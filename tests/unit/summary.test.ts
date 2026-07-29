@@ -227,16 +227,16 @@ describe('buildShiftSummaryItems', () => {
     expect(ccItems.length).toBe(0);
   });
 
-  it('voucher is NOT editable but IS deletable when canEdit', () => {
+  it('voucher is NOT editable and NOT deletable even when canEdit is true', () => {
     const shift = makeShift();
     const items = buildShiftSummaryItems({
       shift: shift as any,
       ...emptyData,
       vouchers: [
         {
-          id: 'v-1',
-          code: 'ABC123',
-          amount: 25,
+          id: 'v1',
+          code: 'VOUCH-01',
+          amount: 50,
           redeemed_at: '2026-07-22T11:00:00Z',
           status: 'redeemed'
         }
@@ -247,7 +247,7 @@ describe('buildShiftSummaryItems', () => {
     const vItems = items.filter(i => i.kind === 'voucher');
     expect(vItems.length).toBe(1);
     expect(vItems[0]!.editable).toBe(false);
-    expect(vItems[0]!.deletable).toBe(true);
+    expect(vItems[0]!.deletable).toBe(false);
   });
 
   it('invoice items are editable and deletable when canEdit', () => {

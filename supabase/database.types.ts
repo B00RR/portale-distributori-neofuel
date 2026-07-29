@@ -1776,6 +1776,26 @@ export type Database = {
         };
         Returns: Json;
       };
+      validate_voucher_for_preview: {
+        Args: {
+          p_voucher_code: string;
+          p_station_id: number;
+        };
+        Returns: Json;
+      };
+      get_shift_vouchers: {
+        Args: {
+          p_station_id: number;
+          p_shift_id: number;
+        };
+        Returns: {
+          id: string;
+          code: string;
+          amount: number;
+          redeemed_at: string | null;
+          status: string | null;
+        }[];
+      };
       open_shift: {
         Args: {
           p_station_id: number;

@@ -106,13 +106,14 @@ vi.mock('../../js/utils/sanitizer.js', () => ({
 }));
 vi.mock('../../js/utils/utils.js', () => ({ escapeHtml: (value: string) => value }));
 
-import { showShiftSummary } from '../../js/operator/summary.js';
+import { showShiftSummary, buildShiftSummaryItems } from '../../js/operator/summary.js';
 
 async function renderSummary(): Promise<HTMLElement> {
   await showShiftSummary(1, 42);
   const modalBody = document.getElementById('modal-body');
   expect(modalBody).not.toBeNull();
   expect(modalBody!.querySelectorAll('[data-item-id="40"]')).toHaveLength(2);
+  mocks.rpc.mockClear();
   return modalBody!;
 }
 
@@ -257,5 +258,32 @@ describe('invoice mutations in shift summary', () => {
       expect(mocks.directDelete).toHaveBeenCalledWith('movimenti_cassa');
     });
     expect(mocks.rpc).not.toHaveBeenCalledWith('delete_shift_invoice', expect.anything());
+  });
+
+  it('ensures voucher items are never deletable or editable even when shift is open', () => {
+    const items = buildShiftSummaryItems({
+      shift: { id: 100, station_id: 1, status: 'open' } as any,
+      shiftPistols: [],
+      tankReadings: [],
+      movimentiCassa: [],
+      creditiMovimenti: [],
+      vouchers: [
+        {
+          id: 'v1',
+          code: 'VOUCHER-01',
+          amount: 50,
+          status: 'redeemed',
+          redeemed_at: '2026-07-29T10:00:00Z'
+        }
+      ],
+      invoices: [],
+      puntiRiscatti: [],
+      canEdit: true
+    });
+
+    const voucherItem = items.find(i => i.kind === 'voucher');
+    expect(voucherItem).toBeDefined();
+    expect(voucherItem!.deletable).toBe(false);
+    expect(voucherItem!.editable).toBe(false);
   });
 });
