@@ -29,7 +29,6 @@ export type AdminTab =
   | 'vouchers'
   | 'reconciliation'
   | 'notifiche'
-  | 'analytics'
   | 'settings';
 
 export const ADMIN_TABS: readonly AdminTab[] = [
@@ -42,7 +41,6 @@ export const ADMIN_TABS: readonly AdminTab[] = [
   'vouchers',
   'reconciliation',
   'notifiche',
-  'analytics',
   'settings'
 ] as const;
 
@@ -62,7 +60,6 @@ const TAB_TITLES: Record<AdminTab, string> = {
   vouchers: 'Gestione Voucher',
   reconciliation: 'Riconciliazione Giornaliera',
   notifiche: 'Notifiche',
-  analytics: 'Analytics',
   settings: 'Impostazioni'
 };
 
@@ -157,9 +154,6 @@ class AdminRouter {
     if (tab === 'crediti' && !isFullAdmin && userRole !== 'accounting') {
       return false;
     }
-    if (tab === 'analytics' && !isFullAdmin && userRole !== 'accounting') {
-      return false;
-    }
     if (tab === 'invoices' && !isFullAdmin && userRole !== 'billing' && userRole !== 'accounting') {
       return false;
     }
@@ -197,17 +191,6 @@ class AdminRouter {
 
       case 'shifts':
         showChiusureTab(content, headerActions, filter);
-        break;
-
-      case 'analytics':
-        showLoadingMessage(content);
-        try {
-          const { showAnalyticsTab } = await import('./analytics.js');
-          const stationId = filter ? parseInt(filter, 10) : null;
-          showAnalyticsTab(content, headerActions, stationId);
-        } catch (err) {
-          handleError(err, 'Caricamento modulo Analytics', content);
-        }
         break;
 
       case 'crediti':

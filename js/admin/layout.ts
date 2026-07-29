@@ -25,7 +25,6 @@ const TAB_LABELS = new Map<AdminTab, string>([
   ['vouchers', 'Voucher'],
   ['reconciliation', 'Riconciliazione'],
   ['notifiche', 'Notifiche'],
-  ['analytics', 'Analytics'],
   ['settings', 'Impostazioni']
 ]);
 
@@ -91,12 +90,6 @@ export function renderAdminShell(container: HTMLElement, onTabChange: TabChangeC
       tab: 'shifts',
       icon: 'fa-clock',
       label: 'Turni e Chiusure',
-      visible: isFullAdmin || userRole === 'accounting'
-    },
-    {
-      tab: 'analytics',
-      icon: 'fa-chart-pie',
-      label: 'Analytics',
       visible: isFullAdmin || userRole === 'accounting'
     },
     {

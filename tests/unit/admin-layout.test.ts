@@ -87,7 +87,7 @@ describe('Admin Layout Module', () => {
       expect(container.querySelector('[data-testid="nav-operators"]')).toBeTruthy();
       expect(container.querySelector('[data-testid="nav-vouchers"]')).toBeTruthy();
       expect(container.querySelector('[data-testid="nav-shifts"]')).toBeTruthy();
-      expect(container.querySelector('[data-testid="nav-analytics"]')).toBeTruthy();
+      expect(container.querySelector('[data-testid="nav-analytics"]')).toBeNull();
       expect(container.querySelector('[data-testid="nav-crediti"]')).toBeTruthy();
       expect(container.querySelector('[data-testid="nav-invoices"]')).toBeTruthy();
       expect(container.querySelector('[data-testid="nav-notifiche"]')).toBeTruthy();
@@ -109,7 +109,7 @@ describe('Admin Layout Module', () => {
       expect(container.querySelector('[data-testid="nav-operators"]')).toBeNull();
       expect(container.querySelector('[data-testid="nav-vouchers"]')).toBeTruthy();
       expect(container.querySelector('[data-testid="nav-shifts"]')).toBeTruthy();
-      expect(container.querySelector('[data-testid="nav-analytics"]')).toBeTruthy();
+      expect(container.querySelector('[data-testid="nav-analytics"]')).toBeNull();
       expect(container.querySelector('[data-testid="nav-crediti"]')).toBeTruthy();
     });
 
@@ -461,7 +461,6 @@ describe('Admin Layout Module', () => {
         'vouchers',
         'reconciliation',
         'notifiche',
-        'analytics',
         'settings'
       ] as const;
 
@@ -517,7 +516,6 @@ describe('Admin Layout Module', () => {
         invoices: 'Fatture',
         vouchers: 'Voucher',
         notifiche: 'Notifiche',
-        analytics: 'Analytics',
         settings: 'Impostazioni'
       };
 
