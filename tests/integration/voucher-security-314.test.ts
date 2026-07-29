@@ -646,11 +646,13 @@ describe('Voucher Security & Direct Access Limits (#314)', () => {
       const op1 = getOperator1Client();
       const op1AuthUid = '22222222-2222-2222-2222-222222222222';
 
-      // Seed shift 499 as open
+      // Reuse the seeded open shift: the schema permits only one open shift per station.
       const { data: shift, error: shiftError } = await serviceRole
         .from('shifts')
-        .insert({ id: 499, station_id: 1, operator_id: 1, status: 'open' })
-        .select()
+        .select('id')
+        .eq('id', 401)
+        .eq('station_id', 1)
+        .eq('status', 'open')
         .single();
       expect(shiftError).toBeNull();
 
@@ -661,7 +663,7 @@ describe('Voucher Security & Direct Access Limits (#314)', () => {
         .single();
       expect(voucherError).toBeNull();
 
-      const reqId = 'req-replay-close-499';
+      const reqId = 'req-replay-close-401';
 
       // Redeem voucher in open shift
       const res1 = await op1.rpc('redeem_voucher_validated', {
@@ -669,7 +671,7 @@ describe('Voucher Security & Direct Access Limits (#314)', () => {
         p_station_id: 1,
         p_operator_id: op1AuthUid,
         p_request_id: reqId,
-        p_shift_id: 499
+        p_shift_id: 401
       });
       expect(res1.data?.success).toBe(true);
 
@@ -677,7 +679,7 @@ describe('Voucher Security & Direct Access Limits (#314)', () => {
       const { error: closeError } = await serviceRole
         .from('shifts')
         .update({ status: 'closed' })
-        .eq('id', 499);
+        .eq('id', 401);
       expect(closeError).toBeNull();
 
       // Re-submit identical request after shift is closed -> must return original SUCCESS response replay!
@@ -686,7 +688,7 @@ describe('Voucher Security & Direct Access Limits (#314)', () => {
         p_station_id: 1,
         p_operator_id: op1AuthUid,
         p_request_id: reqId,
-        p_shift_id: 499
+        p_shift_id: 401
       });
 
       expect(res2.data?.success).toBe(true);
@@ -698,15 +700,20 @@ describe('Voucher Security & Direct Access Limits (#314)', () => {
         p_station_id: 1,
         p_operator_id: op1AuthUid,
         p_request_id: 'req-new-on-closed-shift',
-        p_shift_id: 499
+        p_shift_id: 401
       });
       expect(resNew.data?.success).toBe(false);
       expect(resNew.data?.error).toBe('Turno non aperto');
 
       // Cleanup
-      await serviceRole.from('movimenti_cassa').delete().eq('shift_id', 499);
+      await serviceRole
+        .from('movimenti_cassa')
+        .delete()
+        .eq('shift_id', 401)
+        .eq('tipo', 'voucher')
+        .eq('descrizione', 'Riscatto Voucher REPLAY-AFTER-CLOSE');
       await serviceRole.from('vouchers').delete().eq('id', voucher!.id);
-      await serviceRole.from('shifts').delete().eq('id', shift!.id);
+      await serviceRole.from('shifts').update({ status: 'open' }).eq('id', shift!.id);
     });
 
     it('handles concurrent identical calls exactly-once without duplicate side effects', async () => {
