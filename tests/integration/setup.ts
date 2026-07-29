@@ -22,10 +22,12 @@ export const SUPABASE_JWT_SECRET =
   process.env.SUPABASE_JWT_SECRET || 'super-secret-jwt-token-with-at-least-32-characters-long';
 
 export const ADMIN_UUID = '11111111-1111-1111-1111-111111111111';
+export const SUPER_ADMIN_UUID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 export const OPERATOR1_UUID = '22222222-2222-2222-2222-222222222222';
 export const OPERATOR2_UUID = '33333333-3333-3333-3333-333333333333';
 export const INACTIVE_UUID = '44444444-4444-4444-4444-444444444444';
 export const NOPROFILE_UUID = '55555555-5555-5555-5555-555555555555';
+export const OPERATOR_NO_ASSIGNMENTS_UUID = '66666666-6666-6666-6666-666666666666';
 
 export let pool: pg.Pool;
 export let isDbAvailable = false;
@@ -61,11 +63,19 @@ export const getAnonClient = (): SupabaseClient<Database> => createTestSupabaseC
 export const getAdminClient = (): SupabaseClient<Database> =>
   createTestSupabaseClient(createTestJwt(ADMIN_UUID, 'authenticated', 'admin@neofuel.test'));
 
+export const getSuperAdminClient = (): SupabaseClient<Database> =>
+  createTestSupabaseClient(createTestJwt(SUPER_ADMIN_UUID, 'authenticated', 'super@neofuel.test'));
+
 export const getOperator1Client = (): SupabaseClient<Database> =>
   createTestSupabaseClient(createTestJwt(OPERATOR1_UUID, 'authenticated', 'op1@neofuel.test'));
 
 export const getOperator2Client = (): SupabaseClient<Database> =>
   createTestSupabaseClient(createTestJwt(OPERATOR2_UUID, 'authenticated', 'op2@neofuel.test'));
+
+export const getOperatorNoAssignmentsClient = (): SupabaseClient<Database> =>
+  createTestSupabaseClient(
+    createTestJwt(OPERATOR_NO_ASSIGNMENTS_UUID, 'authenticated', 'opnoassign@neofuel.test')
+  );
 
 export const getInactiveClient = (): SupabaseClient<Database> =>
   createTestSupabaseClient(createTestJwt(INACTIVE_UUID, 'authenticated', 'inactive@neofuel.test'));
