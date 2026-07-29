@@ -335,9 +335,10 @@ export async function showChiusureTab(
 
       if (!hasDateFilter) {
         const todayDateStr = getItalianBusinessDate();
-        totalsQuery = totalsQuery
-          .gte('created_at', todayDateStr)
-          .lt('created_at', getExclusiveNextDay(todayDateStr));
+        const nextDayStr = getExclusiveNextDay(todayDateStr);
+        totalsQuery = totalsQuery.or(
+          `and(created_at.gte.${todayDateStr},created_at.lt.${nextDayStr}),and(closed_at.is.null,status.in.(open,partial))`
+        );
       }
 
       const [{ data: closures, error, count }, { data: totalsData, error: totalsError }] =
