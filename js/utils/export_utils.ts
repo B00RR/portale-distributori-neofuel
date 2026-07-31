@@ -19,7 +19,7 @@ function roundEuro(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-type ShiftRow = Tables<'shifts'>;
+type ShiftClosureRow = Tables<'shift_closures'>;
 type ShiftPistolaRow = Pick<
   Tables<'shift_pistols'>,
   'pistola_id' | 'opened_at_counter' | 'closed_at_counter' | 'liters_dispensed'
@@ -33,13 +33,16 @@ type EnrichedShiftPistolaRow = ShiftPistolaRow & {
 };
 type StationExportRow = Pick<Tables<'fuel_stations'>, 'station_name'>;
 type ClosureExportRow = Pick<
-  ShiftRow,
-  'id' | 'station_id' | 'closed_at' | 'created_at' | 'closing_data'
->;
+  ShiftClosureRow,
+  'id' | 'shift_id' | 'closed_at' | 'created_at' | 'closing_data'
+> & {
+  station_id?: number | null;
+};
 
 export type ClosureExportSource = Partial<ClosureExportRow> & {
   fuel_stations?: StationExportRow | null;
   shift_pistols?: EnrichedShiftPistolaRow[];
+  station_id?: number | null;
 };
 
 export type ClosureExportData = ClosureExportRow & {
@@ -452,15 +455,18 @@ export async function fetchClosureExportData(
   }
 
   const { data: closure, error } = await supabase
-    .from('shifts')
+    .from('shift_closures')
     .select(
       `
         id,
-        station_id,
+        shift_id,
         closed_at,
         created_at,
         closing_data,
-        fuel_stations!shifts_station_id_fkey (station_name)
+        shifts!shift_closures_shift_id_fkey (
+          station_id,
+          fuel_stations!shifts_station_id_fkey (station_name)
+        )
       `
     )
     .eq('id', numericClosureId)
@@ -473,8 +479,24 @@ export async function fetchClosureExportData(
     throw new Error('Chiusura non trovata');
   }
 
-  const shiftPistols = await fetchShiftPistolsForExport(supabase, numericClosureId);
-  return { ...closure, shift_pistols: shiftPistols };
+  const raw = closure as unknown as Record<string, unknown>;
+  const shiftId = Number(raw.shift_id);
+  const stationId = Number(
+    (raw.shifts as Record<string, unknown> | null)?.station_id ?? 0
+  );
+  const stationName = (
+    (raw.shifts as Record<string, unknown> | null)?.fuel_stations as
+      | Record<string, unknown>
+      | null
+  )?.station_name as string | null;
+
+  const shiftPistols = await fetchShiftPistolsForExport(supabase, shiftId);
+  return {
+    ...raw,
+    station_id: stationId || null,
+    fuel_stations: stationName ? { station_name: stationName } : null,
+    shift_pistols: shiftPistols
+  } as unknown as ClosureExportData;
 }
 
 interface XlsxTemplateArchive {

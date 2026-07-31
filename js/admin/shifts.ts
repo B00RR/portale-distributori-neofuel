@@ -98,17 +98,22 @@ interface ClosingData {
   computed?: ClosingDataSnapshot['computed'];
 }
 
-interface Shift {
+interface ShiftClosure {
   id: number | string;
-  station_id: number | string;
-  operator_id: string | null;
-  status: string;
-  created_at: string;
-  closed_at: string | null;
-  opening_data: Record<string, number>;
+  shift_id: number | string;
+  operator_id: number | string;
+  closure_type: 'partial' | 'final';
+  closed_at: string;
   closing_data: ClosingData;
-  fuel_stations?: FuelStation; // Joined
-  users?: User; // Joined
+  created_at: string;
+  shifts?: {
+    station_id: number | string;
+    status: string;
+    opening_data: Record<string, unknown>;
+    fuel_stations?: FuelStation;
+    users?: User;
+  };
+  closure_users?: User;
   previous_closing_data?: ClosingData | null;
 }
 
@@ -287,58 +292,57 @@ export async function showChiusureTab(
       // Load business rules
       const businessRules = await BusinessLogicManager.loadRules();
 
-      // Build Query for Table Rows (Paginated)
-      let query = supabase.from('shifts').select(
+      // Build Query for Table Rows (Paginated) from shift_closures history.
+      // We join the parent shift to read station_id, status and opening operator.
+      let query = supabase.from('shift_closures').select(
         `
                     *,
-                    fuel_stations(station_name),
-                    users(full_name)
+                    shifts!inner(station_id, status, opening_data, fuel_stations(station_name), users(full_name)),
+                    closure_users:users!operator_id(full_name)
                 `,
         { count: 'exact' }
       );
 
-      // 1. Station Filter
+      // 1. Station Filter (via parent shift)
       if (stationId) {
-        query = query.eq('station_id', Number(stationId));
+        query = query.eq('shifts.station_id', Number(stationId));
       }
 
-      // 2. Date Range Filter
+      // 2. Date Range Filter on closure closed_at
       if (filters.dateFrom) {
-        query = query.gte('created_at', filters.dateFrom);
+        query = query.gte('closed_at', filters.dateFrom);
       }
       if (filters.dateTo) {
-        query = query.lt('created_at', getExclusiveNextDay(filters.dateTo));
+        query = query.lt('closed_at', getExclusiveNextDay(filters.dateTo));
       }
 
-      // 3. Pagination
+      // 3. Pagination - order by closed_at ascending as requested
       const from = pagState.page * pagState.pageSize;
       const to = from + pagState.pageSize - 1;
-      query = query.range(from, to).order('created_at', { ascending: false });
+      query = query.range(from, to).order('closed_at', { ascending: true });
 
-      // Build Query for Totali Card (Unpaginated - all rows matching the period / today)
+      // Build Query for Totali Card (Unpaginated - sum each individual closure row)
       let totalsQuery = supabase
-        .from('shifts')
-        .select('status, opening_data, closing_data, created_at, closed_at');
+        .from('shift_closures')
+        .select('closure_type, closed_at, closing_data, shifts!inner(station_id)');
 
       if (stationId) {
-        totalsQuery = totalsQuery.eq('station_id', Number(stationId));
+        totalsQuery = totalsQuery.eq('shifts.station_id', Number(stationId));
       }
 
       const hasDateFilter = Boolean(filters.dateFrom || filters.dateTo);
 
       if (filters.dateFrom) {
-        totalsQuery = totalsQuery.gte('created_at', filters.dateFrom);
+        totalsQuery = totalsQuery.gte('closed_at', filters.dateFrom);
       }
       if (filters.dateTo) {
-        totalsQuery = totalsQuery.lt('created_at', getExclusiveNextDay(filters.dateTo));
+        totalsQuery = totalsQuery.lt('closed_at', getExclusiveNextDay(filters.dateTo));
       }
 
       if (!hasDateFilter) {
         const todayDateStr = getItalianBusinessDate();
         const nextDayStr = getExclusiveNextDay(todayDateStr);
-        totalsQuery = totalsQuery.or(
-          `and(created_at.gte.${todayDateStr},created_at.lt.${nextDayStr}),and(closed_at.is.null,status.in.(open,partial))`
-        );
+        totalsQuery = totalsQuery.gte('closed_at', todayDateStr).lt('closed_at', nextDayStr);
       }
 
       const [{ data: closures, error, count }, { data: totalsData, error: totalsError }] =
@@ -359,15 +363,15 @@ export async function showChiusureTab(
       // Re-render pagination with new count
       pagination.render();
 
-      const filteredClosures: Shift[] = (closures as unknown as Shift[]) || [];
-      const totalsClosures: Shift[] = (totalsData as unknown as Shift[]) || [];
+      const filteredClosures: ShiftClosure[] = (closures as unknown as ShiftClosure[]) || [];
+      const totalsClosures: ShiftClosure[] = (totalsData as unknown as ShiftClosure[]) || [];
 
       if (filteredClosures.length === 0) {
         setSafeHTML(dataContainer, '<p>Nessuna chiusura trovata.</p>');
         return;
       }
 
-      // Totale Giornaliero / Filtered Totals
+      // Totale Giornaliero / Filtered Totals - sum individual closures, not shifts
       let totale_venduto_carburante = 0;
       let totale_venduto_extra = 0;
       let totale_venduto = 0;
@@ -376,7 +380,7 @@ export async function showChiusureTab(
       let discrepanza = 0;
 
       totalsClosures.forEach(c => {
-        const m = computeShiftMetrics(c);
+        const m = computeShiftMetrics({ status: 'closed', closing_data: c.closing_data });
         totale_venduto_carburante += m.fuelRevenue;
         totale_venduto_extra += m.extraRevenue;
         totale_venduto += m.totalSold;
@@ -436,17 +440,19 @@ export async function showChiusureTab(
                   <tbody>
             `;
 
+      // The table only lists closure rows. A parent shift can still be open even
+      // if no closure row exists, so stale detection here requires that the test
+      // data provide a closure row whose parent shift.status is 'open'.
       filteredClosures.forEach(c => {
         const dateStr = new Date(c.closed_at || c.created_at).toLocaleString('it-IT');
-        const stationName = c.fuel_stations?.station_name || `#${c.station_id}`;
-        const operatorName = c.users?.full_name || `#${c.operator_id}`;
+        const stationName = c.shifts?.fuel_stations?.station_name || `#${c.shifts?.station_id}`;
+        const operatorName = c.closure_users?.full_name || `#${c.operator_id}`;
         const closingData = c.closing_data || {};
-        const isFinal = c.status === 'closed' || closingData.is_final === true;
-        const isOpen = c.status === 'open' && !isFinal;
+        const isFinal = c.closure_type === 'final';
 
-        // Stale Shift Logic
+        // Stale Shift Logic (still based on parent shift age)
         let staleIndicator = '';
-        if (isOpen) {
+        if (c.shifts?.status === 'open') {
           const createdAt = new Date(c.created_at).getTime();
           const now = new Date().getTime();
           const hoursOpen = (now - createdAt) / (1000 * 60 * 60);
@@ -455,19 +461,9 @@ export async function showChiusureTab(
           }
         }
 
-        let closureType: string;
-        let closureClass: string;
-        if (isOpen) {
-          closureType = 'Apertura';
-          closureClass = 'badge-info';
-        } else if (isFinal) {
-          closureType = 'Finale';
-          closureClass = 'badge-success';
-        } else {
-          closureType = 'Parziale';
-          closureClass = 'badge-warning';
-        }
-        const metrics = computeShiftMetrics(c);
+        const closureType = isFinal ? 'Finale' : 'Parziale';
+        const closureClass = isFinal ? 'badge-success' : 'badge-warning';
+        const metrics = computeShiftMetrics({ status: 'closed', closing_data: closingData });
         const total = formatEuro(metrics.totalSold);
 
         tableHtml += `
@@ -478,9 +474,9 @@ export async function showChiusureTab(
                   <td><span class="badge ${closureClass}">${closureType}</span>${staleIndicator}</td>
                   <td>${total}</td>
                   <td>
-                    <button class="icon-btn view-closure" data-id="${c.id}" title="Dettagli" aria-label="Dettagli"><i class="fas fa-eye"></i></button>
-                    <button class="icon-btn export-closure" data-id="${c.id}" title="Export" aria-label="Export"><i class="fas fa-file-export"></i></button>
-                    <button class="icon-btn delete-closure" data-id="${c.id}" title="Elimina" aria-label="Elimina" style="color: var(--danger-color);"><i class="fas fa-trash-alt"></i></button>
+                    <button class="icon-btn view-closure" data-id="${c.id}" data-shift-id="${c.shift_id}" title="Dettagli" aria-label="Dettagli"><i class="fas fa-eye"></i></button>
+                    <button class="icon-btn export-closure" data-id="${c.id}" data-shift-id="${c.shift_id}" title="Export" aria-label="Export"><i class="fas fa-file-export"></i></button>
+                    <button class="icon-btn delete-closure" data-id="${c.id}" data-shift-id="${c.shift_id}" title="Elimina" aria-label="Elimina" style="color: var(--danger-color);"><i class="fas fa-trash-alt"></i></button>
                   </td>
                 </tr>
               `;
@@ -492,24 +488,27 @@ export async function showChiusureTab(
       dataContainer.querySelectorAll('.view-closure').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = (btn as HTMLElement).dataset.id;
-          if (id) {
-            showClosureDetails(id);
+          const shiftId = (btn as HTMLElement).dataset.shiftId;
+          if (id && shiftId) {
+            showClosureDetails(id, shiftId);
           }
         });
       });
       dataContainer.querySelectorAll('.export-closure').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = (btn as HTMLElement).dataset.id;
-          if (id) {
-            openExportModal(id);
+          const shiftId = (btn as HTMLElement).dataset.shiftId;
+          if (id && shiftId) {
+            openExportModal(shiftId);
           }
         });
       });
       dataContainer.querySelectorAll('.delete-closure').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = (btn as HTMLElement).dataset.id;
-          if (id) {
-            deleteClosure(id, renderTable);
+          const shiftId = (btn as HTMLElement).dataset.shiftId;
+          if (id && shiftId) {
+            deleteClosure(shiftId, renderTable);
           }
         });
       });
@@ -556,20 +555,25 @@ export function disposeShiftsSubscription(): void {
   activeSubscription = null;
 }
 
-export async function showClosureDetails(closureId: string | number): Promise<void> {
+export async function showClosureDetails(
+  closureId: string | number,
+  shiftId: string | number
+): Promise<void> {
   // Fetch data first to determine the title
-  let closure: Shift;
+  let closure: ShiftClosure;
   try {
     const { data: closureRaw, error } = await supabase
-      .from('shifts')
-      .select('*')
+      .from('shift_closures')
+      .select(
+        `*, shifts!inner(station_id, status, opening_data, fuel_stations(station_name), users(full_name)), closure_users:users!operator_id(full_name)`
+      )
       .eq('id', Number(closureId))
       .single();
 
     if (error || !closureRaw) {
       throw new Error('Chiusura non trovata');
     }
-    closure = closureRaw as unknown as Shift;
+    closure = closureRaw as unknown as ShiftClosure;
   } catch (err) {
     openModal('Dettagli Chiusura');
     const target = document.getElementById('modal-body');
@@ -579,8 +583,8 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     return;
   }
 
-  const isOpen = closure.status === 'open';
-  const modalTitle = isOpen ? 'Dettagli Apertura' : 'Dettagli Chiusura';
+  const isFinal = closure.closure_type === 'final';
+  const modalTitle = isFinal ? 'Dettagli Chiusura Finale' : 'Dettagli Chiusura Parziale';
   openModal(modalTitle);
   const target = document.getElementById('modal-body');
   if (!target) {
@@ -592,12 +596,12 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
   try {
     // Fetch the previous closure for the same station/day so the admin can see
     // the self-service absolute vs incremental values.
-    if (!isOpen && closure.closed_at) {
+    if (closure.closed_at) {
       const dayStart = closure.closed_at.slice(0, 10);
       const { data: prev } = await supabase
-        .from('shifts')
+        .from('shift_closures')
         .select('closing_data')
-        .eq('station_id', Number(closure.station_id))
+        .eq('shifts.station_id', Number(closure.shifts?.station_id))
         .lt('closed_at', closure.closed_at)
         .gte('closed_at', dayStart)
         .order('closed_at', { ascending: false })
@@ -612,73 +616,39 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     const closingData = closure.closing_data || {};
     const snapshot = closingData.snapshot || { computed: closingData.computed };
     const computed = snapshot.computed || {};
-    const openingData = closure.opening_data || {};
 
     // Prefer the server-authoritative snapshot when present; fall back to the
     // legacy `closing_data.computed` or flat fields for older closures.
     const selfSnapshot = computed.self || {};
     const operatorSnapshot = computed.operator || {};
 
-    const dateStr = new Date(closure.closed_at || closure.created_at).toLocaleString('it-IT');
+    const dateStr = new Date(closure.closed_at).toLocaleString('it-IT');
 
-    let contanti: string,
-      pos: string,
-      crediti: string,
-      voucher: string,
-      carteUta: string,
-      rimborsi: string;
-    let selfData: SelfServiceData;
-    let extraVal: number;
-    let vendutoCarburanteVal: number;
-    let cashIn = 0,
-      cashOut = 0,
-      netCash = 0;
-    let expectedCash = 0,
-      realCash = 0,
-      discrepancy = 0;
-    let selfTotalVal = 0;
+    // Server-authoritative values for this closure row
+    const contanti = formatEuro(operatorSnapshot.cash || 0);
+    const pos = formatEuro(operatorSnapshot.pos || 0);
+    const crediti = formatEuro(
+      (computed.credit_payments?.cash || 0) +
+        (computed.credit_payments?.pos || 0) +
+        (computed.credit_payments?.uta_dkv_fine_mese || 0)
+    );
+    const voucher = formatEuro(computed.vouchers || 0);
+    const carteUta = formatEuro(operatorSnapshot.fleet || 0);
+    const rimborsi = formatEuro(computed.outflows || 0);
 
-    if (isOpen) {
-      // Turno aperto: mostra i dati di apertura
-      cashIn = openingData.cash_in || 0;
-      cashOut = openingData.cash_out || 0;
-      netCash = cashIn - cashOut;
-      contanti = formatEuro(cashIn);
-      pos = formatEuro(openingData.pos_amount || 0);
-      crediti = formatEuro(0);
-      voucher = formatEuro(0);
-      carteUta = formatEuro(openingData.uta_dkv_iscard || 0);
-      rimborsi = formatEuro(0);
-      selfData = {};
-      extraVal = 0;
-      vendutoCarburanteVal = 0;
-    } else {
-      // Server-authoritative values
-      contanti = formatEuro(operatorSnapshot.cash || 0);
-      pos = formatEuro(operatorSnapshot.pos || 0);
-      crediti = formatEuro(
-        (computed.credit_payments?.cash || 0) +
-          (computed.credit_payments?.pos || 0) +
-          (computed.credit_payments?.uta_dkv_fine_mese || 0)
-      );
-      voucher = formatEuro(computed.vouchers || 0);
-      carteUta = formatEuro(operatorSnapshot.fleet || 0);
-      rimborsi = formatEuro(computed.outflows || 0);
+    const selfData: SelfServiceData = {
+      banconote_incassate: selfSnapshot.cash_in,
+      banconote_erogate: selfSnapshot.cash_out,
+      bancomat_erogati: selfSnapshot.pos,
+      transazioni_uta: selfSnapshot.fleet
+    };
+    const extraVal = computed.extra_revenue || 0;
+    const vendutoCarburanteVal = computed.fuel_revenue || 0;
 
-      selfData = {
-        banconote_incassate: selfSnapshot.cash_in,
-        banconote_erogate: selfSnapshot.cash_out,
-        bancomat_erogati: selfSnapshot.pos,
-        transazioni_uta: selfSnapshot.fleet
-      };
-      extraVal = computed.extra_revenue || 0;
-      vendutoCarburanteVal = computed.fuel_revenue || 0;
-
-      expectedCash = computed.expected_cash || 0;
-      realCash = computed.real_cash || 0;
-      discrepancy = computed.discrepancy || 0;
-      selfTotalVal = selfTotalErogato(selfData);
-    }
+    const expectedCash = computed.expected_cash || 0;
+    const realCash = computed.real_cash || 0;
+    const discrepancy = computed.discrepancy || 0;
+    const selfTotalVal = selfTotalErogato(selfData);
 
     const totaleVendutoVal = vendutoCarburanteVal + extraVal;
     const totaleVenduto = formatEuro(totaleVendutoVal);
@@ -694,7 +664,7 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
 
     // Incremento self rispetto alla chiusura precedente dello stesso giorno.
     let selfIncrementHtml = '';
-    if (!isOpen && closure.previous_closing_data) {
+    if (closure.previous_closing_data) {
       const prev = closure.previous_closing_data;
       const prevComputed = prev.snapshot?.computed || prev.computed || {};
       const prevSelf = prevComputed.self || {};
@@ -727,32 +697,30 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
             </div>`;
     }
 
-    const idLabel = isOpen ? 'ID Apertura' : 'ID Chiusura';
-    const statusLabel = isOpen ? 'Aperto' : 'Chiuso';
+    const idLabel = 'ID Chiusura';
+    const statusLabel = isFinal ? 'Finale' : 'Parziale';
 
     let selfSectionHtml = '';
-    if (!isOpen) {
-      selfSectionHtml = `
-        <!-- SEZIONE SELF SERVICE -->
-        <div class="closure-section-alt">
-            <div class="closure-section-header">Dettaglio Self Service</div>
+    selfSectionHtml = `
+      <!-- SEZIONE SELF SERVICE -->
+      <div class="closure-section-alt">
+          <div class="closure-section-header">Dettaglio Self Service</div>
 
-            <p class="closure-row">${contantiSelfHtml}</p>
-            <p class="closure-row"><span>Bancomat:</span> <b>${formatEuro(bancomatSelf)}</b></p>
-            <p class="closure-row"><span>Icad/DKV/Iscard:</span> <b>${formatEuro(cardsSelf)}</b></p>
+          <p class="closure-row">${contantiSelfHtml}</p>
+          <p class="closure-row"><span>Bancomat:</span> <b>${formatEuro(bancomatSelf)}</b></p>
+          <p class="closure-row"><span>Icad/DKV/Iscard:</span> <b>${formatEuro(cardsSelf)}</b></p>
 
-            <div class="mt-2 pt-2 border-top-dashed d-flex justify-between font-weight-bold">
-                <span>Incasso Totale Self:</span> <span>${selfTotalFormatted}</span>
-            </div>
-            ${selfIncrementHtml}
-        </div>`;
-    }
+          <div class="mt-2 pt-2 border-top-dashed d-flex justify-between font-weight-bold">
+              <span>Incasso Totale Self:</span> <span>${selfTotalFormatted}</span>
+          </div>
+          ${selfIncrementHtml}
+      </div>`;
 
     // Admin-only warning: |venduto dai numeratori - (venduto self + ID gestore)| > 10 €.
     const user = store.getUser();
     const isFullAdmin = isAdminRole(user?.role || loggedUser?.role || 'operator');
     let adminWarningHtml = '';
-    if (!isOpen && isFullAdmin) {
+    if (isFullAdmin) {
       const managerAmount = selfSnapshot.manager || 0;
       const selfPlusManager = selfTotalVal + managerAmount;
       const diff = Math.abs(vendutoCarburanteVal - selfPlusManager);
@@ -765,48 +733,42 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
       }
     }
 
-    let totalSectionHtml = '';
-    if (!isOpen) {
-      totalSectionHtml = `
-        <div class="closure-total-box">
-            <div class="closure-total-label">Totale Venduto (Carburante + Extra)</div>
-            <div class="closure-total-value">${totaleVenduto}</div>
-        </div>
-        <div class="closure-total-box" style="margin-top: 1rem;">
-            <div class="closure-total-label">Contanti</div>
-            <div class="closure-total-value">${formatEuro(realCash)}</div>
-            <div style="font-size: 0.85em; color: var(--secondary-color);">Atteso: ${formatEuro(expectedCash)} — Discrepanza:
-              <span class="${Math.abs(discrepancy) > 0.01 ? (discrepancy > 0 ? 'text-success' : 'text-danger') : ''}">
-                ${discrepancy > 0 ? '+' : ''}${formatEuro(discrepancy)}
-              </span>
-            </div>
-        </div>`;
-    }
+    const totalSectionHtml = `
+      <div class="closure-total-box">
+          <div class="closure-total-label">Totale Venduto (Carburante + Extra)</div>
+          <div class="closure-total-value">${totaleVenduto}</div>
+      </div>
+      <div class="closure-total-box" style="margin-top: 1rem;">
+          <div class="closure-total-label">Contanti</div>
+          <div class="closure-total-value">${formatEuro(realCash)}</div>
+          <div style="font-size: 0.85em; color: var(--secondary-color);">Atteso: ${formatEuro(expectedCash)} — Discrepanza:
+            <span class="${Math.abs(discrepancy) > 0.01 ? (discrepancy > 0 ? 'text-success' : 'text-danger') : ''}">
+              ${discrepancy > 0 ? '+' : ''}${formatEuro(discrepancy)}
+            </span>
+          </div>
+      </div>`;
 
-    // Movimenti automatici del turno (solo per chiusura finale/parziale)
-    let movementsSectionHtml = '';
-    if (!isOpen) {
-      const extraCash = computed.extra_by_method?.cash || 0;
-      const extraPos = computed.extra_by_method?.pos || 0;
-      const extraUta = computed.extra_by_method?.uta_dkv_fine_mese || 0;
-      const creditCash = computed.credit_payments?.cash || 0;
-      const creditPos = computed.credit_payments?.pos || 0;
-      const creditUta = computed.credit_payments?.uta_dkv_fine_mese || 0;
-      const points = computed.points || 0;
-      const newCredits = computed.new_credits || 0;
+    // Movimenti automatici del turno
+    const extraCash = computed.extra_by_method?.cash || 0;
+    const extraPos = computed.extra_by_method?.pos || 0;
+    const extraUta = computed.extra_by_method?.uta_dkv_fine_mese || 0;
+    const creditCash = computed.credit_payments?.cash || 0;
+    const creditPos = computed.credit_payments?.pos || 0;
+    const creditUta = computed.credit_payments?.uta_dkv_fine_mese || 0;
+    const points = computed.points || 0;
+    const newCredits = computed.new_credits || 0;
 
-      movementsSectionHtml = `
-        <!-- SEZIONE MOVIMENTI TURNO -->
-        <div class="closure-section-alt">
-            <div class="closure-section-header">Movimenti automatici del turno</div>
-            <p class="closure-row"><span>Incassi extra (cash/POS/UTA):</span> <b>${formatEuro(extraCash)} / ${formatEuro(extraPos)} / ${formatEuro(extraUta)}</b></p>
-            <p class="closure-row"><span>Uscite cassa:</span> <b>${formatEuro(computed.outflows || 0)}</b></p>
-            <p class="closure-row"><span>Voucher:</span> <b>${formatEuro(computed.vouchers || 0)}</b></p>
-            <p class="closure-row"><span>Punti riscattati:</span> <b>${formatEuro(points)}</b></p>
-            <p class="closure-row"><span>Crediti nuovi:</span> <b>${formatEuro(newCredits)}</b></p>
-            <p class="closure-row"><span>Pagamenti crediti vecchi:</span> <b>${formatEuro(creditCash)} / ${formatEuro(creditPos)} / ${formatEuro(creditUta)}</b></p>
-        </div>`;
-    }
+    const movementsSectionHtml = `
+      <!-- SEZIONE MOVIMENTI TURNO -->
+      <div class="closure-section-alt">
+          <div class="closure-section-header">Movimenti automatici del turno</div>
+          <p class="closure-row"><span>Incassi extra (cash/POS/UTA):</span> <b>${formatEuro(extraCash)} / ${formatEuro(extraPos)} / ${formatEuro(extraUta)}</b></p>
+          <p class="closure-row"><span>Uscite cassa:</span> <b>${formatEuro(computed.outflows || 0)}</b></p>
+          <p class="closure-row"><span>Voucher:</span> <b>${formatEuro(computed.vouchers || 0)}</b></p>
+          <p class="closure-row"><span>Punti riscattati:</span> <b>${formatEuro(points)}</b></p>
+          <p class="closure-row"><span>Crediti nuovi:</span> <b>${formatEuro(newCredits)}</b></p>
+          <p class="closure-row"><span>Pagamenti crediti vecchi:</span> <b>${formatEuro(creditCash)} / ${formatEuro(creditPos)} / ${formatEuro(creditUta)}</b></p>
+      </div>`;
 
     setSafeHTML(
       target,
@@ -816,25 +778,14 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
 
         <div class="closure-details-header">
             <span>${idLabel}: <b>${closure.id}</b></span>
-            <span>${dateStr} <span class="badge ${isOpen ? 'badge-info' : 'badge-success'}">${statusLabel}</span></span>
+            <span>${dateStr} <span class="badge badge-success">${statusLabel}</span></span>
         </div>
 
         ${selfSectionHtml}
 
         <!-- SEZIONE OPERATORE -->
         <div class="closure-section">
-            <div class="closure-section-header">${isOpen ? 'Dati Apertura' : 'Dettaglio Operatore'}</div>
-            ${
-              isOpen
-                ? `
-            <p class="closure-row"><span>Contanti:</span> <span style="text-align:right;"><b>${formatEuro(cashIn)}</b>${cashOut > 0 && cashOut !== cashIn ? '<br><span style="font-size:0.8em;color:var(--secondary-color);">erogati ' + formatEuro(cashOut) + '</span>' : ''}</span></p>
-            <p class="closure-row"><span>Non erogato:</span> <b>${formatEuro(netCash)}</b></p>
-            <p class="closure-row"><span>POS:</span> <b>${pos}</b></p>
-            <p class="closure-row"><span>Carte (UTA/DKV):</span> <b>${carteUta}</b></p>
-            <hr class="my-2 border-0 border-top">
-            <p class="closure-row font-weight-bold text-main"><span>Totale Scontrino:</span> <b>${formatEuro(openingData.total_amount || 0)}</b></p>
-            `
-                : `
+            <div class="closure-section-header">Dettaglio Operatore</div>
             <p class="closure-row"><span>Contanti:</span> <b>${contanti}</b></p>
             <p class="closure-row"><span>POS:</span> <b>${pos}</b></p>
             <p class="closure-row"><span>Crediti:</span> <b>${crediti}</b></p>
@@ -844,8 +795,6 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
             <hr class="my-2 border-0 border-top">
             <p class="closure-row font-weight-bold text-main"><span>Totale Venduto (Pistole):</span> <b>${vendutoCarburante}</b></p>
             <p class="closure-row text-primary"><span>Incassi Extra:</span> <b>${extra}</b></p>
-            `
-            }
         </div>
 
         ${movementsSectionHtml}
@@ -853,7 +802,7 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
         ${totalSectionHtml}
 
         <div class="mt-4 text-center">
-             <button class="menu-button primary" id="btn-export-details">
+             <button class="menu-button primary" id="btn-export-details" data-shift-id="${shiftId}">
                 <i class="fas fa-file-export"></i> Scarica Excel Dettagliato
              </button>
         </div>
@@ -865,7 +814,10 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
     const exportBtn = document.getElementById('btn-export-details');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => {
-        openExportModal(closure.id);
+        const exportShiftId = (exportBtn as HTMLElement).dataset.shiftId;
+        if (exportShiftId) {
+          openExportModal(exportShiftId);
+        }
       });
     }
   } catch (err) {
@@ -876,7 +828,7 @@ export async function showClosureDetails(closureId: string | number): Promise<vo
 export async function openExportModal(closureId: string | number): Promise<void> {
   try {
     const ctx = await fetchClosureExportData(closureId);
-    const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id);
+    const metrics = await computeExportSummaryMetrics(supabase, ctx, ctx.station_id ?? null);
     await generateClosureExcel(metrics);
   } catch (err: unknown) {
     handleError(err, 'openExportModal');
@@ -1037,21 +989,20 @@ export async function openBulkExportModal(): Promise<void> {
 }
 
 export async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
-  // 1. Fetch Data
+  // 1. Fetch closure history rows from shift_closures (final + partial closures)
   let query = supabase
-    .from('shifts')
+    .from('shift_closures')
     .select(
       `
             *,
-            fuel_stations(station_name),
-            users(full_name)
+            shifts!inner(station_id, status, opening_data, fuel_stations(station_name), users(full_name)),
+            closure_users:users!operator_id(full_name)
         `
     )
-    .not('closed_at', 'is', null)
     .order('closed_at', { ascending: false, nullsFirst: false });
 
   if (opts.stationId) {
-    query = query.eq('station_id', Number(opts.stationId));
+    query = query.eq('shifts.station_id', Number(opts.stationId));
   }
 
   if (opts.type === 'last_n') {
@@ -1075,7 +1026,7 @@ export async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
     throw new Error('Nessuna chiusura trovata con i criteri selezionati.');
   }
 
-  const shiftIds = closures.map(closure => Number(closure.id));
+  const shiftIds = closures.map(closure => Number((closure as unknown as { shift_id: number }).shift_id));
   if (shiftIds.some(shiftId => !Number.isInteger(shiftId) || shiftId <= 0)) {
     throw new Error("L'export contiene uno o più ID turno non validi");
   }
@@ -1084,11 +1035,26 @@ export async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
   // 2. Process Data for Template
   const processedClosures = [];
   for (const c of closures) {
-    const shiftId = Number(c.id);
+    const raw = c as unknown as Record<string, unknown>;
+    const shiftId = Number(raw.shift_id);
     const metrics = await computeExportSummaryMetrics(
       supabase,
-      { ...c, shift_pistols: shiftPistolsByShift.get(shiftId) ?? [] },
-      c.station_id
+      {
+        ...raw,
+        id: shiftId,
+        shift_id: shiftId,
+        station_id: Number((raw.shifts as Record<string, unknown>)?.station_id ?? 0) || null,
+        fuel_stations: (raw.shifts as Record<string, unknown>)?.fuel_stations
+          ? {
+              station_name: String(
+                ((raw.shifts as Record<string, unknown>)?.fuel_stations as Record<string, unknown>)
+                  ?.station_name ?? ''
+              )
+            }
+          : null,
+        shift_pistols: shiftPistolsByShift.get(shiftId) ?? []
+      },
+      Number((raw.shifts as Record<string, unknown>)?.station_id)
     );
     processedClosures.push(metrics);
   }

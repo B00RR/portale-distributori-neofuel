@@ -58,6 +58,28 @@ export interface ShiftClosingData {
   // ... add more if needed later ...
 }
 
+export interface ShiftClosure {
+  id: number;
+  shift_id: number;
+  operator_id: number;
+  closure_type: 'partial' | 'final';
+  closed_at: string;
+  closing_data: Json | null;
+  created_at: string;
+  updated_at: string;
+  shifts?: {
+    station_id: number;
+    status: string;
+    opening_data: Json | null;
+  } | null;
+  users?: {
+    full_name: string | null;
+  } | null;
+  fuel_stations?: {
+    station_name: string;
+  } | null;
+}
+
 export interface Shift {
   id: number;
   station_id: number;
