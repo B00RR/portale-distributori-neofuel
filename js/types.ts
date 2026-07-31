@@ -28,12 +28,13 @@ export interface User {
 }
 
 export interface ShiftOpeningData {
-  cash_in: number;
-  cash_out: number;
-  pos_amount: number;
-  total_amount: number;
-  uta_dkv_iscard: number;
+  cash_in?: number;
+  cash_out?: number;
+  pos_amount?: number;
+  total_amount?: number;
+  uta_dkv_iscard?: number;
   cash_in_minus_out?: number;
+  notes?: string;
 }
 
 export interface CustomerRefund {

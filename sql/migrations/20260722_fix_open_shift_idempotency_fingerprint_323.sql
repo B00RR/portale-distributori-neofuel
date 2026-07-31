@@ -150,16 +150,12 @@ BEGIN
         );
     END IF;
 
-    -- Validate opening_data money fields as finite non-negative numeric values
+    -- Validate opening_data money fields as finite non-negative numeric values when present
     FOREACH v_money_field IN ARRAY ARRAY['cash_in', 'cash_out', 'pos_amount', 'total_amount', 'uta_dkv_iscard'] LOOP
         v_money_field_type := jsonb_typeof(p_opening_data -> v_money_field);
-        IF v_money_field_type IS NULL OR v_money_field_type = 'null' THEN
-            RETURN jsonb_build_object(
-                'success', false,
-                'error', 'missing_field',
-                'message', 'Campo ' || v_money_field || ' mancante o nullo in opening_data'
-            );
-        ELSIF v_money_field_type <> 'number' THEN
+        CONTINUE WHEN v_money_field_type IS NULL OR v_money_field_type = 'null';
+
+        IF v_money_field_type <> 'number' THEN
             RETURN jsonb_build_object(
                 'success', false,
                 'error', 'invalid_field_type',
@@ -326,10 +322,14 @@ BEGIN
         END IF;
     END LOOP;
 
-    -- Recalculate cash_in_minus_out server-side from validated cash_in and cash_out and store normalized opening_data
-    v_cash_in := (p_opening_data ->> 'cash_in')::numeric;
-    v_cash_out := (p_opening_data ->> 'cash_out')::numeric;
-    v_normalized_opening_data := p_opening_data || jsonb_build_object('cash_in_minus_out', v_cash_in - v_cash_out);
+    -- Recalculate cash_in_minus_out server-side when cash fields are provided
+    IF p_opening_data ? 'cash_in' AND p_opening_data ? 'cash_out' THEN
+        v_cash_in := (p_opening_data ->> 'cash_in')::numeric;
+        v_cash_out := (p_opening_data ->> 'cash_out')::numeric;
+        v_normalized_opening_data := p_opening_data || jsonb_build_object('cash_in_minus_out', v_cash_in - v_cash_out);
+    ELSE
+        v_normalized_opening_data := p_opening_data;
+    END IF;
 
     -- Prevent replay ID concurrent insertions.
     IF NULLIF(trim(p_request_id), '') IS NOT NULL THEN
