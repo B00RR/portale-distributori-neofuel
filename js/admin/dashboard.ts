@@ -502,9 +502,7 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
       const day = new Date(closure.closed_at).toISOString().substring(0, 10);
       allDates.add(day);
 
-      const sId = Number(
-        (closure.shifts as Record<string, unknown> | null)?.station_id ?? closure.station_id
-      );
+      const sId = Number(closure.shifts?.station_id);
       const ricavo = Number(
         (closure.closing_data as Record<string, unknown> | null)?.ricavo_teorico || 0
       );
