@@ -19,7 +19,25 @@ vi.mock('../../js/core/api.js', () => ({
         })),
         then: vi.fn(cb => Promise.resolve({ error: null }).then(cb)) // Handle direct await on insert if needed
       }))
-    }))
+    })),
+    rpc: vi.fn((name: string) => {
+      if (name === 'get_voucher_batch_stats') {
+        return Promise.resolve({
+          data: {
+            batches: [],
+            global: {
+              total_gen: 0,
+              total_redeemed: 0,
+              total_active: 0,
+              redeemed_value: 0,
+              circulating_value: 0
+            }
+          },
+          error: null
+        });
+      }
+      return Promise.resolve({ data: null, error: null });
+    })
   }
 }));
 
@@ -40,7 +58,8 @@ vi.mock('../../js/utils/utils.js', () => ({
   escapeHtml: vi.fn(s => s || ''),
   formatEuro: vi.fn(n => `€ ${n}`),
   formatDate: vi.fn(d => d),
-  getItalianBusinessDate: vi.fn(() => '2024-01-01')
+  getItalianBusinessDate: vi.fn(() => '2024-01-01'),
+  getErrorMessage: vi.fn((e: unknown) => (e instanceof Error ? e.message : String(e)))
 }));
 
 describe('Vouchers Reboot Module', () => {
@@ -245,7 +264,11 @@ describe('Vouchers Reboot Module', () => {
 
         if (table === 'voucher_batches') {
           return {
-            select: () => ({ order: () => Promise.resolve({ data: mockBatches, error: null }) })
+            select: () => ({
+              order: () => ({
+                range: () => Promise.resolve({ data: mockBatches, error: null, count: mockBatches.length })
+              })
+            })
           };
         }
 

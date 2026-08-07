@@ -392,70 +392,76 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
   );
 
   try {
-    // Fetch stats
-    const { count: totalGen } = await supabase
-      .from('vouchers')
-      .select('*', { count: 'exact', head: true });
-    const { count: totalRedeemed } = await supabase
-      .from('vouchers')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'redeemed');
-    const { count: totalActive } = await supabase
-      .from('vouchers')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active');
+    // Server-side aggregation via RPC (avoids scanning ALL vouchers client-side,
+    // which was the performance bottleneck this dashboard had).
+    const { data: statsJson, error: statsError } = await supabase.rpc('get_voucher_batch_stats');
 
-    // PREPARE DATA - BATCHES VIEW ONLY
-    const { data: batches, error: batchError } = await supabase
+    if (statsError) {
+      throw statsError;
+    }
+
+    const voucherStats = statsJson as unknown as {
+      batches: Array<{
+        batch_id: string;
+        total_count: number;
+        redeemed_count: number;
+        active_count: number;
+        void_count: number;
+        total_amount: number;
+        redeemed_amount: number;
+      }>;
+      global: {
+        total_gen: number;
+        total_redeemed: number;
+        total_active: number;
+        redeemed_value: number;
+        circulating_value: number;
+      };
+    };
+
+    const { global } = voucherStats;
+    const totalGen = global.total_gen;
+    const totalRedeemed = global.total_redeemed;
+    const totalActive = global.total_active;
+    const globalRedeemedValue = global.redeemed_value;
+    const globalCirculatingValue = global.circulating_value;
+
+    // Build the per-batch stats lookup from the server aggregation.
+    const batchStats: Record<string, BatchStats> = {};
+    (voucherStats.batches || []).forEach(b => {
+      batchStats[b.batch_id] = {
+        totalCount: b.total_count,
+        redeemedCount: b.redeemed_count,
+        activeCount: b.active_count,
+        voidCount: b.void_count,
+        totalAmount: b.total_amount,
+        redeemedAmount: b.redeemed_amount
+      };
+    });
+
+    // PREPARE DATA - BATCHES VIEW ONLY (server-side paginated, minimal columns)
+    const batchesFrom = (voucherState.currentPage - 1) * voucherState.pageSize;
+    const batchesTo = batchesFrom + voucherState.pageSize - 1;
+
+    const {
+      data: batches,
+      error: batchError,
+      count: batchesCount
+    } = await supabase
       .from('voucher_batches')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('id, description, customer_name, expiration_date, created_at', {
+        count: 'exact'
+      })
+      .order('created_at', { ascending: false })
+      .range(batchesFrom, batchesTo);
 
     if (batchError) {
       throw batchError;
     }
 
-    // Fetch aggregation data (all vouchers) needed for stats
-    const { data: allVouchers, error: vouchersError } = await supabase
-      .from('vouchers')
-      .select('batch_id, status, amount');
-
-    if (vouchersError) {
-      throw vouchersError;
+    if (batchesCount !== null && batchesCount !== undefined) {
+      voucherState.totalCount = batchesCount;
     }
-
-    // Calculate stats per batch AND global monetary stats
-    const batchStats: Record<string, BatchStats> = {};
-    let globalRedeemedValue = 0;
-    let globalCirculatingValue = 0;
-
-    (allVouchers as Voucher[]).forEach(v => {
-      let stats = batchStats[v.batch_id];
-      if (!stats) {
-        stats = {
-          totalAmount: 0,
-          redeemedAmount: 0,
-          totalCount: 0,
-          redeemedCount: 0,
-          activeCount: 0,
-          voidCount: 0
-        };
-        batchStats[v.batch_id] = stats;
-      }
-      stats.totalAmount += v.amount;
-      stats.totalCount++;
-
-      if (v.status === 'redeemed') {
-        stats.redeemedCount++;
-        stats.redeemedAmount += v.amount;
-        globalRedeemedValue += v.amount;
-      } else if (v.status === 'active') {
-        stats.activeCount++;
-        globalCirculatingValue += v.amount;
-      } else if (v.status === 'void') {
-        stats.voidCount++;
-      }
-    });
 
     const styleId = 'voucher-grid-styles';
     if (!document.getElementById(styleId)) {
@@ -785,6 +791,7 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
 
             <div class="menu-card" style="padding: 0; background: transparent; box-shadow: none; max-width: 100%; overflow: hidden;">
                 ${tableHtml}
+                ${renderBatchesPagination()}
             </div>
         `
     );
@@ -851,10 +858,57 @@ async function renderDashboard(container: HTMLElement): Promise<void> {
         }
       });
     }
+
+    // Bind batches pagination prev/next
+    const prevBtn = container.querySelector(
+      '.pagination-bar .btn-prev'
+    ) as HTMLButtonElement | null;
+    const nextBtn = container.querySelector(
+      '.pagination-bar .btn-next'
+    ) as HTMLButtonElement | null;
+
+    prevBtn?.addEventListener('click', () => {
+      if (voucherState.currentPage > 1) {
+        voucherState.currentPage -= 1;
+        renderActiveTab();
+      }
+    });
+
+    nextBtn?.addEventListener('click', () => {
+      if (voucherState.currentPage < Math.ceil(voucherState.totalCount / voucherState.pageSize)) {
+        voucherState.currentPage += 1;
+        renderActiveTab();
+      }
+    });
   } catch (err: unknown) {
     setSafeHTML(container, `<p class="error-text">Errore: ${escapeHtml(getErrorMessage(err))}</p>`);
     logger.error('vouchers', err);
   }
+}
+
+// --- BATCHES PAGINATION ---
+function renderBatchesPagination(): string {
+  const totalPages = Math.max(1, Math.ceil(voucherState.totalCount / voucherState.pageSize));
+  if (totalPages <= 1) {
+    return '';
+  }
+
+  const start =
+    voucherState.totalCount > 0 ? (voucherState.currentPage - 1) * voucherState.pageSize + 1 : 0;
+  const end = Math.min(voucherState.currentPage * voucherState.pageSize, voucherState.totalCount);
+
+  const prevDisabled = voucherState.currentPage <= 1;
+  const nextDisabled = voucherState.currentPage >= totalPages;
+
+  return `
+    <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border-color); gap: 1rem;">
+        <span class="pagination-info" style="color: var(--secondary-color); font-size: 0.9rem;">${start}-${end} di ${voucherState.totalCount}</span>
+        <div class="pagination-controls" style="display: flex; gap: 8px;">
+            <button class="menu-button secondary small btn-prev" ${prevDisabled ? 'disabled' : ''} style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; min-width: auto;">‹</button>
+            <button class="menu-button secondary small btn-next" ${nextDisabled ? 'disabled' : ''} style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; min-width: auto;">›</button>
+        </div>
+    </div>
+  `;
 }
 
 // --- COLUMN RESIZING UTILS ---

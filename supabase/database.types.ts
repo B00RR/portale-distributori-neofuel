@@ -1804,6 +1804,7 @@ export type Database = {
       current_user_id: { Args: never; Returns: number };
       current_user_station_ids: { Args: never; Returns: number[] };
       get_current_user_id: { Args: never; Returns: number };
+      get_voucher_batch_stats: { Args: never; Returns: Json };
       is_admin: { Args: never; Returns: boolean };
       is_operator: { Args: never; Returns: boolean };
       is_station_operator: { Args: { station_id: number }; Returns: boolean };

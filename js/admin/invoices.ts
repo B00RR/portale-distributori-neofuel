@@ -49,11 +49,15 @@ interface Invoice {
 
 // --- MAIN FUNCTION ---
 
+const PAGE_SIZE = 50;
+
 export async function showFattureTab(
   container: HTMLElement,
   _actionsContainer?: HTMLElement | null,
-  stationId: number | null = null
+  stationId: number | null = null,
+  page = 0
 ): Promise<void> {
+  invoicesStation = stationId;
   showLoadingMessage(container);
 
   if (_actionsContainer) {
@@ -61,24 +65,29 @@ export async function showFattureTab(
   }
 
   try {
-    let query = supabase.from('invoices').select(`
-                *,
+    // Server-side paginated query with only the columns needed by the list.
+    let query = supabase.from('invoices').select(
+      `id, created_at, amount, payment_method, product_category, status, station_id, cliente_id, customer_name,
                 fuel_stations(station_name),
-                users(full_name, username)
-            `);
+                users(full_name, username)`,
+      { count: 'exact' }
+    );
 
     if (stationId) {
       query = query.eq('station_id', stationId);
     }
 
-    query = query.order('created_at', { ascending: false });
+    query = query
+      .order('created_at', { ascending: false })
+      .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
-    const { data: rawInvoices, error } = await query;
+    const { data: rawInvoices, error, count } = await query;
     if (error) {
       throw error;
     }
 
-    const invoices = rawInvoices as Invoice[];
+    const invoices = (rawInvoices as Invoice[] | null) || [];
+    const totalCount = count ?? 0;
 
     // Fetch billing customer details if needed
     if (invoices && invoices.length > 0) {
@@ -121,10 +130,12 @@ export async function showFattureTab(
       p.textContent = 'Nessuna richiesta fattura trovata.';
       container.replaceChildren();
       container.appendChild(p);
+      renderInvoicesPagination(container, page, totalCount);
       return;
     }
 
     renderInvoicesTable(container, invoices);
+    renderInvoicesPagination(container, page, totalCount);
   } catch (err) {
     handleError(err, 'Caricamento Fatture', container);
   }
@@ -290,6 +301,60 @@ function renderInvoicesTable(container: HTMLElement, invoices: Invoice[]): void 
       }
     });
   });
+}
+
+function renderInvoicesPagination(container: HTMLElement, page: number, totalCount: number): void {
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  if (totalPages <= 1) {
+    return;
+  }
+
+  const start = totalCount > 0 ? page * PAGE_SIZE + 1 : 0;
+  const end = Math.min((page + 1) * PAGE_SIZE, totalCount);
+
+  const bar = document.createElement('div');
+  bar.className = 'pagination-bar';
+
+  const info = document.createElement('span');
+  info.className = 'pagination-info';
+  info.textContent = `${start}-${end} di ${totalCount}`;
+  bar.appendChild(info);
+
+  const controls = document.createElement('div');
+  controls.className = 'pagination-controls';
+
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'menu-button secondary small btn-prev';
+  prevBtn.textContent = '‹';
+  prevBtn.disabled = page <= 0;
+  controls.appendChild(prevBtn);
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'menu-button secondary small btn-next';
+  nextBtn.textContent = '›';
+  nextBtn.disabled = page + 1 >= totalPages;
+  controls.appendChild(nextBtn);
+
+  bar.appendChild(controls);
+  container.appendChild(bar);
+
+  prevBtn.addEventListener('click', () => {
+    const currentStation = getInvoicesStation();
+    showFattureTab(container, null, currentStation, Math.max(0, page - 1));
+  });
+
+  nextBtn.addEventListener('click', () => {
+    const currentStation = getInvoicesStation();
+    showFattureTab(container, null, currentStation, page + 1);
+  });
+}
+
+// Tracks the station filter last used when the invoices tab was opened.
+// Pagination must keep the same station scope while changing page.
+let invoicesStation: number | null = null;
+
+function getInvoicesStation(): number | null {
+  return invoicesStation;
 }
 
 async function toggleInvoiceStatus(id: number, newStatus: InvoiceStatus): Promise<void> {
