@@ -9,7 +9,9 @@ import {
   createItalianCalendarRange,
   formatItalianDayLabel,
   type AnalyticsResult,
-  type AnalyticsShift
+  type AnalyticsShift,
+  type AnalyticsTotals,
+  type ItalianCalendarRange
 } from './analytics-aggregation.js';
 
 // window.Chart è dichiarato (opzionale) in js/vendor/lazy.ts (#343).
@@ -19,14 +21,74 @@ const dashboardCharts: Record<string, ChartInstance> = {};
 
 /**
  * FETCH & PROCESS DATA (Unified for all 4 charts to save requests)
- * Fetches last 30 days data.
+ * Fetches last 30 days data. Uses the server-side RPC get_analytics_aggregation
+ * (issue #344) so aggregation runs in SQL with completeness metadata. Falls back
+ * to the previous client-side broad read + aggregation if the RPC is unavailable.
  */
 export async function fetchAnalyticsData(
   stationId: string | number | null = null
 ): Promise<AnalyticsResult> {
   const calendarRange = createItalianCalendarRange('30d');
   const totals = createEmptyAnalyticsTotals();
+  const numericStationId = stationId ? Number(stationId) : null;
 
+  try {
+    const { data, error } = await supabase.rpc('get_analytics_aggregation', {
+      p_station_id: numericStationId,
+      p_start_iso: calendarRange.startIso,
+      p_end_exclusive_iso: calendarRange.endExclusiveIso
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const payload = data as unknown as {
+      daily?: { date: string; revenue: number; liters_benzina: number; liters_gasolio: number }[];
+      totals?: AnalyticsTotals;
+      metadata?: { complete?: boolean };
+    } | null;
+
+    if (
+      payload &&
+      Array.isArray(payload.daily) &&
+      payload.totals &&
+      payload.metadata?.complete !== false
+    ) {
+      // Merge the server-aggregated days into the seeded 30-day Italian calendar so
+      // empty days are preserved and every chart has a continuous x-axis.
+      const dayByKey = new Map(calendarRange.days.map(day => [day.date, day]));
+      payload.daily.forEach(day => {
+        const seeded = dayByKey.get(day.date);
+        if (seeded) {
+          seeded.revenue = day.revenue ?? 0;
+          seeded.liters_benzina = day.liters_benzina ?? 0;
+          seeded.liters_gasolio = day.liters_gasolio ?? 0;
+        }
+      });
+      return {
+        daily: calendarRange.days,
+        totals: { ...totals, ...payload.totals }
+      };
+    }
+
+    // Incomplete payload -> fall back to client-side aggregation.
+    return await fetchAnalyticsDataClientSide(numericStationId, calendarRange, totals);
+  } catch (err) {
+    logger.error('fetchAnalyticsData', err);
+    return await fetchAnalyticsDataClientSide(numericStationId, calendarRange, totals);
+  }
+}
+
+/**
+ * Legacy client-side aggregation path (pre #344), kept as a fallback when the
+ * get_analytics_aggregation RPC is not yet deployed or returns an error.
+ */
+async function fetchAnalyticsDataClientSide(
+  numericStationId: number | null,
+  calendarRange: ItalianCalendarRange,
+  totals: AnalyticsTotals
+): Promise<AnalyticsResult> {
   try {
     let query = supabase
       .from('shift_closures')
@@ -34,8 +96,8 @@ export async function fetchAnalyticsData(
       .gte('closed_at', calendarRange.startIso)
       .lt('closed_at', calendarRange.endExclusiveIso);
 
-    if (stationId) {
-      query = query.eq('shifts.station_id', Number(stationId));
+    if (numericStationId) {
+      query = query.eq('shifts.station_id', numericStationId);
     }
 
     const { data: shifts, error } = await query;
@@ -45,8 +107,8 @@ export async function fetchAnalyticsData(
 
     return aggregateShiftAnalytics((shifts || []) as AnalyticsShift[], calendarRange.days);
   } catch (err) {
-    logger.error('fetchAnalyticsData', err);
-    return { daily: [], totals };
+    logger.error('fetchAnalyticsDataClientSide', err);
+    return { daily: calendarRange.days, totals };
   }
 }
 
