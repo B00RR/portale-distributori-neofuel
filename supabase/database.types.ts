@@ -1861,6 +1861,63 @@ export type Database = {
         };
         Returns: Json;
       };
+      get_analytics_aggregation: {
+        Args: {
+          p_station_id?: number | null;
+          p_start_iso?: string | null;
+          p_end_exclusive_iso?: string | null;
+        };
+        Returns: {
+          daily: {
+            date: string;
+            revenue: number;
+            liters_benzina: number;
+            liters_gasolio: number;
+          }[];
+          totals: {
+            benzina: number;
+            gasolio: number;
+            contanti: number;
+            pos: number;
+            crediti: number;
+            voucher: number;
+            utaDkv: number;
+            idGestore: number;
+            revenue: number;
+          };
+          metadata: {
+            complete: boolean;
+            row_count: number;
+            day_count: number;
+            start_iso: string;
+            end_exclusive_iso: string;
+            station_id: number | null;
+            generated_at: string;
+          };
+        };
+      };
+      get_sales_trend: {
+        Args: {
+          p_station_id?: number | null;
+          p_start_iso?: string | null;
+          p_end_exclusive_iso?: string | null;
+        };
+        Returns: {
+          points: {
+            day_key: string;
+            station_id: number;
+            revenue: number;
+          }[];
+          metadata: {
+            complete: boolean;
+            row_count: number;
+            start_iso: string;
+            end_exclusive_iso: string;
+            station_id: number | null;
+            generated_at: string;
+          };
+        };
+      };
       reset_rate_limit: {
         Args: { p_endpoint: string; p_identifier: string };
         Returns: boolean;

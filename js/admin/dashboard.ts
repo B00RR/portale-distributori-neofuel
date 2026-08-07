@@ -467,19 +467,70 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
   startDate.setDate(startDate.getDate() - daysBack);
   startDate.setHours(0, 0, 0, 0);
 
-  let closuresQuery = supabase
-    .from('shift_closures')
-    .select('id, closed_at, closing_data, shifts!inner(station_id, fuel_stations(station_name))')
-    .gte('closed_at', startDate.toISOString())
-    .lt('closed_at', new Date().toISOString());
+  // Server-side aggregation RPC (issue #344): per-day/per-station revenue with
+  // completeness metadata, instead of a broad client-side read + grouping.
+  const startIso = startDate.toISOString();
+  const endExclusiveIso = new Date().toISOString();
+  let trendPoints: {
+    day_key: string;
+    station_id: number;
+    revenue: number;
+  }[] = [];
 
-  if (numericStationId) {
-    closuresQuery = closuresQuery.eq('shifts.station_id', numericStationId);
+  try {
+    const { data, error } = await supabase.rpc('get_sales_trend', {
+      p_station_id: numericStationId,
+      p_start_iso: startIso,
+      p_end_exclusive_iso: endExclusiveIso
+    });
+    if (error) {
+      throw error;
+    }
+    const payload = data as unknown as {
+      points?: { day_key: string; station_id: number; revenue: number }[];
+      metadata?: { complete?: boolean };
+    } | null;
+    if (payload && Array.isArray(payload.points) && payload.metadata?.complete !== false) {
+      trendPoints = payload.points;
+    }
+  } catch {
+    // Fallback: legacy client-side broad read.
+    try {
+      let closuresQuery = supabase
+        .from('shift_closures')
+        .select(
+          'id, closed_at, closing_data, shifts!inner(station_id, fuel_stations(station_name))'
+        )
+        .gte('closed_at', startIso)
+        .lt('closed_at', endExclusiveIso);
+
+      if (numericStationId) {
+        closuresQuery = closuresQuery.eq('shifts.station_id', numericStationId);
+      }
+
+      closuresQuery = closuresQuery.order('closed_at', { ascending: true });
+
+      const { data: closuresData } = await closuresQuery;
+
+      if (closuresData) {
+        trendPoints = [];
+        closuresData.forEach(closure => {
+          if (!closure.closed_at || !closure.closing_data) {
+            return;
+          }
+          trendPoints.push({
+            day_key: new Date(closure.closed_at).toISOString().substring(0, 10),
+            station_id: Number(closure.shifts?.station_id),
+            revenue: Number(
+              (closure.closing_data as Record<string, unknown> | null)?.ricavo_teorico || 0
+            )
+          });
+        });
+      }
+    } catch (fallbackErr) {
+      logger.error('renderSalesChart:fallback', fallbackErr);
+    }
   }
-
-  closuresQuery = closuresQuery.order('closed_at', { ascending: true });
-
-  const { data: closuresData } = await closuresQuery;
 
   // Recupera tutti i distributori (o solo quello filtrato) dalla sorgente
   // unica (#349): il filtro è applicato client-side sulla lista canonica,
@@ -493,28 +544,21 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
   const salesByDateAndStation = new Map<string, Map<number, number>>();
   const allDates = new Set<string>();
 
-  if (closuresData) {
-    closuresData.forEach(closure => {
-      if (!closure.closed_at || !closure.closing_data) {
-        return;
-      }
+  trendPoints.forEach(point => {
+    if (!point.day_key || !point.revenue) {
+      return;
+    }
+    const day = point.day_key;
+    allDates.add(day);
 
-      const day = new Date(closure.closed_at).toISOString().substring(0, 10);
-      allDates.add(day);
-
-      const sId = Number(closure.shifts?.station_id);
-      const ricavo = Number(
-        (closure.closing_data as Record<string, unknown> | null)?.ricavo_teorico || 0
-      );
-
-      let dayMap = salesByDateAndStation.get(day);
-      if (!dayMap) {
-        dayMap = new Map<number, number>();
-        salesByDateAndStation.set(day, dayMap);
-      }
-      dayMap.set(sId, (dayMap.get(sId) || 0) + ricavo);
-    });
-  }
+    const sId = Number(point.station_id);
+    let dayMap = salesByDateAndStation.get(day);
+    if (!dayMap) {
+      dayMap = new Map<number, number>();
+      salesByDateAndStation.set(day, dayMap);
+    }
+    dayMap.set(sId, (dayMap.get(sId) || 0) + point.revenue);
+  });
 
   // Ordina le date
   const sortedDates = Array.from(allDates).sort();

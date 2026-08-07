@@ -17,7 +17,16 @@ const { mockSupabase, mockCharts, mockUI, mockConfig, mockBusinessLogic, mockEng
     });
 
     return {
-      mockSupabase: { from: vi.fn(() => queryBuilder) },
+      mockSupabase: {
+        from: vi.fn(() => queryBuilder),
+        rpc: vi.fn().mockResolvedValue({
+          data: {
+            points: [],
+            metadata: { complete: true }
+          },
+          error: null
+        })
+      },
       mockCharts: {
         fetchAnalyticsData: vi.fn(() => Promise.resolve({ daily: [], totals: {} })),
         renderRevenueChart: vi.fn(),
