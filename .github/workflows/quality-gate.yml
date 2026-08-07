@@ -288,10 +288,31 @@ jobs:
           name: dist
           path: dist/
 
+  # #339 — Check AGGREGATO dei gate critici.
+  #
+  # Questo job è l'unico "required check" da abilitare nella branch protection
+  # di `main` (vedi docs/runbooks/339-branch-protection.md). Attende tutti i
+  # gate di blocco (lint, type-check, deno-check, unit-tests, e2e-tests matrix,
+  # security-scan, build-check) e fallisce se UNO qualunque di essi fallisce.
+  # Non marcare mai i singoli job come required: sono il dettaglio; `report`
+  # è il gate aggregato su cui appoggiare il merge.
+  #
+  # NB: db-types-check e migration-chain-check sono volutamente NON bloccanti
+  # (fase 1 di #336/#331): vengono riportati solo come informativi. Se in
+  # futuro diventano obbligatori, aggiungerli alla condizione di exit qui sotto.
   report:
     name: 📊 Test Summary
     runs-on: ubuntu-latest
-    needs: [lint, type-check, deno-check, unit-tests, e2e-tests, security-scan, build-check]
+    needs:
+      - lint
+      - type-check
+      - deno-check
+      - unit-tests
+      - e2e-tests
+      - security-scan
+      - build-check
+      - db-types-check
+      - migration-chain-check
     if: always()
     steps:
       - name: Check Results
@@ -304,6 +325,8 @@ jobs:
           echo "E2E Tests: ${{ needs.e2e-tests.result }}"
           echo "Security Scan: ${{ needs.security-scan.result }}"
           echo "Build: ${{ needs.build-check.result }}"
+          echo "Database Types (info): ${{ needs.db-types-check.result }}"
+          echo "Migration Chain (info): ${{ needs.migration-chain-check.result }}"
 
           if [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.type-check.result }}" != "success" ] || \
