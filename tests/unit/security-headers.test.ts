@@ -96,4 +96,16 @@ describe('Security HTTP headers (#317)', () => {
     expect(csp).toContain('https://*.supabase.co');
     expect(csp).toContain("script-src 'self'");
   });
+
+  it('allows the Supabase Realtime websocket in connect-src in both header and meta (#459)', () => {
+    const csp = byKey.get('content-security-policy') ?? '';
+    const indexHtml = readFileSync(resolve(repoRoot, 'index.html'), 'utf-8');
+    const indexCsp = indexHtml.match(/Content-Security-Policy"\s+content="([^"]+)"/m)?.[1] ?? '';
+    // Il client Supabase Realtime apre wss://*.supabase.co: senza questo il
+    // websocket viene bloccato dalla CSP in produzione.
+    expect(csp).toContain('wss://*.supabase.co');
+    expect(indexCsp).toContain('wss://*.supabase.co');
+    // Nessun allentamento: restano entrambe le origini https e wss, niente di piu'.
+    expect(csp).toContain("connect-src 'self' https://*.supabase.co wss://*.supabase.co");
+  });
 });
