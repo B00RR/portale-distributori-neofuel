@@ -160,6 +160,18 @@ async function initializeApp(): Promise<void> {
   // Initialize monitoring and analytics
   initAnalytics();
 
+  // Global error telemetry: cattura errori non gestiti che non passano da
+  // logger.error, così vengono conservati in telemetria anche in produzione.
+  window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+    const reason = event.reason;
+    const message =
+      reason instanceof Error ? reason.message : String(reason || 'Unhandled rejection');
+    logger.error('unhandledrejection', message);
+  });
+  window.addEventListener('error', (event: ErrorEvent) => {
+    logger.error('window.onerror', event.message || 'Uncaught error');
+  });
+
   // VERSION GUARD: Clear stale session data if version mismatch
   const storedVersion = localStorage.getItem('app_version');
   if (storedVersion !== APP_VERSION) {

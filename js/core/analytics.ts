@@ -100,7 +100,8 @@ export function trackSearch(section: string): void {
  * Track error
  * @param {string} type - Error type
  * @param {string} context - Where error occurred
+ * @param {string} [message] - Optional sanitized error message
  */
-export function trackError(type: string, context: string): void {
-  trackEvent('Error', { type, context });
+export function trackError(type: string, context: string, message?: string): void {
+  trackEvent('Error', { type, context, ...(message ? { message } : {}) });
 }

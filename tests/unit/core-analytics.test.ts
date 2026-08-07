@@ -59,4 +59,9 @@ describe('Core Analytics Module', () => {
         trackError('validation', 'login');
         expect(true).toBe(true);
     });
+
+    it('should track error with optional message', () => {
+        trackError('validation', 'login', 'Campo obbligatorio mancante');
+        expect(true).toBe(true);
+    });
 });
