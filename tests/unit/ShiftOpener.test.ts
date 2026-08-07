@@ -168,18 +168,6 @@ describe('ShiftOpener Component - TDD tests', () => {
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
     expect(form).not.toBeNull();
 
-    // Fill form inputs
-    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
-    if (cashInInput) cashInInput.value = '100.00';
-    const cashOutInput = form.querySelector('input[name="cash_out"]') as HTMLInputElement;
-    if (cashOutInput) cashOutInput.value = '10.00';
-    const posAmountInput = form.querySelector('input[name="pos_amount"]') as HTMLInputElement;
-    if (posAmountInput) posAmountInput.value = '50.00';
-    const utaDkvInput = form.querySelector('input[name="uta_dkv_iscard"]') as HTMLInputElement;
-    if (utaDkvInput) utaDkvInput.value = '20.00';
-    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
-    if (totalAmountInput) totalAmountInput.value = '160.00';
-
     const notesTextarea = form.querySelector('textarea[name="notes"]') as HTMLTextAreaElement;
     if (notesTextarea) notesTextarea.value = 'Opening notes';
 
@@ -203,12 +191,6 @@ describe('ShiftOpener Component - TDD tests', () => {
     expect(mockSupabase.rpc).toHaveBeenCalledWith('open_shift', expect.objectContaining({
       p_station_id: 1,
       p_opening_data: {
-        cash_in: 100,
-        cash_out: 10,
-        pos_amount: 50,
-        total_amount: 160,
-        uta_dkv_iscard: 20,
-        cash_in_minus_out: 90,
         notes: 'Opening notes'
       },
       p_pistol_counters: {
@@ -235,10 +217,6 @@ describe('ShiftOpener Component - TDD tests', () => {
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
 
     // Fill all required fields except the pistol counter
-    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
-    if (cashInInput) cashInInput.value = '100.00';
-    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
-    if (totalAmountInput) totalAmountInput.value = '100.00';
     const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
     if (tankInput) tankInput.value = '1000';
     const tankInput2 = form.querySelector('input[name="tank_11"]') as HTMLInputElement;
@@ -265,11 +243,6 @@ describe('ShiftOpener Component - TDD tests', () => {
 
     const element = await setupComponent();
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
-
-    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
-    if (cashInInput) cashInInput.value = '100.00';
-    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
-    if (totalAmountInput) totalAmountInput.value = '100.00';
     const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
     if (pCounterInput) pCounterInput.value = '0';
     const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
@@ -297,10 +270,6 @@ describe('ShiftOpener Component - TDD tests', () => {
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
 
     // Fill all required fields except one tank level
-    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
-    if (cashInInput) cashInInput.value = '100.00';
-    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
-    if (totalAmountInput) totalAmountInput.value = '100.00';
     const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
     if (pCounterInput) pCounterInput.value = '105.50';
     const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
@@ -326,11 +295,6 @@ describe('ShiftOpener Component - TDD tests', () => {
 
     const element = await setupComponent();
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
-
-    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
-    if (cashInInput) cashInInput.value = '100.00';
-    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
-    if (totalAmountInput) totalAmountInput.value = '100.00';
     const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
     if (pCounterInput) pCounterInput.value = '105.50';
     const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
@@ -359,10 +323,6 @@ describe('ShiftOpener Component - TDD tests', () => {
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
 
     // Fill required fields to avoid tank validation errors
-    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
-    if (cashInInput) cashInInput.value = '100.00';
-    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
-    if (totalAmountInput) totalAmountInput.value = '100.00';
     const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
     if (pCounterInput) pCounterInput.value = '105.50';
     const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
@@ -403,10 +363,6 @@ describe('ShiftOpener Component - TDD tests', () => {
     const form = element.shadowRoot.querySelector('#apertura-form') as HTMLFormElement;
 
     // Fill required fields to avoid tank validation errors
-    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
-    if (cashInInput) cashInInput.value = '100.00';
-    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
-    if (totalAmountInput) totalAmountInput.value = '100.00';
     const pCounterInput = form.querySelector('input[name="p_20"]') as HTMLInputElement;
     if (pCounterInput) pCounterInput.value = '105.50';
     const tankInput = form.querySelector('input[name="tank_10"]') as HTMLInputElement;
@@ -451,16 +407,6 @@ describe('ShiftOpener Component - TDD tests', () => {
     expect(form).not.toBeNull();
 
     // Fill form inputs
-    const cashInInput = form.querySelector('input[name="cash_in"]') as HTMLInputElement;
-    if (cashInInput) cashInInput.value = '100.00';
-    const cashOutInput = form.querySelector('input[name="cash_out"]') as HTMLInputElement;
-    if (cashOutInput) cashOutInput.value = '10.00';
-    const posAmountInput = form.querySelector('input[name="pos_amount"]') as HTMLInputElement;
-    if (posAmountInput) posAmountInput.value = '50.00';
-    const utaDkvInput = form.querySelector('input[name="uta_dkv_iscard"]') as HTMLInputElement;
-    if (utaDkvInput) utaDkvInput.value = '20.00';
-    const totalAmountInput = form.querySelector('input[name="total_amount"]') as HTMLInputElement;
-    if (totalAmountInput) totalAmountInput.value = '160.00';
 
     const notesTextarea = form.querySelector('textarea[name="notes"]') as HTMLTextAreaElement;
     if (notesTextarea) notesTextarea.value = 'Opening notes';

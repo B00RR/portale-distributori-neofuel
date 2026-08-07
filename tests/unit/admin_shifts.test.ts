@@ -7,7 +7,6 @@ import {
   deleteClosure,
   computeShiftMetrics
 } from '../../js/admin/shifts.js';
-import { handleError } from '../../js/shared/error-handler.js';
 
 // Mock dependencies
 // Mock dependencies
@@ -39,7 +38,7 @@ vi.mock('../../js/core/api.js', () => {
       error: null;
       count: number;
     }) => unknown
-  ) => resolve({ data: [{ id: 123, station_id: 'ST1' }], error: null, count: 1 });
+  ) => resolve({ data: [{ id: 1, shift_id: 123, closed_at: '2024-01-01T10:00:00Z' }], error: null, count: 1 });
 
   return {
     supabase: {
@@ -171,23 +170,22 @@ describe('Admin Shifts Module', () => {
 
     it('should render table rows with full data and stale logic', async () => {
       const { supabase } = await import('../../js/core/api.js');
-      const sampleShift = {
+      const sampleClosure = {
         id: 1,
-        created_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // 48h ago (STALE)
-        closed_at: null,
-        status: 'open',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Test Station' },
-        users: { full_name: 'Test User' },
-        opening_data: {
-          total_amount: 100,
-          cash_in: 100,
-          cash_out: 100
+        shift_id: 100,
+        operator_id: 1,
+        closure_type: 'partial',
+        created_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // 48h ago (STALE parent shift)
+        closed_at: new Date().toISOString(),
+        closing_data: { is_final: false },
+        shifts: {
+          station_id: 'ST1',
+          status: 'open',
+          opening_data: {},
+          fuel_stations: { station_name: 'Test Station' },
+          users: { full_name: 'Opening Operator' }
         },
-        closing_data: {
-          is_final: false
-        }
+        closure_users: { full_name: 'Closure Operator' }
       };
 
       const mockTable = {
@@ -198,16 +196,15 @@ describe('Admin Shifts Module', () => {
         order: vi.fn().mockReturnThis(),
         range: vi.fn().mockReturnThis(),
         then: (resolve: (value: { data: unknown[]; error: null; count: number }) => unknown) =>
-          resolve({ data: [sampleShift], error: null, count: 1 })
+          resolve({ data: [sampleClosure], error: null, count: 1 })
       };
       const mockTotals = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         gte: vi.fn().mockReturnThis(),
         lt: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
         then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
-          resolve({ data: [sampleShift], error: null })
+          resolve({ data: [sampleClosure], error: null })
       };
 
       vi.mocked(supabase.from)
@@ -217,9 +214,9 @@ describe('Admin Shifts Module', () => {
       await showChiusureTab(container, actions);
 
       expect(container.innerHTML).toContain('Test Station');
-      expect(container.innerHTML).toContain('Test User');
+      expect(container.innerHTML).toContain('Closure Operator');
       expect(container.innerHTML).toContain('STALE');
-      expect(container.innerHTML).toContain('100,00');
+      expect(container.innerHTML).toContain('Parziale');
     });
 
     it('should render daily total card with correct sums for current day closures', async () => {
@@ -227,54 +224,42 @@ describe('Admin Shifts Module', () => {
       const now = new Date();
       const todayISO = now.toISOString();
 
-      const sampleShift1 = {
-        id: 1,
+      const makeClosure = (id: number, fuel: number, extra: number, expected: number, real: number) => ({
+        id,
+        shift_id: id,
+        operator_id: 1,
+        closure_type: 'final' as const,
         created_at: todayISO,
         closed_at: todayISO,
-        status: 'closed',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Test Station' },
-        users: { full_name: 'Test User' },
         closing_data: {
           computed: {
-            totale_venduto_carburante: 150.5,
-            totale_venduto_extra: 50.25,
-            expected_cash: 200,
-            real_cash: 198.5
+            totale_venduto_carburante: fuel,
+            totale_venduto_extra: extra,
+            expected_cash: expected,
+            real_cash: real
           }
-        }
-      };
+        },
+        shifts: {
+          station_id: 'ST1',
+          status: 'closed',
+          opening_data: {},
+          fuel_stations: { station_name: 'Test Station' },
+          users: { full_name: 'Test User' }
+        },
+        closure_users: { full_name: 'Test User' }
+      });
 
-      const sampleShift2 = {
-        id: 2,
-        created_at: todayISO,
-        closed_at: todayISO,
-        status: 'closed',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Test Station' },
-        users: { full_name: 'Test User' },
-        closing_data: {
-          computed: {
-            totale_venduto_carburante: 100,
-            totale_venduto_extra: 20,
-            expected_cash: 120,
-            real_cash: 120
-          }
-        }
-      };
+      const closure1 = makeClosure(1, 150.5, 50.25, 200, 198.5);
+      const closure2 = makeClosure(2, 100, 20, 120, 120);
 
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const sampleShiftYesterday = {
+      const closureYesterday = {
         id: 3,
+        shift_id: 3,
+        operator_id: 1,
+        closure_type: 'final',
         created_at: yesterday.toISOString(),
         closed_at: yesterday.toISOString(),
-        status: 'closed',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Test Station' },
-        users: { full_name: 'Test User' },
         closing_data: {
           computed: {
             totale_venduto_carburante: 1000,
@@ -282,7 +267,15 @@ describe('Admin Shifts Module', () => {
             expected_cash: 1100,
             real_cash: 1100
           }
-        }
+        },
+        shifts: {
+          station_id: 'ST1',
+          status: 'closed',
+          opening_data: {},
+          fuel_stations: { station_name: 'Test Station' },
+          users: { full_name: 'Test User' }
+        },
+        closure_users: { full_name: 'Test User' }
       };
 
       const mockTable1 = {
@@ -294,7 +287,7 @@ describe('Admin Shifts Module', () => {
         range: vi.fn().mockReturnThis(),
         then: (resolve: (value: { data: unknown[]; error: null; count: number }) => unknown) =>
           resolve({
-            data: [sampleShift1, sampleShift2, sampleShiftYesterday],
+            data: [closure1, closure2, closureYesterday],
             error: null,
             count: 3
           })
@@ -304,10 +297,9 @@ describe('Admin Shifts Module', () => {
         eq: vi.fn().mockReturnThis(),
         gte: vi.fn().mockReturnThis(),
         lt: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
         then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
           resolve({
-            data: [sampleShift1, sampleShift2],
+            data: [closure1, closure2],
             error: null
           })
       };
@@ -333,41 +325,32 @@ describe('Admin Shifts Module', () => {
       const now = new Date();
       const todayISO = now.toISOString();
 
-      const closure1 = {
-        id: 101,
+      const makeClosure = (id: number, fuel: number) => ({
+        id,
+        shift_id: id,
+        operator_id: 1,
+        closure_type: 'final' as const,
         created_at: todayISO,
         closed_at: todayISO,
-        status: 'closed',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Stazione Nord' },
-        users: { full_name: 'Mario Rossi' },
         closing_data: {
           computed: {
-            totale_venduto_carburante: 100,
-            expected_cash: 100,
-            real_cash: 100
+            totale_venduto_carburante: fuel,
+            expected_cash: fuel,
+            real_cash: fuel
           }
-        }
-      };
+        },
+        shifts: {
+          station_id: 'ST1',
+          status: 'closed',
+          opening_data: {},
+          fuel_stations: { station_name: 'Stazione Nord' },
+          users: { full_name: 'Mario Rossi' }
+        },
+        closure_users: { full_name: 'Mario Rossi' }
+      });
 
-      const closure2 = {
-        id: 102,
-        created_at: todayISO,
-        closed_at: todayISO,
-        status: 'closed',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Stazione Nord' },
-        users: { full_name: 'Mario Rossi' },
-        closing_data: {
-          computed: {
-            totale_venduto_carburante: 200,
-            expected_cash: 200,
-            real_cash: 200
-          }
-        }
-      };
+      const closure1 = makeClosure(101, 100);
+      const closure2 = makeClosure(102, 200);
 
       const mockTable2 = {
         select: vi.fn().mockReturnThis(),
@@ -388,7 +371,6 @@ describe('Admin Shifts Module', () => {
         eq: vi.fn().mockReturnThis(),
         gte: vi.fn().mockReturnThis(),
         lt: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
         then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
           resolve({
             data: [closure1, closure2],
@@ -415,8 +397,8 @@ describe('Admin Shifts Module', () => {
   describe('showClosureDetails', () => {
     it('should fetch and show details (empty case)', async () => {
       const { openModal } = await import('../../js/ui/ui.js');
-      await showClosureDetails(123);
-      expect(openModal).toHaveBeenCalledWith('Dettagli Chiusura');
+      await showClosureDetails(123, 456);
+      expect(openModal).toHaveBeenCalledWith('Dettagli Chiusura Parziale');
     });
 
     it('should handle fetch error', async () => {
@@ -427,7 +409,7 @@ describe('Admin Shifts Module', () => {
         single: vi.fn().mockResolvedValue({ data: null, error: new Error('Not found') })
       } as unknown as ReturnType<typeof supabase.from>);
 
-      await showClosureDetails(999);
+      await showClosureDetails(999, 456);
       expect(document.body.innerHTML).toContain('Errore: Chiusura non trovata');
     });
 
@@ -435,11 +417,11 @@ describe('Admin Shifts Module', () => {
       const { supabase } = await import('../../js/core/api.js');
       const sample = {
         id: 123,
-        station_id: 'ST1',
-        status: 'closed',
-        created_at: '2024-01-01T10:00:00Z',
+        shift_id: 456,
+        operator_id: 1,
+        closure_type: 'final',
         closed_at: '2024-01-01T10:00:00Z',
-        opening_data: {},
+        created_at: '2024-01-01T10:00:00Z',
         closing_data: {
           snapshot: {
             computed: {
@@ -459,7 +441,13 @@ describe('Admin Shifts Module', () => {
               credit_payments: { cash: 0, pos: 0, uta_dkv_fine_mese: 0 }
             }
           }
-        }
+        },
+        shifts: {
+          station_id: 'ST1',
+          status: 'closed',
+          opening_data: {}
+        },
+        closure_users: { full_name: 'Test User' }
       };
       vi.mocked(supabase.from)
         .mockReturnValueOnce({
@@ -477,7 +465,7 @@ describe('Admin Shifts Module', () => {
           maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
         } as unknown as ReturnType<typeof supabase.from>);
 
-      await showClosureDetails(123);
+      await showClosureDetails(123, 456);
       expect(document.body.innerHTML).toContain('500,00');
     });
   });
@@ -611,28 +599,8 @@ describe('Admin Shifts Module', () => {
       expect(metrics.discrepancy).toBeCloseTo(6.4);
     });
 
-    it('3. La riga aperta mostra badge Apertura e Totale € = 545,00, non Aperto e non zero', async () => {
+    it('3. Turni aperti non producono più righe "Apertura" nella tabella chiusure', async () => {
       const { supabase } = await import('../../js/core/api.js');
-      const openShift = {
-        id: 34,
-        created_at: new Date().toISOString(),
-        closed_at: null,
-        status: 'open',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Test Station' },
-        users: { full_name: 'Test Operator' },
-        opening_data: {
-          cash_in: 300,
-          cash_out: 293.6,
-          pos_amount: 251.4,
-          uta_dkv_iscard: 0,
-          total_amount: 545,
-          cash_in_minus_out: 6.4
-        },
-        closing_data: {}
-      };
-
       const mockTable = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -641,15 +609,14 @@ describe('Admin Shifts Module', () => {
         order: vi.fn().mockReturnThis(),
         range: vi.fn().mockReturnThis(),
         then: (resolve: (v: unknown) => unknown) =>
-          resolve({ data: [openShift], error: null, count: 1 })
+          resolve({ data: [], error: null, count: 0 })
       };
       const mockTotals = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         gte: vi.fn().mockReturnThis(),
         lt: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        then: (resolve: (v: unknown) => unknown) => resolve({ data: [openShift], error: null })
+        then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null })
       };
 
       vi.mocked(supabase.from)
@@ -658,10 +625,8 @@ describe('Admin Shifts Module', () => {
 
       await showChiusureTab(container, actions);
 
-      const typeBadge = container.querySelector('tbody .badge');
-      expect(typeBadge?.textContent).toBe('Apertura');
-      expect(container.innerHTML).toContain('545,00');
-      expect(container.innerHTML).not.toContain('>Aperto<');
+      expect(container.innerHTML).toContain('Nessuna chiusura trovata');
+      expect(container.innerHTML).not.toContain('Apertura');
     });
 
     it('4. Parziale/finale continua a leggere correttamente snapshot.computed e i fallback legacy', () => {
@@ -741,23 +706,30 @@ describe('Admin Shifts Module', () => {
       expect(m2.discrepancy).toBe(0);
     });
 
-    it('6. Il Totale Giornaliero usa tutte le righe del periodo e non soltanto le righe della pagina corrente', async () => {
+    it('6. Il Totale Giornaliero usa tutte le righe chiusura del periodo e non soltanto le righe della pagina corrente', async () => {
       const { supabase } = await import('../../js/core/api.js');
       const now = new Date().toISOString();
 
-      const shiftPage1 = {
-        id: 1,
+      const makeClosure = (id: number, total: number) => ({
+        id,
+        shift_id: id,
+        operator_id: 1,
+        closure_type: 'final' as const,
         created_at: now,
-        status: 'open',
-        opening_data: { total_amount: 545, cash_in: 300, cash_out: 293.6 }
-      };
+        closed_at: now,
+        closing_data: { computed: { totale_venduto_carburante: total, totale_venduto_extra: 0, expected_cash: total, real_cash: total } },
+        shifts: {
+          station_id: 'ST1',
+          status: 'closed',
+          opening_data: {},
+          fuel_stations: { station_name: 'Test Station' },
+          users: { full_name: 'Test User' }
+        },
+        closure_users: { full_name: 'Test User' }
+      });
 
-      const shiftPage2 = {
-        id: 2,
-        created_at: now,
-        status: 'open',
-        opening_data: { total_amount: 100, cash_in: 100, cash_out: 100 }
-      };
+      const closurePage1 = makeClosure(1, 545);
+      const closurePage2 = makeClosure(2, 100);
 
       const mockTable = {
         select: vi.fn().mockReturnThis(),
@@ -767,7 +739,7 @@ describe('Admin Shifts Module', () => {
         order: vi.fn().mockReturnThis(),
         range: vi.fn().mockReturnThis(),
         then: (resolve: (v: unknown) => unknown) =>
-          resolve({ data: [shiftPage1], error: null, count: 2 })
+          resolve({ data: [closurePage1], error: null, count: 2 })
       };
 
       const mockTotals = {
@@ -775,9 +747,8 @@ describe('Admin Shifts Module', () => {
         eq: vi.fn().mockReturnThis(),
         gte: vi.fn().mockReturnThis(),
         lt: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
         then: (resolve: (v: unknown) => unknown) =>
-          resolve({ data: [shiftPage1, shiftPage2], error: null })
+          resolve({ data: [closurePage1, closurePage2], error: null })
       };
 
       vi.mocked(supabase.from)
@@ -824,9 +795,9 @@ describe('Admin Shifts Module', () => {
 
       await showChiusureTab(container, actions);
 
-      expect(eqFn).toHaveBeenCalledWith('station_id', 2);
-      expect(gteFn).toHaveBeenCalledWith('created_at', '2026-07-01');
-      expect(ltFn).toHaveBeenCalledWith('created_at', '2026-07-25');
+      expect(eqFn).toHaveBeenCalledWith('shifts.station_id', 2);
+      expect(gteFn).toHaveBeenCalledWith('closed_at', '2026-07-01');
+      expect(ltFn).toHaveBeenCalledWith('closed_at', '2026-07-25');
     });
   });
 
@@ -845,7 +816,7 @@ describe('Admin Shifts Module', () => {
       return valDiv?.textContent?.trim() || null;
     }
 
-    it('1. Senza filtri data, Totale Giornaliero include i turni attivi aperti nei giorni precedenti (Live ID 34 regression)', async () => {
+    it('1. Con la nuova tabella shift_closures, i totali si basano solo sulle righe di chiusura', async () => {
       const { supabase } = await import('../../js/core/api.js');
       const { store } = await import('../../js/shared/state.js');
 
@@ -855,22 +826,30 @@ describe('Admin Shifts Module', () => {
       });
       vi.mocked(store.getFilter).mockReturnValue('ST1');
 
-      const oldActiveShift = {
-        id: 34,
+      const finalClosure = {
+        id: 1,
+        shift_id: 1,
+        operator_id: 1,
+        closure_type: 'final',
         created_at: '2026-07-20T10:00:00Z',
-        closed_at: null,
-        status: 'open',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Stazione Test' },
-        users: { full_name: 'Operatore Test' },
-        opening_data: {
-          cash_in: 300,
-          cash_out: 293.6,
-          total_amount: 545,
-          cash_in_minus_out: 6.4
+        closed_at: '2026-07-20T10:00:00Z',
+        closing_data: {
+          computed: {
+            totale_venduto_carburante: 545,
+            totale_venduto_extra: 0,
+            expected_cash: 293.6,
+            real_cash: 300,
+            discrepancy: 6.4
+          }
         },
-        closing_data: {}
+        shifts: {
+          station_id: 'ST1',
+          status: 'closed',
+          opening_data: {},
+          fuel_stations: { station_name: 'Stazione Test' },
+          users: { full_name: 'Operatore Test' }
+        },
+        closure_users: { full_name: 'Operatore Test' }
       };
 
       const mockTable = {
@@ -879,15 +858,15 @@ describe('Admin Shifts Module', () => {
         order: vi.fn().mockReturnThis(),
         range: vi.fn().mockReturnThis(),
         then: (resolve: (v: unknown) => unknown) =>
-          resolve({ data: [oldActiveShift], error: null, count: 1 })
+          resolve({ data: [finalClosure], error: null, count: 1 })
       };
 
-      const orFn = vi.fn().mockReturnThis();
       const mockTotals = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        or: orFn,
-        then: (resolve: (v: unknown) => unknown) => resolve({ data: [oldActiveShift], error: null })
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
+        then: (resolve: (v: unknown) => unknown) => resolve({ data: [finalClosure], error: null })
       };
 
       vi.mocked(supabase.from)
@@ -896,7 +875,6 @@ describe('Admin Shifts Module', () => {
 
       await showChiusureTab(container, actions);
 
-      expect(orFn).toHaveBeenCalled();
       expect(getMetricValueByLabel(container, 'Venduto Carburante')).toBe('€ 545,00');
       expect(getMetricValueByLabel(container, 'Venduto Extra')).toBe('€ 0,00');
       expect(getMetricValueByLabel(container, 'Totale Venduto')).toBe('€ 545,00');
@@ -905,7 +883,7 @@ describe('Admin Shifts Module', () => {
       expect(getMetricValueByLabel(container, 'Discrepanza')).toBe('+€ 6,40');
     });
 
-    it('2. Senza filtri data, turno vecchio status = "partial" e closed_at = null viene incluso nei totali leggendo closing_data', async () => {
+    it('2. Senza filtri data, la query dei totali non usa piu or() per turni aperti', async () => {
       const { supabase } = await import('../../js/core/api.js');
       const { store } = await import('../../js/shared/state.js');
 
@@ -915,68 +893,7 @@ describe('Admin Shifts Module', () => {
       });
       vi.mocked(store.getFilter).mockReturnValue('ST1');
 
-      const oldPartialShift = {
-        id: 35,
-        created_at: '2026-07-15T08:00:00Z',
-        closed_at: null,
-        status: 'partial',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Stazione Test' },
-        users: { full_name: 'Operatore Test' },
-        opening_data: {},
-        closing_data: {
-          computed: {
-            totale_venduto_carburante: 400,
-            totale_venduto_extra: 50,
-            expected_cash: 250,
-            real_cash: 250,
-            discrepancy: 0
-          }
-        }
-      };
-
-      const mockTable = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        range: vi.fn().mockReturnThis(),
-        then: (resolve: (v: unknown) => unknown) =>
-          resolve({ data: [oldPartialShift], error: null, count: 1 })
-      };
-
-      const mockTotals = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        then: (resolve: (v: unknown) => unknown) =>
-          resolve({ data: [oldPartialShift], error: null })
-      };
-
-      vi.mocked(supabase.from)
-        .mockReturnValueOnce(mockTable as unknown as ReturnType<typeof supabase.from>)
-        .mockReturnValueOnce(mockTotals as unknown as ReturnType<typeof supabase.from>);
-
-      await showChiusureTab(container, actions);
-
-      expect(getMetricValueByLabel(container, 'Venduto Carburante')).toBe('€ 400,00');
-      expect(getMetricValueByLabel(container, 'Venduto Extra')).toBe('€ 50,00');
-      expect(getMetricValueByLabel(container, 'Totale Venduto')).toBe('€ 450,00');
-      expect(getMetricValueByLabel(container, 'Contante Atteso')).toBe('€ 250,00');
-      expect(getMetricValueByLabel(container, 'Contante Reale')).toBe('€ 250,00');
-      expect(getMetricValueByLabel(container, 'Discrepanza')).toBe('€ 0,00');
-    });
-
-    it('3. Senza filtri data, la query dei totali usa or() con la condizione esatta di turno attivo (open,partial) o data odierna', async () => {
-      const { supabase } = await import('../../js/core/api.js');
-      const { store } = await import('../../js/shared/state.js');
-
-      vi.mocked(store.getFilters).mockReturnValue({
-        dateFrom: '',
-        dateTo: ''
-      });
-      vi.mocked(store.getFilter).mockReturnValue('ST1');
-
+      const orFn = vi.fn().mockReturnThis();
       const mockTable = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -984,8 +901,6 @@ describe('Admin Shifts Module', () => {
         range: vi.fn().mockReturnThis(),
         then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null, count: 0 })
       };
-
-      const orFn = vi.fn().mockReturnThis();
       const mockTotals = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
@@ -999,14 +914,10 @@ describe('Admin Shifts Module', () => {
 
       await showChiusureTab(container, actions);
 
-      expect(orFn).toHaveBeenCalledWith(
-        expect.stringMatching(
-          /and\(created_at\.gte\..*,created_at\.lt\..*\),and\(closed_at\.is\.null,status\.in\.\(open,partial\)\)/
-        )
-      );
+      expect(orFn).not.toHaveBeenCalled();
     });
 
-    it('4. Applicazione separata di eq("station_id") alla query dei totali non paginata', async () => {
+    it('3. Applicazione separata di eq("shifts.station_id") alla query non paginata dei totali', async () => {
       const { supabase } = await import('../../js/core/api.js');
       const { store } = await import('../../js/shared/state.js');
 
@@ -1030,7 +941,8 @@ describe('Admin Shifts Module', () => {
       const mockTotals = {
         select: vi.fn().mockReturnThis(),
         eq: totalsEqFn,
-        or: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
         then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null })
       };
 
@@ -1040,107 +952,8 @@ describe('Admin Shifts Module', () => {
 
       await showChiusureTab(container, actions);
 
-      expect(tableEqFn).toHaveBeenCalledWith('station_id', 2);
-      expect(totalsEqFn).toHaveBeenCalledWith('station_id', 2);
-    });
-
-    it('5. Con filtri data espliciti (dateFrom / dateTo), non usa or() e non include turni attivi fuori intervallo', async () => {
-      const { supabase } = await import('../../js/core/api.js');
-      const { store } = await import('../../js/shared/state.js');
-
-      vi.mocked(store.getFilters).mockReturnValue({
-        dateFrom: '2026-07-01',
-        dateTo: '2026-07-10'
-      });
-      vi.mocked(store.getFilter).mockReturnValue('ST1');
-
-      const gteFn = vi.fn().mockReturnThis();
-      const ltFn = vi.fn().mockReturnThis();
-      const orFn = vi.fn().mockReturnThis();
-
-      const mockTable = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        gte: gteFn,
-        lt: ltFn,
-        order: vi.fn().mockReturnThis(),
-        range: vi.fn().mockReturnThis(),
-        then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null, count: 0 })
-      };
-
-      const mockTotals = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        gte: gteFn,
-        lt: ltFn,
-        or: orFn,
-        then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null })
-      };
-
-      vi.mocked(supabase.from)
-        .mockReturnValueOnce(mockTable as unknown as ReturnType<typeof supabase.from>)
-        .mockReturnValueOnce(mockTotals as unknown as ReturnType<typeof supabase.from>);
-
-      await showChiusureTab(container, actions);
-
-      expect(orFn).not.toHaveBeenCalled();
-      expect(gteFn).toHaveBeenCalledWith('created_at', '2026-07-01');
-      expect(ltFn).toHaveBeenCalledWith('created_at', '2026-07-11');
-    });
-
-    it('6. Non effettua doppi conteggi se un turno soddisfa entrambe le condizioni nella query unica', async () => {
-      const { supabase } = await import('../../js/core/api.js');
-      const { store } = await import('../../js/shared/state.js');
-
-      vi.mocked(store.getFilters).mockReturnValue({
-        dateFrom: '',
-        dateTo: ''
-      });
-      vi.mocked(store.getFilter).mockReturnValue('ST1');
-
-      const todayActiveShift = {
-        id: 42,
-        created_at: new Date().toISOString(),
-        closed_at: null,
-        status: 'open',
-        station_id: 'ST1',
-        operator_id: 'OP1',
-        fuel_stations: { station_name: 'Stazione Test' },
-        users: { full_name: 'Operatore Test' },
-        opening_data: {
-          cash_in: 100,
-          cash_out: 90,
-          total_amount: 200,
-          cash_in_minus_out: 10
-        },
-        closing_data: {}
-      };
-
-      const mockTable = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        range: vi.fn().mockReturnThis(),
-        then: (resolve: (v: unknown) => unknown) =>
-          resolve({ data: [todayActiveShift], error: null, count: 1 })
-      };
-
-      const mockTotals = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        then: (resolve: (v: unknown) => unknown) =>
-          resolve({ data: [todayActiveShift], error: null })
-      };
-
-      vi.mocked(supabase.from)
-        .mockReturnValueOnce(mockTable as unknown as ReturnType<typeof supabase.from>)
-        .mockReturnValueOnce(mockTotals as unknown as ReturnType<typeof supabase.from>);
-
-      await showChiusureTab(container, actions);
-
-      expect(getMetricValueByLabel(container, 'Totale Venduto')).toBe('€ 200,00');
-      expect(getMetricValueByLabel(container, 'Contante Reale')).toBe('€ 100,00');
+      expect(tableEqFn).toHaveBeenCalledWith('shifts.station_id', 2);
+      expect(totalsEqFn).toHaveBeenCalledWith('shifts.station_id', 2);
     });
   });
 });

@@ -1106,6 +1106,47 @@ export type Database = {
         };
         Relationships: [];
       };
+      shift_closures: {
+        Row: {
+          closed_at: string
+          closing_data: Json
+          closure_type: string
+          created_at: string
+          id: number
+          operator_id: number
+          shift_id: number
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string
+          closing_data?: Json
+          closure_type: string
+          created_at?: string
+          id?: number
+          operator_id: number
+          shift_id: number
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string
+          closing_data?: Json
+          closure_type?: string
+          created_at?: string
+          id?: number
+          operator_id?: number
+          shift_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_closures_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      };
       shift_pistols: {
         Row: {
           closed_at_counter: number | null;
