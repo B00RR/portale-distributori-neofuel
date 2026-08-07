@@ -6,6 +6,8 @@
  * - Production mode strips detailed logs
  */
 
+import { trackError } from './analytics.js';
+
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 interface LoggerConfig {
@@ -132,6 +134,9 @@ export const logger = {
     const errorId = generateErrorId();
     const safeMessage = formatArgs(args);
     log('error', context, safeMessage, errorId);
+    // Conserva l'errore in telemetria (Plausible) anche in produzione,
+    // dove i console.error vengono strippati da drop_console.
+    trackError('error', context, safeMessage);
     return errorId;
   },
 

@@ -3,6 +3,23 @@ import { logger } from '../../js/core/logger.js';
 
 import { useRealLogger } from '../use-real-logger.js';
 
+// Mock analytics.trackError con hoisting così intercetta il named import di logger.ts.
+// Nota: factory sincrona (niente importOriginal) per evitare problemi col modulo
+// analytics già caricato dal setup globale.
+const { trackErrorMock } = vi.hoisted(() => ({ trackErrorMock: vi.fn() }));
+vi.mock('../../js/core/analytics.js', () => ({
+  initAnalytics: vi.fn(),
+  trackEvent: vi.fn(),
+  trackPageView: vi.fn(),
+  trackLogin: vi.fn(),
+  trackShiftOpen: vi.fn(),
+  trackShiftClose: vi.fn(),
+  trackVoucherRedeem: vi.fn(),
+  trackExport: vi.fn(),
+  trackSearch: vi.fn(),
+  trackError: trackErrorMock
+}));
+
 useRealLogger();
 
 describe('Logger Module', () => {
@@ -70,6 +87,24 @@ describe('Logger Module', () => {
 
             const loggedMessage = consoleErrorSpy.mock.calls[0][0];
             expect(loggedMessage).toContain(errorId);
+        });
+
+        it('should forward the sanitized error to telemetry (trackError)', async () => {
+            // Il setup globale carica logger+analytics prima del test (cache reale).
+            // resetModules + import dinamico forza il ricaricamento di logger con
+            // il mock di analytics applicato, così la chiamata a trackError è spyable.
+            trackErrorMock.mockClear();
+            vi.resetModules();
+            const { logger: reloadedLogger } = await import('../../js/core/logger.js');
+
+            reloadedLogger.error('TelemetryContext', new Error('password: secret123'));
+
+            expect(trackErrorMock).toHaveBeenCalledTimes(1);
+            const [type, context, message] = trackErrorMock.mock.calls[0];
+            expect(type).toBe('error');
+            expect(context).toBe('TelemetryContext');
+            // Il messaggio inoltrato deve essere sanitizzato (niente password)
+            expect(message).not.toContain('secret123');
         });
     });
 
