@@ -185,12 +185,19 @@ describe('Shifts Module', () => {
       const staleDate = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
       const staleShift = {
         id: 101,
-        station_id: 1,
-        operator_id: 'op1',
+        shift_id: 101,
+        operator_id: 1,
+        closure_type: 'partial',
         status: 'open',
         created_at: staleDate,
         closed_at: null,
-        closing_data: { is_final: false }
+        closing_data: { is_final: false },
+        shifts: {
+          station_id: 1,
+          status: 'open',
+          opening_data: {}
+        },
+        closure_users: { full_name: 'Operatore Test' }
       };
 
       const mockChain = {

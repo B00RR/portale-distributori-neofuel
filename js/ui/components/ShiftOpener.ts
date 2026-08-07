@@ -356,13 +356,6 @@ export class ShiftOpener extends BaseComponent {
       }
 
       const openingData = {
-        cash_in: Number(formData.get('cash_in')) || 0,
-        cash_out: Number(formData.get('cash_out')) || 0,
-        pos_amount: Number(formData.get('pos_amount')) || 0,
-        total_amount: Number(formData.get('total_amount')) || 0,
-        uta_dkv_iscard: Number(formData.get('uta_dkv_iscard')) || 0,
-        cash_in_minus_out:
-          (Number(formData.get('cash_in')) || 0) - (Number(formData.get('cash_out')) || 0),
         notes: String(formData.get('notes') ?? '')
       };
 
@@ -458,36 +451,6 @@ export class ShiftOpener extends BaseComponent {
       <div class="opener-container">
         <form id="apertura-form" @submit=${this.handleFormSubmit}>
           <div class="form-grid">
-            <div class="section-title">Contanti & POS</div>
-            <div class="input-group">
-              <label>Banconote incassate (€)</label>
-              <input type="number" name="cash_in" step="0.01" min="0" placeholder="0.00" />
-            </div>
-            <div class="input-group">
-              <label>Banconote erogate (€)</label>
-              <input type="number" name="cash_out" step="0.01" min="0" placeholder="0.00" />
-            </div>
-            <div class="input-group">
-              <label>Bancomat erogati (€)</label>
-              <input type="number" name="pos_amount" step="0.01" min="0" placeholder="0.00" />
-            </div>
-            <div class="input-group">
-              <label>Uta/Dkv/Iscard (€)</label>
-              <input type="number" name="uta_dkv_iscard" step="0.01" min="0" placeholder="0.00" />
-            </div>
-
-            <div class="input-group" style="grid-column: 1 / -1;">
-              <label>Totale scontrino (€)</label>
-              <input
-                type="number"
-                name="total_amount"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                class="big-input"
-              />
-            </div>
-
             ${this.islands.map(
               island => html`
                 <div
