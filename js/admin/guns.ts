@@ -598,7 +598,9 @@ async function showCounterEditModal(
         if (shiftIdsError) {
           throw shiftIdsError;
         }
-        const qualifyingShiftIds = (openShiftIds ?? []).map((row: { id: unknown }) => Number(row.id));
+        const qualifyingShiftIds = (openShiftIds ?? []).map((row: { id: unknown }) =>
+          Number(row.id)
+        );
         if (qualifyingShiftIds.length > 0) {
           const { error: shiftError } = await safeSupabaseQuery(async () =>
             supabase
