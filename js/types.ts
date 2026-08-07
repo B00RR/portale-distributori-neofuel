@@ -28,12 +28,13 @@ export interface User {
 }
 
 export interface ShiftOpeningData {
-  cash_in: number;
-  cash_out: number;
-  pos_amount: number;
-  total_amount: number;
-  uta_dkv_iscard: number;
+  cash_in?: number;
+  cash_out?: number;
+  pos_amount?: number;
+  total_amount?: number;
+  uta_dkv_iscard?: number;
   cash_in_minus_out?: number;
+  notes?: string;
 }
 
 export interface CustomerRefund {
@@ -55,6 +56,28 @@ export interface ShiftClosingData {
   pos_declared: number;
   discrepancy?: number;
   // ... add more if needed later ...
+}
+
+export interface ShiftClosure {
+  id: number;
+  shift_id: number;
+  operator_id: number;
+  closure_type: 'partial' | 'final';
+  closed_at: string;
+  closing_data: Json | null;
+  created_at: string;
+  updated_at: string;
+  shifts?: {
+    station_id: number;
+    status: string;
+    opening_data: Json | null;
+  } | null;
+  users?: {
+    full_name: string | null;
+  } | null;
+  fuel_stations?: {
+    station_name: string;
+  } | null;
 }
 
 export interface Shift {

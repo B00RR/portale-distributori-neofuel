@@ -161,9 +161,7 @@ test.describe('Integrazione Chiusura Turno (Operatore)', () => {
     // 3. Verifica che il form di apertura sia visibile
     await expect(page.locator('#apertura-form')).toBeVisible({ timeout: 15000 });
 
-    // Compila i campi obbligatori per l'apertura
-    await page.fill('input[name="cash_in"]', '100');
-    await page.fill('input[name="total_amount"]', '100');
+    // Compila i campi operazionali rimasti per l'apertura (Fase 1 ha rimosso i campi cassa)
     await page.fill('input[name="p_1"]', '1050');
     await page.fill('input[name="tank_1"]', '500');
 
