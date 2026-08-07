@@ -575,13 +575,43 @@ async function showCounterEditModal(
       }
 
       try {
-        // 1. Update basic record
+        // 1. Update master gun counter
         const { error: basicError } = await safeSupabaseQuery(
           async () =>
             await supabase.from('pistole').update({ numero_litri: numeroLitri }).eq('id', gunId)
         );
         if (basicError) {
           throw basicError;
+        }
+
+        // 2. Propagate the new counter to any open or partial shifts on this station.
+        //    Closed shifts remain immutable; the operator is warned above about future closures.
+        //    PostgREST does not support update filters across related tables, so we fetch the
+        //    qualifying shift ids first and then update shift_pistols by shift_id.
+        const { data: openShiftIds, error: shiftIdsError } = await safeSupabaseQuery(async () =>
+          supabase
+            .from('shifts')
+            .select('id')
+            .eq('station_id', stationId)
+            .in('status', ['open', 'partial'])
+        );
+        if (shiftIdsError) {
+          throw shiftIdsError;
+        }
+        const qualifyingShiftIds = (openShiftIds ?? []).map((row: { id: unknown }) =>
+          Number(row.id)
+        );
+        if (qualifyingShiftIds.length > 0) {
+          const { error: shiftError } = await safeSupabaseQuery(async () =>
+            supabase
+              .from('shift_pistols')
+              .update({ opened_at_counter: numeroLitri })
+              .eq('pistola_id', gunId)
+              .in('shift_id', qualifyingShiftIds)
+          );
+          if (shiftError) {
+            throw shiftError;
+          }
         }
 
         showInfoModal(`Numeratore aggiornato a ${formatGunCounter(numeroLitri)} L`);

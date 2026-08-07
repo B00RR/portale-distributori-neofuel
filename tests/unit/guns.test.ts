@@ -35,6 +35,12 @@ describe('Guns Module', () => {
     // Default order response
     pistoleBuilder.order.mockResolvedValue({ data: [], error: null });
 
+    const shiftsBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({ data: [], error: null })
+    };
+
     countersBuilder = {
       select: vi.fn().mockReturnThis(),
       in: vi.fn().mockReturnThis(),
@@ -42,7 +48,11 @@ describe('Guns Module', () => {
       order: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      update: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockResolvedValue({ error: null })
+      })
     };
 
     vi.doMock('../../js/core/api.js', () => ({
@@ -50,6 +60,7 @@ describe('Guns Module', () => {
         from: vi.fn(table => {
           if (table === 'pistole') return pistoleBuilder;
           if (table === 'shift_pistols') return countersBuilder;
+          if (table === 'shifts') return shiftsBuilder;
           return pistoleBuilder;
         })
       },
