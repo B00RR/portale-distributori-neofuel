@@ -1,4 +1,4 @@
-import { supabase, safeSupabaseQuery, Cache, CACHE_KEYS } from '../core/api.js';
+import { supabase, safeSupabaseQuery } from '../core/api.js';
 import { logger } from '../core/logger.js';
 import { handleError } from '../shared/error-handler.js';
 import { Validators, validateForm, formatErrorMessages } from '../shared/validators.js';
@@ -32,12 +32,22 @@ interface CreditsContext {
   container: HTMLElement | null;
   actions: HTMLElement | null;
   stationId: number | null;
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }
 
 // --- STATE ---
 
 // Context to allow refreshing the view
-let creditsContext: CreditsContext = { container: null, actions: null, stationId: null };
+let creditsContext: CreditsContext = {
+  container: null,
+  actions: null,
+  stationId: null,
+  page: 0,
+  pageSize: 50,
+  totalCount: 0
+};
 
 // --- MAIN FUNCTION ---
 
@@ -46,7 +56,7 @@ export async function showCreditiOverview(
   actionsContainer: HTMLElement | null,
   stationId: number | null = null
 ): Promise<void> {
-  creditsContext = { container, actions: actionsContainer, stationId };
+  creditsContext = { ...creditsContext, container, actions: actionsContainer, stationId };
   showLoadingMessage(container);
 
   if (actionsContainer) {
@@ -60,42 +70,39 @@ export async function showCreditiOverview(
   }
 
   try {
-    // Determine cache key based on stationId
-    const cacheKey = stationId
-      ? `${CACHE_KEYS.CUSTOMERS}_station_${stationId}`
-      : CACHE_KEYS.CUSTOMERS;
+    // Paginated, server-side query with minimal columns. Each fetch pulls only
+    // the page rows needed for the list, plus an exact count for the footer.
+    const { page, pageSize } = creditsContext;
 
-    const rawCustomers = await Cache.getOrFetch(
-      cacheKey,
-      async () => {
-        let query = supabase.from('crediti_clienti').select(`
-                  *,
-                  fuel_stations(station_name)
-              `);
+    let query = supabase
+      .from('crediti_clienti')
+      .select(`id, cliente, saldo, station_id, updated_at, fuel_stations(station_name)`, {
+        count: 'exact'
+      });
 
-        if (stationId) {
-          query = query.eq('station_id', stationId);
-        }
+    if (stationId) {
+      query = query.eq('station_id', stationId);
+    }
 
-        query = query.order('cliente');
+    query = query.order('cliente').range(page * pageSize, page * pageSize + pageSize - 1);
 
-        const { data, error } = await query;
+    const { data, error, count } = await query;
 
-        if (error) {
-          throw error;
-        }
-        return data;
-      },
-      10 * 60 * 1000
-    ); // Cache for 10 minutes
+    if (error) {
+      throw error;
+    }
 
-    const customers = rawCustomers as CreditCustomer[];
+    const customers = (data as CreditCustomer[] | null) || [];
+    if (count !== null && count !== undefined) {
+      creditsContext.totalCount = count;
+    }
 
-    if (!customers || customers.length === 0) {
+    if (customers.length === 0) {
       const p = document.createElement('p');
       p.textContent = 'Nessun cliente trovato.';
       container.replaceChildren();
       container.appendChild(p);
+      renderCreditsPagination(container);
       return;
     }
 
@@ -163,6 +170,8 @@ export async function showCreditiOverview(
     tableResponsive.appendChild(table);
     container.appendChild(tableResponsive);
 
+    renderCreditsPagination(container);
+
     // Bind events
     container.querySelectorAll('.edit-customer').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -186,6 +195,57 @@ export async function showCreditiOverview(
 }
 
 // --- HELPER FUNCTIONS ---
+
+function renderCreditsPagination(container: HTMLElement): void {
+  const { page, pageSize, totalCount } = creditsContext;
+  if (totalCount <= pageSize && page === 0) {
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const start = totalCount > 0 ? page * pageSize + 1 : 0;
+  const end = Math.min((page + 1) * pageSize, totalCount);
+
+  const bar = document.createElement('div');
+  bar.className = 'pagination-bar';
+
+  const info = document.createElement('span');
+  info.className = 'pagination-info';
+  info.textContent = totalCount > 0 ? `${start}-${end} di ${totalCount}` : 'Nessun risultato';
+  bar.appendChild(info);
+
+  const controls = document.createElement('div');
+  controls.className = 'pagination-controls';
+
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'menu-button secondary small btn-prev';
+  prevBtn.textContent = '‹';
+  prevBtn.disabled = page <= 0;
+  controls.appendChild(prevBtn);
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'menu-button secondary small btn-next';
+  nextBtn.textContent = '›';
+  nextBtn.disabled = page + 1 >= totalPages;
+  controls.appendChild(nextBtn);
+
+  bar.appendChild(controls);
+  container.appendChild(bar);
+
+  prevBtn.addEventListener('click', () => {
+    if (creditsContext.page > 0) {
+      creditsContext.page -= 1;
+      showCreditiOverview(container, creditsContext.actions, creditsContext.stationId);
+    }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    if (creditsContext.page + 1 < Math.ceil(creditsContext.totalCount / creditsContext.pageSize)) {
+      creditsContext.page += 1;
+      showCreditiOverview(container, creditsContext.actions, creditsContext.stationId);
+    }
+  });
+}
 
 async function openCustomerModal(customerId: number | null = null): Promise<void> {
   const isEdit = !!customerId;
@@ -299,10 +359,6 @@ async function openCustomerModal(customerId: number | null = null): Promise<void
         }
         closeModal();
 
-        // Invalidate cache
-        Cache.invalidate(CACHE_KEYS.CUSTOMERS);
-        Cache.invalidateByPrefix(`${CACHE_KEYS.CUSTOMERS}_station_`);
-
         Toast.show(isEdit ? 'Cliente aggiornato' : 'Cliente creato', 'success');
         refreshCreditsTab();
       } catch (err) {
@@ -320,10 +376,6 @@ async function deleteCustomer(customerId: number): Promise<void> {
   }
   try {
     await safeSupabaseQuery(() => supabase.from('crediti_clienti').delete().eq('id', customerId));
-
-    // Invalidate cache
-    Cache.invalidate(CACHE_KEYS.CUSTOMERS);
-    Cache.invalidateByPrefix(`${CACHE_KEYS.CUSTOMERS}_station_`);
 
     Toast.show('Cliente eliminato', 'success');
     refreshCreditsTab();

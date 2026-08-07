@@ -13,12 +13,14 @@ interface InvoiceRow {
 interface QueryResult {
   data: InvoiceRow[];
   error: null;
+  count: number;
 }
 
 type QueryBuilder = {
   select: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
   order: ReturnType<typeof vi.fn>;
+  range: ReturnType<typeof vi.fn>;
   in: ReturnType<typeof vi.fn>;
   then: (resolve: (value: QueryResult) => unknown) => unknown;
 };
@@ -43,8 +45,10 @@ const { mockSupabase, mockUI, mockUtils, mockToast, mockErrorHandler, queryBuild
       select: chain,
       eq: chain,
       order: chain,
+      range: chain,
       in: chain,
-      then: (resolve: (value: QueryResult) => unknown) => resolve({ data: rows, error: null })
+      then: (resolve: (value: QueryResult) => unknown) =>
+        resolve({ data: rows, error: null, count: rows.length })
     });
 
     return {

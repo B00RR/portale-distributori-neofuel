@@ -11,7 +11,8 @@ const { mockSupabase, mockHandleError, mockUI, mockUtils, mockSafeSupabaseQuery 
       from: vi.fn(() => ({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        order: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({ data: [], error: null, count: 0 }),
         insert: mockInsert,
         update: vi.fn().mockResolvedValue({ data: null, error: null }),
         delete: vi.fn().mockResolvedValue({ data: null, error: null })

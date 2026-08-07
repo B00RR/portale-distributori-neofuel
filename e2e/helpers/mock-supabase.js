@@ -197,6 +197,38 @@ export async function mockAdminVouchers(page, { batches = [], vouchers = [] } = 
 
   await page.route(/\/rest\/v1\/voucher_batches/, route => json(route, 200, batches));
   await page.route(/\/rest\/v1\/vouchers(\?|$|\/)/, route => json(route, 200, vouchers));
+
+  // Dashboard voucher: la vista lotti usa l'RPC server-side get_voucher_batch_stats.
+  // Replica le statistiche per lotto e globali a partire dai dati seminati.
+  const batchStats = batches.map(b => {
+    const vs = vouchers.filter(v => v.batch_id === b.id);
+    const redeemed = vs.filter(v => v.status === 'redeemed');
+    const active = vs.filter(v => v.status === 'active');
+    const voided = vs.filter(v => v.status === 'void');
+    return {
+      batch_id: b.id,
+      total_count: vs.length,
+      redeemed_count: redeemed.length,
+      active_count: active.length,
+      void_count: voided.length,
+      total_amount: vs.reduce((s, v) => s + (v.amount || 0), 0),
+      redeemed_amount: redeemed.reduce((s, v) => s + (v.amount || 0), 0)
+    };
+  });
+  const redeemedAll = vouchers.filter(v => v.status === 'redeemed');
+  const activeAll = vouchers.filter(v => v.status === 'active');
+  await page.route(/\/rest\/v1\/rpc\/get_voucher_batch_stats/, route =>
+    json(route, 200, {
+      batches: batchStats,
+      global: {
+        total_gen: vouchers.length,
+        total_redeemed: redeemedAll.length,
+        total_active: activeAll.length,
+        redeemed_value: redeemedAll.reduce((s, v) => s + (v.amount || 0), 0),
+        circulating_value: activeAll.reduce((s, v) => s + (v.amount || 0), 0)
+      }
+    })
+  );
 }
 
 /**
