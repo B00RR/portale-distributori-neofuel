@@ -116,16 +116,15 @@ export async function showDashboard(
           return q.order('name');
         })(),
 
-        // 5. Today's Closures (for Sales & Liters)
+        // 5. Today's Closures (for Sales & Liters) - read from shift_closures history
         (async () => {
           let q = supabase
-            .from('shifts')
-            .select('closing_data')
+            .from('shift_closures')
+            .select('closing_data, shifts!inner(station_id)')
             .gte('closed_at', todayRange.startIso)
-            .lt('closed_at', todayRange.endExclusiveIso)
-            .eq('status', 'closed');
+            .lt('closed_at', todayRange.endExclusiveIso);
           if (numericStationId) {
-            q = q.eq('station_id', numericStationId);
+            q = q.eq('shifts.station_id', numericStationId);
           }
           return q;
         })(),
@@ -469,13 +468,13 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
   startDate.setHours(0, 0, 0, 0);
 
   let closuresQuery = supabase
-    .from('shifts')
-    .select('id, station_id, closed_at, closing_data, fuel_stations(station_name)')
+    .from('shift_closures')
+    .select('id, closed_at, closing_data, shifts!inner(station_id, fuel_stations(station_name))')
     .gte('closed_at', startDate.toISOString())
-    .eq('status', 'closed');
+    .lt('closed_at', new Date().toISOString());
 
   if (numericStationId) {
-    closuresQuery = closuresQuery.eq('station_id', numericStationId);
+    closuresQuery = closuresQuery.eq('shifts.station_id', numericStationId);
   }
 
   closuresQuery = closuresQuery.order('closed_at', { ascending: true });
@@ -503,7 +502,7 @@ async function renderSalesChart(stationId: string | number | null): Promise<void
       const day = new Date(closure.closed_at).toISOString().substring(0, 10);
       allDates.add(day);
 
-      const sId = Number(closure.station_id);
+      const sId = Number(closure.shifts?.station_id);
       const ricavo = Number(
         (closure.closing_data as Record<string, unknown> | null)?.ricavo_teorico || 0
       );

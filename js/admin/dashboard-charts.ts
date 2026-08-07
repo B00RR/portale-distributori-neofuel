@@ -29,14 +29,13 @@ export async function fetchAnalyticsData(
 
   try {
     let query = supabase
-      .from('shifts')
-      .select('closed_at, closing_data, station_id')
-      .eq('status', 'closed')
+      .from('shift_closures')
+      .select('closed_at, closing_data, shifts!inner(station_id)')
       .gte('closed_at', calendarRange.startIso)
       .lt('closed_at', calendarRange.endExclusiveIso);
 
     if (stationId) {
-      query = query.eq('station_id', Number(stationId));
+      query = query.eq('shifts.station_id', Number(stationId));
     }
 
     const { data: shifts, error } = await query;
