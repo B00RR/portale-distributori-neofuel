@@ -1026,7 +1026,9 @@ export async function handleBulkExport(opts: BulkExportOptions): Promise<void> {
     throw new Error('Nessuna chiusura trovata con i criteri selezionati.');
   }
 
-  const shiftIds = closures.map(closure => Number((closure as unknown as { shift_id: number }).shift_id));
+  const shiftIds = closures.map(closure =>
+    Number((closure as unknown as { shift_id: number }).shift_id)
+  );
   if (shiftIds.some(shiftId => !Number.isInteger(shiftId) || shiftId <= 0)) {
     throw new Error("L'export contiene uno o più ID turno non validi");
   }

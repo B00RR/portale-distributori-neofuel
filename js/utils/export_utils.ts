@@ -481,13 +481,9 @@ export async function fetchClosureExportData(
 
   const raw = closure as unknown as Record<string, unknown>;
   const shiftId = Number(raw.shift_id);
-  const stationId = Number(
-    (raw.shifts as Record<string, unknown> | null)?.station_id ?? 0
-  );
+  const stationId = Number((raw.shifts as Record<string, unknown> | null)?.station_id ?? 0);
   const stationName = (
-    (raw.shifts as Record<string, unknown> | null)?.fuel_stations as
-      | Record<string, unknown>
-      | null
+    (raw.shifts as Record<string, unknown> | null)?.fuel_stations as Record<string, unknown> | null
   )?.station_name as string | null;
 
   const shiftPistols = await fetchShiftPistolsForExport(supabase, shiftId);
